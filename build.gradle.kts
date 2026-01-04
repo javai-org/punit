@@ -15,6 +15,12 @@ java {
     withJavadocJar()
 }
 
+// Compile with -parameters flag to preserve method parameter names at runtime
+// This is required for use case argument injection
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("-parameters")
+}
+
 // Define the experiment source set
 sourceSets {
     val experiment by creating {
@@ -57,6 +63,11 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-testkit")
     testImplementation("org.assertj:assertj-core:3.24.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    
+    // Experiment dependencies - experiments use JUnit's TestTemplate mechanism
+    experimentImplementation("org.junit.jupiter:junit-jupiter")
+    experimentImplementation("org.assertj:assertj-core:3.24.2")
+    experimentRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // Ensure build order: main -> experiment -> test
@@ -85,6 +96,50 @@ tasks.test {
     // Exclude test subject classes from direct discovery
     // They are executed via TestKit in integration tests
     exclude("**/testsubjects/**")
+}
+
+// Create experimentTests task for running experiments
+// This is a standard JUnit Test task configured for the experiment source set.
+// Experiments use JUnit's @TestTemplate mechanism under the hood.
+//
+// Usage:
+//   ./gradlew experimentTests --tests "ShoppingExperiment"
+//   ./gradlew experimentTests --tests "ShoppingExperiment.measureBasicSearchReliability"
+//
+val experimentTests by tasks.registering(Test::class) {
+    description = "Runs experiment tests from src/experiment/java to generate empirical baselines"
+    group = "verification"
+    
+    // Use the experiment source set
+    testClassesDirs = sourceSets["experiment"].output.classesDirs
+    classpath = sourceSets["experiment"].runtimeClasspath
+    
+    useJUnitPlatform()
+    
+    testLogging {
+        events("passed", "skipped", "failed", "standardOut", "standardError")
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStandardStreams = true
+    }
+    
+    // Configure reports output directory
+    reports {
+        html.outputLocation.set(layout.buildDirectory.dir("reports/experimentTests"))
+        junitXml.outputLocation.set(layout.buildDirectory.dir("experiment-results"))
+    }
+    
+    // System properties for experiment configuration
+    systemProperty("punit.mode", "experiment")
+    systemProperty("punit.baseline.outputDir", layout.projectDirectory.dir("src/test/resources/punit/baselines").asFile.absolutePath)
+    
+    // Experiments never fail the build (they're exploratory, not conformance tests)
+    ignoreFailures = true
+    
+    // Ensure experiment classes are compiled first
+    dependsOn("compileExperimentJava", "processExperimentResources")
 }
 
 tasks.javadoc {

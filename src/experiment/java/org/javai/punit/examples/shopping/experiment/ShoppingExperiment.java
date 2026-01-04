@@ -1,8 +1,10 @@
 package org.javai.punit.examples.shopping.experiment;
 
+import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
+import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
 import org.javai.punit.experiment.api.Experiment;
 import org.javai.punit.experiment.api.ExperimentContext;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeEach;
 
 /**
  * Experiments for the LLM-powered shopping assistant.
@@ -18,9 +20,15 @@ import org.junit.jupiter.api.Disabled;
  * </ul>
  *
  * <h2>Usage</h2>
- * <p>Run experiments manually to generate baselines:
+ * <p>Experiments use JUnit's {@code @TestTemplate} mechanism under the hood.
+ * Run them using the {@code experimentTests} Gradle task:
  * <pre>{@code
- * ./gradlew test --tests "ShoppingExperiment" -Pexperiment=true
+ * ./gradlew experimentTests --tests "ShoppingExperiment"
+ * }</pre>
+ *
+ * <p>Or run a specific experiment method:
+ * <pre>{@code
+ * ./gradlew experimentTests --tests "ShoppingExperiment.measureBasicSearchReliability"
  * }</pre>
  *
  * <h2>Output</h2>
@@ -32,10 +40,24 @@ import org.junit.jupiter.api.Disabled;
  * <p>These baselines can then be used to create execution specifications
  * for probabilistic conformance tests.
  *
+ * <h2>Implementation Note</h2>
+ * <p>The {@code experimentTests} task is a standard JUnit {@code Test} task
+ * configured for the {@code src/experiment/java} source set. This provides
+ * full IDE integration, debugging support, and familiar Gradle test filtering.
+ *
  * @see org.javai.punit.examples.shopping.usecase.ShoppingUseCase
  */
-@Disabled("Run manually to generate empirical baselines")
-public class ShoppingExperiment {
+public class ShoppingExperiment extends ShoppingUseCase {
+
+    /**
+     * Creates a ShoppingExperiment with a mock shopping assistant.
+     * 
+     * <p>The mock assistant simulates LLM behavior with configurable
+     * reliability levels for testing different scenarios.
+     */
+    public ShoppingExperiment() {
+        super(new MockShoppingAssistant());
+    }
 
     // ========== Basic Search Experiments ==========
 
