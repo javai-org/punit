@@ -2106,7 +2106,7 @@ public final class UseCaseResult {
     public static final class Builder {
         private final Map<String, Object> values = new LinkedHashMap<>();
         private final Map<String, Object> metadata = new LinkedHashMap<>();
-        private Instant timestamp = Instant.now();
+        private final Instant timestamp = Instant.now();
         private Duration executionTime = Duration.ZERO;
         
         public Builder value(String key, Object val) { 
@@ -3377,7 +3377,7 @@ public final class UseCaseResult {
     public static final class Builder {
         private final Map<String, Object> values = new LinkedHashMap<>();
         private final Map<String, Object> metadata = new LinkedHashMap<>();
-        private Instant timestamp = Instant.now();
+        private final Instant timestamp = Instant.now();
         private Duration executionTime = Duration.ZERO;
         
         public Builder value(String key, Object val) {

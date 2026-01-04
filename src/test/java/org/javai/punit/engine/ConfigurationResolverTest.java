@@ -251,6 +251,16 @@ class ConfigurationResolverTest {
             public int maxExampleFailures() {
                 return 5;
             }
+
+            @Override
+            public String spec() {
+                return "";
+            }
+
+            @Override
+            public String useCase() {
+                return "";
+            }
         };
     }
 

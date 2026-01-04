@@ -138,4 +138,38 @@ public @interface ProbabilisticTest {
      * @return the maximum number of failures to capture
      */
     int maxExampleFailures() default 5;
+
+    // ========== Spec-Driven Test Support (Phase 4) ==========
+
+    /**
+     * Reference to an execution specification.
+     *
+     * <p>Format: {@code "useCaseId:version"} (e.g., "usecase.json.generation:v3")
+     *
+     * <p>When provided:
+     * <ul>
+     *   <li>The specification controls samples, minPassRate, budgets, and context</li>
+     *   <li>Inline parameter values are ignored (with a warning)</li>
+     *   <li>Success criteria from the spec are used to evaluate each sample</li>
+     * </ul>
+     *
+     * <p>When empty (default):
+     * <ul>
+     *   <li>Test behaves as before (inline parameters control execution)</li>
+     *   <li>Success is determined by absence of AssertionError</li>
+     * </ul>
+     *
+     * @return the specification ID, or empty string for inline mode
+     */
+    String spec() default "";
+
+    /**
+     * The use case ID to execute (alternative to spec).
+     *
+     * <p>When provided without spec, the use case is executed with inline parameters.
+     * Success criteria must be defined via method assertions.
+     *
+     * @return the use case ID, or empty string if not using use case mode
+     */
+    String useCase() default "";
 }

@@ -622,56 +622,40 @@ public class ProbabilisticTestExtension implements
         }
     }
 
-    /**
-     * Invocation context for a single sample execution.
-     * Provides ParameterResolver for TokenChargeRecorder injection.
-     */
-    private static class ProbabilisticTestInvocationContext implements TestTemplateInvocationContext {
+	/**
+	 * Invocation context for a single sample execution.
+	 * Provides ParameterResolver for TokenChargeRecorder injection.
+	 */
+	private record ProbabilisticTestInvocationContext(int sampleIndex, int totalSamples,
+													  DefaultTokenChargeRecorder tokenRecorder) implements TestTemplateInvocationContext {
 
-        private final int sampleIndex;
-        private final int totalSamples;
-        private final DefaultTokenChargeRecorder tokenRecorder;
+		@Override
+		public String getDisplayName(int invocationIndex) {
+			return String.format("Sample %d/%d", sampleIndex, totalSamples);
+		}
 
-        ProbabilisticTestInvocationContext(int sampleIndex, int totalSamples, 
-                                            DefaultTokenChargeRecorder tokenRecorder) {
-            this.sampleIndex = sampleIndex;
-            this.totalSamples = totalSamples;
-            this.tokenRecorder = tokenRecorder;
-        }
+		@Override
+		public List<Extension> getAdditionalExtensions() {
+			if (tokenRecorder != null) {
+				return List.of(new TokenChargeRecorderParameterResolver(tokenRecorder));
+			}
+			return Collections.emptyList();
+		}
+	}
 
-        @Override
-        public String getDisplayName(int invocationIndex) {
-            return String.format("Sample %d/%d", sampleIndex, totalSamples);
-        }
+	/**
+	 * ParameterResolver for injecting TokenChargeRecorder into test methods.
+	 */
+	private record TokenChargeRecorderParameterResolver(TokenChargeRecorder recorder) implements ParameterResolver {
 
-        @Override
-        public List<Extension> getAdditionalExtensions() {
-            if (tokenRecorder != null) {
-                return List.of(new TokenChargeRecorderParameterResolver(tokenRecorder));
-            }
-            return Collections.emptyList();
-        }
-    }
+		@Override
+		public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+			return TokenChargeRecorder.class.isAssignableFrom(parameterContext.getParameter().getType());
+		}
 
-    /**
-     * ParameterResolver for injecting TokenChargeRecorder into test methods.
-     */
-    private static class TokenChargeRecorderParameterResolver implements ParameterResolver {
-
-        private final TokenChargeRecorder recorder;
-
-        TokenChargeRecorderParameterResolver(TokenChargeRecorder recorder) {
-            this.recorder = recorder;
-        }
-
-        @Override
-        public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-            return TokenChargeRecorder.class.isAssignableFrom(parameterContext.getParameter().getType());
-        }
-
-        @Override
-        public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-            return recorder;
-        }
-    }
+		@Override
+		public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+			return recorder;
+		}
+	}
 }
