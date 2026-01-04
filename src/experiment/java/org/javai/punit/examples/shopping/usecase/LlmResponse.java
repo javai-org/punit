@@ -1,4 +1,4 @@
-package org.javai.punit.example.shopping;
+package org.javai.punit.examples.shopping.usecase;
 
 import java.util.List;
 import java.util.Map;

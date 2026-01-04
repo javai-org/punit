@@ -1,11 +1,8 @@
-package org.javai.punit.example;
+package org.javai.punit.examples.shopping.usecase;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import org.javai.punit.example.shopping.LlmResponse;
-import org.javai.punit.example.shopping.Product;
-import org.javai.punit.example.shopping.ShoppingAssistant;
 import org.javai.punit.experiment.api.UseCase;
 import org.javai.punit.experiment.api.UseCaseContext;
 import org.javai.punit.experiment.model.UseCaseResult;

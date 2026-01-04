@@ -1,4 +1,4 @@
-package org.javai.punit.example.shopping;
+package org.javai.punit.examples.shopping.usecase;
 
 /**
  * Represents a product returned by the shopping assistant.

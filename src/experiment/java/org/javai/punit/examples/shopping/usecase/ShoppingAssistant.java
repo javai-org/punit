@@ -1,4 +1,4 @@
-package org.javai.punit.example.shopping;
+package org.javai.punit.examples.shopping.usecase;
 
 /**
  * Interface for an LLM-powered shopping assistant.
