@@ -15,6 +15,33 @@ java {
     withJavadocJar()
 }
 
+// Define the experiment source set
+sourceSets {
+    val experiment by creating {
+        java.srcDir("src/experiment/java")
+        resources.srcDir("src/experiment/resources")
+        
+        // experiment depends on main's output
+        compileClasspath += sourceSets.main.get().output
+        runtimeClasspath += sourceSets.main.get().output
+    }
+    
+    test {
+        // test depends on both main and experiment
+        compileClasspath += experiment.output
+        runtimeClasspath += experiment.output
+    }
+}
+
+// Configure dependencies for experiment source set
+val experimentImplementation: Configuration by configurations.getting {
+    extendsFrom(configurations.implementation.get())
+}
+
+val experimentRuntimeOnly: Configuration by configurations.getting {
+    extendsFrom(configurations.runtimeOnly.get())
+}
+
 repositories {
     mavenCentral()
 }
@@ -30,6 +57,23 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-testkit")
     testImplementation("org.assertj:assertj-core:3.24.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// Ensure build order: main -> experiment -> test
+tasks.named("compileExperimentJava") {
+    dependsOn(tasks.compileJava)
+}
+
+tasks.named("compileTestJava") {
+    dependsOn("compileExperimentJava")
+}
+
+tasks.named("processExperimentResources") {
+    dependsOn(tasks.processResources)
+}
+
+tasks.named("processTestResources") {
+    dependsOn("processExperimentResources")
 }
 
 tasks.test {
