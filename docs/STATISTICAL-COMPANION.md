@@ -194,7 +194,7 @@ Note: For one-sided bounds, we use $z_\alpha$ (not $z_{\alpha/2}$).
 
 ### 3.4 Threshold Calculation (Normal Approximation)
 
-Given experimental results $(\hat{p}_{\text{exp}}, n_{\text{exp}})$ and test configuration $(n_{\text{test}}, \alpha)$:
+Given experimental results $(\hat{p}_{\text{exp}}$, $n_{\text{exp}})$ and test configuration $(n_{\text{test}}$, $\alpha)$:
 
 $$\text{SE}_{\text{test}} = \sqrt{\frac{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})}{n_{\text{test}}}}$$
 
