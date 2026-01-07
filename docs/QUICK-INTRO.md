@@ -353,7 +353,7 @@ class LlmIntegrationTests {
 
 ## Next Steps
 
-- See [README.md](README.md) for full configuration reference
-- See [PLAN-EXP.md](PLAN-EXP.md) for detailed experiment design documentation
+- See [README.md](../README.md) for full configuration reference
+- See [PLAN-EXP.md](../PLAN-EXP.md) for detailed experiment design documentation
 - Explore examples in `src/test/java/org/javai/punit/examples/`
 
