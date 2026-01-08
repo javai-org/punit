@@ -1,7 +1,7 @@
 # PUNIT: Probabilistic Unit Testing Framework
 
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue.svg)](https://openjdk.org/)
-[![JUnit 5](https://img.shields.io/badge/JUnit-5.10%2B-green.svg)](https://junit.org/junit5/)
+[![JUnit 5](https://img.shields.io/badge/JUnit-5.13%2B-green.svg)](https://junit.org/junit5/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 PUNIT is a JUnit 5 extension for testing non-deterministic systems. It runs tests multiple times and determines pass/fail based on statistical thresholds, making it ideal for testing LLMs, ML models, randomized algorithms, and other stochastic components.
@@ -18,6 +18,7 @@ PUNIT is a JUnit 5 extension for testing non-deterministic systems. It runs test
 - [IDE Integration](#ide-integration)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
+- [Known Limitations](#known-limitations)
 
 ## Why PUNIT?
 
@@ -585,10 +586,49 @@ punit.elapsedMs=15234
 punit.method.tokensConsumed=8500
 ```
 
+## Known Limitations
+
+### IDE Test Result Aggregation
+
+JUnit 5's result model aggregates child results: **if any child test fails, the parent container is marked as failed**. This means that in IDEs like IntelliJ IDEA, Eclipse, or VS Code, a probabilistic test class will show as ❌ (failed) even if PUnit's statistical verdict is PASS.
+
+**Example:**
+```
+❌ MyProbabilisticTest                    ← IDE shows class as failed
+    ❌ sample() > Sample 1/100            ← Individual sample failed
+    ✅ sample() > Sample 2/100
+    ✅ sample() > Sample 3/100
+    ...
+    ✅ Sample 98/100
+    PUnit PASSED: sample()                ← But PUnit says it passed (97/98 = 99% >= 95%)
+```
+
+**The console summary at the end of each test shows the true PUnit verdict:**
+```
+═══════════════════════════════════════════════════════════════
+PUnit PASSED: sample()
+  Observed pass rate: 99.0% (97/98) >= threshold: 95.0%
+  Termination: Required pass rate already achieved
+═══════════════════════════════════════════════════════════════
+```
+
+**Why this happens:**
+- JUnit 5 has no extension point to override the parent container's verdict based on child statistics
+- IDEs rely on JUnit's result aggregation model
+- Even extending JUnit would not help, as IDEs would need to adapt their result display logic
+
+**Workaround:**
+- Look at the **console output** for the definitive PUnit verdict
+- The final summary clearly shows PASSED or FAILED with statistical qualification
+- CI/CD pipelines can parse the structured report entries for automation
+
+**Future:**
+This is a fundamental limitation of the current JUnit 5 and IDE ecosystem. We have documented this as a requirement for future IDE integration. If PUnit gains adoption, IDE vendors may consider adding support for probabilistic/statistical test verdicts.
+
 ## Requirements
 
 - Java 17+
-- JUnit Jupiter 5.10+
+- JUnit Jupiter 5.13+
 
 ## License
 

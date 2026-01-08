@@ -12,10 +12,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Example probabilistic tests demonstrating PUNIT features.
  * 
+ * <p><b>NOTE:</b> These tests contain failing samples BY DESIGN. They use random
+ * behavior to simulate real-world probabilistic scenarios where individual invocations
+ * may fail while the overall test passes if the pass rate threshold is met.
+ * 
  * <p>These tests are disabled by default to avoid running in CI.
  * Enable them individually to see PUNIT in action.
+ * 
+ * <p>Some tests (e.g., those with token/time budgets) are designed to terminate
+ * early due to budget exhaustion, which will cause the test to fail if the
+ * budget exhaustion behavior is set to FAIL.
  */
-@Disabled("Examples - run individually to explore PUNIT features")
+//@Disabled("Examples - run individually to explore PUNIT features. Contains failing samples by design.")
 class BasicExamplesTest {
 
     private final Random random = new Random();
@@ -145,9 +153,9 @@ class BasicExamplesTest {
         tokenRecorder.recordTokens(response.tokensUsed);
         
         // Validate response (simulated 90% success rate)
-        assertThat(response.isValidJson)
-            .as("Expected valid JSON but got: %s", response.content)
-            .isTrue();
+        // Note: Using simple assertion to reduce noise in sample failures.
+        // In real tests, you'd use .as() for better diagnostics.
+        assertThat(response.isValidJson).isTrue();
     }
 
     private SimulatedLlmResponse simulateLlmCall() {

@@ -284,6 +284,108 @@ class ConfigurationResolverTest {
         };
     }
 
+    @Test
+    void usesDefaultMinPassRateWhenNaNAndNoSpec() {
+        // When minPassRate is NaN and there's no spec, should use default (0.95)
+        ProbabilisticTest annotation = createAnnotationWithNaNMinPassRate(100, "");
+        
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        
+        assertThat(config.minPassRate()).isEqualTo(ConfigurationResolver.DEFAULT_MIN_PASS_RATE);
+    }
+
+    @Test
+    void keepsNaNMinPassRateWhenSpecIsProvided() {
+        // When minPassRate is NaN but spec is provided, keep NaN (will be derived from spec)
+        ProbabilisticTest annotation = createAnnotationWithNaNMinPassRate(100, "some.spec:v1");
+        
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        
+        assertThat(config.minPassRate()).isNaN();
+    }
+
+    /**
+     * Creates a mock annotation with NaN minPassRate and specified spec.
+     */
+    private ProbabilisticTest createAnnotationWithNaNMinPassRate(int samples, String spec) {
+        return new ProbabilisticTest() {
+            @Override
+            public Class<? extends java.lang.annotation.Annotation> annotationType() {
+                return ProbabilisticTest.class;
+            }
+
+            @Override
+            public int samples() {
+                return samples;
+            }
+
+            @Override
+            public double minPassRate() {
+                return Double.NaN;  // NaN to test default behavior
+            }
+
+            @Override
+            public long timeBudgetMs() {
+                return 0;
+            }
+
+            @Override
+            public int tokenCharge() {
+                return 0;
+            }
+
+            @Override
+            public long tokenBudget() {
+                return 0;
+            }
+
+            @Override
+            public BudgetExhaustedBehavior onBudgetExhausted() {
+                return BudgetExhaustedBehavior.FAIL;
+            }
+
+            @Override
+            public ExceptionHandling onException() {
+                return ExceptionHandling.FAIL_SAMPLE;
+            }
+
+            @Override
+            public int maxExampleFailures() {
+                return 5;
+            }
+
+            @Override
+            public String spec() {
+                return spec;
+            }
+
+            @Override
+            public String useCase() {
+                return "";
+            }
+
+            @Override
+            public double thresholdConfidence() {
+                return Double.NaN;
+            }
+
+            @Override
+            public double confidence() {
+                return Double.NaN;
+            }
+
+            @Override
+            public double minDetectableEffect() {
+                return Double.NaN;
+            }
+
+            @Override
+            public double power() {
+                return Double.NaN;
+            }
+        };
+    }
+
     /**
      * Testable subclass that allows mocking environment variables.
      */

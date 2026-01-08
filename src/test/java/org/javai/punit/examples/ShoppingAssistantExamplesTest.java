@@ -16,6 +16,9 @@ import org.junit.jupiter.api.Disabled;
 /**
  * Example probabilistic tests for an LLM-powered shopping assistant.
  *
+ * <p><b>NOTE:</b> These tests contain failing samples BY DESIGN. They use simulated
+ * LLM behavior with intentional failure rates to demonstrate probabilistic testing.
+ *
  * <h2>Scenario</h2>
  * <p>A shopping assistant uses an LLM to find products matching customer criteria.
  * The LLM is expected to return product recommendations in a specific JSON format:

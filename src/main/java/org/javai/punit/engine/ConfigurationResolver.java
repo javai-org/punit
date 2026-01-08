@@ -99,8 +99,10 @@ public class ConfigurationResolver {
 
         // Resolve minPassRate
         // Note: minPassRate can be NaN when using statistical approaches (Sample-Size-First or Confidence-First)
-        // In those cases, the threshold is derived at runtime from baseline data
+        // In those cases, the threshold is derived at runtime from baseline data.
+        // However, for legacy mode (no spec), NaN must fall back to the default.
         double annotationMinPassRate = annotation.minPassRate();
+        boolean hasSpec = annotation.spec() != null && !annotation.spec().isEmpty();
         double minPassRate;
         
         if (Double.isNaN(annotationMinPassRate)) {
@@ -112,9 +114,12 @@ public class ConfigurationResolver {
                 minPassRate = Double.parseDouble(sysPropValue.trim());
             } else if (envValue != null && !envValue.isEmpty()) {
                 minPassRate = Double.parseDouble(envValue.trim());
-            } else {
+            } else if (hasSpec) {
                 // Keep NaN to indicate it should be derived from spec
                 minPassRate = Double.NaN;
+            } else {
+                // Legacy mode (no spec): use default
+                minPassRate = DEFAULT_MIN_PASS_RATE;
             }
         } else {
             minPassRate = resolveDouble(
@@ -306,8 +311,31 @@ public class ConfigurationResolver {
             long tokenBudget,
             BudgetExhaustedBehavior onBudgetExhausted,
             ExceptionHandling onException,
-            int maxExampleFailures
+            int maxExampleFailures,
+            // Statistical context for failure messages (nullable for legacy mode)
+            Double confidence,
+            Double baselineRate,
+            Integer baselineSamples,
+            String specId
     ) {
+        /**
+         * Constructor for backward compatibility - creates configuration without statistical context.
+         */
+        public ResolvedConfiguration(
+                int samples,
+                double minPassRate,
+                double appliedMultiplier,
+                long timeBudgetMs,
+                int tokenCharge,
+                long tokenBudget,
+                BudgetExhaustedBehavior onBudgetExhausted,
+                ExceptionHandling onException,
+                int maxExampleFailures) {
+            this(samples, minPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
+                    onBudgetExhausted, onException, maxExampleFailures,
+                    null, null, null, null);
+        }
+
         /**
          * Returns true if a multiplier was applied (not 1.0).
          */
@@ -334,6 +362,13 @@ public class ConfigurationResolver {
          */
         public boolean hasStaticTokenCharge() {
             return tokenCharge > 0;
+        }
+
+        /**
+         * Returns true if this configuration has full statistical context for qualified failure messages.
+         */
+        public boolean hasStatisticalContext() {
+            return confidence != null && baselineRate != null && baselineSamples != null && specId != null;
         }
     }
 }

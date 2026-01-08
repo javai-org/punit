@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineTestKit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Integration tests for the probabilistic testing framework.
  * 
@@ -347,5 +349,73 @@ class ProbabilisticTestIntegrationTest {
                 .assertStatistics(stats -> stats
                         .succeeded(2)   // 2 samples succeeded before budget exhausted
                         .failed(0));    // No samples failed
+    }
+
+    // ========== Sample Failure Message Tests ==========
+
+    @Test
+    void sampleFailureMessageShowsReason() {
+        // Verify that sample failures show the actual assertion reason (concise)
+        // without verbose stack traces or suppressed exceptions
+        var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .selectors(DiscoverySelectors.selectClass(AlwaysFailingTest.class))
+                .execute()
+                .allEvents()
+                .list();
+
+        // Find a sample failure event (not the final verdict)
+        var failureEvents = events.stream()
+                .filter(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class)
+                        .map(r -> r.getStatus() == org.junit.platform.engine.TestExecutionResult.Status.FAILED)
+                        .orElse(false))
+                .toList();
+
+        assertThat(failureEvents).isNotEmpty();
+
+        // Check that at least one failure shows the actual assertion reason
+        var hasReasonMessage = failureEvents.stream()
+                .map(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class).orElseThrow())
+                .map(r -> r.getThrowable().orElseThrow())
+                .anyMatch(ex -> {
+                    String msg = ex.getMessage();
+                    // Should contain the actual assertion reason OR PUnit verdict
+                    return msg != null && (msg.contains("Expecting") || msg.contains("PUnit"));
+                });
+
+        assertThat(hasReasonMessage)
+                .as("At least one failure should show the assertion reason or PUnit verdict")
+                .isTrue();
+    }
+
+    @Test
+    void sampleFailureHasNoSuppressedExceptions() {
+        // Verify that sample failures don't have suppressed exceptions
+        // (which caused verbose nested output)
+        var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .selectors(DiscoverySelectors.selectClass(AlwaysFailingTest.class))
+                .execute()
+                .allEvents()
+                .list();
+
+        // Find sample failures (not final verdict)
+        var sampleFailures = events.stream()
+                .filter(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class)
+                        .flatMap(r -> r.getThrowable())
+                        .map(t -> !t.getMessage().contains("PUnit"))  // Exclude final verdict
+                        .orElse(false))
+                .filter(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class)
+                        .map(r -> r.getStatus() == org.junit.platform.engine.TestExecutionResult.Status.FAILED)
+                        .orElse(false))
+                .toList();
+
+        // None should have suppressed exceptions
+        sampleFailures.forEach(event -> {
+            var result = event.getPayload(org.junit.platform.engine.TestExecutionResult.class).orElseThrow();
+            var exception = result.getThrowable().orElseThrow();
+
+            assertThat(exception.getSuppressed())
+                    .as("Sample failures should not have suppressed exceptions")
+                    .isEmpty();
+        });
     }
 }

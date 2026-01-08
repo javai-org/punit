@@ -1,5 +1,6 @@
 package org.javai.punit.engine;
 
+import java.util.Optional;
 import org.javai.punit.model.TerminationReason;
 
 import java.util.ArrayList;
@@ -174,8 +175,8 @@ public class SampleResultAggregator {
      *
      * @return termination reason
      */
-    public TerminationReason getTerminationReason() {
-        return terminationReason;
+    public Optional<TerminationReason> getTerminationReason() {
+        return Optional.ofNullable(terminationReason);
     }
 
     /**
@@ -207,18 +208,30 @@ public class SampleResultAggregator {
 
     /**
      * Sets whether this test should be forced to fail regardless of pass rate.
-     * Used when budget exhaustion occurs with FAIL behavior.
+     * 
+     * <p>This flag is set when budget exhaustion occurs AND the configured
+     * {@link org.javai.punit.api.BudgetExhaustedBehavior} is {@code FAIL}.
+     * When this flag is set, the test fails even if the observed pass rate
+     * meets the threshold.
+     * 
+     * <p><b>Note:</b> This flag does NOT indicate budget exhaustion in general.
+     * Budget exhaustion with {@code EVALUATE_PARTIAL} behavior does not set this flag.
+     * To check for budget exhaustion, use {@code getTerminationReason().isBudgetExhaustion()}.
      *
-     * @param forced true to force failure
+     * @param forced true to force failure regardless of pass rate
      */
     public void setForcedFailure(boolean forced) {
         this.forcedFailure = forced;
     }
 
     /**
-     * Returns true if this test has been forced to fail.
+     * Returns true if this test has been forced to fail regardless of pass rate.
+     * 
+     * <p>This returns true only when budget was exhausted AND the behavior was
+     * {@code FAIL}. It does NOT indicate budget exhaustion in general.
+     * To check for budget exhaustion, use {@code getTerminationReason().isBudgetExhaustion()}.
      *
-     * @return true if forced failure
+     * @return true if the test was forced to fail regardless of pass rate
      */
     public boolean isForcedFailure() {
         return forcedFailure;

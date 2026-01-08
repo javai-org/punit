@@ -215,5 +215,30 @@ class EarlyTerminationEvaluatorTest {
                 TerminationReason.SUCCESS_GUARANTEED, 8, 8);
         assertThat(successExplanation).contains("already met");
     }
+
+    @Test
+    void nanMinPassRateNeverClaimsSuccessGuaranteed() {
+        // When minPassRate is NaN (should not happen in normal operation),
+        // requiredSuccesses becomes MAX_VALUE, preventing false SUCCESS_GUARANTEED.
+        // This is a defensive measure - NaN should be resolved to default before reaching here.
+        EarlyTerminationEvaluator evaluator = new EarlyTerminationEvaluator(100, Double.NaN);
+        
+        assertThat(evaluator.getRequiredSuccesses()).isEqualTo(Integer.MAX_VALUE);
+        
+        // The critical bug was: NaN → 0 required → SUCCESS_GUARANTEED after just 1 success.
+        // With MAX_VALUE, even 100% success will never trigger SUCCESS_GUARANTEED.
+        // It may trigger IMPOSSIBILITY, but that's safer than a false positive success.
+        Optional<TerminationReason> result = evaluator.shouldTerminate(1, 1);
+        
+        // Should NOT be SUCCESS_GUARANTEED (the bug we're preventing)
+        assertThat(result).isNotEqualTo(Optional.of(TerminationReason.SUCCESS_GUARANTEED));
+    }
+
+    @Test
+    void calculateRequiredSuccessesHandlesNaN() {
+        // Direct test of the static method
+        int result = EarlyTerminationEvaluator.calculateRequiredSuccesses(100, Double.NaN);
+        assertThat(result).isEqualTo(Integer.MAX_VALUE);
+    }
 }
 

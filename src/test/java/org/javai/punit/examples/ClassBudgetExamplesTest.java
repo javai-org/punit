@@ -13,11 +13,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Example demonstrating class-level shared budget.
  * 
+ * <p><b>NOTE:</b> These tests contain failing samples BY DESIGN. They use random
+ * behavior to simulate real-world probabilistic scenarios.
+ * 
  * <p>All probabilistic tests in this class share a common token budget.
  * When the class budget is exhausted, remaining tests will fail or
  * evaluate partial results based on the configured behavior.
  */
-@Disabled("Example - demonstrates class-level budget sharing")
+@Disabled("Examples - run individually. Contains failing samples by design.")
 @ProbabilisticTestBudget(
     tokenBudget = 5000,     // 5,000 tokens shared across all methods
     timeBudgetMs = 10000,   // 10 seconds max for entire class

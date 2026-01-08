@@ -87,6 +87,7 @@ class FinalVerdictDeciderTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void buildFailureMessageIncludesStatistics() {
         SampleResultAggregator aggregator = new SampleResultAggregator(100);
         for (int i = 0; i < 80; i++) {
@@ -96,11 +97,14 @@ class FinalVerdictDeciderTest {
             aggregator.recordFailure(new AssertionError("test failure " + i));
         }
         
+        // Using deprecated method for backward compatibility test
         String message = decider.buildFailureMessage(aggregator, 0.95);
         
+        // New format uses 1 decimal place (80.0%, 95.0%)
         assertThat(message)
-                .contains("80.00%")
-                .contains("95.00%")
+                .contains("PUnit FAILED")
+                .contains("80.0%")
+                .contains("threshold=95.0%")
                 .contains("Samples executed: 100")
                 .contains("Successes: 80")
                 .contains("Failures: 20")
@@ -123,6 +127,43 @@ class FinalVerdictDeciderTest {
                 .contains("98.00%")
                 .contains("95.00%")
                 .contains("98/100");
+    }
+
+    @Test
+    void buildFailureMessageWithStatisticalContext_includesFullQualification() {
+        SampleResultAggregator aggregator = new SampleResultAggregator(100);
+        for (int i = 0; i < 87; i++) {
+            aggregator.recordSuccess();
+        }
+        for (int i = 0; i < 13; i++) {
+            aggregator.recordFailure(new AssertionError("test failure"));
+        }
+        
+        PunitFailureMessages.StatisticalContext context = new PunitFailureMessages.StatisticalContext(
+                0.95,      // confidence
+                0.87,      // observedRate
+                87,        // successes
+                100,       // samples
+                0.916,     // threshold
+                0.951,     // baselineRate
+                1000,      // baselineSamples
+                "json.generation:v3"
+        );
+        
+        String message = decider.buildFailureMessage(aggregator, context);
+        
+        assertThat(message)
+                .contains("PUnit FAILED with 95.0% confidence")
+                .contains("alpha=0.050")
+                .contains("87.0%")
+                .contains("(87/100)")
+                .contains("threshold=91.6%")
+                .contains("Baseline=95.1%")
+                .contains("N=1000")
+                .contains("spec=json.generation:v3")
+                .contains("Samples executed:")
+                .contains("Successes:")
+                .contains("Failures:");
     }
 }
 

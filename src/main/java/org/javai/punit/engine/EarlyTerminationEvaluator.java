@@ -50,11 +50,19 @@ public class EarlyTerminationEvaluator {
      * Calculates the number of successes required to meet the minimum pass rate.
      * Uses ceiling to ensure the threshold is met, not merely approached.
      *
+     * <p>If minPassRate is NaN (should not happen in normal operation), returns
+     * Integer.MAX_VALUE to prevent false early termination.
+     *
      * @param totalSamples total number of samples
      * @param minPassRate minimum pass rate (0.0 to 1.0)
      * @return minimum number of successes required
      */
     public static int calculateRequiredSuccesses(int totalSamples, double minPassRate) {
+        if (Double.isNaN(minPassRate)) {
+            // NaN should not reach here (should be resolved to default earlier),
+            // but if it does, prevent false early termination
+            return Integer.MAX_VALUE;
+        }
         return (int) Math.ceil(totalSamples * minPassRate);
     }
 

@@ -1,6 +1,15 @@
 plugins {
     id("java-library")
     id("maven-publish")
+    idea
+}
+
+// Configure IDEA to download sources and javadoc
+idea {
+    module {
+        isDownloadSources = true
+        isDownloadJavadoc = true
+    }
 }
 
 group = "org.javai"
@@ -55,7 +64,8 @@ repositories {
 dependencies {
     // JUnit 5 Jupiter API - needed at compile time for the extension
     // Using 'api' so consumers get transitive access to JUnit types
-    api(platform("org.junit:junit-bom:5.10.0"))
+    // Version 5.13.3 includes failureThreshold for @RepeatedTest
+    api(platform("org.junit:junit-bom:5.13.3"))
     api("org.junit.jupiter:junit-jupiter-api")
     
     // Apache Commons Statistics - for statistical calculations (confidence intervals, distributions)
