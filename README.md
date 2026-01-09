@@ -1,14 +1,15 @@
-# PUNIT: Probabilistic Unit Testing Framework
+# PUnit: The Probabilistic Unit Testing Framework
+*Statistical regression testing for non-deterministic systems*
 
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue.svg)](https://openjdk.org/)
 [![JUnit 5](https://img.shields.io/badge/JUnit-5.13%2B-green.svg)](https://junit.org/junit5/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-PUNIT is a JUnit 5 extension for testing non-deterministic systems. It runs tests multiple times and determines pass/fail based on statistical thresholds, making it ideal for testing LLMs, ML models, randomized algorithms, and other stochastic components.
+PUnit is a JUnit 5 extension for testing non-deterministic systems. It runs tests multiple times and determines pass/fail based on statistical thresholds, making it ideal for testing LLMs, ML models, randomized algorithms, and other stochastic components.
 
 ## Table of Contents
 
-- [Why PUNIT?](#why-punit)
+- [Why PUnit?](#why-punit)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
@@ -20,7 +21,7 @@ PUNIT is a JUnit 5 extension for testing non-deterministic systems. It runs test
 - [Troubleshooting](#troubleshooting)
 - [Understanding Test Results](#understanding-test-results)
 
-## Why PUNIT?
+## Why PUnit?
 
 Traditional unit tests follow a simple pass/fail model: if any assertion fails, the test fails. But what about systems that are inherently non-deterministic?
 
@@ -29,7 +30,7 @@ Traditional unit tests follow a simple pass/fail model: if any assertion fails, 
 - **Randomized algorithms** may occasionally produce suboptimal results
 - **Network-dependent tests** may experience transient failures
 
-PUNIT lets you express expectations statistically:
+PUnit lets you express expectations statistically:
 
 ```java
 // "This LLM should return valid JSON at least 90% of the time"
@@ -171,7 +172,7 @@ void testWith80PercentThreshold() {
 
 ### Early Termination
 
-PUNIT optimizes test execution with two types of early termination:
+PUnit optimizes test execution with two types of early termination:
 
 #### 1. Impossibility Detection (Fail Fast)
 When it becomes mathematically impossible to reach the required pass rate:
@@ -416,7 +417,7 @@ The first exhausted budget triggers termination.
 
 ## IDE Integration
 
-PUNIT provides accurate visual feedback in your IDE:
+PUnit provides accurate visual feedback in your IDE:
 
 ```
 ❌ evaluateReadinessTest()
