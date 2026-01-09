@@ -98,17 +98,17 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         if (annotation.mode() == ExperimentMode.EXPLORE) {
             return provideExploreInvocationContexts(context, testMethod, annotation, useCaseId, store);
         } else {
-            return provideBaselineInvocationContexts(annotation, useCaseId, store);
+            return provideMeasureInvocationContexts(annotation, useCaseId, store);
         }
     }
     
     /**
-     * Provides invocation contexts for BASELINE mode (single configuration, many samples).
+     * Provides invocation contexts for MEASURE mode (single configuration, many samples).
      */
-    private Stream<TestTemplateInvocationContext> provideBaselineInvocationContexts(
+    private Stream<TestTemplateInvocationContext> provideMeasureInvocationContexts(
             Experiment annotation, String useCaseId, ExtensionContext.Store store) {
         
-        int samples = annotation.samples();
+        int samples = annotation.mode().getEffectiveSampleSize(annotation.samples());
         
         // Create single aggregator
         ExperimentResultAggregator aggregator = new ExperimentResultAggregator(useCaseId, samples);
@@ -118,13 +118,13 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         AtomicInteger currentSample = new AtomicInteger(0);
         store.put("terminated", terminated);
         store.put("currentSample", currentSample);
-        store.put("mode", ExperimentMode.BASELINE);
+        store.put("mode", ExperimentMode.MEASURE);
         
         // Generate sample stream - each invocation gets its own captor
         return Stream.iterate(1, i -> i + 1)
             .limit(samples)
             .takeWhile(i -> !terminated.get())
-            .map(i -> new BaselineInvocationContext(i, samples, useCaseId, new ResultCaptor()));
+            .map(i -> new MeasureInvocationContext(i, samples, useCaseId, new ResultCaptor()));
     }
     
     /**
@@ -135,15 +135,15 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             ExtensionContext context, Method testMethod, Experiment annotation, 
             String useCaseId, ExtensionContext.Store store) {
         
-        int samplesPerConfig = annotation.samplesPerConfig();
+        int samplesPerConfig = annotation.mode().getEffectiveSampleSize(annotation.samplesPerConfig());
         
         // Find @FactorSource annotation
         FactorSource factorSource = testMethod.getAnnotation(FactorSource.class);
         if (factorSource == null) {
-            // Warn: EXPLORE without factors is equivalent to BASELINE
+            // Warn: EXPLORE without factors is equivalent to MEASURE
             context.publishReportEntry("punit.warning", 
-                "EXPLORE without @FactorSource is equivalent to BASELINE. " +
-                "Consider adding @FactorSource or using mode = BASELINE.");
+                "EXPLORE without @FactorSource is equivalent to MEASURE. " +
+                "Consider adding @FactorSource or using mode = MEASURE.");
             
             // Fall back to baseline-like behavior with samplesPerConfig
             store.put("mode", ExperimentMode.EXPLORE);
@@ -154,7 +154,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             
             return Stream.iterate(1, i -> i + 1)
                 .limit(samplesPerConfig)
-                .map(i -> new BaselineInvocationContext(i, samplesPerConfig, useCaseId, new ResultCaptor()));
+                .map(i -> new MeasureInvocationContext(i, samplesPerConfig, useCaseId, new ResultCaptor()));
         }
         
         // Find factor method
@@ -322,20 +322,20 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         ExtensionContext.Store store = parentContext.getStore(NAMESPACE);
         
         ExperimentMode mode = store.get("mode", ExperimentMode.class);
-        if (mode == null) mode = ExperimentMode.BASELINE;
+        if (mode == null) mode = ExperimentMode.MEASURE;
         
         if (mode == ExperimentMode.EXPLORE) {
             interceptExploreMethod(invocation, invocationContext, extensionContext, store);
         } else {
-            interceptBaselineMethod(invocation, extensionContext, store);
+            interceptMeasureMethod(invocation, extensionContext, store);
         }
     }
     
     /**
-     * Intercepts BASELINE mode experiment execution.
+     * Intercepts MEASURE mode experiment execution.
      */
     @SuppressWarnings("unchecked")
-    private void interceptBaselineMethod(
+    private void interceptMeasureMethod(
             Invocation<Void> invocation,
             ExtensionContext extensionContext,
             ExtensionContext.Store store) throws Throwable {
@@ -365,7 +365,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
                 aggregator.setTerminated("TIME_BUDGET_EXHAUSTED", 
                     "Time budget of " + annotation.timeBudgetMs() + "ms exceeded");
                 invocation.skip();
-                checkAndGenerateBaseline(extensionContext, store);
+                checkAndGenerateSpec(extensionContext, store);
                 return;
             }
         }
@@ -376,7 +376,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             aggregator.setTerminated("TOKEN_BUDGET_EXHAUSTED",
                 "Token budget of " + annotation.tokenBudget() + " exceeded");
             invocation.skip();
-            checkAndGenerateBaseline(extensionContext, store);
+            checkAndGenerateSpec(extensionContext, store);
             return;
         }
         
@@ -392,14 +392,14 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         }
         
         // Report progress
-        reportProgress(extensionContext, aggregator, sample, annotation.samples());
+        reportProgress(extensionContext, aggregator, sample, annotation.mode().getEffectiveSampleSize(annotation.samples()));
         
         // Check if this is the last sample
         if (sample >= annotation.samples() || terminated.get()) {
             if (!terminated.get()) {
                 aggregator.setCompleted();
             }
-            generateBaseline(extensionContext, store);
+            generateSpec(extensionContext, store);
         }
     }
     
@@ -424,7 +424,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         ResultCaptor captor = invocationStore.get("captor", ResultCaptor.class);
         String configName = invocationStore.get("configName", String.class);
         int sampleInConfig = invocationStore.get("sampleInConfig", Integer.class);
-        int samplesPerConfig = annotation.samplesPerConfig();
+        int samplesPerConfig = annotation.mode().getEffectiveSampleSize(annotation.samplesPerConfig());
         Object[] factorValues = invocationStore.get("factorValues", Object[].class);
         
         ExperimentResultAggregator aggregator = configAggregators.get(configName);
@@ -459,7 +459,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         // Check if this is the last sample for this config
         if (sampleInConfig >= samplesPerConfig) {
             aggregator.setCompleted();
-            generateExploreBaseline(extensionContext, store, configName, aggregator);
+            generateExploreSpec(extensionContext, store, configName, aggregator);
         }
     }
     
@@ -551,14 +551,14 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             String.format("%.2f%%", aggregator.getObservedSuccessRate() * 100));
     }
     
-    private void checkAndGenerateBaseline(ExtensionContext context, ExtensionContext.Store store) {
+    private void checkAndGenerateSpec(ExtensionContext context, ExtensionContext.Store store) {
         ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
         if (aggregator.getSamplesExecuted() > 0) {
-            generateBaseline(context, store);
+            generateSpec(context, store);
         }
     }
     
-    private void generateBaseline(ExtensionContext context, ExtensionContext.Store store) {
+    private void generateSpec(ExtensionContext context, ExtensionContext.Store store) {
         ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
         UseCaseContext useCaseContext = store.get("useCaseContext", UseCaseContext.class);
         Experiment annotation = store.get("annotation", Experiment.class);
@@ -571,15 +571,15 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             useCaseContext
         );
         
-        // Write baseline to file
+        // Write spec to file (in src/test/resources/punit/specs/)
         try {
-            Path outputPath = resolveBaselineOutputPath(annotation, aggregator.getUseCaseId());
+            Path outputPath = resolveMeasureOutputPath(annotation, aggregator.getUseCaseId());
             BaselineWriter writer = new BaselineWriter();
             writer.write(baseline, outputPath, annotation.outputFormat());
             
-            context.publishReportEntry("punit.baseline.outputPath", outputPath.toString());
+            context.publishReportEntry("punit.spec.outputPath", outputPath.toString());
         } catch (IOException e) {
-            context.publishReportEntry("punit.baseline.error", e.getMessage());
+            context.publishReportEntry("punit.spec.error", e.getMessage());
         }
         
         // Publish final report
@@ -587,9 +587,9 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Generates a baseline for a single configuration in EXPLORE mode.
+     * Generates a spec for a single configuration in EXPLORE mode.
      */
-    private void generateExploreBaseline(
+    private void generateExploreSpec(
             ExtensionContext context, 
             ExtensionContext.Store store, 
             String configName,
@@ -611,16 +611,16 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             useCaseContext
         );
         
-        // Write baseline to config-specific file
+        // Write spec to config-specific file (in explorations/)
         try {
-            Path outputPath = resolveExploreBaselineOutputPath(annotation, useCaseId, configName);
+            Path outputPath = resolveExploreOutputPath(annotation, useCaseId, configName);
             BaselineWriter writer = new BaselineWriter();
             writer.write(baseline, outputPath, annotation.outputFormat());
             
-            context.publishReportEntry("punit.baseline.outputPath", outputPath.toString());
+            context.publishReportEntry("punit.spec.outputPath", outputPath.toString());
             context.publishReportEntry("punit.config.complete", configName);
         } catch (IOException e) {
-            context.publishReportEntry("punit.baseline.error", 
+            context.publishReportEntry("punit.spec.error", 
                 "Config " + configName + ": " + e.getMessage());
         }
         
@@ -629,43 +629,60 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             String.format("%s: %.4f", configName, aggregator.getObservedSuccessRate()));
     }
     
-    private Path resolveBaselineOutputPath(Experiment annotation, String useCaseId) {
+    /**
+     * Default output directory for MEASURE mode specs.
+     */
+    private static final String DEFAULT_SPECS_DIR = "src/test/resources/punit/specs";
+    
+    /**
+     * Default output directory for EXPLORE mode specs.
+     */
+    private static final String DEFAULT_EXPLORATIONS_DIR = "src/test/resources/punit/explorations";
+    
+    /**
+     * Resolves the output path for MEASURE mode (single configuration).
+     *
+     * <p>Output: {@code src/test/resources/punit/specs/{useCaseId}.yaml}
+     */
+    private Path resolveMeasureOutputPath(Experiment annotation, String useCaseId) throws IOException {
         String filename = useCaseId.replace('.', '-') + "." + annotation.outputFormat();
         
-        // Check for system property override (set by Gradle experiment task)
-        String outputDirOverride = System.getProperty("punit.baseline.outputDir");
+        // Check for system property override (set by Gradle task)
+        String outputDirOverride = System.getProperty("punit.specs.outputDir");
+        Path baseDir;
         if (outputDirOverride != null && !outputDirOverride.isEmpty()) {
-            return Paths.get(outputDirOverride, filename);
+            baseDir = Paths.get(outputDirOverride);
+        } else {
+            baseDir = Paths.get(DEFAULT_SPECS_DIR);
         }
         
-        // Fallback: use annotation's baselineOutputDir relative to current directory
-        String baseDir = annotation.baselineOutputDir();
-        return Paths.get(baseDir, filename);
+        Files.createDirectories(baseDir);
+        return baseDir.resolve(filename);
     }
     
     /**
-     * Resolves the output path for an EXPLORE mode configuration baseline.
+     * Resolves the output path for EXPLORE mode (multiple configurations).
      *
      * <p>Structure:
      * <pre>
-     * build/punit/baselines/
+     * src/test/resources/punit/explorations/
      * └── ShoppingUseCase/              # Directory for use case
      *     ├── model-gpt-4_temp-0.0.yaml
      *     └── model-gpt-4_temp-0.7.yaml
      * </pre>
      */
-    private Path resolveExploreBaselineOutputPath(Experiment annotation, String useCaseId, String configName) 
+    private Path resolveExploreOutputPath(Experiment annotation, String useCaseId, String configName) 
             throws IOException {
         
         String filename = configName + "." + annotation.outputFormat();
         
-        // Check for system property override (set by Gradle experiment task)
-        String outputDirOverride = System.getProperty("punit.baseline.outputDir");
+        // Check for system property override (set by Gradle task)
+        String outputDirOverride = System.getProperty("punit.explorations.outputDir");
         Path baseDir;
         if (outputDirOverride != null && !outputDirOverride.isEmpty()) {
             baseDir = Paths.get(outputDirOverride);
         } else {
-            baseDir = Paths.get(annotation.baselineOutputDir());
+            baseDir = Paths.get(DEFAULT_EXPLORATIONS_DIR);
         }
         
         // Create subdirectory for use case
@@ -721,9 +738,9 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
 
     /**
-     * Invocation context for BASELINE mode (single configuration).
+     * Invocation context for MEASURE mode (single configuration).
      */
-    private record BaselineInvocationContext(int sampleNumber, int totalSamples,
+    private record MeasureInvocationContext(int sampleNumber, int totalSamples,
                                                String useCaseId, ResultCaptor captor) 
             implements TestTemplateInvocationContext {
 

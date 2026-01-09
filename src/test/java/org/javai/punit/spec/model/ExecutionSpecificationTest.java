@@ -279,14 +279,28 @@ class ExecutionSpecificationTest {
         }
 
         @Test
-        @DisplayName("throws when not approved")
-        void throwsWhenNotApproved() {
+        @DisplayName("succeeds without approval metadata (v2 behavior)")
+        void succeedsWithoutApprovalMetadata() {
+            ExecutionSpecification spec = ExecutionSpecification.builder()
+                .specId("Spec")
+                .useCaseId("UseCase")
+                .empiricalBasis(100, 90)
+                .build();
+
+            // Should not throw - approval is optional in v2
+            spec.validate();
+        }
+
+        @Test
+        @DisplayName("validateStrict throws when not approved (v1 behavior)")
+        @SuppressWarnings("deprecation")
+        void validateStrictThrowsWhenNotApproved() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
                 .specId("Spec")
                 .useCaseId("UseCase")
                 .build();
 
-            assertThatThrownBy(spec::validate)
+            assertThatThrownBy(spec::validateStrict)
                 .isInstanceOf(SpecificationValidationException.class)
                 .hasMessageContaining("lacks approval metadata");
         }

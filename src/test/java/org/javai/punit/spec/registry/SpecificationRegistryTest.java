@@ -39,14 +39,27 @@ class SpecificationRegistryTest {
         Files.writeString(tempDir.resolve(useCaseId + ".yaml"), sb.toString());
     }
 
+    private void createV2SpecFile(String useCaseId, int samples, int successes) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("specId: ").append(useCaseId).append("\n");
+        sb.append("useCaseId: ").append(useCaseId).append("\n");
+        sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
+        sb.append("\n");
+        sb.append("empiricalBasis:\n");
+        sb.append("  samples: ").append(samples).append("\n");
+        sb.append("  successes: ").append(successes).append("\n");
+        sb.append("\n");
+        sb.append("requirements:\n");
+        sb.append("  minPassRate: 0.85\n");
+        sb.append("schemaVersion: punit-spec-2\n");
+        String content = sb.toString();
+        sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
+
+        Files.writeString(tempDir.resolve(useCaseId + ".yaml"), sb.toString());
+    }
+
     private String computeFingerprint(String content) {
-        try {
-            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(hash);
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return SpecificationLoader.computeFingerprint(content);
     }
 
     @Nested
@@ -62,6 +75,20 @@ class SpecificationRegistryTest {
 
             assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
             assertThat(spec.getMinPassRate()).isEqualTo(0.85);
+        }
+
+        @Test
+        @DisplayName("loads v2 spec with empirical basis")
+        void loadsV2SpecWithEmpiricalBasis() throws IOException {
+            createV2SpecFile("TestUseCase", 1000, 900);
+
+            var spec = registry.resolve("TestUseCase");
+
+            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(spec.hasEmpiricalBasis()).isTrue();
+            assertThat(spec.getEmpiricalBasis().samples()).isEqualTo(1000);
+            assertThat(spec.getEmpiricalBasis().successes()).isEqualTo(900);
+            assertThat(spec.getObservedRate()).isEqualTo(0.9);
         }
 
         @Test
@@ -119,6 +146,19 @@ class SpecificationRegistryTest {
 
             assertThat(spec.getUseCaseId()).isEqualTo("YmlCase");
         }
+
+        @Test
+        @DisplayName("validates v2 spec without approval metadata")
+        void validatesV2SpecWithoutApprovalMetadata() throws IOException {
+            createV2SpecFile("TestUseCase", 500, 450);
+
+            var spec = registry.resolve("TestUseCase");
+
+            // v2 specs without approval should still be valid
+            assertThat(spec.hasApprovalMetadata()).isFalse();
+            // validate() should not throw
+            spec.validate();
+        }
     }
 
     @Nested
@@ -129,6 +169,14 @@ class SpecificationRegistryTest {
         @DisplayName("returns true for existing spec")
         void returnsTrueForExistingSpec() throws IOException {
             createSpecFile("TestUseCase", 0.9);
+
+            assertThat(registry.exists("TestUseCase")).isTrue();
+        }
+
+        @Test
+        @DisplayName("returns true for existing v2 spec")
+        void returnsTrueForExistingV2Spec() throws IOException {
+            createV2SpecFile("TestUseCase", 100, 90);
 
             assertThat(registry.exists("TestUseCase")).isTrue();
         }
@@ -192,4 +240,3 @@ class SpecificationRegistryTest {
         }
     }
 }
-

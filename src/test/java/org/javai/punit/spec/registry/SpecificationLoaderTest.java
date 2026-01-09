@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("SpecificationLoader")
 class SpecificationLoaderTest {
 
-    // Helper to create valid spec YAML with fingerprint
+    // Helper to create valid spec YAML with fingerprint (v1 schema with approval)
     private String createValidYaml(String specId, double minPassRate) {
         StringBuilder sb = new StringBuilder();
         sb.append("specId: ").append(specId).append("\n");
@@ -31,20 +31,38 @@ class SpecificationLoaderTest {
         
         return sb.toString();
     }
+
+    // Helper to create valid spec YAML with v2 schema (no approval required)
+    private String createV2Yaml(String specId, int samples, int successes) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("specId: ").append(specId).append("\n");
+        sb.append("useCaseId: ").append(specId).append("\n");
+        sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
+        sb.append("\n");
+        sb.append("empiricalBasis:\n");
+        sb.append("  samples: ").append(samples).append("\n");
+        sb.append("  successes: ").append(successes).append("\n");
+        sb.append("  generatedAt: 2026-01-09T10:00:00Z\n");
+        sb.append("\n");
+        sb.append("requirements:\n");
+        sb.append("  minPassRate: 0.85\n");
+        sb.append("\n");
+        sb.append("schemaVersion: punit-spec-2\n");
+
+        String contentForHashing = sb.toString();
+        String fingerprint = computeFingerprint(contentForHashing);
+        sb.append("contentFingerprint: ").append(fingerprint).append("\n");
+
+        return sb.toString();
+    }
     
     private String computeFingerprint(String content) {
-        try {
-            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(hash);
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return SpecificationLoader.computeFingerprint(content);
     }
 
     @Nested
-    @DisplayName("parseYaml")
-    class ParseYaml {
+    @DisplayName("parseYaml - v1 schema")
+    class ParseYamlV1 {
 
         @Test
         @DisplayName("parses valid YAML with all required fields")
@@ -67,6 +85,7 @@ class SpecificationLoaderTest {
             
             assertThat(spec.getApprovedBy()).isEqualTo("tester");
             assertThat(spec.getApprovedAt()).isNotNull();
+            assertThat(spec.hasApprovalMetadata()).isTrue();
         }
 
         @Test
@@ -229,6 +248,156 @@ class SpecificationLoaderTest {
             
             assertThat(spec.getExecutionContext()).containsEntry("count", 42L);
         }
+
+        @Test
+        @DisplayName("parses baselineData section (v1 format)")
+        void parsesBaselineData() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("specId: TestCase\n");
+            sb.append("useCaseId: TestCase\n");
+            sb.append("baselineData:\n");
+            sb.append("  samples: 1000\n");
+            sb.append("  successes: 850\n");
+            sb.append("  generatedAt: 2026-01-09T10:00:00Z\n");
+            sb.append("requirements:\n");
+            sb.append("  minPassRate: 0.85\n");
+            sb.append("schemaVersion: punit-spec-1\n");
+            String content = sb.toString();
+            sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
+
+            assertThat(spec.hasEmpiricalBasis()).isTrue();
+            assertThat(spec.getEmpiricalBasis().samples()).isEqualTo(1000);
+            assertThat(spec.getEmpiricalBasis().successes()).isEqualTo(850);
+            assertThat(spec.getObservedRate()).isEqualTo(0.85);
+        }
+    }
+
+    @Nested
+    @DisplayName("parseYaml - v2 schema")
+    class ParseYamlV2 {
+
+        @Test
+        @DisplayName("parses v2 spec without approval metadata")
+        void parsesV2WithoutApproval() {
+            String yaml = createV2Yaml("TestUseCase", 1000, 900);
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
+
+            assertThat(spec.getSpecId()).isEqualTo("TestUseCase");
+            assertThat(spec.hasApprovalMetadata()).isFalse();
+            assertThat(spec.hasEmpiricalBasis()).isTrue();
+        }
+
+        @Test
+        @DisplayName("parses empiricalBasis section")
+        void parsesEmpiricalBasis() {
+            String yaml = createV2Yaml("TestUseCase", 500, 475);
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
+
+            assertThat(spec.getEmpiricalBasis().samples()).isEqualTo(500);
+            assertThat(spec.getEmpiricalBasis().successes()).isEqualTo(475);
+            assertThat(spec.getObservedRate()).isEqualTo(0.95);
+        }
+
+        @Test
+        @DisplayName("parses generatedAt at top level")
+        void parsesGeneratedAt() {
+            String yaml = createV2Yaml("TestUseCase", 100, 90);
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
+
+            assertThat(spec.getGeneratedAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("parses extendedStatistics section")
+        void parsesExtendedStatistics() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("specId: TestCase\n");
+            sb.append("useCaseId: TestCase\n");
+            sb.append("empiricalBasis:\n");
+            sb.append("  samples: 1000\n");
+            sb.append("  successes: 950\n");
+            sb.append("extendedStatistics:\n");
+            sb.append("  standardError: 0.0069\n");
+            sb.append("  confidenceIntervalLower: 0.936\n");
+            sb.append("  confidenceIntervalUpper: 0.964\n");
+            sb.append("  totalTimeMs: 60000\n");
+            sb.append("  avgTimePerSampleMs: 60\n");
+            sb.append("  totalTokens: 500000\n");
+            sb.append("  avgTokensPerSample: 500\n");
+            sb.append("requirements:\n");
+            sb.append("  minPassRate: 0.93\n");
+            sb.append("schemaVersion: punit-spec-2\n");
+            String content = sb.toString();
+            sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
+
+            assertThat(spec.getExtendedStatistics()).isNotNull();
+            assertThat(spec.getExtendedStatistics().standardError()).isEqualTo(0.0069);
+            assertThat(spec.getExtendedStatistics().confidenceIntervalLower()).isEqualTo(0.936);
+            assertThat(spec.getExtendedStatistics().confidenceIntervalUpper()).isEqualTo(0.964);
+            assertThat(spec.getExtendedStatistics().totalTimeMs()).isEqualTo(60000);
+            assertThat(spec.getExtendedStatistics().avgTokensPerSample()).isEqualTo(500);
+        }
+
+        @Test
+        @DisplayName("parses failureDistribution in extendedStatistics")
+        void parsesFailureDistribution() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("specId: TestCase\n");
+            sb.append("useCaseId: TestCase\n");
+            sb.append("empiricalBasis:\n");
+            sb.append("  samples: 1000\n");
+            sb.append("  successes: 900\n");
+            sb.append("extendedStatistics:\n");
+            sb.append("  standardError: 0.01\n");
+            sb.append("  failureDistribution:\n");
+            sb.append("    invalid_json: 50\n");
+            sb.append("    missing_fields: 30\n");
+            sb.append("    timeout: 20\n");
+            sb.append("requirements:\n");
+            sb.append("  minPassRate: 0.9\n");
+            sb.append("schemaVersion: punit-spec-2\n");
+            String content = sb.toString();
+            sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
+
+            assertThat(spec.getExtendedStatistics().failureDistribution())
+                    .containsEntry("invalid_json", 50)
+                    .containsEntry("missing_fields", 30)
+                    .containsEntry("timeout", 20);
+        }
+
+        @Test
+        @DisplayName("parses configuration section (alias for executionContext)")
+        void parsesConfigurationSection() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("specId: TestCase\n");
+            sb.append("useCaseId: TestCase\n");
+            sb.append("configuration:\n");
+            sb.append("  model: gpt-4\n");
+            sb.append("  temperature: 0.2\n");
+            sb.append("empiricalBasis:\n");
+            sb.append("  samples: 100\n");
+            sb.append("  successes: 95\n");
+            sb.append("requirements:\n");
+            sb.append("  minPassRate: 0.9\n");
+            sb.append("schemaVersion: punit-spec-2\n");
+            String content = sb.toString();
+            sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
+
+            assertThat(spec.getExecutionContext())
+                    .containsEntry("model", "gpt-4")
+                    .containsEntry("temperature", 0.2);
+        }
     }
 
     @Nested
@@ -297,13 +466,23 @@ class SpecificationLoaderTest {
         }
 
         @Test
-        @DisplayName("accepts valid fingerprint")
-        void acceptsValidFingerprint() {
+        @DisplayName("accepts valid fingerprint for v1 schema")
+        void acceptsValidFingerprintV1() {
             String yaml = createValidYaml("TestCase", 0.9);
             
             // Should not throw
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
             assertThat(spec.getMinPassRate()).isEqualTo(0.9);
+        }
+
+        @Test
+        @DisplayName("accepts valid fingerprint for v2 schema")
+        void acceptsValidFingerprintV2() {
+            String yaml = createV2Yaml("TestCase", 1000, 900);
+
+            // Should not throw
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
+            assertThat(spec.hasEmpiricalBasis()).isTrue();
         }
     }
 
@@ -378,6 +557,75 @@ class SpecificationLoaderTest {
             
             assertThat(spec.getRequirements().successCriteria()).isEqualTo("isValid == true");
         }
+
+        @Test
+        @DisplayName("parses empirical basis from JSON")
+        void parsesEmpiricalBasisFromJson() {
+            String json = """
+                {
+                    "specId": "TestCase",
+                    "useCaseId": "TestCase",
+                    "samples": 500,
+                    "successes": 450
+                }
+                """;
+
+            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
+
+            assertThat(spec.hasEmpiricalBasis()).isTrue();
+            assertThat(spec.getEmpiricalBasis().samples()).isEqualTo(500);
+            assertThat(spec.getEmpiricalBasis().successes()).isEqualTo(450);
+        }
+
+        @Test
+        @DisplayName("parses generatedAt from JSON")
+        void parsesGeneratedAtFromJson() {
+            String json = """
+                {
+                    "specId": "TestCase",
+                    "useCaseId": "TestCase",
+                    "generatedAt": "2026-01-09T10:00:00Z"
+                }
+                """;
+
+            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
+
+            assertThat(spec.getGeneratedAt()).isNotNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("validation")
+    class Validation {
+
+        @Test
+        @DisplayName("v2 spec without approval passes validation")
+        void v2SpecWithoutApprovalPassesValidation() {
+            String yaml = createV2Yaml("TestCase", 1000, 900);
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
+
+            // Should not throw
+            spec.validate();
+        }
+
+        @Test
+        @DisplayName("spec with invalid minPassRate fails validation")
+        void invalidMinPassRateFailsValidation() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("specId: TestCase\n");
+            sb.append("useCaseId: TestCase\n");
+            sb.append("requirements:\n");
+            sb.append("  minPassRate: 1.5\n");
+            sb.append("schemaVersion: punit-spec-2\n");
+            String content = sb.toString();
+            sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
+
+            ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
+
+            assertThatThrownBy(spec::validate)
+                    .isInstanceOf(org.javai.punit.spec.model.SpecificationValidationException.class)
+                    .hasMessageContaining("invalid minPassRate");
+        }
     }
 }
-

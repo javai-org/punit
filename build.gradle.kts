@@ -113,20 +113,22 @@ tasks.test {
     exclude("**/testsubjects/**")
 }
 
-// Create experiment task for running experiments
-// This is a standard JUnit Test task configured for the experiment source set.
-// Experiments use JUnit's @TestTemplate mechanism under the hood.
+// ═══════════════════════════════════════════════════════════════════════════
+// MEASURE task - Generate specs for probabilistic tests
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Runs experiments with mode = MEASURE to generate statistically reliable specs.
+// Specs are written directly to src/test/resources/punit/specs/ for version control.
 //
 // Usage:
-//   ./gradlew experiment --tests "ShoppingExperiment"
-//   ./gradlew experiment --tests "ShoppingExperiment.measureRealisticSearchBaseline"
+//   ./gradlew measure --tests "ShoppingExperiment.measureRealisticSearchBaseline"
 //
 // Output:
-//   Baselines are written to: build/punit/baselines/
-//   These can be approved to create specs in: src/test/resources/punit/specs/
+//   Specs written to: src/test/resources/punit/specs/{UseCaseId}.yaml
+//   These are used by @ProbabilisticTest with useCase = MyUseCase.class
 //
-val experiment by tasks.registering(Test::class) {
-    description = "Runs named experiments to either explore alternative configurations or to generate empirical baselines"
+val measure by tasks.registering(Test::class) {
+    description = "Runs MEASURE experiments to generate specs for probabilistic tests"
     group = "verification"
     
     // Use the experiment source set
@@ -146,21 +148,79 @@ val experiment by tasks.registering(Test::class) {
     
     // Configure reports output directory
     reports {
-        html.outputLocation.set(layout.buildDirectory.dir("reports/experiment"))
-        junitXml.outputLocation.set(layout.buildDirectory.dir("experiment-results"))
+        html.outputLocation.set(layout.buildDirectory.dir("reports/measure"))
+        junitXml.outputLocation.set(layout.buildDirectory.dir("measure-results"))
     }
     
-    // System properties for experiment configuration
-    // Baselines go to build/ directory (ephemeral, regeneratable)
-    // Specs (approved baselines) go to src/test/resources/punit/specs/ (version controlled)
-    systemProperty("punit.mode", "experiment")
-    systemProperty("punit.baseline.outputDir", layout.buildDirectory.dir("punit/baselines").get().asFile.absolutePath)
+    // Specs go directly to src/test/resources/punit/specs/ (version controlled)
+    systemProperty("punit.mode", "measure")
+    systemProperty("punit.specs.outputDir", "src/test/resources/punit/specs")
     
     // Experiments never fail the build (they're exploratory, not conformance tests)
     ignoreFailures = true
     
     // Ensure experiment classes are compiled first
     dependsOn("compileExperimentJava", "processExperimentResources")
+    
+    doLast {
+        println("\n✓ MEASURE complete. Specs written to: src/test/resources/punit/specs/")
+        println("  Next: Review and commit the generated specs.")
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPLORE task - Compare configurations to find optimal settings
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Runs experiments with mode = EXPLORE to compare different configurations.
+// Specs are written to src/test/resources/punit/explorations/ for analysis.
+//
+// Usage:
+//   ./gradlew explore --tests "ShoppingExperiment.exploreModelConfigurations"
+//
+// Output:
+//   Specs written to: src/test/resources/punit/explorations/{UseCaseId}/{config}.yaml
+//   These are for analysis/comparison, not for powering tests.
+//
+val explore by tasks.registering(Test::class) {
+    description = "Runs EXPLORE experiments to compare configurations"
+    group = "verification"
+    
+    // Use the experiment source set
+    testClassesDirs = sourceSets["experiment"].output.classesDirs
+    classpath = sourceSets["experiment"].runtimeClasspath
+    
+    useJUnitPlatform()
+    
+    testLogging {
+        events("passed", "skipped", "failed", "standardOut", "standardError")
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStandardStreams = true
+    }
+    
+    // Configure reports output directory
+    reports {
+        html.outputLocation.set(layout.buildDirectory.dir("reports/explore"))
+        junitXml.outputLocation.set(layout.buildDirectory.dir("explore-results"))
+    }
+    
+    // Exploration specs go to explorations/ (for analysis, not tests)
+    systemProperty("punit.mode", "explore")
+    systemProperty("punit.explorations.outputDir", "src/test/resources/punit/explorations")
+    
+    // Experiments never fail the build (they're exploratory, not conformance tests)
+    ignoreFailures = true
+    
+    // Ensure experiment classes are compiled first
+    dependsOn("compileExperimentJava", "processExperimentResources")
+    
+    doLast {
+        println("\n✓ EXPLORE complete. Results written to: src/test/resources/punit/explorations/")
+        println("  Analyze results to choose optimal configuration, then run MEASURE.")
+    }
 }
 
 tasks.javadoc {
@@ -238,78 +298,6 @@ tasks.register("publishLocal") {
     dependsOn("publishMavenJavaPublicationToMavenLocalRepository")
 }
 
-// Task to approve baselines and generate specs
-// This reads baselines from punit/pending-approval/ and generates specs in src/test/resources/punit/specs/
-//
-// Usage:
-//   ./gradlew punitApprove                                    # Approve all pending baselines
-//   ./gradlew punitApprove --approver="Jane Doe"              # Specify approver name
-//   ./gradlew punitApprove --notes="Reviewed for v1.2"        # Add approval notes
-//   ./gradlew punitApprove --dry-run                          # Preview without writing
-//   ./gradlew punitApprove -Pbaseline=path/to/baseline.yaml   # Approve specific file
-//
-// Output:
-//   Specs are written to: src/test/resources/punit/specs/
-//   These can be used by @ProbabilisticTest with useCase=MyUseCase.class
-//
-tasks.register<JavaExec>("punitApprove") {
-    description = "Approve baselines from punit/pending-approval/ and generate specs"
-    group = "punit"
-    
-    dependsOn("compileJava")
-    
-    mainClass.set("org.javai.punit.experiment.cli.ApproveBaseline")
-    classpath = sourceSets.main.get().runtimeClasspath
-    
-    // Pass through command line arguments
-    val approver: String? = project.findProperty("approver") as String?
-    val notes: String? = project.findProperty("notes") as String?
-    val baseline: String? = project.findProperty("baseline") as String?
-    val dryRun: Boolean = project.hasProperty("dry-run")
-    
-    args = buildList {
-        if (baseline != null) {
-            add("--baseline=$baseline")
-        }
-        if (approver != null) {
-            add("--approver=$approver")
-        }
-        if (notes != null) {
-            add("--notes=$notes")
-        }
-        if (dryRun) {
-            add("--dry-run")
-        }
-    }
-}
-
-// Task to promote baselines from build/ to pending-approval/
-// This copies ephemeral baselines to the version-controlled pending-approval directory
-//
-// Usage:
-//   ./gradlew punitPromote                           # Promote all new baselines
-//   ./gradlew punitPromote -Pbaseline=<filename>     # Promote specific baseline
-//
-tasks.register<Copy>("punitPromote") {
-    description = "Promote baselines from build/punit/baselines/ to punit/pending-approval/"
-    group = "punit"
-    
-    dependsOn("experiment")
-    
-    from(layout.buildDirectory.dir("punit/baselines"))
-    into("punit/pending-approval")
-    
-    // Only copy YAML files
-    include("*.yaml", "*.yml")
-    
-    doLast {
-        println("Baselines promoted to punit/pending-approval/")
-        println("Next steps:")
-        println("  1. Review the baselines")
-        println("  2. Commit them to version control")
-        println("  3. Run: ./gradlew punitApprove")
-    }
-}
 
 // ========== Code Coverage (JaCoCo) ==========
 

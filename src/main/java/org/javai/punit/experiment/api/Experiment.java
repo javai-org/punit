@@ -13,21 +13,28 @@ import org.junit.jupiter.api.extension.ExtendWith;
 /**
  * Marks a method as an experiment that executes a use case repeatedly to gather empirical data.
  *
- * <p>Experiments are exploratory: they produce empirical baselines but never pass/fail verdicts.
+ * <p>Experiments are exploratory: they produce empirical specs but never pass/fail verdicts.
  * Experiment results are informational only and never gate CI.
  *
- * <h2>Experiment Modes</h2>
- * <p>Two modes are supported:
+ * <h2>Experiment Modes (Mandatory)</h2>
+ * <p>You must explicitly choose a mode:
  * <ul>
- *   <li><b>BASELINE</b> (default): Single configuration, large sample size (1000+)
- *       for precise statistical estimation</li>
+ *   <li><b>MEASURE</b>: Single configuration, large sample size (1000+)
+ *       for precise statistical estimation. Output: {@code specs/}</li>
  *   <li><b>EXPLORE</b>: Multiple configurations from a {@link FactorSource},
- *       small sample size per config (default: 1) for rapid comparison</li>
+ *       small sample size per config (default: 1) for rapid comparison. Output: {@code explorations/}</li>
  * </ul>
  *
- * <h2>Example: BASELINE Mode</h2>
+ * <h2>Gradle Tasks</h2>
+ * <ul>
+ *   <li>{@code ./gradlew measure} — runs experiments with {@code mode = MEASURE}</li>
+ *   <li>{@code ./gradlew explore} — runs experiments with {@code mode = EXPLORE}</li>
+ * </ul>
+ *
+ * <h2>Example: MEASURE Mode</h2>
  * <pre>{@code
  * @Experiment(
+ *     mode = ExperimentMode.MEASURE,
  *     useCase = ShoppingUseCase.class,
  *     samples = 1000,
  *     timeBudgetMs = 600_000
@@ -71,7 +78,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * <h2>Key Characteristics</h2>
  * <ul>
  *   <li><strong>No pass/fail</strong>: Experiments never fail (except for infrastructure errors)</li>
- *   <li><strong>Produces empirical baseline</strong>: After execution, generates baseline file(s)</li>
+ *   <li><strong>Produces empirical specs</strong>: After execution, generates spec file(s)</li>
  *   <li><strong>Never gates CI</strong>: Results are informational only</li>
  *   <li><strong>Use case injection</strong>: Configure via {@link UseCaseProvider}</li>
  *   <li><strong>Result capture</strong>: Use {@link ResultCaptor} to record results for aggregation</li>
@@ -91,17 +98,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 public @interface Experiment {
     
     /**
-     * The experiment mode: BASELINE or EXPLORE.
+     * The experiment mode: MEASURE or EXPLORE.
      *
-     * <p>Default is {@link ExperimentMode#BASELINE}, which runs a single configuration
-     * with many samples for precise statistical estimation.
+     * <p><b>This is mandatory</b> — you must explicitly choose a mode.
      *
-     * <p>Use {@link ExperimentMode#EXPLORE} with {@link FactorSource} to compare
-     * multiple configurations.
+     * <ul>
+     *   <li>{@link ExperimentMode#MEASURE}: Single configuration, many samples,
+     *       outputs to {@code specs/}</li>
+     *   <li>{@link ExperimentMode#EXPLORE}: Multiple configurations via {@link FactorSource},
+     *       outputs to {@code explorations/}</li>
+     * </ul>
      *
      * @return the experiment mode
      */
-    ExperimentMode mode() default ExperimentMode.BASELINE;
+    ExperimentMode mode();
     
     /**
      * The use case class to execute.
@@ -132,35 +142,36 @@ public @interface Experiment {
     String useCaseId() default "";
     
     /**
-     * Number of sample invocations to execute in BASELINE mode.
+     * Number of sample invocations to execute in MEASURE mode.
      *
-     * <p>This is used when {@code mode = ExperimentMode.BASELINE} (the default).
+     * <p>This is used when {@code mode = ExperimentMode.MEASURE}.
      * For EXPLORE mode, use {@link #samplesPerConfig()} instead.
      *
-     * <p>Must be ≥ 1. Default: 1000 for statistically reliable baselines.
+     * <p>Must be ≥ 1. Default: 0 (indicates that the mode's default sample size will be used).
+     * A high value such as 1000+ is recommended for reliable statistical estimation.
      *
      * @return the number of samples
      */
-    int samples() default 1000;
+    int samples() default 0;
     
     /**
      * Number of samples per configuration in EXPLORE mode.
      *
      * <p>This is used when {@code mode = ExperimentMode.EXPLORE}.
      *
-     * <p>Default: 1 (single sample per config for fast initial filtering).
+     * <p>Default: 0 (indicates that the mode's default sample size will be used).
      * Increase to 10+ when comparing finalists for statistical rigor.
      *
      * <p>Typical workflow:
      * <ol>
      *   <li>Phase 1: {@code samplesPerConfig = 1} — quick pass to find working configs</li>
      *   <li>Phase 2: {@code samplesPerConfig = 10} — compare promising configs</li>
-     *   <li>Final: Switch to BASELINE mode with 1000+ samples for chosen config</li>
+     *   <li>Final: Switch to MEASURE mode with 1000+ samples for chosen config</li>
      * </ol>
      *
      * @return the number of samples per config
      */
-    int samplesPerConfig() default 1;
+    int samplesPerConfig() default 0;
     
     /**
      * Maximum wall-clock time budget in milliseconds.
@@ -183,45 +194,17 @@ public @interface Experiment {
     long tokenBudget() default 0;
     
     /**
-     * Directory for storing generated baselines.
-     *
-     * <p>For multi-config experiments, a subdirectory is created per experiment.
-     * Relative to test resources root.
-     * Default: "punit/baselines"
-     *
-     * @return the baseline output directory
-     */
-    String baselineOutputDir() default "punit/baselines";
-    
-    /**
      * Unique identifier for this experiment.
      *
      * <p>Required for multi-config experiments; optional for single-config.
-     * Used as directory name for output files.
+     * Used as part of output file naming.
      *
      * @return the experiment ID
      */
     String experimentId() default "";
-    
+
     /**
-     * Reference to a YAML ExperimentDesign file (for complex multi-config experiments).
-     *
-     * <p>When provided, overrides annotation-based configuration.
-     * Path relative to test resources root.
-     *
-     * @return the design file path
-     */
-    String designFile() default "";
-    
-    /**
-     * Whether to overwrite existing baseline files.
-     *
-     * @return true to overwrite existing baselines
-     */
-    boolean overwriteBaseline() default false;
-    
-    /**
-     * Output format for baseline files.
+     * Output format for spec files.
      *
      * <p>Supported values: "yaml" (default), "json".
      *
@@ -229,4 +212,3 @@ public @interface Experiment {
      */
     String outputFormat() default "yaml";
 }
-

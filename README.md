@@ -130,6 +130,31 @@ You'll see output like:
         ✅ Sample 95/100  ← SUCCESS_GUARANTEED, remaining samples skipped
 ```
 
+### (Recommended) Spec-Driven Workflow
+
+For production use, derive thresholds from empirical data:
+
+```bash
+# 1. Run a MEASURE experiment (1000 samples)
+./gradlew measure --tests "MyExperiment.measureSomething"
+# → Generates: src/test/resources/punit/specs/MyUseCase.yaml
+
+# 2. Review and commit the spec
+git add src/test/resources/punit/specs/
+git commit -m "Add spec for MyUseCase"
+
+# 3. Reference in your test (threshold derived from spec)
+```
+
+```java
+@ProbabilisticTest(useCase = MyUseCase.class, samples = 50)
+void serviceReturnsValidResponse() {
+    // minPassRate derived from spec's empirical data
+    Response response = myService.call();
+    assertThat(response.isValid()).isTrue();
+}
+```
+
 ## Core Concepts
 
 ### Samples and Pass Rate

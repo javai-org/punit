@@ -38,9 +38,11 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * ./gradlew experiment --tests "ShoppingExperiment"
- * ./gradlew experiment --tests "ShoppingExperiment.measureRealisticSearchBaseline"
- * ./gradlew experiment --tests "ShoppingExperiment.exploreModelConfigurations"
+ * # Run MEASURE experiments (generate specs in src/test/resources/punit/specs/)
+ * ./gradlew measure --tests "ShoppingExperiment.measureRealisticSearchBaseline"
+ *
+ * # Run EXPLORE experiments (generate specs in src/test/resources/punit/explorations/)
+ * ./gradlew explore --tests "ShoppingExperiment.exploreModelConfigurations"
  * }</pre>
  *
  * @see ShoppingUseCase
@@ -63,13 +65,13 @@ public class ShoppingExperiment {
      *
      * <h2>Two Registration Patterns</h2>
      * <ul>
-     *   <li><b>Regular factory</b> - For BASELINE mode with fixed configuration</li>
+     *   <li><b>Regular factory</b> - For MEASURE mode with fixed configuration</li>
      *   <li><b>Factor factory</b> - For EXPLORE mode with configuration from factors</li>
      * </ul>
      */
     @BeforeEach
     void setUp() {
-        // BASELINE mode: Fixed configuration with ~95% success rate
+        // MEASURE mode: Fixed configuration with ~95% success rate
         provider.register(ShoppingUseCase.class, () ->
             new ShoppingUseCase(
                 new MockShoppingAssistant(
@@ -108,7 +110,7 @@ public class ShoppingExperiment {
      *
      * <h2>Output</h2>
      * <pre>
-     * build/punit/baselines/ShoppingUseCase/
+     * src/test/resources/punit/explorations/ShoppingUseCase/
      * ├── model-gpt-4_temp-0.0_query-wireless_headphones.yaml
      * └── ... (one file per configuration)
      * </pre>
@@ -116,7 +118,7 @@ public class ShoppingExperiment {
     @Experiment(
         mode = ExperimentMode.EXPLORE,
         useCase = ShoppingUseCase.class,
-        samplesPerConfig = 1,
+        // samplesPerConfig = 1, not necessary because EXPLORE mode implies a default sample size
         experimentId = "explore-model-configs"
     )
     @FactorSource("modelConfigurations")
@@ -149,14 +151,14 @@ public class ShoppingExperiment {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // PRIMARY BASELINE EXPERIMENT (1000 samples)
+    // PRIMARY MEASURE EXPERIMENT (1000 samples)
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * BASELINE experiment: Establish reliable statistics for product search.
+     * MEASURE experiment: Establish reliable statistics for product search.
      *
      * <p>This is the primary experiment for generating a statistically reliable
-     * baseline. It runs 1000 samples with fixed configuration (~95% success rate).
+     * spec. It runs 1000 samples with fixed configuration (~95% success rate).
      *
      * <h2>Key Design Points</h2>
      * <ul>
@@ -169,8 +171,9 @@ public class ShoppingExperiment {
      * @param captor the result captor
      */
     @Experiment(
+        mode = ExperimentMode.MEASURE,
         useCase = ShoppingUseCase.class,
-        samples = 1000,
+        // samples = 1000, not necessary because MEASURE mode implies a default sample size
         tokenBudget = 500000,
         timeBudgetMs = 600000,
         experimentId = "shopping-search-realistic-v1"
@@ -181,13 +184,14 @@ public class ShoppingExperiment {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // LEGACY EXPERIMENTS
+    // ADDITIONAL EXPERIMENTS
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Legacy experiment for backwards compatibility.
+     * Additional measurement experiment with tighter budgets.
      */
     @Experiment(
+        mode = ExperimentMode.MEASURE,
         useCase = ShoppingUseCase.class,
         samples = 1000,
         tokenBudget = 50000,
