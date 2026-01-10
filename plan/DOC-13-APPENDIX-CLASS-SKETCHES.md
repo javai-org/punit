@@ -146,7 +146,7 @@ public interface SuccessCriteria {
 
 ---
 
-*Previous: [Glossary](./DOC-12-GLOSSARY.md)*
+*Previous: [Glossary](../docs/GLOSSARY.md)*
 
 *Next: [Conclusion](./DOC-14-CONCLUSION.md)*
 

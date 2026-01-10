@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 import org.javai.punit.spec.model.ExecutionSpecification;
 
 /**
- * Loads execution specifications from YAML or JSON files.
+ * Loads execution specifications from YAML files.
  *
  * <p>Validates schema version compatibility and content integrity via fingerprint verification.
  *
@@ -46,33 +46,55 @@ public final class SpecificationLoader {
 	}
 
 	/**
-	 * Loads a specification from a file.
+	 * Loads a specification from a YAML file.
 	 *
-	 * <p>File format is detected by extension (.yaml/.yml vs .json).
+	 * <p>This method performs full validation including:
+	 * <ul>
+	 *   <li>Schema structure validation (all required fields)</li>
+	 *   <li>Content integrity validation (fingerprint)</li>
+	 * </ul>
 	 *
-	 * @param path the file path
+	 * @param path the file path (must be .yaml or .yml)
 	 * @return the loaded specification
 	 * @throws IOException if loading fails
+	 * @throws SpecificationIntegrityException if validation fails
 	 */
 	public static ExecutionSpecification load(Path path) throws IOException {
 		String filename = path.getFileName().toString().toLowerCase();
-		String content = Files.readString(path);
-
-		if (filename.endsWith(".json")) {
-			return parseJson(content);
-		} else {
-			return parseYaml(content);
+		
+		if (!filename.endsWith(".yaml") && !filename.endsWith(".yml")) {
+			throw new SpecificationIntegrityException(
+					"Unsupported file format: " + filename + ". Only YAML files (.yaml, .yml) are supported.");
 		}
+		
+		String content = Files.readString(path);
+		
+		// Full validation when loading from file
+		SpecSchemaValidator.validateOrThrow(content);
+		validateIntegrity(content);
+		
+		return parseYamlInternal(content);
 	}
 
 	/**
-	 * Parses a specification from YAML content.
+	 * Parses a specification from YAML content with integrity validation.
+	 *
+	 * <p>This method validates schema version and fingerprint, but not the full schema.
+	 * Use {@link #load(Path)} for full validation.
 	 *
 	 * @throws SpecificationIntegrityException if schema version is unsupported or fingerprint doesn't match
 	 */
 	public static ExecutionSpecification parseYaml(String content) {
-		// First, validate schema version and content integrity
+		// Validate content integrity (fingerprint)
 		validateIntegrity(content);
+		
+		return parseYamlInternal(content);
+	}
+	
+	/**
+	 * Internal parser without validation.
+	 */
+	private static ExecutionSpecification parseYamlInternal(String content) {
 
 		ExecutionSpecification.Builder builder = ExecutionSpecification.builder();
 		Map<String, Object> executionContext = new LinkedHashMap<>();
@@ -331,49 +353,6 @@ public final class SpecificationLoader {
 		}
 	}
 
-	/**
-	 * Parses a specification from JSON content.
-	 */
-	public static ExecutionSpecification parseJson(String content) {
-		// Simple JSON parsing (for production, use a proper JSON library)
-		ExecutionSpecification.Builder builder = ExecutionSpecification.builder();
-
-		String specId = extractJsonString(content, "specId");
-		String useCaseId = extractJsonString(content, "useCaseId");
-		int version = extractJsonInt(content, "version", 1);
-		String generatedAt = extractJsonString(content, "generatedAt");
-		String approvedAt = extractJsonString(content, "approvedAt");
-		String approvedBy = extractJsonString(content, "approvedBy");
-		String approvalNotes = extractJsonString(content, "approvalNotes");
-
-		builder.specId(specId)
-				.useCaseId(useCaseId)
-				.version(version)
-				.approvedBy(approvedBy)
-				.approvalNotes(approvalNotes);
-
-		if (generatedAt != null && !generatedAt.isEmpty()) {
-			builder.generatedAt(parseInstant(generatedAt));
-		}
-		if (approvedAt != null && !approvedAt.isEmpty()) {
-			builder.approvedAt(parseInstant(approvedAt));
-		}
-
-		// Extract requirements
-		double minPassRate = extractJsonDouble(content, "minPassRate", 1.0);
-		String successCriteria = extractJsonString(content, "successCriteria");
-		builder.requirements(minPassRate, successCriteria != null ? successCriteria : "");
-
-		// Extract empirical basis if present
-		int samples = extractJsonInt(content, "samples", 0);
-		int successes = extractJsonInt(content, "successes", 0);
-		if (samples > 0) {
-			builder.empiricalBasis(samples, successes);
-		}
-
-		return builder.build();
-	}
-
 	private static String extractValue(String line) {
 		int colonIdx = line.indexOf(':');
 		if (colonIdx < 0) return "";
@@ -422,32 +401,5 @@ public final class SpecificationLoader {
 		} catch (DateTimeParseException e) {
 			return null;
 		}
-	}
-
-	private static String extractJsonString(String json, String key) {
-		Pattern p = Pattern.compile("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
-		Matcher m = p.matcher(json);
-		if (m.find()) {
-			return m.group(1);
-		}
-		return null;
-	}
-
-	private static int extractJsonInt(String json, String key, int defaultValue) {
-		Pattern p = Pattern.compile("\"" + key + "\"\\s*:\\s*(\\d+)");
-		Matcher m = p.matcher(json);
-		if (m.find()) {
-			return Integer.parseInt(m.group(1));
-		}
-		return defaultValue;
-	}
-
-	private static double extractJsonDouble(String json, String key, double defaultValue) {
-		Pattern p = Pattern.compile("\"" + key + "\"\\s*:\\s*([\\d.]+)");
-		Matcher m = p.matcher(json);
-		if (m.find()) {
-			return Double.parseDouble(m.group(1));
-		}
-		return defaultValue;
 	}
 }

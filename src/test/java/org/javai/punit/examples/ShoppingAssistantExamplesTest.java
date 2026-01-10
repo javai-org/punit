@@ -35,6 +35,14 @@ import org.junit.jupiter.api.Disabled;
  * }
  * }</pre>
  *
+ * <h2>Post-EXPLORE Configuration</h2>
+ * <p>These tests assume the EXPLORE phase has already determined optimal settings:
+ * <ul>
+ *   <li>Model: gpt-4</li>
+ *   <li>Temperature: 0.7</li>
+ * </ul>
+ * <p>Each test explicitly sets these values, as they are now fixed post-EXPLORE.
+ *
  * <h2>Challenges</h2>
  * <p>LLMs are non-deterministic and may:
  * <ul>
@@ -67,6 +75,10 @@ class ShoppingAssistantExamplesTest {
 	void setUp() {
 		// Create use case with mock shopping assistant
 		useCase = new ShoppingUseCase(new MockShoppingAssistant());
+		
+		// Configuration fixed post-EXPLORE (same as MEASURE experiment)
+		useCase.setModel("gpt-4");
+		useCase.setTemperature(0.7);
 	}
 
 	// ========== Response Format Validation ==========
@@ -84,9 +96,7 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 5
 	)
 	void shouldReturnValidJsonFormat(TokenChargeRecorder tokenRecorder) {
-		String query = "wireless headphones under $100";
-
-		UseCaseResult result = useCase.searchProducts(query);
+		UseCaseResult result = useCase.searchProducts("wireless headphones");
 
 		// Record tokens from the use case result
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
@@ -114,9 +124,7 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 5
 	)
 	void shouldIncludeAllRequiredFields(TokenChargeRecorder tokenRecorder) {
-		String query = "laptop bag";
-
-		UseCaseResult result = useCase.searchProducts(query);
+		UseCaseResult result = useCase.searchProducts("laptop stand");
 
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 
@@ -151,9 +159,7 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 5
 	)
 	void shouldReturnProductsWithRequiredAttributes(TokenChargeRecorder tokenRecorder) {
-		String query = "running shoes";
-
-		UseCaseResult result = useCase.searchProducts(query);
+		UseCaseResult result = useCase.searchProducts("USB-C hub");
 
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 
@@ -179,10 +185,9 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 5
 	)
 	void shouldReturnRelevantProducts(TokenChargeRecorder tokenRecorder) {
-		String query = "bluetooth speaker waterproof";
 		double minRelevanceScore = 0.7;
 
-		UseCaseResult result = useCase.searchProductsWithRelevanceCheck(query, minRelevanceScore);
+		UseCaseResult result = useCase.searchProductsWithRelevanceCheck("mechanical keyboard", minRelevanceScore);
 
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 
@@ -209,10 +214,9 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 5
 	)
 	void shouldRespectPriceRangeFilter(TokenChargeRecorder tokenRecorder) {
-		String query = "gift ideas under $50";
 		double maxPrice = 50.00;
 
-		UseCaseResult result = useCase.searchProductsWithPriceConstraint(query, maxPrice);
+		UseCaseResult result = useCase.searchProductsWithPriceConstraint("webcam 4k", maxPrice);
 
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 
@@ -238,10 +242,9 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 2
 	)
 	void shouldRespectResultCountLimit(TokenChargeRecorder tokenRecorder) {
-		String query = "coffee makers";
 		int maxResults = 5;
 
-		UseCaseResult result = useCase.searchProductsWithLimit(query, maxResults);
+		UseCaseResult result = useCase.searchProductsWithLimit("bluetooth speaker waterproof", maxResults);
 
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 
@@ -262,10 +265,9 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 3
 	)
 	void shouldHaveConsistentResultCount(TokenChargeRecorder tokenRecorder) {
-		String query = "office supplies";
 		int maxResults = 5;
 
-		UseCaseResult result = useCase.searchProductsWithLimit(query, maxResults);
+		UseCaseResult result = useCase.searchProductsWithLimit("noise cancelling earbuds", maxResults);
 
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 
@@ -289,9 +291,7 @@ class ShoppingAssistantExamplesTest {
 			maxExampleFailures = 5
 	)
 	void shouldReturnCompleteValidResponse(TokenChargeRecorder tokenRecorder) {
-		String query = "smartphone accessories";
-
-		UseCaseResult result = useCase.searchProducts(query);
+		UseCaseResult result = useCase.searchProducts("microphone for streaming");
 
 		tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 

@@ -11,18 +11,37 @@ import org.junit.jupiter.api.Test;
 class SpecificationLoaderTest {
 
     // Helper to create valid spec YAML with fingerprint (v1 schema with approval)
+    // Now includes all required fields for schema validation
     private String createValidYaml(String specId, double minPassRate) {
         StringBuilder sb = new StringBuilder();
+        sb.append("schemaVersion: punit-spec-1\n");
         sb.append("specId: ").append(specId).append("\n");
         sb.append("useCaseId: ").append(specId).append("\n");
-        sb.append("\n");
+        sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
         sb.append("approvedAt: 2026-01-09T12:00:00Z\n");
         sb.append("approvedBy: tester\n");
         sb.append("\n");
+        sb.append("execution:\n");
+        sb.append("  samplesPlanned: 100\n");
+        sb.append("  samplesExecuted: 100\n");
+        sb.append("  terminationReason: COMPLETED\n");
+        sb.append("\n");
+        sb.append("statistics:\n");
+        sb.append("  successRate:\n");
+        sb.append("    observed: ").append(minPassRate).append("\n");
+        sb.append("    standardError: 0.01\n");
+        sb.append("    confidenceInterval95: [").append(minPassRate - 0.02).append(", ").append(minPassRate + 0.02).append("]\n");
+        sb.append("  successes: ").append((int)(100 * minPassRate)).append("\n");
+        sb.append("  failures: ").append((int)(100 * (1 - minPassRate))).append("\n");
+        sb.append("\n");
+        sb.append("cost:\n");
+        sb.append("  totalTimeMs: 1000\n");
+        sb.append("  avgTimePerSampleMs: 10\n");
+        sb.append("  totalTokens: 10000\n");
+        sb.append("  avgTokensPerSample: 100\n");
+        sb.append("\n");
         sb.append("requirements:\n");
         sb.append("  minPassRate: ").append(minPassRate).append("\n");
-        sb.append("\n");
-        sb.append("schemaVersion: punit-spec-1\n");
         
         // Compute fingerprint
         String contentForHashing = sb.toString();
@@ -33,11 +52,35 @@ class SpecificationLoaderTest {
     }
 
     // Helper to create valid spec YAML with v2 schema (no approval required)
+    // Now includes all required fields for schema validation
     private String createV2Yaml(String specId, int samples, int successes) {
+        double successRate = (double) successes / samples;
+        int failures = samples - successes;
+        
         StringBuilder sb = new StringBuilder();
+        sb.append("schemaVersion: punit-spec-2\n");
         sb.append("specId: ").append(specId).append("\n");
         sb.append("useCaseId: ").append(specId).append("\n");
         sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
+        sb.append("\n");
+        sb.append("execution:\n");
+        sb.append("  samplesPlanned: ").append(samples).append("\n");
+        sb.append("  samplesExecuted: ").append(samples).append("\n");
+        sb.append("  terminationReason: COMPLETED\n");
+        sb.append("\n");
+        sb.append("statistics:\n");
+        sb.append("  successRate:\n");
+        sb.append("    observed: ").append(String.format("%.4f", successRate)).append("\n");
+        sb.append("    standardError: 0.01\n");
+        sb.append("    confidenceInterval95: [").append(String.format("%.4f", successRate - 0.02)).append(", ").append(String.format("%.4f", successRate + 0.02)).append("]\n");
+        sb.append("  successes: ").append(successes).append("\n");
+        sb.append("  failures: ").append(failures).append("\n");
+        sb.append("\n");
+        sb.append("cost:\n");
+        sb.append("  totalTimeMs: ").append(samples * 10).append("\n");
+        sb.append("  avgTimePerSampleMs: 10\n");
+        sb.append("  totalTokens: ").append(samples * 100).append("\n");
+        sb.append("  avgTokensPerSample: 100\n");
         sb.append("\n");
         sb.append("empiricalBasis:\n");
         sb.append("  samples: ").append(samples).append("\n");
@@ -46,8 +89,6 @@ class SpecificationLoaderTest {
         sb.append("\n");
         sb.append("requirements:\n");
         sb.append("  minPassRate: 0.85\n");
-        sb.append("\n");
-        sb.append("schemaVersion: punit-spec-2\n");
 
         String contentForHashing = sb.toString();
         String fingerprint = computeFingerprint(contentForHashing);
@@ -483,114 +524,6 @@ class SpecificationLoaderTest {
             // Should not throw
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
             assertThat(spec.hasEmpiricalBasis()).isTrue();
-        }
-    }
-
-    @Nested
-    @DisplayName("parseJson")
-    class ParseJson {
-
-        @Test
-        @DisplayName("parses valid JSON")
-        void parsesValidJson() {
-            String json = """
-                {
-                    "specId": "TestCase",
-                    "useCaseId": "TestCase",
-                    "version": 1,
-                    "approvedAt": "2026-01-09T12:00:00Z",
-                    "approvedBy": "tester",
-                    "minPassRate": 0.85
-                }
-                """;
-            
-            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
-            
-            assertThat(spec.getSpecId()).isEqualTo("TestCase");
-            assertThat(spec.getUseCaseId()).isEqualTo("TestCase");
-            assertThat(spec.getMinPassRate()).isEqualTo(0.85);
-            assertThat(spec.getApprovedBy()).isEqualTo("tester");
-        }
-
-        @Test
-        @DisplayName("uses default version when not specified")
-        void usesDefaultVersion() {
-            String json = """
-                {
-                    "specId": "TestCase",
-                    "useCaseId": "TestCase"
-                }
-                """;
-            
-            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
-            
-            assertThat(spec.getVersion()).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("uses default minPassRate when not specified")
-        void usesDefaultMinPassRate() {
-            String json = """
-                {
-                    "specId": "TestCase",
-                    "useCaseId": "TestCase"
-                }
-                """;
-            
-            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
-            
-            assertThat(spec.getMinPassRate()).isEqualTo(1.0);
-        }
-
-        @Test
-        @DisplayName("parses success criteria")
-        void parsesSuccessCriteria() {
-            String json = """
-                {
-                    "specId": "TestCase",
-                    "useCaseId": "TestCase",
-                    "successCriteria": "isValid == true"
-                }
-                """;
-            
-            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
-            
-            assertThat(spec.getRequirements().successCriteria()).isEqualTo("isValid == true");
-        }
-
-        @Test
-        @DisplayName("parses empirical basis from JSON")
-        void parsesEmpiricalBasisFromJson() {
-            String json = """
-                {
-                    "specId": "TestCase",
-                    "useCaseId": "TestCase",
-                    "samples": 500,
-                    "successes": 450
-                }
-                """;
-
-            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
-
-            assertThat(spec.hasEmpiricalBasis()).isTrue();
-            assertThat(spec.getEmpiricalBasis().samples()).isEqualTo(500);
-            assertThat(spec.getEmpiricalBasis().successes()).isEqualTo(450);
-        }
-
-        @Test
-        @DisplayName("parses generatedAt from JSON")
-        void parsesGeneratedAtFromJson() {
-            String json = """
-                {
-                    "specId": "TestCase",
-                    "useCaseId": "TestCase",
-                    "generatedAt": "2026-01-09T10:00:00Z"
-                }
-                """;
-
-            ExecutionSpecification spec = SpecificationLoader.parseJson(json);
-
-            assertThat(spec.getGeneratedAt()).isNotNull();
         }
     }
 

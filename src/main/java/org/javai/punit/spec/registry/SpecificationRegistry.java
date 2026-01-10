@@ -88,7 +88,7 @@ public class SpecificationRegistry {
 		if (specPath == null) {
 			throw new SpecificationNotFoundException(
 					"Specification not found: " + useCaseId +
-							" (tried " + useCaseId + ".yaml/.yml/.json in " + specsRoot + ")");
+							" (tried " + useCaseId + ".yaml/.yml in " + specsRoot + ")");
 		}
 
 		try {
@@ -103,16 +103,11 @@ public class SpecificationRegistry {
 
 	private Path resolveSpecPath(String useCaseId) {
 		// Flat structure: specs/{useCaseId}.yaml
-		// YAML is preferred (default format)
 		Path yamlPath = specsRoot.resolve(useCaseId + ".yaml");
 		if (Files.exists(yamlPath)) return yamlPath;
 
 		Path ymlPath = specsRoot.resolve(useCaseId + ".yml");
 		if (Files.exists(ymlPath)) return ymlPath;
-
-		// JSON as fallback
-		Path jsonPath = specsRoot.resolve(useCaseId + ".json");
-		if (Files.exists(jsonPath)) return jsonPath;
 
 		return null;
 	}

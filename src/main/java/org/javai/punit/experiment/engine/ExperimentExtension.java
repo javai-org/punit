@@ -82,6 +82,9 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         Method testMethod = context.getRequiredTestMethod();
         Experiment annotation = testMethod.getAnnotation(Experiment.class);
         
+        // Validate samples/samplesPerConfig mutual exclusivity
+        validateSampleConfiguration(annotation, testMethod);
+        
         // Resolve use case ID from class reference or legacy string
         String useCaseId = resolveUseCaseId(annotation);
         
@@ -103,8 +106,39 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Provides invocation contexts for MEASURE mode (single configuration, many samples).
+     * Validates that samples and samplesPerConfig are not both specified.
+     *
+     * <p>These attributes are mutually exclusive:
+     * <ul>
+     *   <li>{@code samples}: Total number of samples (for MEASURE mode)</li>
+     *   <li>{@code samplesPerConfig}: Samples per factor configuration (for EXPLORE mode)</li>
+     * </ul>
+     *
+     * @param annotation the experiment annotation
+     * @param testMethod the test method (for error messages)
+     * @throws ExtensionConfigurationException if both are specified
      */
+    private void validateSampleConfiguration(Experiment annotation, Method testMethod) {
+        boolean hasSamples = annotation.samples() > 0;
+        boolean hasSamplesPerConfig = annotation.samplesPerConfig() > 0;
+        
+        if (hasSamples && hasSamplesPerConfig) {
+            throw new ExtensionConfigurationException(
+                "Experiment method '" + testMethod.getName() + "' specifies both 'samples' and 'samplesPerConfig'. " +
+                "These attributes are mutually exclusive:\n" +
+                "  - Use 'samples' for MEASURE mode (total sample count)\n" +
+                "  - Use 'samplesPerConfig' for EXPLORE mode (samples per factor configuration)\n" +
+                "Remove one of these attributes to resolve the conflict.");
+        }
+    }
+    
+    /**
+     * Provides invocation contexts for MEASURE mode (single configuration, many samples).
+     *
+     * <p>Supports optional @FactorSource for cycling through representative inputs.
+     * With samples=1000 and a factor source with 10 entries, each factor is used ~100 times.
+     */
+    @SuppressWarnings("unchecked")
     private Stream<TestTemplateInvocationContext> provideMeasureInvocationContexts(
             Experiment annotation, String useCaseId, ExtensionContext.Store store) {
         
@@ -120,11 +154,190 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         store.put("currentSample", currentSample);
         store.put("mode", ExperimentMode.MEASURE);
         
-        // Generate sample stream - each invocation gets its own captor
+        // Check for @FactorSource annotation - if present, use cycling factors
+        Method testMethod = store.get("testMethod", Method.class);
+        FactorSource factorSource = testMethod != null ? testMethod.getAnnotation(FactorSource.class) : null;
+        
+        if (factorSource != null && testMethod != null) {
+            // MEASURE mode with factor source - use cycling
+            return provideMeasureWithFactorsInvocationContexts(
+                testMethod, factorSource, samples, useCaseId, store, aggregator, terminated);
+        }
+        
+        // No factor source - simple sample stream
         return Stream.iterate(1, i -> i + 1)
             .limit(samples)
             .takeWhile(i -> !terminated.get())
             .map(i -> new MeasureInvocationContext(i, samples, useCaseId, new ResultCaptor()));
+    }
+    
+    /**
+     * Provides invocation contexts for MEASURE mode with factor source (cycling).
+     */
+    @SuppressWarnings("unchecked")
+    private Stream<TestTemplateInvocationContext> provideMeasureWithFactorsInvocationContexts(
+            Method testMethod, FactorSource factorSource, int samples, String useCaseId,
+            ExtensionContext.Store store, ExperimentResultAggregator aggregator, AtomicBoolean terminated) {
+        
+        // Resolve the factor source
+        String sourceReference = factorSource.value();
+        Stream<FactorArguments> factorStream;
+        try {
+            if (sourceReference.contains("#")) {
+                // Cross-class reference
+                String[] parts = sourceReference.split("#", 2);
+                String className = parts[0];
+                String methodName = parts[1];
+                Class<?> targetClass = resolveClass(className, testMethod.getDeclaringClass());
+                Method sourceMethod = targetClass.getDeclaredMethod(methodName);
+                sourceMethod.setAccessible(true);
+                Object result = sourceMethod.invoke(null);
+                if (result instanceof Stream) {
+                    factorStream = (Stream<FactorArguments>) result;
+                } else if (result instanceof java.util.Collection) {
+                    factorStream = ((java.util.Collection<FactorArguments>) result).stream();
+                } else {
+                    throw new ExtensionConfigurationException(
+                        "Factor source method must return Stream or Collection: " + sourceReference);
+                }
+            } else {
+                // Same-class reference
+                Method sourceMethod = testMethod.getDeclaringClass().getDeclaredMethod(sourceReference);
+                sourceMethod.setAccessible(true);
+                Object result = sourceMethod.invoke(null);
+                if (result instanceof Stream) {
+                    factorStream = (Stream<FactorArguments>) result;
+                } else if (result instanceof java.util.Collection) {
+                    factorStream = ((java.util.Collection<FactorArguments>) result).stream();
+                } else {
+                    throw new ExtensionConfigurationException(
+                        "Factor source method must return Stream or Collection: " + sourceReference);
+                }
+            }
+        } catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
+            throw new ExtensionConfigurationException(
+                "Cannot invoke @FactorSource method '" + sourceReference + "': " + e.getMessage(), e);
+        }
+        
+        // Materialize factors for cycling
+        List<FactorArguments> factorsList = factorStream.toList();
+        if (factorsList.isEmpty()) {
+            throw new ExtensionConfigurationException(
+                "Factor source '" + sourceReference + "' returned no factors");
+        }
+        
+        // Extract factor names from the first FactorArguments
+        List<FactorInfo> factorInfos = extractFactorInfosFromArguments(testMethod, factorsList.get(0));
+        store.put("factorInfos", factorInfos);
+        
+        // Generate sample stream with cycling factors
+        return Stream.iterate(1, i -> i + 1)
+            .limit(samples)
+            .takeWhile(i -> !terminated.get())
+            .map(i -> {
+                // Cycling: factor index = (sample - 1) % factorCount
+                int factorIndex = (i - 1) % factorsList.size();
+                FactorArguments args = factorsList.get(factorIndex);
+                Object[] factorValues = extractFactorValues(args, factorInfos);
+                return new MeasureWithFactorsInvocationContext(
+                    i, samples, useCaseId, new ResultCaptor(), factorValues, factorInfos);
+            });
+    }
+    
+    /**
+     * Extracts factor info from FactorArguments and method parameters.
+     */
+    private List<FactorInfo> extractFactorInfosFromArguments(Method testMethod, FactorArguments firstArgs) {
+        List<FactorInfo> infos = new ArrayList<>();
+        
+        // Try to get names from FactorArguments
+        String[] argNames = firstArgs.names();
+        if (argNames != null) {
+            for (int i = 0; i < argNames.length; i++) {
+                // FactorInfo(parameterIndex, name, filePrefix, type)
+                infos.add(new FactorInfo(i, argNames[i], argNames[i], Object.class));
+            }
+        } else {
+            // Fall back to @Factor annotations on method parameters
+            int factorIndex = 0;
+            for (java.lang.reflect.Parameter param : testMethod.getParameters()) {
+                Factor factor = param.getAnnotation(Factor.class);
+                if (factor != null) {
+                    infos.add(new FactorInfo(factorIndex++, factor.value(), factor.value(), param.getType()));
+                }
+            }
+        }
+        
+        return infos;
+    }
+    
+    /**
+     * Extracts factor values in the order matching factorInfos.
+     */
+    private Object[] extractFactorValues(FactorArguments args, List<FactorInfo> factorInfos) {
+        Object[] values = new Object[factorInfos.size()];
+        String[] argNames = args.names();
+        
+        for (int i = 0; i < factorInfos.size(); i++) {
+            FactorInfo info = factorInfos.get(i);
+            if (argNames != null) {
+                // Find by name
+                for (int j = 0; j < argNames.length; j++) {
+                    if (argNames[j].equals(info.name())) {
+                        values[i] = args.get(j);
+                        break;
+                    }
+                }
+            } else {
+                // Use positional index
+                values[i] = args.get(info.parameterIndex());
+            }
+        }
+        
+        return values;
+    }
+    
+    /**
+     * Resolves a class from a simple or fully qualified name.
+     * Tries sibling packages (e.g., from .experiment to .usecase) for convenience.
+     */
+    private Class<?> resolveClass(String className, Class<?> contextClass) {
+        String packageName = contextClass.getPackageName();
+        
+        // 1. Try same package
+        try {
+            return Class.forName(packageName + "." + className);
+        } catch (ClassNotFoundException ignored) {
+        }
+        
+        // 2. Try fully qualified name
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException ignored) {
+        }
+        
+        // 3. Try sibling packages (e.g., from .experiment to .usecase)
+        int lastDot = packageName.lastIndexOf('.');
+        if (lastDot > 0) {
+            String parentPackage = packageName.substring(0, lastDot);
+            
+            for (String sibling : new String[]{"usecase", "model", "domain", "service", "api", "core"}) {
+                try {
+                    return Class.forName(parentPackage + "." + sibling + "." + className);
+                } catch (ClassNotFoundException ignored) {
+                }
+            }
+            
+            // Try parent package directly
+            try {
+                return Class.forName(parentPackage + "." + className);
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        
+        throw new ExtensionConfigurationException(
+            "Cannot resolve class '" + className + "' from context " + contextClass.getName() +
+            ". Try using the fully qualified class name.");
     }
     
     /**
@@ -575,7 +788,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         try {
             Path outputPath = resolveMeasureOutputPath(annotation, aggregator.getUseCaseId());
             BaselineWriter writer = new BaselineWriter();
-            writer.write(baseline, outputPath, annotation.outputFormat());
+            writer.write(baseline, outputPath);
             
             context.publishReportEntry("punit.spec.outputPath", outputPath.toString());
         } catch (IOException e) {
@@ -615,7 +828,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         try {
             Path outputPath = resolveExploreOutputPath(annotation, useCaseId, configName);
             BaselineWriter writer = new BaselineWriter();
-            writer.write(baseline, outputPath, annotation.outputFormat());
+            writer.write(baseline, outputPath);
             
             context.publishReportEntry("punit.spec.outputPath", outputPath.toString());
             context.publishReportEntry("punit.config.complete", configName);
@@ -645,7 +858,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
      * <p>Output: {@code src/test/resources/punit/specs/{useCaseId}.yaml}
      */
     private Path resolveMeasureOutputPath(Experiment annotation, String useCaseId) throws IOException {
-        String filename = useCaseId.replace('.', '-') + "." + annotation.outputFormat();
+        String filename = useCaseId.replace('.', '-') + ".yaml";
         
         // Check for system property override (set by Gradle task)
         String outputDirOverride = System.getProperty("punit.specs.outputDir");
@@ -674,7 +887,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     private Path resolveExploreOutputPath(Experiment annotation, String useCaseId, String configName) 
             throws IOException {
         
-        String filename = configName + "." + annotation.outputFormat();
+        String filename = configName + ".yaml";
         
         // Check for system property override (set by Gradle task)
         String outputDirOverride = System.getProperty("punit.explorations.outputDir");
@@ -738,7 +951,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
 
     /**
-     * Invocation context for MEASURE mode (single configuration).
+     * Invocation context for MEASURE mode (single configuration, no factors).
      */
     private record MeasureInvocationContext(int sampleNumber, int totalSamples,
                                                String useCaseId, ResultCaptor captor) 
@@ -752,6 +965,33 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         @Override
         public List<Extension> getAdditionalExtensions() {
             return List.of(new CaptorParameterResolver(captor, null, 0));
+        }
+    }
+    
+    /**
+     * Invocation context for MEASURE mode with factor source (cycling).
+     *
+     * <p>Provides factor values that cycle through the factor source entries.
+     * With samples=1000 and 10 factor entries, each factor is used ~100 times.
+     */
+    private record MeasureWithFactorsInvocationContext(
+            int sampleNumber, int totalSamples,
+            String useCaseId, ResultCaptor captor,
+            Object[] factorValues, List<FactorInfo> factorInfos) 
+            implements TestTemplateInvocationContext {
+
+        @Override
+        public String getDisplayName(int invocationIndex) {
+            return String.format("[%s] sample %d/%d", useCaseId, sampleNumber, totalSamples);
+        }
+
+        @Override
+        public List<Extension> getAdditionalExtensions() {
+            List<Extension> extensions = new ArrayList<>();
+            extensions.add(new CaptorParameterResolver(captor, null, sampleNumber, factorValues));
+            extensions.add(new FactorParameterResolver(factorValues, factorInfos));
+            extensions.add(new FactorValuesResolver(factorValues, factorInfos));
+            return extensions;
         }
     }
     
@@ -775,10 +1015,69 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         @Override
         public List<Extension> getAdditionalExtensions() {
             List<Extension> extensions = new ArrayList<>();
+            // IMPORTANT: FactorValuesInitializer must be first to set factor values 
+            // on UseCaseProvider BEFORE any parameter resolution happens
+            extensions.add(new FactorValuesInitializer(factorValues, factorInfos));
             extensions.add(new CaptorParameterResolver(captor, configName, sampleInConfig, factorValues));
             extensions.add(new FactorParameterResolver(factorValues, factorInfos));
             extensions.add(new FactorValuesResolver(factorValues, factorInfos));
             return extensions;
+        }
+    }
+    
+    /**
+     * Initializes factor values on the UseCaseProvider BEFORE parameter resolution
+     * and clears them AFTER the test completes.
+     *
+     * <p>This is critical for auto-wired use case injection: the provider needs to know
+     * the current factor values when resolving the use case parameter, which happens
+     * before the test method is invoked (and before interceptTestTemplateMethod).
+     */
+    private static class FactorValuesInitializer implements 
+            org.junit.jupiter.api.extension.BeforeEachCallback,
+            org.junit.jupiter.api.extension.AfterEachCallback {
+        private final Object[] factorValues;
+        private final List<FactorInfo> factorInfos;
+        
+        FactorValuesInitializer(Object[] factorValues, List<FactorInfo> factorInfos) {
+            this.factorValues = factorValues;
+            this.factorInfos = factorInfos;
+        }
+        
+        @Override
+        public void beforeEach(ExtensionContext context) {
+            // Find the UseCaseProvider and set factor values
+            UseCaseProvider provider = findProvider(context);
+            if (provider != null && factorValues != null) {
+                List<String> factorNames = factorInfos.stream()
+                    .map(FactorInfo::name)
+                    .toList();
+                provider.setCurrentFactorValues(factorValues, factorNames);
+            }
+        }
+        
+        @Override
+        public void afterEach(ExtensionContext context) {
+            // Clear factor values after the test completes
+            UseCaseProvider provider = findProvider(context);
+            if (provider != null) {
+                provider.clearCurrentFactorValues();
+            }
+        }
+        
+        private UseCaseProvider findProvider(ExtensionContext context) {
+            Object testInstance = context.getRequiredTestInstance();
+            for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
+                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
+                    field.setAccessible(true);
+                    try {
+                        return (UseCaseProvider) field.get(testInstance);
+                    } catch (IllegalAccessException e) {
+                        // Continue searching
+                    }
+                }
+            }
+            return null;
         }
     }
     

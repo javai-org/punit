@@ -1,6 +1,7 @@
 package org.javai.punit.engine;
 
 import java.lang.reflect.Method;
+import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
@@ -423,23 +424,51 @@ public class ConfigurationResolver {
      * @throws SpecificationIntegrityException if spec file fails integrity validation
      */
     private double loadMinPassRateFromSpec(String specId) {
+        return loadSpec(specId)
+                .map(ExecutionSpecification::getMinPassRate)
+                .filter(mpr -> mpr > 0 && mpr <= 1.0)
+                .orElse(DEFAULT_MIN_PASS_RATE);
+    }
+
+    /**
+     * Loads an ExecutionSpecification by its ID.
+     *
+     * <p>This method is used both for loading minPassRate and for factor consistency
+     * validation. It handles all error cases gracefully.
+     *
+     * @param specId the specification ID
+     * @return the loaded spec, or null if not found or loading failed
+     * @throws SpecificationIntegrityException if spec file fails integrity validation
+     */
+    public Optional<ExecutionSpecification> loadSpec(String specId) {
+        if (specId == null || specId.isEmpty()) {
+            return Optional.empty();
+        }
         try {
             SpecificationRegistry registry = new SpecificationRegistry();
-            ExecutionSpecification spec = registry.resolve(specId);
-            double minPassRate = spec.getMinPassRate();
-            if (minPassRate > 0 && minPassRate <= 1.0) {
-                return minPassRate;
-            }
+            return Optional.of(registry.resolve(specId));
         } catch (SpecificationIntegrityException e) {
             // Integrity failures must propagate - indicates tampering or corruption
             throw e;
         } catch (SpecificationNotFoundException e) {
-            // Spec not found - fall through to default
-            // This is not an error - the test can still run with default threshold
+            // Spec not found
+            return Optional.empty();
         } catch (Exception e) {
-            // Log warning but don't fail - use default
+            // Log warning but don't fail
             System.err.println("Warning: Failed to load spec " + specId + ": " + e.getMessage());
+            return Optional.empty();
         }
-        return DEFAULT_MIN_PASS_RATE;
+    }
+
+    /**
+     * Resolves the spec ID from a @ProbabilisticTest annotation.
+     *
+     * <p>Exposed for factor consistency validation.
+     *
+     * @param annotation the test annotation
+     * @return the spec ID, or null if none specified
+     */
+    public String resolveSpecIdFromAnnotation(ProbabilisticTest annotation) {
+        return resolveSpecId(annotation);
     }
 }

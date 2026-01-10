@@ -9,7 +9,6 @@ import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
 import org.javai.punit.experiment.model.UseCaseResult;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -67,7 +66,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * @see ShoppingUseCase
  * @see UseCaseProvider
  */
-@Disabled
+//@Disabled("Example - run MEASURE experiment first to generate spec")
 @DisplayName("Shopping Assistant Spec-Driven Tests")
 class ShoppingAssistantSpecExamplesTest {
 
@@ -122,7 +121,13 @@ class ShoppingAssistantSpecExamplesTest {
      *   <li>Spec is automatically looked up at: {@code specs/ShoppingUseCase/v1.yaml}</li>
      *   <li>Threshold ({@code minPassRate}) comes from the spec</li>
      *   <li>Use case is injected by the provider</li>
+     *   <li>Configuration is set explicitly (determined during EXPLORE phase)</li>
      * </ul>
+     *
+     * <h3>Post-EXPLORE Configuration</h3>
+     * <p>After the EXPLORE phase determined optimal settings (model, temperature),
+     * and the MEASURE phase established the baseline with those settings,
+     * this probabilistic test uses the same fixed configuration.
      *
      * <h3>Statistical Basis</h3>
      * <p>The threshold in the spec comes from the 95% confidence interval
@@ -135,10 +140,17 @@ class ShoppingAssistantSpecExamplesTest {
         useCase = ShoppingUseCase.class,
         samples = 30,
         maxExampleFailures = 5
-        // minPassRate is derived from spec (specs/ShoppingUseCase/v1.yaml)
+        // minPassRate is derived from spec
     )
     @DisplayName("Should return valid JSON (spec-driven)")
-    void shouldReturnValidJson(ShoppingUseCase useCase, TokenChargeRecorder tokenRecorder) {
+    void shouldReturnValidJson(
+            ShoppingUseCase useCase,
+            TokenChargeRecorder tokenRecorder) {
+        // Configuration fixed post-EXPLORE (same as MEASURE experiment)
+        useCase.setModel("gpt-4");
+        useCase.setTemperature(0.7);
+        
+        // Query can vary - using a representative query from the standard set
         UseCaseResult result = useCase.searchProducts("wireless headphones");
 
         tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
@@ -154,6 +166,8 @@ class ShoppingAssistantSpecExamplesTest {
      * <p>This demonstrates the fallback mode when you want to specify
      * the threshold explicitly rather than deriving it from a spec.
      *
+     * <p>Configuration is set explicitly, as determined during EXPLORE phase.
+     *
      * @param useCase the shopping use case
      * @param tokenRecorder for tracking token consumption
      */
@@ -164,8 +178,15 @@ class ShoppingAssistantSpecExamplesTest {
         maxExampleFailures = 3
     )
     @DisplayName("Should return valid JSON (explicit threshold)")
-    void shouldReturnValidJsonExplicit(ShoppingUseCase useCase, TokenChargeRecorder tokenRecorder) {
-        UseCaseResult result = useCase.searchProducts("laptop accessories");
+    void shouldReturnValidJsonExplicit(
+            ShoppingUseCase useCase,
+            TokenChargeRecorder tokenRecorder) {
+        // Configuration fixed post-EXPLORE (same as MEASURE experiment)
+        useCase.setModel("gpt-4");
+        useCase.setTemperature(0.7);
+        
+        // Query can vary - using a representative query
+        UseCaseResult result = useCase.searchProducts("laptop stand");
 
         tokenRecorder.recordTokens(result.getInt("tokensUsed", 0));
 

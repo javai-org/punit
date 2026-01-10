@@ -26,13 +26,34 @@ class SpecificationRegistryTest {
 
     private void createSpecFile(String useCaseId, double minPassRate) throws IOException {
         StringBuilder sb = new StringBuilder();
+        sb.append("schemaVersion: punit-spec-1\n");
         sb.append("specId: ").append(useCaseId).append("\n");
         sb.append("useCaseId: ").append(useCaseId).append("\n");
+        sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
         sb.append("approvedAt: 2026-01-09T12:00:00Z\n");
         sb.append("approvedBy: tester\n");
+        sb.append("\n");
+        sb.append("execution:\n");
+        sb.append("  samplesPlanned: 100\n");
+        sb.append("  samplesExecuted: 100\n");
+        sb.append("  terminationReason: COMPLETED\n");
+        sb.append("\n");
+        sb.append("statistics:\n");
+        sb.append("  successRate:\n");
+        sb.append("    observed: ").append(minPassRate).append("\n");
+        sb.append("    standardError: 0.01\n");
+        sb.append("    confidenceInterval95: [").append(minPassRate - 0.02).append(", ").append(minPassRate + 0.02).append("]\n");
+        sb.append("  successes: ").append((int)(100 * minPassRate)).append("\n");
+        sb.append("  failures: ").append((int)(100 * (1 - minPassRate))).append("\n");
+        sb.append("\n");
+        sb.append("cost:\n");
+        sb.append("  totalTimeMs: 1000\n");
+        sb.append("  avgTimePerSampleMs: 10\n");
+        sb.append("  totalTokens: 10000\n");
+        sb.append("  avgTokensPerSample: 100\n");
+        sb.append("\n");
         sb.append("requirements:\n");
         sb.append("  minPassRate: ").append(minPassRate).append("\n");
-        sb.append("schemaVersion: punit-spec-1\n");
         String content = sb.toString();
         sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
         
@@ -40,10 +61,33 @@ class SpecificationRegistryTest {
     }
 
     private void createV2SpecFile(String useCaseId, int samples, int successes) throws IOException {
+        double successRate = (double) successes / samples;
+        int failures = samples - successes;
+        
         StringBuilder sb = new StringBuilder();
+        sb.append("schemaVersion: punit-spec-2\n");
         sb.append("specId: ").append(useCaseId).append("\n");
         sb.append("useCaseId: ").append(useCaseId).append("\n");
         sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
+        sb.append("\n");
+        sb.append("execution:\n");
+        sb.append("  samplesPlanned: ").append(samples).append("\n");
+        sb.append("  samplesExecuted: ").append(samples).append("\n");
+        sb.append("  terminationReason: COMPLETED\n");
+        sb.append("\n");
+        sb.append("statistics:\n");
+        sb.append("  successRate:\n");
+        sb.append("    observed: ").append(String.format("%.4f", successRate)).append("\n");
+        sb.append("    standardError: 0.01\n");
+        sb.append("    confidenceInterval95: [").append(String.format("%.4f", successRate - 0.02)).append(", ").append(String.format("%.4f", successRate + 0.02)).append("]\n");
+        sb.append("  successes: ").append(successes).append("\n");
+        sb.append("  failures: ").append(failures).append("\n");
+        sb.append("\n");
+        sb.append("cost:\n");
+        sb.append("  totalTimeMs: ").append(samples * 10).append("\n");
+        sb.append("  avgTimePerSampleMs: 10\n");
+        sb.append("  totalTokens: ").append(samples * 100).append("\n");
+        sb.append("  avgTokensPerSample: 100\n");
         sb.append("\n");
         sb.append("empiricalBasis:\n");
         sb.append("  samples: ").append(samples).append("\n");
@@ -51,7 +95,6 @@ class SpecificationRegistryTest {
         sb.append("\n");
         sb.append("requirements:\n");
         sb.append("  minPassRate: 0.85\n");
-        sb.append("schemaVersion: punit-spec-2\n");
         String content = sb.toString();
         sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
 
@@ -131,13 +174,34 @@ class SpecificationRegistryTest {
         @DisplayName("finds .yml files")
         void findsYmlFiles() throws IOException {
             StringBuilder sb = new StringBuilder();
+            sb.append("schemaVersion: punit-spec-1\n");
             sb.append("specId: YmlCase\n");
             sb.append("useCaseId: YmlCase\n");
+            sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
             sb.append("approvedAt: 2026-01-09T12:00:00Z\n");
             sb.append("approvedBy: tester\n");
+            sb.append("\n");
+            sb.append("execution:\n");
+            sb.append("  samplesPlanned: 100\n");
+            sb.append("  samplesExecuted: 100\n");
+            sb.append("  terminationReason: COMPLETED\n");
+            sb.append("\n");
+            sb.append("statistics:\n");
+            sb.append("  successRate:\n");
+            sb.append("    observed: 0.8\n");
+            sb.append("    standardError: 0.04\n");
+            sb.append("    confidenceInterval95: [0.72, 0.88]\n");
+            sb.append("  successes: 80\n");
+            sb.append("  failures: 20\n");
+            sb.append("\n");
+            sb.append("cost:\n");
+            sb.append("  totalTimeMs: 1000\n");
+            sb.append("  avgTimePerSampleMs: 10\n");
+            sb.append("  totalTokens: 10000\n");
+            sb.append("  avgTokensPerSample: 100\n");
+            sb.append("\n");
             sb.append("requirements:\n");
             sb.append("  minPassRate: 0.8\n");
-            sb.append("schemaVersion: punit-spec-1\n");
             String content = sb.toString();
             sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
             Files.writeString(tempDir.resolve("YmlCase.yml"), sb.toString());

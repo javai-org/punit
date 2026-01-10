@@ -37,7 +37,6 @@ import java.util.Objects;
  */
 public final class ExecutionSpecification {
 
-	private final String specId;
 	private final String useCaseId;
 	private final int version;
 	private final Instant generatedAt;
@@ -50,9 +49,9 @@ public final class ExecutionSpecification {
 	private final CostEnvelope costEnvelope;
 	private final EmpiricalBasis empiricalBasis;
 	private final ExtendedStatistics extendedStatistics;
+	private final FactorSourceMetadata factorSourceMetadata;
 
 	private ExecutionSpecification(Builder builder) {
-		this.specId = Objects.requireNonNull(builder.specId, "specId must not be null");
 		this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
 		this.version = builder.version;
 		this.generatedAt = builder.generatedAt;
@@ -71,16 +70,31 @@ public final class ExecutionSpecification {
 		this.costEnvelope = builder.costEnvelope;
 		this.empiricalBasis = builder.empiricalBasis;
 		this.extendedStatistics = builder.extendedStatistics;
+		this.factorSourceMetadata = builder.factorSourceMetadata;
 	}
 
 	public static Builder builder() {
 		return new Builder();
 	}
 
+	/**
+	 * Returns the use case ID (which also serves as the spec ID).
+	 *
+	 * @return the use case ID
+	 * @deprecated Use {@link #getUseCaseId()} instead. This method will be removed in a future version.
+	 */
+	@Deprecated
 	public String getSpecId() {
-		return specId;
+		return useCaseId;
 	}
 
+	/**
+	 * Returns the use case ID.
+	 *
+	 * <p>This is the primary identifier for both the use case and the specification.
+	 *
+	 * @return the use case ID
+	 */
 	public String getUseCaseId() {
 		return useCaseId;
 	}
@@ -175,6 +189,28 @@ public final class ExecutionSpecification {
 	 */
 	public ExtendedStatistics getExtendedStatistics() {
 		return extendedStatistics;
+	}
+
+	/**
+	 * Returns the factor source metadata from the experiment.
+	 *
+	 * <p>This metadata enables factor consistency verification between experiments
+	 * and probabilistic tests. If the test uses a factor source with the same hash,
+	 * the first-N factors consumed will be identical.
+	 *
+	 * @return factor source metadata, or null if not recorded
+	 */
+	public FactorSourceMetadata getFactorSourceMetadata() {
+		return factorSourceMetadata;
+	}
+
+	/**
+	 * Returns true if this specification has factor source metadata.
+	 *
+	 * @return true if factor source metadata is present
+	 */
+	public boolean hasFactorSourceMetadata() {
+		return factorSourceMetadata != null && factorSourceMetadata.hasHash();
 	}
 
 	/**
@@ -288,7 +324,7 @@ public final class ExecutionSpecification {
 		// Check minPassRate bounds
 		if (requirements.minPassRate() < 0.0 || requirements.minPassRate() > 1.0) {
 			throw new SpecificationValidationException(
-					"Specification '" + specId + "' has invalid minPassRate: " + requirements.minPassRate());
+					"Specification '" + useCaseId + "' has invalid minPassRate: " + requirements.minPassRate());
 		}
 
 		// For backwards compatibility: if approval metadata is present, it's valid
@@ -309,7 +345,7 @@ public final class ExecutionSpecification {
 	public void validateStrict() throws SpecificationValidationException {
 		if (!hasApprovalMetadata()) {
 			throw new SpecificationValidationException(
-					"Specification '" + specId + "' lacks approval metadata. " +
+					"Specification '" + useCaseId + "' lacks approval metadata. " +
 							"Add 'approvedAt', 'approvedBy', and 'approvalNotes' to the specification file.");
 		}
 		validate();
@@ -435,9 +471,35 @@ public final class ExecutionSpecification {
 		}
 	}
 
+	/**
+	 * Metadata about the factor source used in the experiment.
+	 *
+	 * <p>This enables factor consistency verification between experiments and
+	 * probabilistic tests. If the test uses the same factor source (same hash),
+	 * the factors consumed are guaranteed to be identical for the overlapping
+	 * portion (first-N prefix selection).
+	 *
+	 * @param sourceHash Hash identifying the factor source (source-owned, not consumption-based)
+	 * @param sourceName Name of the factor source (method name or explicit identifier)
+	 * @param samplesUsed Number of factors consumed during the experiment
+	 * @param earlyTermination True if the experiment terminated early
+	 */
+	public record FactorSourceMetadata(
+			String sourceHash,
+			String sourceName,
+			int samplesUsed,
+			boolean earlyTermination
+	) {
+		/**
+		 * Returns true if this metadata has a valid hash for comparison.
+		 */
+		public boolean hasHash() {
+			return sourceHash != null && !sourceHash.isEmpty();
+		}
+	}
+
 	public static final class Builder {
 
-		private String specId;
 		private String useCaseId;
 		private int version = 1;
 		private Instant generatedAt;
@@ -450,12 +512,19 @@ public final class ExecutionSpecification {
 		private CostEnvelope costEnvelope;
 		private EmpiricalBasis empiricalBasis;
 		private ExtendedStatistics extendedStatistics;
+		private FactorSourceMetadata factorSourceMetadata;
 
 		private Builder() {
 		}
 
+		/**
+		 * Sets the spec ID (alias for useCaseId).
+		 *
+		 * @deprecated Use {@link #useCaseId(String)} instead.
+		 */
+		@Deprecated
 		public Builder specId(String specId) {
-			this.specId = specId;
+			this.useCaseId = specId;
 			return this;
 		}
 
@@ -586,6 +655,21 @@ public final class ExecutionSpecification {
 
 		public Builder extendedStatistics(ExtendedStatistics extendedStatistics) {
 			this.extendedStatistics = extendedStatistics;
+			return this;
+		}
+
+		public Builder factorSourceMetadata(FactorSourceMetadata factorSourceMetadata) {
+			this.factorSourceMetadata = factorSourceMetadata;
+			return this;
+		}
+
+		public Builder factorSourceMetadata(String sourceHash, String sourceName, int samplesUsed) {
+			this.factorSourceMetadata = new FactorSourceMetadata(sourceHash, sourceName, samplesUsed, false);
+			return this;
+		}
+
+		public Builder factorSourceMetadata(String sourceHash, String sourceName, int samplesUsed, boolean earlyTermination) {
+			this.factorSourceMetadata = new FactorSourceMetadata(sourceHash, sourceName, samplesUsed, earlyTermination);
 			return this;
 		}
 

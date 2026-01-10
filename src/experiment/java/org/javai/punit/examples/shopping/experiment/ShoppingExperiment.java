@@ -131,10 +131,14 @@ public class ShoppingExperiment {
     }
 
     /**
-     * Factor source: Explicit configurations to explore.
+     * Factor source for EXPLORE experiments: Explicit configurations to explore.
      *
      * <p>Names declared once, then each configuration listed explicitly.
      * This is clearer than Cartesian products and reflects real experiment design.
+     *
+     * <p><b>Location:</b> Defined locally within the experiment class because
+     * these factors are specific to exploration. MEASURE experiments and
+     * probabilistic tests use the shared source in {@link ShoppingUseCase}.
      */
     static Stream<FactorArguments> modelConfigurations() {
         return FactorArguments.configurations()
@@ -163,11 +167,18 @@ public class ShoppingExperiment {
      * <h2>Key Design Points</h2>
      * <ul>
      *   <li>Use case is pre-configured by UseCaseProvider (set in @BeforeEach)</li>
-     *   <li>No context parameter needed - configuration is internal to use case</li>
-     *   <li>Method is minimal: just invoke and record</li>
+     *   <li>Factor source is co-located with the use case (recommended pattern)</li>
+     *   <li>The same factor source should be used by probabilistic tests</li>
      * </ul>
      *
+     * <h2>Factor Consistency</h2>
+     * <p>The {@code @FactorSource} annotation references a method in {@link ShoppingUseCase}.
+     * When probabilistic tests reference the same factor source, PUnit can verify
+     * that both the experiment and the test use identical inputs, ensuring
+     * statistical consistency.
+     *
      * @param useCase the shopping use case (injected, pre-configured)
+     * @param query the search query (injected from factor source)
      * @param captor the result captor
      */
     @Experiment(
@@ -178,9 +189,17 @@ public class ShoppingExperiment {
         timeBudgetMs = 600000,
         experimentId = "shopping-search-realistic-v1"
     )
-    void measureRealisticSearchBaseline(ShoppingUseCase useCase, ResultCaptor captor) {
-        // Clean! Use case is pre-configured. Just invoke and record.
-        captor.record(useCase.searchProducts("wireless headphones"));
+    @FactorSource("ShoppingUseCase#standardProductQueries")
+    void measureRealisticSearchBaseline(
+            ShoppingUseCase useCase,
+            @Factor("query") String query,
+            ResultCaptor captor) {
+        // Model and temp were determined as the result of the EXPLORE phase, hence:
+        useCase.setModel("gpt-4");
+        useCase.setTemperature(0.7);
+        
+        // Query varies from factor source (cycling through representative inputs)
+        captor.record(useCase.searchProducts(query));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -189,6 +208,8 @@ public class ShoppingExperiment {
 
     /**
      * Additional measurement experiment with tighter budgets.
+     *
+     * <p>Demonstrates using the extended factor source for broader query coverage.
      */
     @Experiment(
         mode = ExperimentMode.MEASURE,
@@ -198,7 +219,16 @@ public class ShoppingExperiment {
         timeBudgetMs = 120000,
         experimentId = "shopping-search-baseline"
     )
-    void measureBasicSearchReliability(ShoppingUseCase useCase, ResultCaptor captor) {
-        captor.record(useCase.searchProducts("wireless headphones"));
+    @FactorSource("ShoppingUseCase#extendedProductQueries")
+    void measureBasicSearchReliability(
+            ShoppingUseCase useCase,
+            @Factor("query") String query,
+            ResultCaptor captor) {
+        // Configuration determined during EXPLORE phase - set directly
+        useCase.setModel("gpt-4");
+        useCase.setTemperature(0.7);
+        
+        // Query varies from factor source (cycling through extended inputs)
+        captor.record(useCase.searchProducts(query));
     }
 }

@@ -20,6 +20,6 @@
 
 *Previous: [Out-of-Scope Clarifications](./DOC-10-OUT-OF-SCOPE.md)*
 
-*Next: [Glossary](./DOC-12-GLOSSARY.md)*
+*Next: [Glossary](../docs/GLOSSARY.md)*
 
 *[Back to Table of Contents](./DOC-00-TOC.md)*

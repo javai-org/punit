@@ -11,7 +11,7 @@
 | **ExperimentLevel**                | One setting of a factor (categorical or numeric).                                           |
 | **ExperimentConfig**               | One concrete combination of levels—the unit of execution.                                   |
 | **ExperimentGoal**                 | Optional criteria for early termination.                                                    |
-| **Factor**                         | One independently varied dimension in EXPLORE mode (e.g., `model`, `temperature`).         |
+| **Factor**                         | One independently varied dimension in EXPLORE mode (e.g., `model`, `temperature`).          |
 | **FactorSource**                   | JUnit-style source of factor combinations (e.g., `@MethodSource`, `@CsvFactorSource`).      |
 | **BASELINE Mode**                  | Default experiment mode: precise estimation of one configuration with many samples.         |
 | **EXPLORE Mode**                   | Experiment mode for comparing multiple configurations with fewer samples each.              |
@@ -37,10 +37,3 @@
 | **Statistical Power**              | The probability of correctly detecting a real degradation (1-β).                            |
 | **punit-statistics Module**        | Isolated module for all statistical calculations.                                           |
 
----
-
-*Previous: [Open Questions and Recommendations](./DOC-11-OPEN-QUESTIONS.md)*
-
-*Next: [Appendix: Class Sketches](./DOC-13-APPENDIX-CLASS-SKETCHES.md)*
-
-*[Back to Table of Contents](./DOC-00-TOC.md)*

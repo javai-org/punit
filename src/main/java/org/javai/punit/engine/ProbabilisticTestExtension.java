@@ -2,18 +2,25 @@ package org.javai.punit.engine;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TokenChargeRecorder;
+import org.javai.punit.engine.FactorConsistencyValidator.ValidationResult;
+import org.javai.punit.experiment.api.FactorSource;
+import org.javai.punit.experiment.api.HashableFactorSource;
+import org.javai.punit.experiment.engine.FactorSourceAdapter;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.spec.model.ExecutionSpecification;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -57,21 +64,37 @@ public class ProbabilisticTestExtension implements
 	private static final String BUDGET_MONITOR_KEY = "budgetMonitor";
 	private static final String TOKEN_RECORDER_KEY = "tokenRecorder";
 	private static final String TERMINATED_KEY = "terminated";
+	private static final String PACING_KEY = "pacing";
+	private static final String SAMPLE_COUNTER_KEY = "sampleCounter";
+	private static final String LAST_SAMPLE_TIME_KEY = "lastSampleTime";
 
 	private final ConfigurationResolver configResolver;
+	private final PacingResolver pacingResolver;
+	private final PacingReporter pacingReporter;
 
 	/**
 	 * Default constructor using standard configuration resolver.
 	 */
 	public ProbabilisticTestExtension() {
-		this(new ConfigurationResolver());
+		this(new ConfigurationResolver(), new PacingResolver(), new PacingReporter());
 	}
 
 	/**
-	 * Constructor for testing with custom configuration resolver.
+	 * Constructor for testing with custom resolvers.
 	 */
 	ProbabilisticTestExtension(ConfigurationResolver configResolver) {
+		this(configResolver, new PacingResolver(), new PacingReporter());
+	}
+
+	/**
+	 * Constructor for testing with custom resolvers and reporter.
+	 */
+	ProbabilisticTestExtension(ConfigurationResolver configResolver, 
+							   PacingResolver pacingResolver,
+							   PacingReporter pacingReporter) {
 		this.configResolver = configResolver;
+		this.pacingResolver = pacingResolver;
+		this.pacingReporter = pacingReporter;
 	}
 
 	// ========== TestTemplateInvocationContextProvider ==========
@@ -116,21 +139,38 @@ public class ProbabilisticTestExtension implements
 				? new DefaultTokenChargeRecorder(resolved.tokenBudget())
 				: null;
 
+		// Resolve pacing configuration
+		PacingConfiguration pacing = pacingResolver.resolve(testMethod, resolved.samples());
+
 		// Store configuration and create components
 		ExtensionContext.Store store = context.getStore(NAMESPACE);
-		TestConfiguration config = createTestConfiguration(resolved, tokenMode);
+		TestConfiguration config = createTestConfiguration(resolved, tokenMode, pacing);
 		SampleResultAggregator aggregator = new SampleResultAggregator(resolved.samples(), resolved.maxExampleFailures());
 		EarlyTerminationEvaluator evaluator = new EarlyTerminationEvaluator(resolved.samples(), resolved.minPassRate());
 		AtomicBoolean terminated = new AtomicBoolean(false);
+		AtomicInteger sampleCounter = new AtomicInteger(0);
 
 		store.put(CONFIG_KEY, config);
 		store.put(AGGREGATOR_KEY, aggregator);
 		store.put(EVALUATOR_KEY, evaluator);
 		store.put(BUDGET_MONITOR_KEY, budgetMonitor);
 		store.put(TERMINATED_KEY, terminated);
+		store.put(PACING_KEY, pacing);
+		store.put(SAMPLE_COUNTER_KEY, sampleCounter);
 		if (tokenRecorder != null) {
 			store.put(TOKEN_RECORDER_KEY, tokenRecorder);
 		}
+
+		// Print pre-flight report if pacing is configured
+		if (pacing.hasPacing()) {
+			Instant startTime = Instant.now();
+			store.put(LAST_SAMPLE_TIME_KEY, startTime);
+			pacingReporter.printPreFlightReport(testMethod.getName(), resolved.samples(), pacing, startTime);
+			pacingReporter.printFeasibilityWarning(pacing, resolved.timeBudgetMs(), resolved.samples());
+		}
+
+		// Validate factor source consistency if applicable
+		validateFactorConsistency(testMethod, annotation, resolved.samples());
 
 		// Generate stream of invocation contexts with early termination support
 		return createSampleStream(resolved.samples(), terminated, tokenRecorder);
@@ -160,7 +200,8 @@ public class ProbabilisticTestExtension implements
 
 	private TestConfiguration createTestConfiguration(
 			ConfigurationResolver.ResolvedConfiguration resolved,
-			CostBudgetMonitor.TokenMode tokenMode) {
+			CostBudgetMonitor.TokenMode tokenMode,
+			PacingConfiguration pacing) {
 
 		return new TestConfiguration(
 				resolved.samples(),
@@ -177,8 +218,68 @@ public class ProbabilisticTestExtension implements
 				resolved.confidence(),
 				resolved.baselineRate(),
 				resolved.baselineSamples(),
-				resolved.specId()
+				resolved.specId(),
+				// Pacing configuration
+				pacing
 		);
+	}
+
+	/**
+	 * Validates factor source consistency between the test and its baseline spec.
+	 *
+	 * <p>This check ensures statistical integrity by verifying that the test uses
+	 * the same factor source as the experiment that generated the baseline. If a
+	 * mismatch is detected, a warning is logged.
+	 *
+	 * @param testMethod the test method
+	 * @param annotation the @ProbabilisticTest annotation
+	 * @param testSamples the number of samples the test will use
+	 */
+	private void validateFactorConsistency(Method testMethod, ProbabilisticTest annotation, int testSamples) {
+		// Check if the test method has a @FactorSource annotation
+		FactorSource factorSourceAnnotation = testMethod.getAnnotation(FactorSource.class);
+		if (factorSourceAnnotation == null) {
+			// No factor source - nothing to validate
+			return;
+		}
+
+		// Resolve the factor source
+		HashableFactorSource testFactorSource;
+		try {
+			testFactorSource = FactorSourceAdapter.fromAnnotation(
+					factorSourceAnnotation, testMethod.getDeclaringClass());
+		} catch (Exception e) {
+			// Could not resolve factor source - log warning and continue
+			System.err.println("Warning: Could not resolve factor source for consistency check: " + e.getMessage());
+			return;
+		}
+
+		// Load the spec
+		String specId = configResolver.resolveSpecIdFromAnnotation(annotation);
+		if (specId == null || specId.isEmpty()) {
+			// No spec reference - nothing to validate against
+			return;
+		}
+
+		Optional<ExecutionSpecification> optionalSpec = configResolver.loadSpec(specId);
+		if (optionalSpec.isEmpty()) {
+			// Spec not found - nothing to validate against
+			return;
+		}
+		ExecutionSpecification spec = optionalSpec.get();
+
+		// Validate factor consistency
+		ValidationResult result = FactorConsistencyValidator.validateWithSampleCount(
+				testFactorSource, spec, testSamples);
+
+		// Log the result
+		if (result.shouldWarn()) {
+			System.err.println(result.formatForLog());
+		} else if (result.isMatch()) {
+			// Optionally log successful validation (can be verbose, so using debug-level equivalent)
+			// System.out.println(result.formatForLog());
+		}
+		// NOT_APPLICABLE results are silently ignored
 	}
 
 	/**
@@ -240,6 +341,9 @@ public class ProbabilisticTestExtension implements
 		if (tokenRecorder != null) {
 			tokenRecorder.resetForNextSample();
 		}
+
+		// Apply pacing delay if configured (skip for first sample)
+		applyPacingDelay(extensionContext, config);
 
 		// Track sample failure for IDE display purposes
 		Throwable sampleFailure = null;
@@ -760,6 +864,47 @@ public class ProbabilisticTestExtension implements
 		return getFromStoreOrParent(context, TERMINATED_KEY, AtomicBoolean.class);
 	}
 
+	private AtomicInteger getSampleCounter(ExtensionContext context) {
+		return getFromStoreOrParent(context, SAMPLE_COUNTER_KEY, AtomicInteger.class);
+	}
+
+	/**
+	 * Applies pacing delay before sample execution if pacing is configured.
+	 *
+	 * <p>The delay is applied between samples (not before the first sample) to
+	 * maintain the configured rate limit.
+	 *
+	 * @param context the extension context
+	 * @param config the test configuration
+	 */
+	private void applyPacingDelay(ExtensionContext context, TestConfiguration config) {
+		if (!config.hasPacing()) {
+			return;
+		}
+
+		PacingConfiguration pacing = config.pacing();
+		long delayMs = pacing.effectiveMinDelayMs();
+		if (delayMs <= 0) {
+			return;
+		}
+
+		AtomicInteger sampleCounter = getSampleCounter(context);
+		int currentSample = sampleCounter.incrementAndGet();
+
+		// Skip delay for first sample
+		if (currentSample <= 1) {
+			return;
+		}
+
+		try {
+			Thread.sleep(delayMs);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			// Don't fail the test, just log and continue
+			System.err.println("Pacing delay interrupted");
+		}
+	}
+
 	private <T> T getFromStoreOrParent(ExtensionContext context, String key, Class<T> type) {
 		ExtensionContext.Store store = context.getStore(NAMESPACE);
 		T value = store.get(key, type);
@@ -794,7 +939,9 @@ public class ProbabilisticTestExtension implements
 			Double confidence,
 			Double baselineRate,
 			Integer baselineSamples,
-			String specId
+			String specId,
+			// Pacing configuration
+			PacingConfiguration pacing
 	) {
 		boolean hasMultiplier() {
 			return appliedMultiplier != 1.0;
@@ -806,6 +953,10 @@ public class ProbabilisticTestExtension implements
 
 		boolean hasTokenBudget() {
 			return tokenBudget > 0;
+		}
+
+		boolean hasPacing() {
+			return pacing != null && pacing.hasPacing();
 		}
 
 		boolean hasStatisticalContext() {

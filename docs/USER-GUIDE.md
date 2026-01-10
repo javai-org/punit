@@ -342,6 +342,636 @@ class LlmIntegrationTests {
 
 ---
 
+## Pacing Constraints
+
+When testing APIs with rate limits (requests per minute, concurrent connections, etc.), PUnit's **pacing constraints** let you declare these limits declaratively. The framework computes an optimal execution pace automatically.
+
+### The Problem
+
+Without pacing, you face a dilemma:
+
+1. **Execute fast** → Hit rate limits → Unpredictable failures, retry storms
+2. **Add manual delays** → Cluttered test code, error-prone timing calculations
+
+### The Solution: Declarative Pacing
+
+Declare your constraints; PUnit handles the scheduling:
+
+```java
+@ProbabilisticTest(samples = 200, minPassRate = 0.90)
+@Pacing(maxRequestsPerMinute = 60)
+void testOpenAiApi() {
+    // PUnit spaces samples ~1 second apart automatically
+    LlmResponse response = openAiClient.complete("Generate JSON...");
+    assertThat(response.getContent()).isValidJson();
+}
+```
+
+### Pacing vs Guardrails
+
+PUnit has two complementary mechanisms:
+
+| Guardrails (Time/Token Budgets) | Pacing Constraints |
+|---------------------------------|-------------------|
+| Reactive: "Stop if we exceed X" | Proactive: "Use X to compute optimal pace" |
+| Defensive circuit breakers | Scheduling algorithm inputs |
+| Runtime enforcement | Pre-execution planning |
+| Triggers termination | Prevents hitting limits |
+
+Use **both together** for complete control:
+
+```java
+@ProbabilisticTest(
+    samples = 200, 
+    minPassRate = 0.90,
+    timeBudgetMs = 300000,     // Guardrail: stop after 5 minutes
+    tokenBudget = 100000       // Guardrail: stop after 100k tokens
+)
+@Pacing(maxRequestsPerMinute = 60)  // Pacing: stay under 60 RPM
+void testWithBothControls(TokenChargeRecorder recorder) {
+    // ...
+}
+```
+
+### Available Constraints
+
+#### Rate-Based Constraints
+
+Express limits in requests per time unit:
+
+| Parameter | Description | Implied Delay |
+|-----------|-------------|---------------|
+| `maxRequestsPerSecond` | Maximum RPS | `1000 / RPS` ms |
+| `maxRequestsPerMinute` | Maximum RPM | `60000 / RPM` ms |
+| `maxRequestsPerHour` | Maximum RPH | `3600000 / RPH` ms |
+
+```java
+@Pacing(maxRequestsPerMinute = 60)  // Common for OpenAI, Anthropic
+```
+
+#### Concurrency Constraint
+
+Limit parallel sample execution (future feature—currently sequential):
+
+```java
+@Pacing(maxConcurrentRequests = 3)  // Up to 3 samples in parallel
+```
+
+#### Direct Delay Constraint
+
+For simplicity, specify delay directly:
+
+```java
+@Pacing(minMsPerSample = 500)  // Wait 500ms between samples
+```
+
+### Constraint Composition
+
+When multiple constraints are specified, the **most restrictive wins**:
+
+```java
+@Pacing(
+    maxRequestsPerMinute = 60,    // Implies 1000ms delay
+    maxRequestsPerSecond = 2,     // Implies 500ms delay
+    minMsPerSample = 250          // Explicit 250ms delay
+)
+// Effective delay: 1000ms (RPM is most restrictive)
+```
+
+### Pre-Flight Report
+
+When pacing is configured, PUnit prints an execution plan before starting:
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║ PUnit Test: testOpenAiApi                                        ║
+╠══════════════════════════════════════════════════════════════════╣
+║ Samples requested:     200                                       ║
+║ Pacing constraints:                                              ║
+║   • Max requests/min:  60 RPM                                    ║
+║   • Min delay/sample:  1000ms (derived from 60 RPM)              ║
+╠══════════════════════════════════════════════════════════════════╣
+║ Computed execution plan:                                         ║
+║   • Concurrency:         sequential                              ║
+║   • Inter-request delay: 1000ms                                  ║
+║   • Effective throughput: 60 samples/min                         ║
+║   • Estimated duration:  3m 20s                                  ║
+║   • Estimated completion: 14:23:45                               ║
+╠══════════════════════════════════════════════════════════════════╣
+║ Started: 14:20:25                                                ║
+║ Proceeding with execution...                                     ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+This gives you:
+- **Upfront duration estimate** — know how long the test will take
+- **Completion time** — plan accordingly
+- **Effective throughput** — verify the computed rate
+
+### Feasibility Warnings
+
+If pacing conflicts with time budgets, PUnit warns you:
+
+```
+⚠ WARNING: Pacing conflict detected
+  • 1000 samples at 60 RPM would take ~16.7 minutes
+  • Time budget is 10 minutes (timeBudgetMs = 600000)
+  • Options:
+    1. Reduce sample count to ~600
+    2. Increase time budget to 17 minutes
+    3. Relax pacing constraints (increase rate limits)
+```
+
+### Environment Override
+
+Override pacing at runtime for different environments:
+
+```bash
+# Override RPM for CI (more conservative)
+./gradlew test -Dpunit.pacing.maxRpm=30
+
+# Or via environment variable
+export PUNIT_PACING_MAX_RPM=30
+./gradlew test
+```
+
+All pacing overrides:
+
+| System Property | Environment Variable |
+|-----------------|---------------------|
+| `punit.pacing.maxRps` | `PUNIT_PACING_MAX_RPS` |
+| `punit.pacing.maxRpm` | `PUNIT_PACING_MAX_RPM` |
+| `punit.pacing.maxRph` | `PUNIT_PACING_MAX_RPH` |
+| `punit.pacing.maxConcurrent` | `PUNIT_PACING_MAX_CONCURRENT` |
+| `punit.pacing.minMsPerSample` | `PUNIT_PACING_MIN_MS_PER_SAMPLE` |
+
+### Complete Example
+
+```java
+package com.example.tests;
+
+import org.javai.punit.api.Pacing;
+import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TokenChargeRecorder;
+import static org.assertj.core.api.Assertions.assertThat;
+
+class RateLimitedApiTest {
+
+    private final OpenAiClient client = new OpenAiClient();
+
+    @ProbabilisticTest(
+        samples = 100,
+        minPassRate = 0.90,
+        timeBudgetMs = 180000,     // 3 minute max
+        tokenBudget = 50000
+    )
+    @Pacing(
+        maxRequestsPerMinute = 60,  // OpenAI tier 1 limit
+        maxConcurrentRequests = 1   // Sequential for simplicity
+    )
+    void shouldGenerateValidJsonWithRateLimiting(TokenChargeRecorder recorder) {
+        // Pre-flight report shows:
+        //   Estimated duration: 1m 40s
+        //   Effective throughput: 60 samples/min
+        
+        LlmResponse response = client.complete(
+            "Generate a JSON object with name and age"
+        );
+        recorder.recordTokens(response.getUsage().getTotalTokens());
+        
+        assertThat(JsonValidator.isValid(response.getContent())).isTrue();
+    }
+}
+```
+
+### When to Use Pacing
+
+| Scenario | Recommendation |
+|----------|----------------|
+| Testing LLM APIs (OpenAI, Anthropic, etc.) | Use `maxRequestsPerMinute` |
+| Testing rate-limited REST APIs | Use appropriate rate constraint |
+| Testing APIs with burst limits | Use `minMsPerSample` for steady rate |
+| Testing internal services | Usually not needed |
+| Local unit tests | Usually not needed |
+
+### Pacing and Early Termination
+
+Pacing works seamlessly with early termination. If PUnit determines success is guaranteed before all samples run, it stops early—even with pacing configured:
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║ PUnit Test: testWithPacing                                       ║
+║ Estimated duration: 1m 40s                                       ║
+╚══════════════════════════════════════════════════════════════════╝
+
+✅ Sample 1/100
+✅ Sample 2/100
+...
+✅ Sample 45/100  ← SUCCESS_GUARANTEED, skipping remaining 55 samples
+
+Actual duration: 45s (saved 55s due to early termination)
+```
+
+---
+
+## Factor Sources
+
+Factor sources provide **structured, reusable inputs** to experiments and probabilistic tests. They decouple test data from test logic, enabling consistency across the development lifecycle.
+
+### What Are Factor Sources?
+
+A **factor source** is a method that provides input arguments for your use case. Instead of hard-coding inputs in your experiment or test, you define them once and reference them:
+
+```java
+// Without factor source (hard-coded):
+captor.record(useCase.searchProducts("wireless headphones"));
+
+// With factor source (structured, reusable):
+@FactorSource("ShoppingUseCase#standardQueries")
+void measure(@Factor("query") String query, ...) {
+    captor.record(useCase.searchProducts(query));  // query injected
+}
+```
+
+### Defining Factor Sources
+
+Factor sources are static methods that return `List<FactorArguments>` or `Stream<FactorArguments>`.
+They are referenced by method name—no special annotation is needed:
+
+```java
+public static List<FactorArguments> standardQueries() {
+    return List.of(
+        FactorArguments.of("query", "wireless headphones"),
+        FactorArguments.of("query", "laptop stand"),
+        FactorArguments.of("query", "USB-C hub")
+    );
+}
+```
+
+**Requirements**:
+- Method must be `static`
+- Method must take no parameters
+- Return type must be `List<FactorArguments>` or `Stream<FactorArguments>`
+- Method name serves as the factor source identifier
+
+### The Two Factor Source Models
+
+The **return type** determines how factors are consumed:
+
+| Return Type | Consumption | Memory | Best For |
+|-------------|-------------|--------|----------|
+| `List<FactorArguments>` | **Cycling** | Materialized | Representative inputs, API testing |
+| `Stream<FactorArguments>` | **Sequential** | Streaming | Generated inputs, probabilistic algorithms |
+
+#### List-Based Sources (Cycling)
+
+When you return a `List`, samples cycle through the entries:
+
+```java
+public static List<FactorArguments> productQueries() {
+    return List.of(
+        FactorArguments.of("query", "headphones"),   // index 0
+        FactorArguments.of("query", "laptop"),       // index 1
+        FactorArguments.of("query", "keyboard")      // index 2
+    );
+}
+```
+
+With `samples = 10`:
+```
+Sample 0 → "headphones"
+Sample 1 → "laptop"
+Sample 2 → "keyboard"
+Sample 3 → "headphones"  ← cycle restarts
+Sample 4 → "laptop"
+...
+Sample 9 → "headphones"
+```
+
+Each factor is used approximately `samples / factorCount` times.
+
+#### Stream-Based Sources (Sequential)
+
+When you return a `Stream`, each sample consumes the next element:
+
+```java
+public static Stream<FactorArguments> generatedSeeds() {
+    return Stream.generate(() ->
+        FactorArguments.of("seed", ThreadLocalRandom.current().nextLong())
+    );
+}
+```
+
+With `samples = 1_000_000`:
+- Each sample gets a unique, freshly-generated seed
+- No cycling—stream is consumed sequentially
+- Constant memory (no materialization)
+
+**Use Stream when**:
+- Inputs are generated (random, sequential IDs, etc.)
+- Input space is very large or infinite
+- Memory efficiency matters
+
+### Single-Entry Factor Sources
+
+A factor source with **one entry** is not only valid—it's often ideal for MEASURE experiments:
+
+```java
+/**
+ * Single-query factor source for controlled baselines.
+ *
+ * All 1000 samples use the exact same input, isolating the LLM's
+ * behavioral variance from input variance. This produces the
+ * cleanest statistical baseline.
+ */
+public static List<FactorArguments> singleQuery() {
+    return List.of(
+        FactorArguments.of("query", "wireless headphones")
+    );
+}
+```
+
+**Why single-entry sources make sense**:
+
+| Benefit | Description |
+|---------|-------------|
+| **Statistical purity** | Isolates LLM variance from input variance |
+| **Clean baseline** | Spec reflects behavior for one specific query |
+| **Reproducibility** | Baseline is unambiguously tied to known input |
+
+### Multi-Factor Arguments
+
+Factor sources can provide multiple named values per entry:
+
+```java
+public static List<FactorArguments> modelConfigurations() {
+    return FactorArguments.configurations()
+        .names("model", "temperature", "query")
+        .values("gpt-4", 0.0, "wireless headphones")
+        .values("gpt-4", 0.7, "wireless headphones")
+        .values("gpt-3.5-turbo", 0.0, "laptop stand")
+        .stream()
+        .toList();
+}
+```
+
+Injected into experiments:
+
+```java
+@Experiment(mode = EXPLORE)
+@FactorSource("modelConfigurations")
+void explore(
+        @Factor("model") String model,
+        @Factor("temperature") double temp,
+        @Factor("query") String query,
+        ResultCaptor captor) {
+    // All three factors injected
+}
+```
+
+### Factor Sources in the Operational Workflow
+
+Each stage of the PUnit workflow uses factor sources differently:
+
+#### EXPLORE: Discover Optimal Configurations
+
+**Goal**: Try many configurations to find what works best.
+
+```java
+@Experiment(mode = EXPLORE, samplesPerConfig = 5)
+@FactorSource("exploratoryConfigs")
+void explore(@Factor("model") String model, @Factor("temp") double temp, ...) {
+    // 5 samples per configuration
+}
+
+static List<FactorArguments> exploratoryConfigs() {
+    return FactorArguments.configurations()
+        .names("model", "temp")
+        .values("gpt-3.5-turbo", 0.0)
+        .values("gpt-3.5-turbo", 0.7)
+        .values("gpt-4", 0.0)
+        .values("gpt-4", 0.7)
+        .values("gpt-4-turbo", 0.0)
+        .stream().toList();
+}
+```
+
+**Factor source characteristics for EXPLORE**:
+- Multiple configurations to compare
+- Can live in the experiment class (local to exploration)
+- `samplesPerConfig` creates Cartesian product
+
+#### MEASURE: Establish Statistical Baseline
+
+**Goal**: Gather reliable statistics for a chosen configuration.
+
+**Form 1: Single input, many samples** (statistical purity)
+
+```java
+@Experiment(mode = MEASURE, samples = 1000)
+@FactorSource("ShoppingUseCase#singleQuery")
+void measure(@Factor("query") String query, ResultCaptor captor) {
+    // Same query for all 1000 samples
+}
+```
+
+**Form 2: Varied inputs, cycling** (production-representative)
+
+```java
+@Experiment(mode = MEASURE, samples = 1000)
+@FactorSource("ShoppingUseCase#standardQueries")  // 10 queries
+void measure(@Factor("query") String query, ResultCaptor captor) {
+    // Each query used ~100 times (cycling)
+}
+```
+
+**Factor source characteristics for MEASURE**:
+- Co-locate with UseCase for consistency
+- Same source should be used by probabilistic tests
+- Hash is stored in spec for validation
+
+#### Probabilistic Test: Verify Against Baseline
+
+**Goal**: Run a smaller sample and compare to baseline spec.
+
+```java
+@ProbabilisticTest(samples = 100, useCase = ShoppingUseCase.class)
+@FactorSource("ShoppingUseCase#standardQueries")  // SAME as MEASURE!
+void test(@Factor("query") String query, TokenChargeRecorder recorder) {
+    // Uses first 100 factors from same source
+}
+```
+
+**Factor source characteristics for Tests**:
+- Use the **same source** as the MEASURE experiment
+- PUnit validates hash match and warns if different
+- First-N prefix selection ensures identical inputs
+
+### Summary: Factor Sources by Workflow Stage
+
+| Stage | Factor Source Location | Typical Entries | Consumption |
+|-------|------------------------|-----------------|-------------|
+| **EXPLORE** | Experiment class | Many configs | `samplesPerConfig` × each |
+| **MEASURE Form 1** | UseCase class | 1 (single input) | Same input for all samples |
+| **MEASURE Form 2** | UseCase class | 10-20 representative | Cycling through list |
+| **Probabilistic Test** | Same as MEASURE | Same as MEASURE | First-N prefix |
+
+### Quick Reference
+
+```java
+// Define a factor source (method name = identifier)
+public static List<FactorArguments> myFactors() {
+    return List.of(
+        FactorArguments.of("input", "value1"),
+        FactorArguments.of("input", "value2")
+    );
+}
+
+// Reference from same class
+@FactorSource("myFactors")
+
+// Reference from another class
+@FactorSource("OtherClass#myFactors")
+
+// Inject factor values
+void method(@Factor("input") String input, ...) { }
+```
+
+---
+
+## Factor Consistency
+
+Factor consistency ensures **statistical integrity** by verifying that probabilistic tests use the same inputs as the experiments that generated their baseline specifications.
+
+### The Problem
+
+When you run a MEASURE experiment with certain inputs (e.g., product queries), the spec captures the observed behavior for *those specific inputs*. If a probabilistic test later uses *different* inputs, the statistical comparison becomes invalid—you're comparing apples to oranges.
+
+### The Solution: Source-Owned Hash
+
+PUnit automatically validates factor consistency using a **source-owned hash**:
+
+1. During the MEASURE experiment, the factor source computes a hash of its factors
+2. This hash is stored in the spec alongside the empirical data
+3. During the probabilistic test, the factor source computes its hash
+4. PUnit compares the hashes and warns if they differ
+
+```
+✓ Factor sources match.
+  Note: Experiment used 1000 samples; test uses 100.
+```
+
+or
+
+```
+⚠️ FACTOR CONSISTENCY WARNING
+   Factor source mismatch detected.
+   Baseline: hash=a3f2b8c9..., source=productQueries, samples=1000
+   Test:     hash=7d4e2f1a..., source=modifiedQueries
+   Statistical conclusions may be less reliable.
+   Ensure the same @FactorSource is used for experiments and tests.
+```
+
+### Recommended Pattern: Co-locate Factors with Use Cases
+
+The recommended pattern is to define factor sources **alongside use case classes**:
+
+```java
+public class ProductSearchUseCase {
+
+    // The use case implementation
+    public SearchResult search(String query, String model) {
+        return llmClient.chat(buildPrompt(query), model);
+    }
+
+    // Factor source for MEASURE experiments and probabilistic tests
+    // Method name "standardQueries" is the identifier
+    public static List<FactorArguments> standardQueries() {
+        return List.of(
+            FactorArguments.of("wireless headphones", "gpt-4"),
+            FactorArguments.of("laptop stand", "gpt-4"),
+            FactorArguments.of("USB-C hub", "gpt-4"),
+            FactorArguments.of("mechanical keyboard", "gpt-4"),
+            FactorArguments.of("webcam 4k", "gpt-4")
+        );
+    }
+
+    // Alternative factor source for EXPLORE experiments
+    public static List<FactorArguments> exploratoryQueries() {
+        return List.of(
+            FactorArguments.of("wireless headphones", "gpt-3.5-turbo"),
+            FactorArguments.of("wireless headphones", "gpt-4"),
+            FactorArguments.of("wireless headphones", "gpt-4-turbo")
+        );
+    }
+}
+```
+
+**Benefits of co-location:**
+
+| Benefit | Description |
+|---------|-------------|
+| **Single source of truth** | Factors live with the code they exercise |
+| **Cohesion** | Related concepts stay together |
+| **Discoverability** | Developers find factors when they find the use case |
+| **Consistency** | Easy to use the same source in experiments and tests |
+
+### Referencing Factor Sources
+
+**Same-class reference** (short name):
+
+```java
+@Experiment(type = MEASURE, samples = 1000)
+@FactorSource("standardQueries")  // Method in same class
+void measureProductSearch(...) { ... }
+```
+
+**Cross-class reference** (qualified name):
+
+```java
+@ProbabilisticTest(samples = 100, useCase = ProductSearchUseCase.class)
+@FactorSource("ProductSearchUseCase#standardQueries")  // Method in another class
+void testProductSearch(...) { ... }
+```
+
+### First-N Prefix Selection
+
+When a probabilistic test uses fewer samples than the experiment:
+
+- **Experiment**: 1000 samples → consumes factors F₁, F₂, ... F₁₀₀₀
+- **Test**: 100 samples → consumes factors F₁, F₂, ... F₁₀₀
+
+The test uses a **prefix** of the experiment's factors. Because both use the same factor source, the first N factors are guaranteed to be identical.
+
+### Naming Rules
+
+Factor source names are **class-scoped**:
+
+| Rule | Behavior |
+|------|----------|
+| Names are class-scoped | `"queries"` → `"ProductSearchUseCase#queries"` internally |
+| Within-class uniqueness | Enforced at discovery; fail-fast with clear error |
+| Cross-class references | Require `ClassName#methodName` syntax |
+| Same-class references | Short names allowed |
+| Default name | Method name if annotation value omitted |
+
+### When to Use Factor Sources
+
+| Scenario | Recommendation |
+|----------|----------------|
+| **EXPLORE experiments** | Use diverse factors to find optimal configurations |
+| **MEASURE experiments** | Use production-representative factors for baseline |
+| **Probabilistic tests** | Use **same factor source** as MEASURE experiment |
+
+### Key Takeaways
+
+1. **Same source, same factors**: If experiment and test use the same `@FactorSource`, they consume identical factors
+2. **Hash comparison**: PUnit warns if factor sources differ
+3. **Warning, not blocking**: Mismatch is informational—the test still runs
+4. **Sample count irrelevant**: Hash comparison works regardless of consumption counts
+
+---
+
 ## Next Steps
 
 - See [README.md](../README.md) for full configuration reference

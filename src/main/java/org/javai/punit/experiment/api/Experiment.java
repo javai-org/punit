@@ -203,12 +203,4 @@ public @interface Experiment {
      */
     String experimentId() default "";
 
-    /**
-     * Output format for spec files.
-     *
-     * <p>Supported values: "yaml" (default), "json".
-     *
-     * @return the output format
-     */
-    String outputFormat() default "yaml";
 }

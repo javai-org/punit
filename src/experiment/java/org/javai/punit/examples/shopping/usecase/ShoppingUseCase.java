@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.experiment.api.FactorArguments;
 import org.javai.punit.experiment.model.UseCaseResult;
 
 /**
@@ -364,5 +365,128 @@ public class ShoppingUseCase {
                 .meta("temperature", temperature)
                 .executionTime(executionTime)
                 .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FACTOR SOURCE PROVIDERS - Co-located with use case for consistency
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Single-query factor source for controlled MEASURE experiments.
+     *
+     * <p><b>Why a single-entry factor source?</b> This may seem unusual, but it's
+     * often the <em>ideal</em> choice for MEASURE experiments:
+     *
+     * <ul>
+     *   <li><b>Statistical purity</b>: All 1000 samples use the exact same input,
+     *       isolating the LLM's behavioral variance from input variance</li>
+     *   <li><b>Clean baseline</b>: The resulting spec reflects behavior for THIS
+     *       specific query, not a blend of different query characteristics</li>
+     *   <li><b>Reproducibility</b>: The baseline is unambiguously tied to a single,
+     *       well-understood input</li>
+     * </ul>
+     *
+     * <p>This is the "Form 1" MEASURE pattern: one configuration, many samples.
+     * Use {@link #standardProductQueries()} for "Form 2": varied inputs.
+     *
+     * <h2>Usage</h2>
+     * <pre>{@code
+     * @Experiment(mode = MEASURE, samples = 1000, ...)
+     * @FactorSource("ShoppingUseCase#singleQuery")
+     * void measureBaseline(ShoppingUseCase useCase, @Factor("query") String query, ...) {
+     *     // query is always "wireless headphones" for all 1000 samples
+     *     captor.record(useCase.searchProducts(query));
+     * }
+     * }</pre>
+     *
+     * @return a single factor argument used for all samples
+     */
+    public static List<FactorArguments> singleQuery() {
+        return FactorArguments.configurations()
+            .names("query")
+            .values("wireless headphones")
+            .stream().toList();
+    }
+
+    /**
+     * Production-representative factor source for MEASURE experiments and probabilistic tests.
+     *
+     * <p>This factor source provides a fixed set of product queries that represent
+     * typical production traffic. Both MEASURE experiments and probabilistic tests
+     * should use this same source to ensure statistical consistency.
+     *
+     * <p>With {@code samples = 1000} and 10 queries, each query is used ~100 times
+     * (cycling behavior). This is the "Form 2" MEASURE pattern: varied inputs,
+     * establishing a baseline across representative production queries.
+     *
+     * <h2>Usage in MEASURE Experiment</h2>
+     * <pre>{@code
+     * @Experiment(mode = MEASURE, samples = 1000, ...)
+     * @FactorSource("ShoppingUseCase#standardProductQueries")
+     * void measureBaseline(ShoppingUseCase useCase, @Factor("query") String query, ...) { ... }
+     * }</pre>
+     *
+     * <h2>Usage in Probabilistic Test</h2>
+     * <pre>{@code
+     * @ProbabilisticTest(samples = 100, useCase = ShoppingUseCase.class)
+     * @FactorSource("ShoppingUseCase#standardProductQueries")
+     * void testProductSearch(ShoppingUseCase useCase, @Factor("query") String query, ...) { ... }
+     * }</pre>
+     *
+     * @return factor arguments representing production-like queries
+     */
+    public static List<FactorArguments> standardProductQueries() {
+        return FactorArguments.configurations()
+            .names("query")
+            .values("wireless headphones")
+            .values("laptop stand")
+            .values("USB-C hub")
+            .values("mechanical keyboard")
+            .values("webcam 4k")
+            .values("bluetooth speaker")
+            .values("monitor arm")
+            .values("gaming mouse")
+            .values("desk lamp")
+            .values("cable management")
+            .stream().toList();
+    }
+
+    /**
+     * Extended factor source for comprehensive MEASURE experiments.
+     *
+     * <p>A larger set of queries covering various product categories and search patterns.
+     * Use this when you need more variety in your baseline measurements.
+     *
+     * @return extended factor arguments for broader coverage
+     */
+    public static List<FactorArguments> extendedProductQueries() {
+        return FactorArguments.configurations()
+            .names("query")
+            // Electronics
+            .values("wireless headphones")
+            .values("laptop stand")
+            .values("USB-C hub")
+            .values("mechanical keyboard")
+            .values("webcam 4k")
+            // Audio
+            .values("bluetooth speaker waterproof")
+            .values("noise cancelling earbuds")
+            .values("microphone for streaming")
+            // Office supplies
+            .values("monitor arm dual")
+            .values("desk organizer")
+            .values("ergonomic chair")
+            .values("standing desk converter")
+            // Gaming
+            .values("gaming mouse rgb")
+            .values("controller wireless")
+            .values("gaming headset")
+            // Miscellaneous
+            .values("portable charger")
+            .values("wireless charging pad")
+            .values("smart home hub")
+            .values("fitness tracker")
+            .values("tablet stylus")
+            .stream().toList();
     }
 }

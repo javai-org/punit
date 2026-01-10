@@ -17,7 +17,6 @@ class ExecutionSpecificationTest {
 
     private ExecutionSpecification.Builder validBuilder() {
         return ExecutionSpecification.builder()
-            .specId("TestSpec")
             .useCaseId("TestUseCase")
             .approvedAt(Instant.now())
             .approvedBy("tester");
@@ -32,7 +31,6 @@ class ExecutionSpecificationTest {
         void buildsWithAllFields() {
             Instant now = Instant.now();
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .specId("TestSpec")
                 .useCaseId("TestUseCase")
                 .version(2)
                 .approvedAt(now)
@@ -45,8 +43,9 @@ class ExecutionSpecificationTest {
                 .baselineData(100, 85)
                 .build();
 
-            assertThat(spec.getSpecId()).isEqualTo("TestSpec");
             assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            // getSpecId() is deprecated and returns useCaseId
+            assertThat(spec.getSpecId()).isEqualTo("TestUseCase");
             assertThat(spec.getVersion()).isEqualTo(2);
             assertThat(spec.getApprovedAt()).isEqualTo(now);
             assertThat(spec.getApprovedBy()).isEqualTo("approver");
@@ -59,23 +58,25 @@ class ExecutionSpecificationTest {
         }
 
         @Test
-        @DisplayName("throws on null specId")
-        void throwsOnNullSpecId() {
-            assertThatThrownBy(() -> 
-                ExecutionSpecification.builder()
-                    .useCaseId("UseCase")
-                    .build()
-            ).isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
         @DisplayName("throws on null useCaseId")
         void throwsOnNullUseCaseId() {
             assertThatThrownBy(() -> 
                 ExecutionSpecification.builder()
-                    .specId("Spec")
                     .build()
-            ).isInstanceOf(NullPointerException.class);
+            ).isInstanceOf(NullPointerException.class)
+             .hasMessageContaining("useCaseId");
+        }
+        
+        @Test
+        @DisplayName("specId sets useCaseId for backwards compatibility")
+        void specIdSetsUseCaseId() {
+            ExecutionSpecification spec = ExecutionSpecification.builder()
+                .specId("LegacySpec")  // deprecated, but should still work
+                .approvedAt(Instant.now())
+                .approvedBy("tester")
+                .build();
+            
+            assertThat(spec.getUseCaseId()).isEqualTo("LegacySpec");
         }
 
         @Test
@@ -231,7 +232,7 @@ class ExecutionSpecificationTest {
         @DisplayName("isApproved returns false when approvedAt is null")
         void isApprovedReturnsFalseWhenApprovedAtNull() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .specId("Spec")
+                .useCaseId("Spec")
                 .useCaseId("UseCase")
                 .approvedBy("approver")
                 .build();
@@ -243,7 +244,7 @@ class ExecutionSpecificationTest {
         @DisplayName("isApproved returns false when approvedBy is null")
         void isApprovedReturnsFalseWhenApprovedByNull() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .specId("Spec")
+                .useCaseId("Spec")
                 .useCaseId("UseCase")
                 .approvedAt(Instant.now())
                 .build();
@@ -255,7 +256,7 @@ class ExecutionSpecificationTest {
         @DisplayName("isApproved returns false when approvedBy is empty")
         void isApprovedReturnsFalseWhenApprovedByEmpty() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .specId("Spec")
+                .useCaseId("Spec")
                 .useCaseId("UseCase")
                 .approvedAt(Instant.now())
                 .approvedBy("")
@@ -282,7 +283,7 @@ class ExecutionSpecificationTest {
         @DisplayName("succeeds without approval metadata (v2 behavior)")
         void succeedsWithoutApprovalMetadata() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .specId("Spec")
+                .useCaseId("Spec")
                 .useCaseId("UseCase")
                 .empiricalBasis(100, 90)
                 .build();
@@ -296,7 +297,7 @@ class ExecutionSpecificationTest {
         @SuppressWarnings("deprecation")
         void validateStrictThrowsWhenNotApproved() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .specId("Spec")
+                .useCaseId("Spec")
                 .useCaseId("UseCase")
                 .build();
 

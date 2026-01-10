@@ -4,27 +4,36 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.format.DateTimeFormatter;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 
 /**
- * Writes empirical baselines to files in YAML or JSON format.
+ * Writes empirical baselines to YAML files.
+ *
+ * <p>Generated specs include:
+ * <ul>
+ *   <li>{@code schemaVersion} - version identifier for spec format</li>
+ *   <li>{@code contentFingerprint} - SHA-256 hash for integrity verification</li>
+ * </ul>
  */
 public class BaselineWriter {
     
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_INSTANT;
+    private static final String SCHEMA_VERSION = "punit-spec-1";
     
     /**
-     * Writes a baseline to the specified path.
+     * Writes a baseline to the specified path in YAML format.
      *
      * @param baseline the baseline to write
      * @param path the output path
-     * @param format the output format ("yaml" or "json")
      * @throws IOException if writing fails
      */
-    public void write(EmpiricalBaseline baseline, Path path, String format) throws IOException {
+    public void write(EmpiricalBaseline baseline, Path path) throws IOException {
         Objects.requireNonNull(baseline, "baseline must not be null");
         Objects.requireNonNull(path, "path must not be null");
         
@@ -34,29 +43,48 @@ public class BaselineWriter {
             Files.createDirectories(parent);
         }
         
-        String content;
-        if ("json".equalsIgnoreCase(format)) {
-            content = toJson(baseline);
-        } else {
-            content = toYaml(baseline);
-        }
-        
+        String content = toYaml(baseline);
         Files.writeString(path, content, StandardCharsets.UTF_8);
     }
     
     /**
      * Writes a baseline to YAML format.
      *
+     * <p>The generated YAML includes:
+     * <ul>
+     *   <li>{@code schemaVersion} - version identifier for spec format</li>
+     *   <li>{@code contentFingerprint} - SHA-256 hash for integrity verification</li>
+     * </ul>
+     *
      * @param baseline the baseline
      * @return YAML string
      */
     public String toYaml(EmpiricalBaseline baseline) {
+        // Build the content without fingerprint first
+        String contentWithoutFingerprint = buildYamlContent(baseline);
+        
+        // Compute fingerprint of the content
+        String fingerprint = computeFingerprint(contentWithoutFingerprint);
+        
+        // Build final content with fingerprint at the end
+        // Note: contentWithoutFingerprint already ends with \n, so no extra newline needed
+        StringBuilder sb = new StringBuilder(contentWithoutFingerprint);
+        sb.append("contentFingerprint: ").append(fingerprint).append("\n");
+        
+        return sb.toString();
+    }
+    
+    /**
+     * Builds the YAML content (without the fingerprint line).
+     */
+    private String buildYamlContent(EmpiricalBaseline baseline) {
         StringBuilder sb = new StringBuilder();
         
         sb.append("# Empirical Baseline for ").append(baseline.getUseCaseId()).append("\n");
         sb.append("# Generated automatically by punit experiment runner\n");
         sb.append("# DO NOT EDIT - create a specification based on this baseline instead\n\n");
         
+        sb.append("schemaVersion: ").append(SCHEMA_VERSION).append("\n");
         sb.append("useCaseId: ").append(baseline.getUseCaseId()).append("\n");
         if (baseline.getExperimentId() != null) {
             sb.append("experimentId: ").append(baseline.getExperimentId()).append("\n");
@@ -126,100 +154,23 @@ public class BaselineWriter {
     }
     
     /**
-     * Writes a baseline to JSON format.
-     *
-     * @param baseline the baseline
-     * @return JSON string
+     * Computes a SHA-256 fingerprint of the content.
      */
-    public String toJson(EmpiricalBaseline baseline) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\n");
-        
-        sb.append("  \"useCaseId\": \"").append(escapeJsonString(baseline.getUseCaseId())).append("\",\n");
-        if (baseline.getExperimentId() != null) {
-            sb.append("  \"experimentId\": \"").append(escapeJsonString(baseline.getExperimentId())).append("\",\n");
+    private String computeFingerprint(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
         }
-        sb.append("  \"generatedAt\": \"").append(ISO_FORMATTER.format(baseline.getGeneratedAt())).append("\",\n");
-        
-        if (baseline.getExperimentClass() != null) {
-            sb.append("  \"experimentClass\": \"").append(escapeJsonString(baseline.getExperimentClass())).append("\",\n");
-        }
-        if (baseline.getExperimentMethod() != null) {
-            sb.append("  \"experimentMethod\": \"").append(escapeJsonString(baseline.getExperimentMethod())).append("\",\n");
-        }
-        
-        // Context
-        sb.append("  \"context\": {\n");
-        int contextIdx = 0;
-        for (Map.Entry<String, Object> entry : baseline.getContext().entrySet()) {
-            sb.append("    \"").append(escapeJsonString(entry.getKey())).append("\": ");
-            appendJsonValue(sb, entry.getValue());
-            if (contextIdx < baseline.getContext().size() - 1) {
-                sb.append(",");
-            }
-            sb.append("\n");
-            contextIdx++;
-        }
-        sb.append("  },\n");
-        
-        // Execution
-        sb.append("  \"execution\": {\n");
-        sb.append("    \"samplesPlanned\": ").append(baseline.getExecution().samplesPlanned()).append(",\n");
-        sb.append("    \"samplesExecuted\": ").append(baseline.getExecution().samplesExecuted()).append(",\n");
-        sb.append("    \"terminationReason\": \"").append(baseline.getExecution().terminationReason()).append("\"");
-        if (baseline.getExecution().terminationDetails() != null) {
-            sb.append(",\n    \"terminationDetails\": \"").append(escapeJsonString(baseline.getExecution().terminationDetails())).append("\"");
-        }
-        sb.append("\n  },\n");
-        
-        // Statistics
-        sb.append("  \"statistics\": {\n");
-        sb.append("    \"observedSuccessRate\": ").append(baseline.getStatistics().observedSuccessRate()).append(",\n");
-        sb.append("    \"standardError\": ").append(baseline.getStatistics().standardError()).append(",\n");
-        sb.append("    \"confidenceInterval95\": [")
-            .append(baseline.getStatistics().confidenceIntervalLower())
-            .append(", ")
-            .append(baseline.getStatistics().confidenceIntervalUpper())
-            .append("],\n");
-        sb.append("    \"successes\": ").append(baseline.getStatistics().successes()).append(",\n");
-        sb.append("    \"failures\": ").append(baseline.getStatistics().failures()).append(",\n");
-        sb.append("    \"failureDistribution\": {\n");
-        int failIdx = 0;
-        for (Map.Entry<String, Integer> entry : baseline.getStatistics().failureDistribution().entrySet()) {
-            sb.append("      \"").append(escapeJsonString(entry.getKey())).append("\": ").append(entry.getValue());
-            if (failIdx < baseline.getStatistics().failureDistribution().size() - 1) {
-                sb.append(",");
-            }
-            sb.append("\n");
-            failIdx++;
-        }
-        sb.append("    }\n");
-        sb.append("  },\n");
-        
-        // Cost
-        sb.append("  \"cost\": {\n");
-        sb.append("    \"totalTimeMs\": ").append(baseline.getCost().totalTimeMs()).append(",\n");
-        sb.append("    \"avgTimePerSampleMs\": ").append(baseline.getCost().avgTimePerSampleMs()).append(",\n");
-        sb.append("    \"totalTokens\": ").append(baseline.getCost().totalTokens()).append(",\n");
-        sb.append("    \"avgTokensPerSample\": ").append(baseline.getCost().avgTokensPerSample()).append("\n");
-        sb.append("  }");
-        
-        // Success criteria
-        if (baseline.getSuccessCriteriaDefinition() != null) {
-            sb.append(",\n  \"successCriteria\": {\n");
-            sb.append("    \"definition\": \"").append(escapeJsonString(baseline.getSuccessCriteriaDefinition())).append("\"\n");
-            sb.append("  }");
-        }
-        
-        sb.append("\n}\n");
-        return sb.toString();
     }
     
     private void appendYamlValue(StringBuilder sb, Object value) {
         if (value == null) {
             sb.append("null");
         } else if (value instanceof String str) {
-			if (needsYamlQuoting(str)) {
+            if (needsYamlQuoting(str)) {
                 sb.append("\"").append(escapeYamlString(str)).append("\"");
             } else {
                 sb.append(str);
@@ -228,18 +179,6 @@ public class BaselineWriter {
             sb.append(value);
         } else {
             sb.append("\"").append(escapeYamlString(value.toString())).append("\"");
-        }
-    }
-    
-    private void appendJsonValue(StringBuilder sb, Object value) {
-        if (value == null) {
-            sb.append("null");
-        } else if (value instanceof String) {
-            sb.append("\"").append(escapeJsonString((String) value)).append("\"");
-        } else if (value instanceof Boolean || value instanceof Number) {
-            sb.append(value);
-        } else {
-            sb.append("\"").append(escapeJsonString(value.toString())).append("\"");
         }
     }
     
@@ -262,13 +201,4 @@ public class BaselineWriter {
                   .replace("\r", "\\r")
                   .replace("\t", "\\t");
     }
-    
-    private String escapeJsonString(String str) {
-        return str.replace("\\", "\\\\")
-                  .replace("\"", "\\\"")
-                  .replace("\n", "\\n")
-                  .replace("\r", "\\r")
-                  .replace("\t", "\\t");
-    }
 }
-

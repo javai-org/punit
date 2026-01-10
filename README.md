@@ -1,11 +1,11 @@
 # PUnit: The Probabilistic Unit Testing Framework
-*Statistical regression testing for non-deterministic systems*
+*Experimentation and statistical regression testing for non-deterministic systems*
 
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue.svg)](https://openjdk.org/)
 [![JUnit 5](https://img.shields.io/badge/JUnit-5.13%2B-green.svg)](https://junit.org/junit5/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-PUnit is a JUnit 5 extension for testing non-deterministic systems. It runs tests multiple times and determines pass/fail based on statistical thresholds, making it ideal for testing LLMs, ML models, randomized algorithms, and other stochastic components.
+PUnit is a JUnit 5 extension for both experimenting with and testing non-deterministic systems. It runs tests multiple times and determines pass/fail based on statistical thresholds, making it ideal for testing LLMs, ML models, randomized algorithms, and other stochastic components.
 
 ## Table of Contents
 
@@ -15,6 +15,7 @@ PUnit is a JUnit 5 extension for testing non-deterministic systems. It runs test
 - [Core Concepts](#core-concepts)
 - [Usage Examples](#usage-examples)
 - [Configuration Reference](#configuration-reference)
+- [Pacing Constraints](#pacing-constraints)
 - [How It Works](#how-it-works)
 - [IDE Integration](#ide-integration)
 - [Best Practices](#best-practices)
@@ -61,6 +62,7 @@ Don't let the simplicity of this snippet fool you. Behind this clean API lies ri
 | ⚡ **Smart Early Termination** | Stop early when failure is inevitable OR success is guaranteed |
 | 💰 **Budget Control**         | Time and token budgets at method, class, or suite level        |
 | 📈 **Dynamic Token Tracking** | Record actual API consumption per invocation                   |
+| 🚦 **Pacing Constraints**     | Declare API rate limits; framework computes optimal execution pace |
 
 ### Operations
 
@@ -307,6 +309,24 @@ class LlmIntegrationTests {
 }
 ```
 
+### Pacing for Rate-Limited APIs
+
+When testing APIs with rate limits (requests per minute, etc.), use `@Pacing` to let PUnit compute optimal execution timing:
+
+```java
+@ProbabilisticTest(samples = 200, minPassRate = 0.90)
+@Pacing(maxRequestsPerMinute = 60)  // OpenAI-style rate limit
+void testWithRateLimit(TokenChargeRecorder recorder) {
+    // PUnit automatically spaces samples ~1 second apart
+    // Pre-flight report shows: "Estimated duration: 3m 20s"
+    LlmResponse response = llmClient.complete("Generate JSON...");
+    recorder.recordTokens(response.getUsage().getTotalTokens());
+    assertThat(response.getContent()).isValidJson();
+}
+```
+
+Pacing is **proactive**, not reactive. Instead of hitting rate limits and backing off, PUnit computes the optimal pace *before* execution begins. See [Pacing Constraints](#pacing-constraints) for full details.
+
 ### Evaluate Partial Results on Budget Exhaustion
 
 ```java
@@ -387,6 +407,98 @@ Values are resolved in this order (highest priority first):
 2. **Environment variable** (`PUNIT_SAMPLES=10`)
 3. **Annotation value** (`@ProbabilisticTest(samples = 100)`)
 4. **Framework default** (100)
+
+## Pacing Constraints
+
+When testing rate-limited APIs (LLMs, third-party services, etc.), use the `@Pacing` annotation to declare rate limits. PUnit computes the optimal execution pace automatically.
+
+### Why Pacing?
+
+Without pacing, tests either:
+- Execute too fast → hit rate limits → fail unpredictably
+- Require manual delays in test code → cluttered and error-prone
+
+With pacing, you declare constraints and PUnit handles the scheduling:
+
+```java
+@ProbabilisticTest(samples = 200, minPassRate = 0.90)
+@Pacing(maxRequestsPerMinute = 60)
+void testRateLimitedApi() {
+    // Framework automatically spaces requests to stay under 60 RPM
+}
+```
+
+### @Pacing Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `maxRequestsPerSecond` | double | 0 | Max RPS (0 = unlimited) |
+| `maxRequestsPerMinute` | double | 0 | Max RPM (0 = unlimited) |
+| `maxRequestsPerHour` | double | 0 | Max RPH (0 = unlimited) |
+| `maxConcurrentRequests` | int | 0 | Max parallel samples (0 = sequential) |
+| `minMsPerSample` | long | 0 | Explicit delay between samples (ms) |
+
+### How Constraints Compose
+
+When multiple constraints are specified, the **most restrictive** wins:
+
+```java
+@Pacing(
+    maxRequestsPerMinute = 60,    // → 1000ms delay
+    maxRequestsPerSecond = 2,     // → 500ms delay (more restrictive)
+    minMsPerSample = 250          // → 250ms delay
+)
+// Effective delay: 1000ms (RPM is most restrictive)
+```
+
+### Pre-Flight Report
+
+When pacing is configured, PUnit prints an execution plan before starting:
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║ PUnit Test: testWithRateLimit                                    ║
+╠══════════════════════════════════════════════════════════════════╣
+║ Samples requested:     200                                       ║
+║ Pacing constraints:                                              ║
+║   • Max requests/min:  60 RPM                                    ║
+║   • Min delay/sample:  1000ms (derived from 60 RPM)              ║
+╠══════════════════════════════════════════════════════════════════╣
+║ Computed execution plan:                                         ║
+║   • Concurrency:         sequential                              ║
+║   • Inter-request delay: 1000ms                                  ║
+║   • Effective throughput: 60 samples/min                         ║
+║   • Estimated duration:  3m 20s                                  ║
+║   • Estimated completion: 14:23:45                               ║
+╠══════════════════════════════════════════════════════════════════╣
+║ Started: 14:20:25                                                ║
+║ Proceeding with execution...                                     ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+### Environment Variable Overrides
+
+Override pacing at runtime (useful for CI/CD):
+
+| System Property | Environment Variable | Description |
+|-----------------|---------------------|-------------|
+| `punit.pacing.maxRps` | `PUNIT_PACING_MAX_RPS` | Max requests per second |
+| `punit.pacing.maxRpm` | `PUNIT_PACING_MAX_RPM` | Max requests per minute |
+| `punit.pacing.maxRph` | `PUNIT_PACING_MAX_RPH` | Max requests per hour |
+| `punit.pacing.maxConcurrent` | `PUNIT_PACING_MAX_CONCURRENT` | Max concurrent requests |
+| `punit.pacing.minMsPerSample` | `PUNIT_PACING_MIN_MS_PER_SAMPLE` | Min delay between samples |
+
+### Simple Delay-Based Pacing
+
+For simple cases, use `minMsPerSample` directly:
+
+```java
+@ProbabilisticTest(samples = 100, minPassRate = 0.90)
+@Pacing(minMsPerSample = 500)  // Wait 500ms between each sample
+void testWithSimpleDelay() {
+    // No rate limit math required
+}
+```
 
 ## How It Works
 
