@@ -70,18 +70,18 @@ dependencies {
     api("org.junit.jupiter:junit-jupiter-api")
     
     // Apache Commons Statistics - for statistical calculations (confidence intervals, distributions)
-    implementation("org.apache.commons:commons-statistics-distribution:1.1")
+    implementation("org.apache.commons:commons-statistics-distribution:1.2")
     
     // Test dependencies
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.junit.platform:junit-platform-testkit")
-    testImplementation("org.assertj:assertj-core:3.24.2")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
+    testImplementation("org.assertj:assertj-core:3.27.6")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     
     // Experiment dependencies - experiments use JUnit's TestTemplate mechanism
     experimentImplementation("org.junit.jupiter:junit-jupiter")
-    experimentImplementation("org.assertj:assertj-core:3.24.2")
+    experimentImplementation("org.assertj:assertj-core:3.27.6")
     experimentRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
