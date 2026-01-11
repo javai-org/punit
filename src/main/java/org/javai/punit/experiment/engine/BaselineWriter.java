@@ -11,6 +11,7 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
+import org.javai.punit.experiment.model.ResultProjection;
 
 /**
  * Writes empirical baselines to YAML files.
@@ -148,6 +149,28 @@ public class BaselineWriter {
         if (baseline.getSuccessCriteriaDefinition() != null) {
             sb.append("\nsuccessCriteria:\n");
             sb.append("  definition: \"").append(escapeYamlString(baseline.getSuccessCriteriaDefinition())).append("\"\n");
+        }
+        
+        // Result projections (EXPLORE mode only)
+        if (baseline.hasResultProjections()) {
+            sb.append("\nresultProjection:\n");
+            
+            for (ResultProjection projection : baseline.getResultProjections()) {
+                sb.append("  sample[").append(projection.sampleIndex()).append("]:\n");
+                sb.append("    timestamp: \"")
+                  .append(ISO_FORMATTER.format(projection.timestamp()))
+                  .append("\"\n");
+                sb.append("    executionTimeMs: ")
+                  .append(projection.executionTimeMs())
+                  .append("\n");
+                sb.append("    diffableContent:\n");
+                
+                for (String line : projection.diffableLines()) {
+                    sb.append("      - \"")
+                      .append(escapeYamlString(line))
+                      .append("\"\n");
+                }
+            }
         }
         
         return sb.toString();

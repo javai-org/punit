@@ -2,8 +2,8 @@ package org.javai.punit.experiment.model;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,7 +19,7 @@ import java.util.Optional;
  *       (experiment or test), not the result itself.</li>
  *   <li><strong>Flexible</strong>: The {@code Map<String, Object>} allows domain-specific
  *       values without requiring framework changes.</li>
- *   <li><strong>Immutable</strong>: Once constructed, results cannot be modified.</li>
+ *   <li><strong>Immutable</strong>: Guaranteed by the record specification.</li>
  * </ul>
  *
  * <h2>Example Usage</h2>
@@ -40,18 +40,21 @@ import java.util.Optional;
  *
  * @see org.javai.punit.experiment.api.UseCase
  */
-public final class UseCaseResult {
+public record UseCaseResult(
+    Map<String, Object> values,
+    Map<String, Object> metadata,
+    Instant timestamp,
+    Duration executionTime
+) {
     
-    private final Map<String, Object> values;
-    private final Map<String, Object> metadata;
-    private final Instant timestamp;
-    private final Duration executionTime;
-    
-    private UseCaseResult(Builder builder) {
-        this.values = Collections.unmodifiableMap(new LinkedHashMap<>(builder.values));
-        this.metadata = Collections.unmodifiableMap(new LinkedHashMap<>(builder.metadata));
-        this.timestamp = builder.timestamp;
-        this.executionTime = builder.executionTime;
+    /**
+     * Compact constructor for defensive copying and validation.
+     */
+    public UseCaseResult {
+        values = values != null ? Map.copyOf(values) : Map.of();
+        metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
+        Objects.requireNonNull(timestamp, "timestamp must not be null");
+        Objects.requireNonNull(executionTime, "executionTime must not be null");
     }
     
     /**
@@ -62,6 +65,60 @@ public final class UseCaseResult {
     public static Builder builder() {
         return new Builder();
     }
+    
+    // ========== Diffable Content ==========
+    
+    /**
+     * Returns the default diffable content for this result.
+     *
+     * <p>The default implementation:
+     * <ul>
+     *   <li>Iterates over the values map</li>
+     *   <li>Converts each value to a string via {@code toString()}</li>
+     *   <li>Sorts entries alphabetically by key</li>
+     *   <li>Formats as "key: value" lines</li>
+     *   <li>Truncates values exceeding maxLineLength with ellipsis (…)</li>
+     * </ul>
+     *
+     * @param maxLineLength maximum characters per line (including key and separator)
+     * @return list of formatted key-value lines, alphabetically ordered
+     */
+    public List<String> getDiffableContent(int maxLineLength) {
+        return values.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(e -> formatLine(e.getKey(), e.getValue(), maxLineLength))
+            .toList();
+    }
+    
+    private String formatLine(String key, Object value, int maxLineLength) {
+        String valueStr = normalizeValue(value);
+        String prefix = key + ": ";
+        int maxValueLength = maxLineLength - prefix.length();
+        
+        if (maxValueLength <= 0) {
+            // Key is too long; truncate key with ellipsis
+            return key.substring(0, Math.min(key.length(), maxLineLength - 1)) + "…";
+        }
+        
+        if (valueStr.length() > maxValueLength) {
+            valueStr = valueStr.substring(0, maxValueLength - 1) + "…";
+        }
+        
+        return prefix + valueStr;
+    }
+    
+    private String normalizeValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        // Single-line representation: escape control characters
+        return value.toString()
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t");
+    }
+    
+    // ========== Convenience Accessors ==========
     
     /**
      * Returns a value by key with type checking.
@@ -110,7 +167,8 @@ public final class UseCaseResult {
      * @return the boolean value or the default
      */
     public boolean getBoolean(String key, boolean defaultValue) {
-        return getValue(key, Boolean.class, defaultValue);
+        Object val = values.get(key);
+        return val instanceof Boolean b ? b : defaultValue;
     }
     
     /**
@@ -122,14 +180,15 @@ public final class UseCaseResult {
      * @param key the value key
      * @param defaultValue the default value if not present
      * @return the integer value or the default
+     * @throws ClassCastException if the value exists but is not a Number
      */
     public int getInt(String key, int defaultValue) {
         Object val = values.get(key);
         if (val == null) {
             return defaultValue;
         }
-        if (val instanceof Number) {
-            return ((Number) val).intValue();
+        if (val instanceof Number n) {
+            return n.intValue();
         }
         throw new ClassCastException("Value '" + key + "' is " +
             val.getClass().getName() + ", not a Number");
@@ -144,14 +203,15 @@ public final class UseCaseResult {
      * @param key the value key
      * @param defaultValue the default value if not present
      * @return the long value or the default
+     * @throws ClassCastException if the value exists but is not a Number
      */
     public long getLong(String key, long defaultValue) {
         Object val = values.get(key);
         if (val == null) {
             return defaultValue;
         }
-        if (val instanceof Number) {
-            return ((Number) val).longValue();
+        if (val instanceof Number n) {
+            return n.longValue();
         }
         throw new ClassCastException("Value '" + key + "' is " +
             val.getClass().getName() + ", not a Number");
@@ -166,14 +226,15 @@ public final class UseCaseResult {
      * @param key the value key
      * @param defaultValue the default value if not present
      * @return the double value or the default
+     * @throws ClassCastException if the value exists but is not a Number
      */
     public double getDouble(String key, double defaultValue) {
         Object val = values.get(key);
         if (val == null) {
             return defaultValue;
         }
-        if (val instanceof Number) {
-            return ((Number) val).doubleValue();
+        if (val instanceof Number n) {
+            return n.doubleValue();
         }
         throw new ClassCastException("Value '" + key + "' is " +
             val.getClass().getName() + ", not a Number");
@@ -187,43 +248,8 @@ public final class UseCaseResult {
      * @return the string value or the default
      */
     public String getString(String key, String defaultValue) {
-        return getValue(key, String.class, defaultValue);
-    }
-    
-    /**
-     * Returns all values as an unmodifiable map.
-     *
-     * @return unmodifiable map of all values
-     */
-    public Map<String, Object> getAllValues() {
-        return values;
-    }
-    
-    /**
-     * Returns all metadata as an unmodifiable map.
-     *
-     * @return unmodifiable map of all metadata
-     */
-    public Map<String, Object> getAllMetadata() {
-        return metadata;
-    }
-    
-    /**
-     * Returns the timestamp when this result was created.
-     *
-     * @return the creation timestamp
-     */
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-    
-    /**
-     * Returns the execution time of the use case invocation.
-     *
-     * @return the execution duration
-     */
-    public Duration getExecutionTime() {
-        return executionTime;
+        Object val = values.get(key);
+        return val instanceof String s ? s : defaultValue;
     }
     
     /**
@@ -236,31 +262,53 @@ public final class UseCaseResult {
         return values.containsKey(key);
     }
     
-    @Override
-    public String toString() {
-        return "UseCaseResult{" +
-            "values=" + values +
-            ", metadata=" + metadata +
-            ", timestamp=" + timestamp +
-            ", executionTime=" + executionTime +
-            '}';
+    // ========== Deprecated Bridge Methods ==========
+    
+    /**
+     * Returns all values as an unmodifiable map.
+     *
+     * @return unmodifiable map of all values
+     * @deprecated Use {@link #values()} instead. This method will be removed in a future version.
+     */
+    @Deprecated(forRemoval = true)
+    public Map<String, Object> getAllValues() {
+        return values;
     }
     
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        UseCaseResult that = (UseCaseResult) o;
-        return Objects.equals(values, that.values) &&
-               Objects.equals(metadata, that.metadata) &&
-               Objects.equals(timestamp, that.timestamp) &&
-               Objects.equals(executionTime, that.executionTime);
+    /**
+     * Returns all metadata as an unmodifiable map.
+     *
+     * @return unmodifiable map of all metadata
+     * @deprecated Use {@link #metadata()} instead. This method will be removed in a future version.
+     */
+    @Deprecated(forRemoval = true)
+    public Map<String, Object> getAllMetadata() {
+        return metadata;
     }
     
-    @Override
-    public int hashCode() {
-        return Objects.hash(values, metadata, timestamp, executionTime);
+    /**
+     * Returns the timestamp when this result was created.
+     *
+     * @return the creation timestamp
+     * @deprecated Use {@link #timestamp()} instead. This method will be removed in a future version.
+     */
+    @Deprecated(forRemoval = true)
+    public Instant getTimestamp() {
+        return timestamp;
     }
+    
+    /**
+     * Returns the execution time of the use case invocation.
+     *
+     * @return the execution duration
+     * @deprecated Use {@link #executionTime()} instead. This method will be removed in a future version.
+     */
+    @Deprecated(forRemoval = true)
+    public Duration getExecutionTime() {
+        return executionTime;
+    }
+    
+    // ========== Builder ==========
     
     /**
      * Builder for constructing {@code UseCaseResult} instances.
@@ -288,6 +336,18 @@ public final class UseCaseResult {
         }
         
         /**
+         * Copies all values from an existing result.
+         *
+         * @param source the source result to copy values from
+         * @return this builder
+         */
+        public Builder valuesFrom(UseCaseResult source) {
+            Objects.requireNonNull(source, "source must not be null");
+            values.putAll(source.values());
+            return this;
+        }
+        
+        /**
          * Adds metadata to the result.
          *
          * <p>Metadata is for contextual information (e.g., request IDs, backend info)
@@ -300,6 +360,18 @@ public final class UseCaseResult {
         public Builder meta(String key, Object val) {
             Objects.requireNonNull(key, "key must not be null");
             metadata.put(key, val);
+            return this;
+        }
+        
+        /**
+         * Copies all metadata from an existing result.
+         *
+         * @param source the source result to copy metadata from
+         * @return this builder
+         */
+        public Builder metadataFrom(UseCaseResult source) {
+            Objects.requireNonNull(source, "source must not be null");
+            metadata.putAll(source.metadata());
             return this;
         }
         
@@ -334,8 +406,7 @@ public final class UseCaseResult {
          * @return the constructed result
          */
         public UseCaseResult build() {
-            return new UseCaseResult(this);
+            return new UseCaseResult(values, metadata, timestamp, executionTime);
         }
     }
 }
-

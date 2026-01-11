@@ -1,0 +1,32 @@
+# Empirical Baseline for ShoppingUseCase/model-gpt-4_temp-0.7_query-wireless_headphones
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
+useCaseId: ShoppingUseCase/model-gpt-4_temp-0.7_query-wireless_headphones
+generatedAt: 2026-01-11T08:19:03.269197Z
+experimentClass: org.javai.punit.examples.shopping.experiment.ShoppingExperiment
+experimentMethod: exploreModelConfigurations
+
+context:
+  backend: generic
+
+execution:
+  samplesPlanned: 1
+  samplesExecuted: 1
+  terminationReason: COMPLETED
+
+statistics:
+  successRate:
+    observed: 1.0000
+    standardError: 0.0000
+    confidenceInterval95: [1.0000, 1.0000]
+  successes: 1
+  failures: 0
+
+cost:
+  totalTimeMs: 48
+  avgTimePerSampleMs: 48
+  totalTokens: 207
+  avgTokensPerSample: 207
+contentFingerprint: 95d9093a07662559bafd73ffd14fa1c60d6a59abe7a3eb83bcc640d54c551588

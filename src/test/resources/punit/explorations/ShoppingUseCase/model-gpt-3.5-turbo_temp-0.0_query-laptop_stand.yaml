@@ -1,0 +1,32 @@
+# Empirical Baseline for ShoppingUseCase/model-gpt-3.5-turbo_temp-0.0_query-laptop_stand
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
+useCaseId: ShoppingUseCase/model-gpt-3.5-turbo_temp-0.0_query-laptop_stand
+generatedAt: 2026-01-11T08:19:03.282145Z
+experimentClass: org.javai.punit.examples.shopping.experiment.ShoppingExperiment
+experimentMethod: exploreModelConfigurations
+
+context:
+  backend: generic
+
+execution:
+  samplesPlanned: 1
+  samplesExecuted: 1
+  terminationReason: COMPLETED
+
+statistics:
+  successRate:
+    observed: 1.0000
+    standardError: 0.0000
+    confidenceInterval95: [1.0000, 1.0000]
+  successes: 1
+  failures: 0
+
+cost:
+  totalTimeMs: 61
+  avgTimePerSampleMs: 61
+  totalTokens: 279
+  avgTokensPerSample: 279
+contentFingerprint: 079012cd8297d856c87058b53a5c4495c159c47bb77a07c6e6bb0c59dab18b0e

@@ -111,10 +111,12 @@ public record UseCaseDefinition(String useCaseId, String description, Object ins
 
 			if (result instanceof UseCaseResult ucResult) {
 				// If the method returned a UseCaseResult, enhance it with execution time if not set
-				if (ucResult.getExecutionTime().isZero()) {
+				if (ucResult.executionTime().isZero()) {
 					return UseCaseResult.builder()
+							.valuesFrom(ucResult)
+							.metadataFrom(ucResult)
 							.executionTime(executionTime)
-							.timestamp(ucResult.getTimestamp())
+							.timestamp(ucResult.timestamp())
 							.build();
 				}
 				return ucResult;

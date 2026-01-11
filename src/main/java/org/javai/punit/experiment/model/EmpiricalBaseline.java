@@ -1,8 +1,10 @@
 package org.javai.punit.experiment.model;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -32,6 +34,7 @@ public final class EmpiricalBaseline {
     private final StatisticsSummary statistics;
     private final CostSummary cost;
     private final String successCriteriaDefinition;
+    private final List<ResultProjection> resultProjections;
     
     private EmpiricalBaseline(Builder builder) {
         this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
@@ -44,6 +47,7 @@ public final class EmpiricalBaseline {
         this.statistics = Objects.requireNonNull(builder.statistics, "statistics must not be null");
         this.cost = Objects.requireNonNull(builder.cost, "cost must not be null");
         this.successCriteriaDefinition = builder.successCriteriaDefinition;
+        this.resultProjections = Collections.unmodifiableList(new ArrayList<>(builder.resultProjections));
     }
     
     public static Builder builder() {
@@ -88,6 +92,25 @@ public final class EmpiricalBaseline {
     
     public String getSuccessCriteriaDefinition() {
         return successCriteriaDefinition;
+    }
+    
+    /**
+     * Returns result projections for EXPLORE mode.
+     * Empty for MEASURE mode.
+     *
+     * @return unmodifiable list of result projections
+     */
+    public List<ResultProjection> getResultProjections() {
+        return resultProjections;
+    }
+    
+    /**
+     * Returns true if this baseline has result projections.
+     *
+     * @return true if result projections are present
+     */
+    public boolean hasResultProjections() {
+        return resultProjections != null && !resultProjections.isEmpty();
     }
 
 	/**
@@ -136,6 +159,7 @@ public final class EmpiricalBaseline {
         private StatisticsSummary statistics;
         private CostSummary cost;
         private String successCriteriaDefinition;
+        private final List<ResultProjection> resultProjections = new ArrayList<>();
         
         private Builder() {}
         
@@ -193,6 +217,32 @@ public final class EmpiricalBaseline {
         
         public Builder successCriteriaDefinition(String definition) {
             this.successCriteriaDefinition = definition;
+            return this;
+        }
+        
+        /**
+         * Adds a result projection to the baseline.
+         *
+         * @param projection the result projection to add
+         * @return this builder
+         */
+        public Builder resultProjection(ResultProjection projection) {
+            if (projection != null) {
+                this.resultProjections.add(projection);
+            }
+            return this;
+        }
+        
+        /**
+         * Adds all result projections to the baseline.
+         *
+         * @param projections the result projections to add
+         * @return this builder
+         */
+        public Builder resultProjections(List<ResultProjection> projections) {
+            if (projections != null) {
+                this.resultProjections.addAll(projections);
+            }
             return this;
         }
         

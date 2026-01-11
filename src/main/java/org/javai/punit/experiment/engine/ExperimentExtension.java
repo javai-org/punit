@@ -22,8 +22,11 @@ import org.javai.punit.experiment.api.FactorArguments;
 import org.javai.punit.experiment.api.FactorSource;
 import org.javai.punit.experiment.api.ResultCaptor;
 import org.javai.punit.experiment.api.UseCaseContext;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.experiment.api.DiffableContentProvider;
 import org.javai.punit.experiment.model.DefaultUseCaseContext;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
+import org.javai.punit.experiment.model.ResultProjection;
 import org.javai.punit.experiment.model.UseCaseResult;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -655,11 +658,33 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             provider.setCurrentFactorValues(factorValues, factorNames);
         }
         
+        // Get use case class for projection settings
+        Class<?> useCaseClass = store.get("useCaseClass", Class.class);
+        ResultProjectionBuilder projectionBuilder = createProjectionBuilder(useCaseClass, provider);
+        
         try {
             invocation.proceed();
             recordResult(captor, aggregator);
+            
+            // Build result projection for EXPLORE mode
+            if (captor != null && captor.hasResult()) {
+                ResultProjection projection = projectionBuilder.build(
+                    sampleInConfig - 1, // 0-based index
+                    captor.getResult()
+                );
+                aggregator.addResultProjection(projection);
+            }
         } catch (Throwable e) {
             aggregator.recordException(e);
+            
+            // Build error projection for EXPLORE mode
+            ResultProjection projection = projectionBuilder.buildError(
+                sampleInConfig - 1,
+                java.time.Instant.now(),
+                System.currentTimeMillis() - store.get("startTimeMs", Long.class),
+                e
+            );
+            aggregator.addResultProjection(projection);
         }
         
         // Report progress for this config
@@ -706,6 +731,42 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         // Context is now managed by the experiment method body and UseCaseProvider
         // This method returns an empty context for baseline metadata purposes
         return DefaultUseCaseContext.builder().build();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RESULT PROJECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Creates a ResultProjectionBuilder based on use case annotation and provider.
+     *
+     * @param useCaseClass the use case class (may be null or Void.class)
+     * @param provider the UseCaseProvider (may be null)
+     * @return a configured ResultProjectionBuilder
+     */
+    private ResultProjectionBuilder createProjectionBuilder(Class<?> useCaseClass, UseCaseProvider provider) {
+        int maxDiffableLines = 5; // default
+        int maxLineLength = 60;   // default
+        DiffableContentProvider customProvider = null;
+        
+        // Get settings from @UseCase annotation if available
+        if (useCaseClass != null && useCaseClass != Void.class) {
+            UseCase annotation = useCaseClass.getAnnotation(UseCase.class);
+            if (annotation != null) {
+                maxDiffableLines = annotation.maxDiffableLines();
+                maxLineLength = annotation.diffableContentMaxLineLength();
+            }
+            
+            // Check if use case instance implements DiffableContentProvider
+            if (provider != null) {
+                Object instance = provider.getCurrentInstance(useCaseClass);
+                if (instance instanceof DiffableContentProvider dcp) {
+                    customProvider = dcp;
+                }
+            }
+        }
+        
+        return new ResultProjectionBuilder(maxDiffableLines, maxLineLength, customProvider);
     }
     
     // ═══════════════════════════════════════════════════════════════════════════

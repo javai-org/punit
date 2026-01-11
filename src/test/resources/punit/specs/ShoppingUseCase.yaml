@@ -1,0 +1,38 @@
+# Empirical Baseline for ShoppingUseCase
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
+useCaseId: ShoppingUseCase
+generatedAt: 2026-01-11T08:10:13.827284Z
+experimentClass: org.javai.punit.examples.shopping.experiment.ShoppingExperiment
+experimentMethod: measureRealisticSearchBaseline
+
+context:
+  backend: generic
+
+execution:
+  samplesPlanned: 1000
+  samplesExecuted: 1000
+  terminationReason: COMPLETED
+
+statistics:
+  successRate:
+    observed: 0.8510
+    standardError: 0.0113
+    confidenceInterval95: [0.8289, 0.8731]
+  successes: 851
+  failures: 149
+  failureDistribution:
+    PRODUCT_ATTRIBUTE_ERROR: 91
+    INVALID_VALUES: 12
+    MALFORMED_JSON: 23
+    HALLUCINATED_FIELDS: 21
+    MISSING_FIELDS: 2
+
+cost:
+  totalTimeMs: 940
+  avgTimePerSampleMs: 0
+  totalTokens: 349207
+  avgTokensPerSample: 349
+contentFingerprint: c0d2fb7c4f20fba13c1ec121cc7fe07a9187f3ee486c3b672277a1ddf43de4c0

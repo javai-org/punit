@@ -84,6 +84,7 @@ public class UseCaseProvider implements ParameterResolver {
     private final Map<Class<?>, Function<FactorValues, ?>> factorFactories = new ConcurrentHashMap<>();
     private final Map<Class<?>, Supplier<?>> autoWiredFactories = new ConcurrentHashMap<>();
     private final Map<Class<?>, Object> singletons = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Object> lastCreatedInstances = new ConcurrentHashMap<>();
     private boolean useSingletons = false;
     
     // Current factor values for EXPLORE mode - set by ExperimentExtension
@@ -258,17 +259,22 @@ public class UseCaseProvider implements ParameterResolver {
      */
     @SuppressWarnings("unchecked")
     public <T> T getInstance(Class<T> useCaseClass) {
+        T instance;
+        
         // 1. Check for factor factory (EXPLORE mode with custom factory)
         Function<FactorValues, ?> factorFactory = factorFactories.get(useCaseClass);
         if (factorFactory != null && currentFactorValues != null) {
-            return (T) factorFactory.apply(currentFactorValues);
+            instance = (T) factorFactory.apply(currentFactorValues);
+            lastCreatedInstances.put(useCaseClass, instance);
+            return instance;
         }
         
         // 2. Check for auto-wired factory (EXPLORE mode with @FactorSetter)
         Supplier<?> autoWiredFactory = autoWiredFactories.get(useCaseClass);
         if (autoWiredFactory != null && currentFactorValues != null) {
-            T instance = (T) autoWiredFactory.get();
+            instance = (T) autoWiredFactory.get();
             injectFactorValues(instance, useCaseClass, currentFactorValues);
+            lastCreatedInstances.put(useCaseClass, instance);
             return instance;
         }
         
@@ -290,10 +296,13 @@ public class UseCaseProvider implements ParameterResolver {
         }
 
         if (useSingletons) {
-            return (T) singletons.computeIfAbsent(useCaseClass, k -> factory.get());
+            instance = (T) singletons.computeIfAbsent(useCaseClass, k -> factory.get());
+        } else {
+            instance = (T) factory.get();
         }
-
-        return (T) factory.get();
+        
+        lastCreatedInstances.put(useCaseClass, instance);
+        return instance;
     }
     
     /**
@@ -370,6 +379,20 @@ public class UseCaseProvider implements ParameterResolver {
     }
 
     /**
+     * Returns the last created instance of a use case class.
+     *
+     * <p>This is useful for checking if the instance implements specific interfaces
+     * (e.g., {@code DiffableContentProvider}) without creating a new instance.
+     *
+     * @param useCaseClass the use case class
+     * @return the last created instance, or null if none exists
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T getCurrentInstance(Class<T> useCaseClass) {
+        return (T) lastCreatedInstances.get(useCaseClass);
+    }
+
+    /**
      * Checks if any factory is registered for the class.
      *
      * @param useCaseClass the use case class
@@ -400,6 +423,7 @@ public class UseCaseProvider implements ParameterResolver {
         factorFactories.clear();
         autoWiredFactories.clear();
         singletons.clear();
+        lastCreatedInstances.clear();
         currentFactorValues = null;
     }
 

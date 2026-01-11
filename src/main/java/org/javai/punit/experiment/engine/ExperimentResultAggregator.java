@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.experiment.model.ResultProjection;
 import org.javai.punit.experiment.model.UseCaseResult;
 
 /**
@@ -31,6 +32,7 @@ public class ExperimentResultAggregator {
     private long totalTokens = 0;
     private final Map<String, Integer> failureDistribution = new LinkedHashMap<>();
     private final List<UseCaseResult> results = new ArrayList<>();
+    private final List<ResultProjection> resultProjections = new ArrayList<>();
     private String terminationReason = null;
     private String terminationDetails = null;
     
@@ -225,6 +227,35 @@ public class ExperimentResultAggregator {
     
     public List<UseCaseResult> getResults() {
         return Collections.unmodifiableList(results);
+    }
+    
+    /**
+     * Adds a result projection (for EXPLORE mode).
+     *
+     * @param projection the result projection to add
+     */
+    public void addResultProjection(ResultProjection projection) {
+        if (projection != null) {
+            resultProjections.add(projection);
+        }
+    }
+    
+    /**
+     * Returns all result projections.
+     *
+     * @return unmodifiable list of result projections
+     */
+    public List<ResultProjection> getResultProjections() {
+        return Collections.unmodifiableList(resultProjections);
+    }
+    
+    /**
+     * Returns true if result projections have been recorded.
+     *
+     * @return true if projections exist
+     */
+    public boolean hasResultProjections() {
+        return !resultProjections.isEmpty();
     }
     
     public String getTerminationReason() {

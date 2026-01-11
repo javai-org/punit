@@ -75,5 +75,38 @@ public @interface UseCase {
      * @return the use case ID, or empty string to use class name
      */
     String value() default "";
+
+    /**
+     * Maximum number of content lines to include in EXPLORE result projections.
+     *
+     * <p>When a result has fewer lines than this limit, remaining lines
+     * are filled with {@code <absent>}. When a result has more lines,
+     * exactly {@code maxDiffableLines} content lines are shown, followed
+     * by a {@code <truncated: +N more>} notice (which does not count
+     * toward this limit).
+     *
+     * <p>For perfect diff alignment across configs, set this high enough
+     * to avoid truncation in typical cases.
+     *
+     * @return maximum content lines (default: 5)
+     */
+    int maxDiffableLines() default 5;
+
+    /**
+     * Maximum characters per line in diffable content.
+     *
+     * <p>Lines exceeding this length are truncated with an ellipsis (…).
+     * This ensures content displays well in side-by-side diff tools.
+     *
+     * <p>Consider your diff tool's typical viewport when setting this:
+     * <ul>
+     *   <li>40: Conservative, works with narrow panes</li>
+     *   <li>60: Balanced for most IDEs in split view</li>
+     *   <li>80: Full terminal width</li>
+     * </ul>
+     *
+     * @return maximum line length (default: 60)
+     */
+    int diffableContentMaxLineLength() default 60;
 }
 
