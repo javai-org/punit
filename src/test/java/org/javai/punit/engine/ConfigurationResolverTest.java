@@ -1,17 +1,15 @@
 package org.javai.punit.engine;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.HashMap;
+import java.util.Map;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for {@link ConfigurationResolver}.
@@ -286,6 +284,11 @@ class ConfigurationResolverTest {
             public double power() {
                 return Double.NaN;
             }
+
+            @Override
+            public boolean transparentStats() {
+                return false;
+            }
         };
     }
 
@@ -394,6 +397,11 @@ class ConfigurationResolverTest {
             @Override
             public double power() {
                 return Double.NaN;
+            }
+
+            @Override
+            public boolean transparentStats() {
+                return false;
             }
         };
     }

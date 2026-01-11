@@ -1,5 +1,9 @@
 package org.javai.punit.engine;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.lang.annotation.Annotation;
+import java.time.Instant;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
@@ -9,11 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.lang.annotation.Annotation;
-import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for {@link StatisticsAwareConfiguration}.
@@ -283,6 +282,7 @@ class StatisticsAwareConfigurationTest {
             @Override public BudgetExhaustedBehavior onBudgetExhausted() { return BudgetExhaustedBehavior.FAIL; }
             @Override public ExceptionHandling onException() { return ExceptionHandling.FAIL_SAMPLE; }
             @Override public int maxExampleFailures() { return 5; }
+            @Override public boolean transparentStats() { return false; }
         };
     }
 }

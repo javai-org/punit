@@ -21,6 +21,11 @@ import org.javai.punit.experiment.api.HashableFactorSource;
 import org.javai.punit.experiment.engine.FactorSourceAdapter;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.statistics.transparent.BaselineData;
+import org.javai.punit.statistics.transparent.ConsoleExplanationRenderer;
+import org.javai.punit.statistics.transparent.StatisticalExplanation;
+import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder;
+import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -144,7 +149,7 @@ public class ProbabilisticTestExtension implements
 
 		// Store configuration and create components
 		ExtensionContext.Store store = context.getStore(NAMESPACE);
-		TestConfiguration config = createTestConfiguration(resolved, tokenMode, pacing);
+		TestConfiguration config = createTestConfiguration(resolved, tokenMode, pacing, annotation.transparentStats());
 		SampleResultAggregator aggregator = new SampleResultAggregator(resolved.samples(), resolved.maxExampleFailures());
 		EarlyTerminationEvaluator evaluator = new EarlyTerminationEvaluator(resolved.samples(), resolved.minPassRate());
 		AtomicBoolean terminated = new AtomicBoolean(false);
@@ -201,7 +206,12 @@ public class ProbabilisticTestExtension implements
 	private TestConfiguration createTestConfiguration(
 			ConfigurationResolver.ResolvedConfiguration resolved,
 			CostBudgetMonitor.TokenMode tokenMode,
-			PacingConfiguration pacing) {
+			PacingConfiguration pacing,
+			boolean annotationTransparentStats) {
+
+		// Resolve transparent stats config with annotation override
+		TransparentStatsConfig transparentStats = TransparentStatsConfig.resolve(
+				annotationTransparentStats ? Boolean.TRUE : null);
 
 		return new TestConfiguration(
 				resolved.samples(),
@@ -220,7 +230,9 @@ public class ProbabilisticTestExtension implements
 				resolved.baselineSamples(),
 				resolved.specId(),
 				// Pacing configuration
-				pacing
+				pacing,
+				// Transparent stats configuration
+				transparentStats
 		);
 	}
 
@@ -774,6 +786,12 @@ public class ProbabilisticTestExtension implements
 				.map(ExtensionContext::getDisplayName)
 				.orElse(context.getDisplayName());
 
+		// If transparent stats mode is enabled, render the full statistical explanation
+		if (config.hasTransparentStats()) {
+			printTransparentStatsSummary(testName, aggregator, config, passed);
+			return;
+		}
+
 		// Check if termination was due to budget exhaustion (regardless of FAIL vs EVALUATE_PARTIAL behavior)
 		boolean isBudgetExhausted = reason.map(TerminationReason::isBudgetExhaustion).orElse(false);
 
@@ -829,6 +847,72 @@ public class ProbabilisticTestExtension implements
 
 		// Print to stdout for visibility
 		System.out.println(sb);
+	}
+
+	/**
+	 * Prints a comprehensive statistical explanation for transparent stats mode.
+	 *
+	 * <p>This method generates and renders a detailed statistical analysis of the
+	 * test verdict, suitable for auditors, stakeholders, and educational purposes.
+	 */
+	private void printTransparentStatsSummary(
+			String testName,
+			SampleResultAggregator aggregator,
+			TestConfiguration config,
+			boolean passed) {
+
+		StatisticalExplanationBuilder builder = new StatisticalExplanationBuilder();
+		
+		// Build the explanation based on whether we have statistical context
+		StatisticalExplanation explanation;
+		if (config.hasStatisticalContext()) {
+			// Convert spec data to BaselineData (avoiding dependency on spec package from statistics)
+			BaselineData baseline = loadBaselineData(config.specId());
+			
+			explanation = builder.build(
+					testName,
+					aggregator.getSamplesExecuted(),
+					aggregator.getSuccesses(),
+					baseline,
+					config.minPassRate(),
+					passed,
+					config.confidence() != null ? config.confidence() : 0.95
+			);
+		} else {
+			// Inline threshold mode (no baseline spec)
+			explanation = builder.buildWithInlineThreshold(
+					testName,
+					aggregator.getSamplesExecuted(),
+					aggregator.getSuccesses(),
+					config.minPassRate(),
+					passed
+			);
+		}
+
+		// Render and print
+		ConsoleExplanationRenderer renderer = new ConsoleExplanationRenderer(config.transparentStats());
+		String rendered = renderer.render(explanation);
+		System.out.println(rendered);
+	}
+
+	/**
+	 * Loads baseline data from a spec for transparent stats reporting.
+	 */
+	private BaselineData loadBaselineData(String specId) {
+		if (specId == null) {
+			return BaselineData.empty();
+		}
+		
+		return configResolver.loadSpec(specId)
+				.map(spec -> new BaselineData(
+						specId + ".yaml",
+						spec.getEmpiricalBasis() != null 
+								? spec.getEmpiricalBasis().generatedAt() 
+								: spec.getGeneratedAt(),
+						spec.getBaselineSamples(),
+						spec.getBaselineSuccesses()
+				))
+				.orElse(BaselineData.empty());
 	}
 
 	// ========== Store Access Helpers ==========
@@ -941,7 +1025,9 @@ public class ProbabilisticTestExtension implements
 			Integer baselineSamples,
 			String specId,
 			// Pacing configuration
-			PacingConfiguration pacing
+			PacingConfiguration pacing,
+			// Transparent stats configuration
+			TransparentStatsConfig transparentStats
 	) {
 		boolean hasMultiplier() {
 			return appliedMultiplier != 1.0;
@@ -961,6 +1047,10 @@ public class ProbabilisticTestExtension implements
 
 		boolean hasStatisticalContext() {
 			return confidence != null && baselineRate != null && baselineSamples != null && specId != null;
+		}
+
+		boolean hasTransparentStats() {
+			return transparentStats != null && transparentStats.enabled();
 		}
 
 		/**

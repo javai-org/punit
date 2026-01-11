@@ -947,21 +947,21 @@ The test uses a **prefix** of the experiment's factors. Because both use the sam
 
 Factor source names are **class-scoped**:
 
-| Rule | Behavior |
-|------|----------|
-| Names are class-scoped | `"queries"` → `"ProductSearchUseCase#queries"` internally |
-| Within-class uniqueness | Enforced at discovery; fail-fast with clear error |
-| Cross-class references | Require `ClassName#methodName` syntax |
-| Same-class references | Short names allowed |
-| Default name | Method name if annotation value omitted |
+| Rule                    | Behavior                                                  |
+|-------------------------|-----------------------------------------------------------|
+| Names are class-scoped  | `"queries"` → `"ProductSearchUseCase#queries"` internally |
+| Within-class uniqueness | Enforced at discovery; fail-fast with clear error         |
+| Cross-class references  | Require `ClassName#methodName` syntax                     |
+| Same-class references   | Short names allowed                                       |
+| Default name            | Method name if annotation value omitted                   |
 
 ### When to Use Factor Sources
 
-| Scenario | Recommendation |
-|----------|----------------|
+| Scenario                | Recommendation                                     |
+|-------------------------|----------------------------------------------------|
 | **EXPLORE experiments** | Use diverse factors to find optimal configurations |
 | **MEASURE experiments** | Use production-representative factors for baseline |
-| **Probabilistic tests** | Use **same factor source** as MEASURE experiment |
+| **Probabilistic tests** | Use **same factor source** as MEASURE experiment   |
 
 ### Key Takeaways
 
@@ -972,8 +972,120 @@ Factor source names are **class-scoped**:
 
 ---
 
+## Transparent Statistics Mode
+
+When you need to understand or document the statistical reasoning behind test verdicts, **Transparent Statistics Mode** provides comprehensive explanations suitable for auditors, stakeholders, and educational purposes.
+
+### Enabling Transparent Mode
+
+#### Via System Property (Recommended for CI)
+
+```bash
+./gradlew test -Dpunit.stats.transparent=true
+```
+
+#### Via Environment Variable
+
+```bash
+PUNIT_STATS_TRANSPARENT=true ./gradlew test
+```
+
+#### Via Annotation (Per-Test)
+
+```java
+@ProbabilisticTest(samples = 100, transparentStats = true)
+void myTest() {
+    // This test will output detailed statistical analysis
+}
+```
+
+### Example Output
+
+When transparent mode is enabled, each test verdict includes a complete statistical analysis:
+
+```
+══════════════════════════════════════════════════════════════════════════════
+STATISTICAL ANALYSIS: shouldReturnValidJson
+══════════════════════════════════════════════════════════════════════════════
+
+HYPOTHESIS TEST
+  H₀ (null):        True success rate π ≤ 0.85 (system does not meet spec)
+  H₁ (alternative): True success rate π > 0.85 (system meets spec)
+  Test type:        One-sided binomial proportion test
+
+OBSERVED DATA
+  Sample size (n):     100
+  Successes (k):       87
+  Observed rate (p̂):   0.870
+
+BASELINE REFERENCE
+  Source:              ShoppingUseCase.yaml (generated 2026-01-10)
+  Empirical basis:     1000 samples, 872 successes (87.2%)
+  Threshold derivation: Lower bound of 95% CI = 85.1%, rounded to 85%
+
+STATISTICAL INFERENCE
+  Standard error:      SE = √(p̂(1-p̂)/n) = √(0.87 × 0.13 / 100) = 0.0336
+  95% Confidence interval: [0.804, 0.936]
+  
+  Test statistic:      z = (p̂ - π₀) / √(π₀(1-π₀)/n)
+                       z = (0.87 - 0.85) / √(0.85 × 0.15 / 100)
+                       z = 0.56
+  
+  p-value:             P(Z > 0.56) = 0.288
+
+VERDICT
+  Result:              PASS
+  Interpretation:      The observed success rate of 87% is consistent with 
+                       the baseline expectation of 87.2%. The 95% confidence 
+                       interval [80.4%, 93.6%] contains the threshold of 85%.
+                       
+  Caveat:              With n=100 samples, we can detect a drop from 87% to 
+                       below 85% with approximately 50% power. For higher 
+                       sensitivity, consider increasing sample size.
+
+══════════════════════════════════════════════════════════════════════════════
+```
+
+### Configuration Options
+
+| Setting        | System Property           | Environment Variable       | Values                           |
+|----------------|---------------------------|----------------------------|----------------------------------|
+| Enable/disable | `punit.stats.transparent` | `PUNIT_STATS_TRANSPARENT`  | `true`/`false`                   |
+| Detail level   | `punit.stats.detailLevel` | `PUNIT_STATS_DETAIL_LEVEL` | `SUMMARY`, `STANDARD`, `VERBOSE` |
+| Output format  | `punit.stats.format`      | `PUNIT_STATS_FORMAT`       | `CONSOLE`, `MARKDOWN`, `JSON`    |
+
+### Detail Levels
+
+| Level      | Description                                        |
+|------------|----------------------------------------------------|
+| `SUMMARY`  | Verdict and key numbers only                       |
+| `STANDARD` | Full explanation (default)                         |
+| `VERBOSE`  | Includes power analysis and sensitivity discussion |
+
+### When to Use Transparent Mode
+
+| Scenario                      | Recommendation                                  |
+|-------------------------------|-------------------------------------------------|
+| Debugging test failures       | Enable temporarily to understand the statistics |
+| Audit/compliance requirements | Enable in specific CI job for documentation     |
+| Onboarding new team members   | Enable to teach how PUnit works                 |
+| Investigating edge cases      | Enable to see full calculations                 |
+| Normal CI runs                | Keep disabled (default) for cleaner output      |
+
+### Configuration Precedence
+
+When multiple configuration sources specify transparent mode, the highest-priority source wins:
+
+1. `@ProbabilisticTest(transparentStats = true)` — per-test override (highest)
+2. `-Dpunit.stats.transparent=true` — system property
+3. `PUNIT_STATS_TRANSPARENT=true` — environment variable
+4. Default: `false` (lowest)
+
+---
+
 ## Next Steps
 
 - See [README.md](../README.md) for full configuration reference
 - See [OPERATIONAL-FLOW.md](OPERATIONAL-FLOW.md) for detailed workflow documentation
+- See [STATISTICAL-COMPANION.md](STATISTICAL-COMPANION.md) for mathematical foundations
 - Explore examples in `src/test/java/org/javai/punit/examples/`

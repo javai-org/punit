@@ -1,15 +1,14 @@
 package org.javai.punit.engine;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.lang.annotation.Annotation;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.statistics.OperationalApproach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.lang.annotation.Annotation;
-
-import static org.assertj.core.api.Assertions.*;
 
 /**
  * Tests for {@link OperationalApproachResolver}.
@@ -282,6 +281,7 @@ class OperationalApproachResolverTest {
                 return org.javai.punit.api.ExceptionHandling.FAIL_SAMPLE;
             }
             @Override public int maxExampleFailures() { return 5; }
+            @Override public boolean transparentStats() { return false; }
         };
     }
 }

@@ -639,5 +639,156 @@ $$n = \left(\frac{z_\alpha \sqrt{p_0(1-p_0)} + z_\beta \sqrt{p_1(1-p_1)}}{p_0 - 
 
 ---
 
-*This document is intended for review by professional statisticians. For operational guidance, see [Operational Flow](./OPERATIONAL-FLOW.md).*
+## 10. Transparent Statistics Mode
+
+### 10.1 Purpose
+
+Transparent Statistics Mode exposes the complete statistical reasoning behind every test verdict. This feature serves:
+
+- **Auditors**: Documented proof that testing methodology is statistically sound
+- **Stakeholders**: Evidence that reliability claims are justified
+- **Educators**: Teaching material for understanding probabilistic testing
+- **Regulators**: Compliance documentation for AI system validation
+
+### 10.2 Output Structure
+
+When enabled, each test produces a structured explanation containing:
+
+| Section | Content | Statistical Purpose |
+|---------|---------|---------------------|
+| **Hypothesis Test** | $H_0$, $H_1$, test type | Frames the statistical question |
+| **Observed Data** | $n$, $k$, $\hat{p}$ | Raw observations from test execution |
+| **Baseline Reference** | Spec source, empirical basis, threshold derivation | Traces threshold back to experimental data |
+| **Statistical Inference** | SE, CI, z-score, p-value | Full calculation transparency |
+| **Verdict** | Pass/fail with interpretation and caveats | Human-readable conclusion |
+
+### 10.3 Example Output
+
+```
+══════════════════════════════════════════════════════════════════════════════
+STATISTICAL ANALYSIS: shouldReturnValidJson
+══════════════════════════════════════════════════════════════════════════════
+
+HYPOTHESIS TEST
+  H₀ (null):        True success rate π ≤ 0.85 (system does not meet spec)
+  H₁ (alternative): True success rate π > 0.85 (system meets spec)
+  Test type:        One-sided binomial proportion test
+
+OBSERVED DATA
+  Sample size (n):     100
+  Successes (k):       87
+  Observed rate (p̂):   0.870
+
+BASELINE REFERENCE
+  Source:              ShoppingUseCase.yaml (generated 2026-01-10)
+  Empirical basis:     1000 samples, 872 successes (87.2%)
+  Threshold derivation: Lower bound of 95% CI = 85.1%, rounded to 85%
+
+STATISTICAL INFERENCE
+  Standard error:      SE = √(p̂(1-p̂)/n) = √(0.87 × 0.13 / 100) = 0.0336
+  95% Confidence interval: [0.804, 0.936]
+  
+  Test statistic:      z = (p̂ - π₀) / √(π₀(1-π₀)/n)
+                       z = (0.87 - 0.85) / √(0.85 × 0.15 / 100)
+                       z = 0.56
+  
+  p-value:             P(Z > 0.56) = 0.288
+
+VERDICT
+  Result:              PASS
+  Interpretation:      The observed success rate of 87% is consistent with 
+                       the baseline expectation of 87.2%. The 95% confidence 
+                       interval [80.4%, 93.6%] contains the threshold of 85%.
+                       
+  Caveat:              With n=100 samples, we can detect a drop from 87% to 
+                       below 85% with approximately 50% power. For higher 
+                       sensitivity, consider increasing sample size.
+
+══════════════════════════════════════════════════════════════════════════════
+```
+
+### 10.4 Mathematical Notation
+
+The output uses proper mathematical symbols where terminal capabilities allow:
+
+| Concept | Unicode | ASCII Fallback |
+|---------|---------|----------------|
+| Sample proportion | $\hat{p}$ (p̂) | p-hat |
+| Population proportion | $\pi$ | pi |
+| Null hypothesis | $H_0$ | H0 |
+| Alternative hypothesis | $H_1$ | H1 |
+| Less than or equal | $\leq$ | <= |
+| Greater than or equal | $\geq$ | >= |
+| Square root | $\sqrt{}$ | sqrt |
+| Approximately | $\approx$ | ~= |
+| Alpha (significance) | $\alpha$ | alpha |
+
+### 10.5 Enabling Transparent Mode
+
+**System property**:
+```bash
+./gradlew test -Dpunit.stats.transparent=true
+```
+
+**Environment variable**:
+```bash
+PUNIT_STATS_TRANSPARENT=true ./gradlew test
+```
+
+**Per-test annotation**:
+```java
+@ProbabilisticTest(samples = 100, transparentStats = true)
+void myTest() { ... }
+```
+
+### 10.6 Configuration Hierarchy
+
+Configuration follows precedence (highest to lowest):
+
+1. `@ProbabilisticTest(transparentStats = true)` — annotation override
+2. `-Dpunit.stats.transparent=true` — system property
+3. `PUNIT_STATS_TRANSPARENT=true` — environment variable
+4. Default: `false`
+
+### 10.7 Detail Levels
+
+| Level | Description | Use Case |
+|-------|-------------|----------|
+| `SUMMARY` | Verdict + key numbers | Quick reference |
+| `STANDARD` | Full explanation | Normal audit/review |
+| `VERBOSE` | + power analysis, sensitivity | Deep investigation |
+
+### 10.8 Validation by Statisticians
+
+The transparent output enables statisticians to verify:
+
+1. **Hypothesis formulation**: Is the one-sided test appropriate?
+2. **Threshold derivation**: Was the Wilson lower bound correctly applied?
+3. **Confidence interval**: Is the Wilson score interval used correctly?
+4. **Sample size adequacy**: Are the caveats about power appropriate?
+5. **Interpretation**: Does the plain-English summary accurately reflect the statistics?
+
+---
+
+## References
+
+1. Wilson, E. B. (1927). Probable inference, the law of succession, and statistical inference. *Journal of the American Statistical Association*, 22(158), 209-212.
+
+2. Agresti, A., & Coull, B. A. (1998). Approximate is better than "exact" for interval estimation of binomial proportions. *The American Statistician*, 52(2), 119-126.
+
+3. Brown, L. D., Cai, T. T., & DasGupta, A. (2001). Interval estimation for a binomial proportion. *Statistical Science*, 16(2), 101-133.
+
+4. Newcombe, R. G. (1998). Two-sided confidence intervals for the single proportion: comparison of seven methods. *Statistics in Medicine*, 17(8), 857-872.
+
+5. Hanley, J. A., & Lippman-Hand, A. (1983). If nothing goes wrong, is everything all right? Interpreting zero numerators. *JAMA*, 249(13), 1743-1745. [The "Rule of Three"]
+
+6. Clopper, C. J., & Pearson, E. S. (1934). The use of confidence or fiducial limits illustrated in the case of the binomial. *Biometrika*, 26(4), 404-413.
+
+7. Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). Chapman and Hall/CRC. [Beta-Binomial posterior predictive]
+
+8. Jeffreys, H. (1946). An invariant form for the prior probability in estimation problems. *Proceedings of the Royal Society of London. Series A*, 186(1007), 453-461. [Jeffreys prior]
+
+---
+
+*This document is intended for review by professional statisticians. For operational guidance, see [Operational Flow](./OPERATIONAL-FLOW.md) or [User Guide](./USER-GUIDE.md).*
 

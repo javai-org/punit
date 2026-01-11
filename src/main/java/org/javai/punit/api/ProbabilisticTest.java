@@ -280,6 +280,43 @@ public @interface ProbabilisticTest {
     int maxExampleFailures() default 5;
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // TRANSPARENT STATISTICS MODE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Enables transparent statistics mode for this test.
+     *
+     * <p>When enabled, the framework produces detailed statistical explanations
+     * of the test verdict, including:
+     * <ul>
+     *   <li>Hypothesis statement (H₀ and H₁)</li>
+     *   <li>Observed data summary</li>
+     *   <li>Baseline reference and threshold derivation</li>
+     *   <li>Confidence intervals and statistical inference</li>
+     *   <li>Plain English verdict interpretation</li>
+     * </ul>
+     *
+     * <p>This mode is designed for:
+     * <ul>
+     *   <li>Auditors requiring proof that testing is statistically sound</li>
+     *   <li>Stakeholders who need evidence for reliability claims</li>
+     *   <li>New team members learning how PUnit reaches verdicts</li>
+     *   <li>Regulators requiring compliance documentation</li>
+     * </ul>
+     *
+     * <h3>Configuration Precedence</h3>
+     * <ol>
+     *   <li>This annotation attribute (highest)</li>
+     *   <li>{@code -Dpunit.stats.transparent=true} (system property)</li>
+     *   <li>{@code PUNIT_STATS_TRANSPARENT=true} (environment variable)</li>
+     *   <li>Default: {@code false}</li>
+     * </ol>
+     *
+     * @return true to enable transparent stats, false to use global settings
+     */
+    boolean transparentStats() default false;
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // USE CASE AND SPEC-DRIVEN TEST SUPPORT
     // ═══════════════════════════════════════════════════════════════════════════
 
