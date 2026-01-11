@@ -2,6 +2,7 @@ package org.javai.punit.experiment.engine;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
+import java.util.Map;
 import org.javai.punit.experiment.api.UseCaseContext;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.experiment.model.EmpiricalBaseline.CostSummary;
@@ -37,6 +38,13 @@ public class EmpiricalBaselineGenerator {
             aggregator.getTerminationDetails()
         );
         
+        // EXPLORE mode: omit failure distribution (noisy with small samples, breaks diff alignment)
+        // MEASURE mode: include failure distribution (useful for diagnosing failure patterns)
+        boolean isExploreMode = aggregator.hasResultProjections();
+        Map<String, Integer> failureDistribution = isExploreMode 
+            ? Map.of() 
+            : aggregator.getFailureDistribution();
+        
         StatisticsSummary statistics = new StatisticsSummary(
             aggregator.getObservedSuccessRate(),
             aggregator.getStandardError(),
@@ -44,7 +52,7 @@ public class EmpiricalBaselineGenerator {
             ci[1],
             aggregator.getSuccesses(),
             aggregator.getFailures(),
-            aggregator.getFailureDistribution()
+            failureDistribution
         );
         
         CostSummary cost = new CostSummary(
