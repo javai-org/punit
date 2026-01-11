@@ -42,3 +42,8 @@ bin/
 ### Mac OS ###
 .DS_Store
 /temp/
+
+### Locations where certain classes of generated files land. These relate to the provided examples. Files can be re-generated at any time.
+/src/test/resources/punit/explorations/
+/src/test/resources/punit/specs/
+/src/test/resources/punit/specs/
