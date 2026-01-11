@@ -972,6 +972,256 @@ Factor source names are **class-scoped**:
 
 ---
 
+## Exploration Mode: Comparing Configurations
+
+EXPLORE mode is designed for **rapid configuration discovery**—trying out different settings to understand how they affect behavior before committing to a statistical baseline.
+
+### Philosophy
+
+EXPLORE mode embodies a fundamentally different mindset from MEASURE:
+
+| Aspect | MEASURE | EXPLORE |
+|--------|---------|---------|
+| **Goal** | Establish statistically reliable baseline | Discover which configurations work best |
+| **Sample size** | Large (1000+ by default) | Small (1 by default) |
+| **Output** | Single spec per use case | One file per configuration |
+| **Statistical rigor** | High | Low (intentionally) |
+| **Time investment** | Significant | Minimal |
+
+**Why small samples?** When comparing 8 configurations, running 1000 samples each would take forever. EXPLORE trades statistical precision for rapid feedback. You're not trying to prove anything—you're trying to *learn* what's worth measuring.
+
+### The Exploration Workflow
+
+```
+1. Define configurations to compare
+2. Run EXPLORE (1-3 samples per config)
+3. Diff the output files
+4. Choose winner(s)
+5. Run MEASURE on chosen config(s)
+```
+
+### Running Explorations
+
+```bash
+# Basic exploration
+./gradlew explore --tests "ShoppingExperiment.exploreModelConfigurations"
+```
+
+**Important**: Gradle caches task results. If you've already run an exploration and the code hasn't changed, Gradle will skip execution:
+
+```
+> Task :explore UP-TO-DATE
+```
+
+### Forcing Regeneration
+
+Use these options to force exploration to run:
+
+```bash
+# Option 1: Clean first (removes all build outputs)
+./gradlew clean explore --tests "ShoppingExperiment.exploreModelConfigurations"
+
+# Option 2: Force task re-run (preserves other build outputs)
+./gradlew explore --tests "ShoppingExperiment.exploreModelConfigurations" --rerun-tasks
+```
+
+| Option | When to Use |
+|--------|-------------|
+| `clean` | When you want a completely fresh build |
+| `--rerun-tasks` | When you just want to re-run explorations |
+
+### Output Location
+
+Exploration results are written to:
+
+```
+src/test/resources/punit/explorations/{UseCaseId}/
+├── model-gpt-4_temp-0.0_query-laptop_stand.yaml
+├── model-gpt-4_temp-0.7_query-laptop_stand.yaml
+├── model-gpt-3.5-turbo_temp-0.0_query-laptop_stand.yaml
+└── ...
+```
+
+Each configuration gets its own file, named based on its factor values.
+
+### Diff-Friendly Output
+
+EXPLORE output is specifically designed for comparison with standard diff tools:
+
+```bash
+# Compare two configurations
+diff explorations/ShoppingUseCase/model-gpt-4_temp-0.0*.yaml \
+     explorations/ShoppingUseCase/model-gpt-4_temp-0.7*.yaml
+
+# Or use a visual diff tool
+code --diff file1.yaml file2.yaml
+```
+
+#### What Makes It Diff-Friendly
+
+1. **Fixed structure**: All files have identical sections in the same order
+2. **Alphabetical keys**: `diffableContent` entries are sorted for consistent alignment
+3. **No timestamps in projections**: Would always differ, creating noise
+4. **No failure distribution**: With 1-3 samples, it's noisy and breaks alignment
+5. **Consistent line counts**: `<absent>` padding and `<truncated>` notices maintain alignment
+
+#### Example Diff Output
+
+```diff
+  resultProjection:
+    sample[0]:
+-     executionTimeMs: 180
++     executionTimeMs: 245
+      diffableContent:
+        - "isValidJson: true"
+-       - "productCount: 3"
++       - "productCount: 5"
+        - "tokensUsed: 150"
+```
+
+The meaningful differences (execution time, product count) stand out clearly.
+
+### Configuring Diffable Content
+
+Control how result values appear in the diff output:
+
+```java
+@UseCase(
+    value = "shopping.search",
+    maxDiffableLines = 10,              // Show up to 10 values (default: 5)
+    diffableContentMaxLineLength = 80   // Truncate long values at 80 chars (default: 60)
+)
+public class ShoppingUseCase { ... }
+```
+
+#### Understanding Line Limits
+
+With `maxDiffableLines = 5`:
+
+- **Fewer than 5 values**: Padded with `<absent>` to maintain 5 lines
+- **Exactly 5 values**: Shown as-is
+- **More than 5 values**: First 5 shown, plus `<truncated: +N more>`
+
+```yaml
+diffableContent:
+  - "alpha: value1"
+  - "beta: value2"
+  - "gamma: value3"
+  - "<absent>"           # Padding for consistent line count
+  - "<absent>"
+```
+
+Or with truncation:
+
+```yaml
+diffableContent:
+  - "alpha: value1"
+  - "beta: value2"
+  - "gamma: value3"
+  - "delta: value4"
+  - "epsilon: value5"
+  - "<truncated: +3 more>"   # Extra line (doesn't count toward limit)
+```
+
+### Increasing Sample Size
+
+For more confidence before choosing a configuration:
+
+```java
+@Experiment(
+    mode = ExperimentMode.EXPLORE,
+    samplesPerConfig = 3    // Run each config 3 times (default: 1)
+)
+void exploreConfigurations(...) { ... }
+```
+
+With multiple samples, you'll see:
+
+```yaml
+resultProjection:
+  sample[0]:
+    executionTimeMs: 180
+    diffableContent:
+      - "isValidJson: true"
+      - "productCount: 3"
+  sample[1]:
+    executionTimeMs: 195
+    diffableContent:
+      - "isValidJson: true"
+      - "productCount: 4"
+  sample[2]:
+    executionTimeMs: 210
+    diffableContent:
+      - "isValidJson: false"   # Spot the outlier!
+      - "productCount: 0"
+```
+
+### Best Practices
+
+1. **Start with 1 sample per config** — It's fast and often sufficient to spot obvious winners/losers
+
+2. **Increase to 3 samples if uncertain** — Helps distinguish signal from noise
+
+3. **Don't over-sample in EXPLORE** — If you need 100+ samples, you're ready for MEASURE
+
+4. **Use meaningful config names** — Factor values become filenames; make them readable
+
+5. **Commit exploration results** — They document your configuration journey
+
+6. **Use `--rerun-tasks` during active exploration** — Avoids stale cached results
+
+### Example: Complete Exploration Experiment
+
+```java
+@Experiment(
+    mode = ExperimentMode.EXPLORE,
+    useCase = ShoppingUseCase.class,
+    samplesPerConfig = 1
+)
+@FactorSource("modelConfigurations")
+void exploreModelConfigurations(
+        ShoppingUseCase useCase,
+        @Factor("model") String model,
+        @Factor("temperature") double temperature,
+        @Factor("query") String query,
+        ResultCaptor captor) {
+    
+    // Configure the use case with current factors
+    useCase.configure(model, temperature);
+    
+    // Execute and capture
+    captor.record(useCase.search(query));
+}
+
+static List<FactorArguments> modelConfigurations() {
+    return FactorArguments.configurations()
+        .names("model", "temperature", "query")
+        .values("gpt-4", 0.0, "wireless headphones")
+        .values("gpt-4", 0.7, "wireless headphones")
+        .values("gpt-3.5-turbo", 0.0, "wireless headphones")
+        .values("gpt-3.5-turbo", 0.7, "wireless headphones")
+        .stream().toList();
+}
+```
+
+Run with:
+
+```bash
+./gradlew clean explore --tests "ShoppingExperiment.exploreModelConfigurations"
+```
+
+Then compare:
+
+```bash
+ls src/test/resources/punit/explorations/ShoppingUseCase/
+# model-gpt-4_temp-0.0_query-wireless_headphones.yaml
+# model-gpt-4_temp-0.7_query-wireless_headphones.yaml
+# model-gpt-3.5-turbo_temp-0.0_query-wireless_headphones.yaml
+# model-gpt-3.5-turbo_temp-0.7_query-wireless_headphones.yaml
+```
+
+---
+
 ## Transparent Statistics Mode
 
 When you need to understand or document the statistical reasoning behind test verdicts, **Transparent Statistics Mode** provides comprehensive explanations suitable for auditors, stakeholders, and educational purposes.
