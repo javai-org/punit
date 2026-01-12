@@ -10,10 +10,10 @@ This guide covers both sides of PUnit: **experimentation** (discovering how your
 
 PUnit is not just a testing framework—it's an **experimentation and testing platform** for non-deterministic systems.
 
-| Capability | Purpose | Output |
-|------------|---------|--------|
+| Capability          | Purpose                              | Output                      |
+|---------------------|--------------------------------------|-----------------------------|
 | **Experimentation** | Discover and measure system behavior | Empirical baselines (specs) |
-| **Testing** | Verify behavior hasn't regressed | Pass/fail verdicts |
+| **Testing**         | Verify behavior hasn't regressed     | Pass/fail verdicts          |
 
 These capabilities are deeply connected: experiments generate the empirical data that powers the most rigorous form of probabilistic test—the **spec-driven test**.
 
@@ -104,10 +104,10 @@ An **Experiment** executes a use case repeatedly to gather empirical data. Exper
 
 ### Experiment Modes
 
-| Mode | Purpose | Output |
-|------|---------|--------|
-| `MEASURE` | Establish reliable statistics (1000+ samples) | `specs/{UseCaseId}.yaml` |
-| `EXPLORE` | Compare configurations (1-10 samples each) | `explorations/{UseCaseId}/*.yaml` |
+| Mode      | Purpose                                       | Output                            |
+|-----------|-----------------------------------------------|-----------------------------------|
+| `MEASURE` | Establish reliable statistics (1000+ samples) | `specs/{UseCaseId}.yaml`          |
+| `EXPLORE` | Compare configurations (1-10 samples each)    | `explorations/{UseCaseId}/*.yaml` |
 
 ### Example: MEASURE Experiment
 
@@ -306,12 +306,12 @@ Probabilistic test failed: observed pass rate 72.00% < required 91.90%
 
 ## Summary
 
-| Step | Command | Output |
-|------|---------|--------|
-| 1. Define Use Case | — | `@UseCase` class |
-| 2. Run Experiment | `./gradlew measure --tests "..."` | `specs/{UseCaseId}.yaml` |
-| 3. Commit Spec | `git commit` | Version-controlled spec |
-| 4. Run Tests | `./gradlew test` | CI pass/fail |
+| Step               | Command                           | Output                   |
+|--------------------|-----------------------------------|--------------------------|
+| 1. Define Use Case | —                                 | `@UseCase` class         |
+| 2. Run Experiment  | `./gradlew measure --tests "..."` | `specs/{UseCaseId}.yaml` |
+| 3. Commit Spec     | `git commit`                      | Version-controlled spec  |
+| 4. Run Tests       | `./gradlew test`                  | CI pass/fail             |
 
 ---
 
@@ -319,10 +319,10 @@ Probabilistic test failed: observed pass rate 72.00% < required 91.90%
 
 ### Choosing the Right Mode
 
-| Question | Mode | Samples |
-|----------|------|---------|
-| "What's the true success rate?" | `MEASURE` | 1000+ |
-| "Which config is best?" | `EXPLORE` | 1-10 per config |
+| Question                        | Mode      | Samples         |
+|---------------------------------|-----------|-----------------|
+| "What's the true success rate?" | `MEASURE` | 1000+           |
+| "Which config is best?"         | `EXPLORE` | 1-10 per config |
 
 ### Gradle Commands
 
@@ -394,12 +394,12 @@ void testOpenAiApi() {
 
 PUnit has two complementary mechanisms:
 
-| Guardrails (Time/Token Budgets) | Pacing Constraints |
-|---------------------------------|-------------------|
+| Guardrails (Time/Token Budgets) | Pacing Constraints                         |
+|---------------------------------|--------------------------------------------|
 | Reactive: "Stop if we exceed X" | Proactive: "Use X to compute optimal pace" |
-| Defensive circuit breakers | Scheduling algorithm inputs |
-| Runtime enforcement | Pre-execution planning |
-| Triggers termination | Prevents hitting limits |
+| Defensive circuit breakers      | Scheduling algorithm inputs                |
+| Runtime enforcement             | Pre-execution planning                     |
+| Triggers termination            | Prevents hitting limits                    |
 
 Use **both together** for complete control:
 
@@ -422,11 +422,11 @@ void testWithBothControls(TokenChargeRecorder recorder) {
 
 Express limits in requests per time unit:
 
-| Parameter | Description | Implied Delay |
-|-----------|-------------|---------------|
-| `maxRequestsPerSecond` | Maximum RPS | `1000 / RPS` ms |
-| `maxRequestsPerMinute` | Maximum RPM | `60000 / RPM` ms |
-| `maxRequestsPerHour` | Maximum RPH | `3600000 / RPH` ms |
+| Parameter              | Description | Implied Delay      |
+|------------------------|-------------|--------------------|
+| `maxRequestsPerSecond` | Maximum RPS | `1000 / RPS` ms    |
+| `maxRequestsPerMinute` | Maximum RPM | `60000 / RPM` ms   |
+| `maxRequestsPerHour`   | Maximum RPH | `3600000 / RPH` ms |
 
 ```java
 @Pacing(maxRequestsPerMinute = 60)  // Common for OpenAI, Anthropic
@@ -520,12 +520,12 @@ export PUNIT_PACING_MAX_RPM=30
 
 All pacing overrides:
 
-| System Property | Environment Variable |
-|-----------------|---------------------|
-| `punit.pacing.maxRps` | `PUNIT_PACING_MAX_RPS` |
-| `punit.pacing.maxRpm` | `PUNIT_PACING_MAX_RPM` |
-| `punit.pacing.maxRph` | `PUNIT_PACING_MAX_RPH` |
-| `punit.pacing.maxConcurrent` | `PUNIT_PACING_MAX_CONCURRENT` |
+| System Property               | Environment Variable             |
+|-------------------------------|----------------------------------|
+| `punit.pacing.maxRps`         | `PUNIT_PACING_MAX_RPS`           |
+| `punit.pacing.maxRpm`         | `PUNIT_PACING_MAX_RPM`           |
+| `punit.pacing.maxRph`         | `PUNIT_PACING_MAX_RPH`           |
+| `punit.pacing.maxConcurrent`  | `PUNIT_PACING_MAX_CONCURRENT`    |
 | `punit.pacing.minMsPerSample` | `PUNIT_PACING_MIN_MS_PER_SAMPLE` |
 
 ### Complete Example
@@ -569,13 +569,13 @@ class RateLimitedApiTest {
 
 ### When to Use Pacing
 
-| Scenario | Recommendation |
-|----------|----------------|
-| Testing LLM APIs (OpenAI, Anthropic, etc.) | Use `maxRequestsPerMinute` |
-| Testing rate-limited REST APIs | Use appropriate rate constraint |
-| Testing APIs with burst limits | Use `minMsPerSample` for steady rate |
-| Testing internal services | Usually not needed |
-| Local unit tests | Usually not needed |
+| Scenario                                   | Recommendation                       |
+|--------------------------------------------|--------------------------------------|
+| Testing LLM APIs (OpenAI, Anthropic, etc.) | Use `maxRequestsPerMinute`           |
+| Testing rate-limited REST APIs             | Use appropriate rate constraint      |
+| Testing APIs with burst limits             | Use `minMsPerSample` for steady rate |
+| Testing internal services                  | Usually not needed                   |
+| Local unit tests                           | Usually not needed                   |
 
 ### Pacing and Early Termination
 
@@ -641,10 +641,10 @@ public static List<FactorArguments> standardQueries() {
 
 The **return type** determines how factors are consumed:
 
-| Return Type | Consumption | Memory | Best For |
-|-------------|-------------|--------|----------|
-| `List<FactorArguments>` | **Cycling** | Materialized | Representative inputs, API testing |
-| `Stream<FactorArguments>` | **Sequential** | Streaming | Generated inputs, probabilistic algorithms |
+| Return Type               | Consumption    | Memory       | Best For                                   |
+|---------------------------|----------------|--------------|--------------------------------------------|
+| `List<FactorArguments>`   | **Cycling**    | Materialized | Representative inputs, API testing         |
+| `Stream<FactorArguments>` | **Sequential** | Streaming    | Generated inputs, probabilistic algorithms |
 
 #### List-Based Sources (Cycling)
 
@@ -716,11 +716,11 @@ public static List<FactorArguments> singleQuery() {
 
 **Why single-entry sources make sense**:
 
-| Benefit | Description |
-|---------|-------------|
-| **Statistical purity** | Isolates LLM variance from input variance |
-| **Clean baseline** | Spec reflects behavior for one specific query |
-| **Reproducibility** | Baseline is unambiguously tied to known input |
+| Benefit                | Description                                   |
+|------------------------|-----------------------------------------------|
+| **Statistical purity** | Isolates LLM variance from input variance     |
+| **Clean baseline**     | Spec reflects behavior for one specific query |
+| **Reproducibility**    | Baseline is unambiguously tied to known input |
 
 ### Multi-Factor Arguments
 
@@ -832,12 +832,12 @@ void test(@Factor("query") String query, TokenChargeRecorder recorder) {
 
 ### Summary: Factor Sources by Workflow Stage
 
-| Stage | Factor Source Location | Typical Entries | Consumption |
-|-------|------------------------|-----------------|-------------|
-| **EXPLORE** | Experiment class | Many configs | `samplesPerConfig` × each |
-| **MEASURE Form 1** | UseCase class | 1 (single input) | Same input for all samples |
-| **MEASURE Form 2** | UseCase class | 10-20 representative | Cycling through list |
-| **Probabilistic Test** | Same as MEASURE | Same as MEASURE | First-N prefix |
+| Stage                  | Factor Source Location | Typical Entries      | Consumption                |
+|------------------------|------------------------|----------------------|----------------------------|
+| **EXPLORE**            | Experiment class       | Many configs         | `samplesPerConfig` × each  |
+| **MEASURE Form 1**     | UseCase class          | 1 (single input)     | Same input for all samples |
+| **MEASURE Form 2**     | UseCase class          | 10-20 representative | Cycling through list       |
+| **Probabilistic Test** | Same as MEASURE        | Same as MEASURE      | First-N prefix             |
 
 ### Quick Reference
 
@@ -932,12 +932,12 @@ public class ProductSearchUseCase {
 
 **Benefits of co-location:**
 
-| Benefit | Description |
-|---------|-------------|
-| **Single source of truth** | Factors live with the code they exercise |
-| **Cohesion** | Related concepts stay together |
-| **Discoverability** | Developers find factors when they find the use case |
-| **Consistency** | Easy to use the same source in experiments and tests |
+| Benefit                    | Description                                          |
+|----------------------------|------------------------------------------------------|
+| **Single source of truth** | Factors live with the code they exercise             |
+| **Cohesion**               | Related concepts stay together                       |
+| **Discoverability**        | Developers find factors when they find the use case  |
+| **Consistency**            | Easy to use the same source in experiments and tests |
 
 ### Referencing Factor Sources
 
@@ -1003,13 +1003,13 @@ EXPLORE mode is designed for **rapid configuration discovery**—trying out diff
 
 EXPLORE mode embodies a fundamentally different mindset from MEASURE:
 
-| Aspect | MEASURE | EXPLORE |
-|--------|---------|---------|
-| **Goal** | Establish statistically reliable baseline | Discover which configurations work best |
-| **Sample size** | Large (1000+ by default) | Small (1 by default) |
-| **Output** | Single spec per use case | One file per configuration |
-| **Statistical rigor** | High | Low (intentionally) |
-| **Time investment** | Significant | Minimal |
+| Aspect                | MEASURE                                   | EXPLORE                                 |
+|-----------------------|-------------------------------------------|-----------------------------------------|
+| **Goal**              | Establish statistically reliable baseline | Discover which configurations work best |
+| **Sample size**       | Large (1000+ by default)                  | Small (1 by default)                    |
+| **Output**            | Single spec per use case                  | One file per configuration              |
+| **Statistical rigor** | High                                      | Low (intentionally)                     |
+| **Time investment**   | Significant                               | Minimal                                 |
 
 **Why small samples?** When comparing 8 configurations, running 1000 samples each would take forever. EXPLORE trades statistical precision for rapid feedback. You're not trying to prove anything—you're trying to *learn* what's worth measuring.
 
@@ -1048,9 +1048,9 @@ Use these options to force exploration to run:
 ./gradlew explore --tests "ShoppingExperiment.exploreModelConfigurations" --rerun-tasks
 ```
 
-| Option | When to Use |
-|--------|-------------|
-| `clean` | When you want a completely fresh build |
+| Option          | When to Use                               |
+|-----------------|-------------------------------------------|
+| `clean`         | When you want a completely fresh build    |
 | `--rerun-tasks` | When you just want to re-run explorations |
 
 ### Output Location
