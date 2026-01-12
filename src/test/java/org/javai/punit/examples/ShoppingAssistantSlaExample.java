@@ -1,7 +1,5 @@
 package org.javai.punit.examples;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ProbabilisticTest;
@@ -19,8 +17,8 @@ import org.junit.jupiter.api.Disabled;
  *
  * <h2>SLA-Driven Testing</h2>
  * <p>When your success threshold comes from an external requirement—a Service Level Agreement
- * (SLA), Service Level Objective (SLO), or organizational policy—you don't need to run
- * experiments to discover the threshold. It's given to you. This is <b>SLA-driven testing</b>.
+ * (SLA), Service Level Objective (SLO), or organizational policy—you have a clear target.
+ * This is <b>SLA-driven testing</b>.
  *
  * <h2>The Three Operational Approaches</h2>
  * <p>Regardless of where your threshold comes from, you must decide <b>how to parameterize</b>
@@ -135,14 +133,13 @@ class ShoppingAssistantSlaExample {
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true
 	)
-	//@Pacing(maxRequestsPerMinute = 60)         // Respect API rate limits
+	@Pacing(maxRequestsPerMinute = 30)         // Respect API rate limits
 	void sampleSizeFirst_costDrivenApproach(TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
 
-		assertThat(outcome.result().getBoolean("isValidJson", false))
-				.as("Response should be valid JSON per SLA requirement")
-				.isTrue();
+		// Assert using the bundled success criteria from the use case
+		outcome.assertAll();
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -202,7 +199,7 @@ class ShoppingAssistantSlaExample {
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true
 	)
-	//@Pacing(maxRequestsPerMinute = 60)
+	@Pacing(maxRequestsPerMinute = 30)
 	void confidenceFirst_riskDrivenApproach(TokenChargeRecorder tokenRecorder) {
 		// Note: PUnit computes the required sample size based on the statistical
 		// parameters above. This test may run significantly more samples than
@@ -211,22 +208,21 @@ class ShoppingAssistantSlaExample {
 		UseCaseOutcome outcome = useCase.searchProducts("laptop stand");
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
 
-		assertThat(outcome.result().getBoolean("isValidJson", false))
-				.as("Response should be valid JSON per SLA requirement")
-				.isTrue();
+		// Assert using the bundled success criteria
+		outcome.assertAll();
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// APPROACH 3: THRESHOLD-FIRST (Baseline-Anchored)
+	// APPROACH 3: THRESHOLD-FIRST (Direct Threshold)
 	// ═══════════════════════════════════════════════════════════════════════════
 	//
 	// WHEN TO USE:
-	//   • You want to test against an exact observed rate (e.g., from experiment)
+	//   • You want to test against the exact SLA threshold as written
 	//   • You're learning PUnit and want to see the trade-offs explicitly
 	//   • You deliberately accept strict thresholds knowing the false positive risk
 	//
 	// THE QUESTION:
-	//   "We measured 95% in our baseline. Use that exact value as the threshold."
+	//   "Our SLA says 95%. Test against exactly that."
 	//
 	// WHAT HAPPENS:
 	//   • PUnit uses the explicit threshold
@@ -234,10 +230,9 @@ class ShoppingAssistantSlaExample {
 	//   • Warns if false positive rate is high
 	//
 	// TRADE-OFF:
-	//   Using the raw baseline rate as threshold means ~50% of legitimate tests
-	//   will fail due to sampling variance alone. This is mathematically expected.
-	//   You're essentially asking: "Is the current rate EXACTLY as good as before?"
-	//   — and the answer will often be "no" even when nothing has changed.
+	//   With small sample sizes, tests may fail due to sampling variance alone.
+	//   You're essentially asking: "Does this sample meet exactly 95%?"
+	//   — and with few samples, variance makes this hard to answer reliably.
 	//
 	// WHEN IT MAKES SENSE:
 	//   This approach is useful when learning PUnit, as it makes the statistical
@@ -260,10 +255,9 @@ class ShoppingAssistantSlaExample {
 	 *   <li>Situations where the threshold is non-negotiable (SLA as written)</li>
 	 * </ul>
 	 *
-	 * <p><b>Note:</b> With a threshold exactly at the true success rate, about 50%
-	 * of tests will fail purely due to sampling variance. This is not a bug—it's
-	 * statistics. Consider using Approach 1 with more samples, or adjust the
-	 * threshold to account for variance.
+	 * <p><b>Note:</b> With small samples against a high threshold, tests may fail
+	 * due to sampling variance. This is not a bug—it's statistics. Consider
+	 * using Approach 1 with more samples for production use.
 	 */
 	@ProbabilisticTest(
 			samples = 50,                       // Small sample for demonstration
@@ -272,6 +266,7 @@ class ShoppingAssistantSlaExample {
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true             // Show the statistical analysis
 	)
+	@Pacing(maxRequestsPerMinute = 30)
 	void thresholdFirst_baselineAnchoredApproach(TokenChargeRecorder tokenRecorder) {
 		// With only 50 samples against a 95% threshold, PUnit will report:
 		// - The observed pass rate
@@ -284,9 +279,8 @@ class ShoppingAssistantSlaExample {
 		UseCaseOutcome outcome = useCase.searchProducts("USB-C hub");
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
 
-		assertThat(outcome.result().getBoolean("isValidJson", false))
-				.as("Response should be valid JSON per SLA requirement")
-				.isTrue();
+		// Assert using the bundled success criteria
+		outcome.assertAll();
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -307,10 +301,6 @@ class ShoppingAssistantSlaExample {
 	// │ Learning the trade-offs          │ Threshold-First + transparentStats   │
 	// │   (new to PUnit)                 │   → See exactly what's happening     │
 	// └──────────────────────────────────────────────────────────────────────────┘
-	//
-	// All three approaches can be used with SLA-driven OR spec-driven testing.
-	// The approach is about HOW you parameterize the test, not WHERE the
-	// threshold comes from.
 	//
 	// ═══════════════════════════════════════════════════════════════════════════
 }
