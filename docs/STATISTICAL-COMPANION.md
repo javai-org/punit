@@ -55,11 +55,11 @@ For operational context and workflow guidance, see the companion document: [Oper
 
 ---
 
-## Running Examples
+## Reference Scenarios
 
-Throughout this document, we use two examples to illustrate the statistical methods—one for each testing paradigm.
+PUnit accommodates two distinct testing scenarios. Both are equally valid; they differ only in where the threshold comes from.
 
-### SLA-Driven Example (Simpler)
+### Scenario A: Payment Processing API (SLA-Driven)
 
 **Application**: A third-party payment processing API with a contractual uptime guarantee.
 
@@ -67,32 +67,30 @@ Throughout this document, we use two examples to illustrate the statistical meth
 
 **Success Criterion**: A trial is successful if the API returns a successful response (HTTP 2xx with valid transaction confirmation).
 
-**Characteristic**: The threshold (99.5%) is *given* by contract—not measured. The statistical question is: "Does the system meet its contractual obligation?"
-
 **Key parameters**:
 - $p_{\text{SLA}} = 0.995$ (given by contract)
 - No baseline experiment required
+- Statistical question: "Does the system meet its contractual obligation?"
 
-### Spec-Driven Example (More Complex)
+### Scenario B: LLM-Based Customer Service (Spec-Driven)
 
-**Application**: A customer service system that accepts natural language queries and uses a Large Language Model (LLM) to generate structured JSON responses containing customer information lookups.
+**Application**: A customer service system that uses a Large Language Model (LLM) to generate structured JSON responses from natural language queries.
 
-**Use Case**: Given a natural language query (e.g., "What's the shipping status for order #12345?"), the system should return valid JSON with the required fields (`orderId`, `status`, `estimatedDelivery`).
+**Use Case**: Given a query (e.g., "What's the shipping status for order #12345?"), the system should return valid JSON with the required fields (`orderId`, `status`, `estimatedDelivery`).
 
 **Success Criterion**: A trial is successful if:
 1. The response is syntactically valid JSON
 2. The response contains all required fields
 3. The field values are semantically appropriate (not hallucinated)
 
-**Characteristic**: Due to the stochastic nature of the LLM, identical inputs may produce different outputs across invocations. The system exhibits non-deterministic behavior with an unknown but stable success probability *p*. Since no external threshold exists, we must first *measure* the system's behavior through experimentation.
-
 **Key parameters**:
 - $\hat{p}_{\text{exp}} = 0.951$ (measured from 1000-sample experiment)
 - Threshold derived from empirical baseline
+- Statistical question: "Has the system degraded from its measured baseline?"
 
 ---
 
-## 1.5 Two Testing Paradigms
+## Two Testing Paradigms
 
 PUnit supports two distinct paradigms for probabilistic testing. They share the same statistical foundations but differ in where the threshold comes from and how results are interpreted.
 
@@ -1070,26 +1068,6 @@ $$n = \frac{z_{\alpha/2}^2 \cdot p(1-p)}{e^2}$$
 ### Sample Size for Power
 
 $$n = \left(\frac{z_\alpha \sqrt{p_0(1-p_0)} + z_\beta \sqrt{p_1(1-p_1)}}{p_0 - p_1}\right)^2$$
-
----
-
-## References
-
-1. Wilson, E. B. (1927). Probable inference, the law of succession, and statistical inference. *Journal of the American Statistical Association*, 22(158), 209-212.
-
-2. Agresti, A., & Coull, B. A. (1998). Approximate is better than "exact" for interval estimation of binomial proportions. *The American Statistician*, 52(2), 119-126.
-
-3. Brown, L. D., Cai, T. T., & DasGupta, A. (2001). Interval estimation for a binomial proportion. *Statistical Science*, 16(2), 101-133.
-
-4. Newcombe, R. G. (1998). Two-sided confidence intervals for the single proportion: comparison of seven methods. *Statistics in Medicine*, 17(8), 857-872.
-
-5. Hanley, J. A., & Lippman-Hand, A. (1983). If nothing goes wrong, is everything all right? Interpreting zero numerators. *JAMA*, 249(13), 1743-1745. [The "Rule of Three"]
-
-6. Clopper, C. J., & Pearson, E. S. (1934). The use of confidence or fiducial limits illustrated in the case of the binomial. *Biometrika*, 26(4), 404-413.
-
-7. Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). Chapman and Hall/CRC. [Beta-Binomial posterior predictive]
-
-8. Jeffreys, H. (1946). An invariant form for the prior probability in estimation problems. *Proceedings of the Royal Society of London. Series A*, 186(1007), 453-461. [Jeffreys prior]
 
 ---
 
