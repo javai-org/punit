@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.experiment.model.ResultProjection;
+import org.javai.punit.model.ExpirationPolicy;
 
 /**
  * Writes empirical baselines to YAML files.
@@ -166,6 +167,16 @@ public class BaselineWriter {
                       .append("\"\n");
                 }
             }
+        }
+
+        // Expiration policy
+        if (baseline.hasExpirationPolicy()) {
+            ExpirationPolicy policy = baseline.getExpirationPolicy();
+            sb.append("\nexpiration:\n");
+            sb.append("  expiresInDays: ").append(policy.expiresInDays()).append("\n");
+            sb.append("  baselineEndTime: ").append(ISO_FORMATTER.format(policy.baselineEndTime())).append("\n");
+            policy.expirationTime().ifPresent(exp ->
+                sb.append("  expirationDate: ").append(ISO_FORMATTER.format(exp)).append("\n"));
         }
         
         return sb.toString();

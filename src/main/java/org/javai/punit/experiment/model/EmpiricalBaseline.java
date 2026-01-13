@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.model.ExpirationPolicy;
 
 /**
  * Represents an empirical baseline generated from experiment execution.
@@ -35,6 +36,7 @@ public final class EmpiricalBaseline {
     private final CostSummary cost;
     private final String successCriteriaDefinition;
     private final List<ResultProjection> resultProjections;
+    private final ExpirationPolicy expirationPolicy;
     
     private EmpiricalBaseline(Builder builder) {
         this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
@@ -48,6 +50,7 @@ public final class EmpiricalBaseline {
         this.cost = Objects.requireNonNull(builder.cost, "cost must not be null");
         this.successCriteriaDefinition = builder.successCriteriaDefinition;
         this.resultProjections = Collections.unmodifiableList(new ArrayList<>(builder.resultProjections));
+        this.expirationPolicy = builder.expirationPolicy;
     }
     
     public static Builder builder() {
@@ -111,6 +114,24 @@ public final class EmpiricalBaseline {
      */
     public boolean hasResultProjections() {
         return resultProjections != null && !resultProjections.isEmpty();
+    }
+
+    /**
+     * Returns the expiration policy for this baseline.
+     *
+     * @return the expiration policy, or null if no expiration is set
+     */
+    public ExpirationPolicy getExpirationPolicy() {
+        return expirationPolicy;
+    }
+
+    /**
+     * Returns true if this baseline has an expiration policy.
+     *
+     * @return true if an expiration policy with a positive validity period is present
+     */
+    public boolean hasExpirationPolicy() {
+        return expirationPolicy != null && expirationPolicy.hasExpiration();
     }
 
 	/**
@@ -180,6 +201,7 @@ public final class EmpiricalBaseline {
         private CostSummary cost;
         private String successCriteriaDefinition;
         private final List<ResultProjection> resultProjections = new ArrayList<>();
+        private ExpirationPolicy expirationPolicy;
         
         private Builder() {}
         
@@ -262,6 +284,33 @@ public final class EmpiricalBaseline {
         public Builder resultProjections(List<ResultProjection> projections) {
             if (projections != null) {
                 this.resultProjections.addAll(projections);
+            }
+            return this;
+        }
+
+        /**
+         * Sets the expiration policy for this baseline.
+         *
+         * @param expirationPolicy the expiration policy
+         * @return this builder
+         */
+        public Builder expirationPolicy(ExpirationPolicy expirationPolicy) {
+            this.expirationPolicy = expirationPolicy;
+            return this;
+        }
+
+        /**
+         * Sets the expiration policy for this baseline.
+         *
+         * @param expiresInDays the validity period in days (0 = no expiration)
+         * @param baselineEndTime the experiment end time
+         * @return this builder
+         */
+        public Builder expirationPolicy(int expiresInDays, java.time.Instant baselineEndTime) {
+            if (expiresInDays > 0 && baselineEndTime != null) {
+                this.expirationPolicy = ExpirationPolicy.of(expiresInDays, baselineEndTime);
+            } else {
+                this.expirationPolicy = null;
             }
             return this;
         }

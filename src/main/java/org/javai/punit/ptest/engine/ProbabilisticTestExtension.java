@@ -22,6 +22,11 @@ import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.experiment.engine.FactorSourceAdapter;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.expiration.ExpirationEvaluator;
+import org.javai.punit.engine.expiration.ExpirationWarningRenderer;
+import org.javai.punit.engine.expiration.ExpirationReportPublisher;
+import org.javai.punit.engine.expiration.WarningLevel;
+import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.statistics.transparent.ConsoleExplanationRenderer;
 import org.javai.punit.statistics.transparent.StatisticalExplanation;
@@ -73,6 +78,7 @@ public class ProbabilisticTestExtension implements
 	private static final String PACING_KEY = "pacing";
 	private static final String SAMPLE_COUNTER_KEY = "sampleCounter";
 	private static final String LAST_SAMPLE_TIME_KEY = "lastSampleTime";
+	private static final String SPEC_KEY = "spec";
 
 	private final ConfigurationResolver configResolver;
 	private final PacingResolver pacingResolver;
@@ -165,6 +171,12 @@ public class ProbabilisticTestExtension implements
 		store.put(SAMPLE_COUNTER_KEY, sampleCounter);
 		if (tokenRecorder != null) {
 			store.put(TOKEN_RECORDER_KEY, tokenRecorder);
+		}
+
+		// Load and store spec for expiration checking
+		if (resolved.specId() != null) {
+			configResolver.loadSpec(resolved.specId()).ifPresent(spec -> 
+				store.put(SPEC_KEY, spec));
 		}
 
 		// Print pre-flight report if pacing is configured
@@ -772,6 +784,13 @@ public class ProbabilisticTestExtension implements
 			entries.put("punit.suite.tokensConsumed", String.valueOf(suiteBudget.getTokensConsumed()));
 		}
 
+		// Include expiration status
+		ExecutionSpecification spec = getSpec(context);
+		if (spec != null) {
+			ExpirationStatus expirationStatus = ExpirationEvaluator.evaluate(spec);
+			entries.putAll(ExpirationReportPublisher.buildProperties(spec, expirationStatus));
+		}
+
 		context.publishReportEntry(entries);
 	}
 
@@ -792,7 +811,7 @@ public class ProbabilisticTestExtension implements
 
 		// If transparent stats mode is enabled, render the full statistical explanation
 		if (config.hasTransparentStats()) {
-			printTransparentStatsSummary(testName, aggregator, config, passed);
+			printTransparentStatsSummary(context, testName, aggregator, config, passed);
 			return;
 		}
 
@@ -854,6 +873,41 @@ public class ProbabilisticTestExtension implements
 
 		// Print to stdout for visibility
 		System.out.println(sb);
+
+		// Print expiration warning if applicable
+		printExpirationWarning(context, config.hasTransparentStats());
+	}
+
+	/**
+	 * Prints an expiration warning if the baseline is expired or expiring.
+	 *
+	 * <p>Warning visibility is controlled by {@link WarningLevel}:
+	 * <ul>
+	 *   <li>Expired: Always shown</li>
+	 *   <li>Expiring imminently: Shown at normal verbosity</li>
+	 *   <li>Expiring soon: Shown only at verbose (transparentStats) level</li>
+	 * </ul>
+	 */
+	private void printExpirationWarning(ExtensionContext context, boolean verbose) {
+		ExecutionSpecification spec = getSpec(context);
+		if (spec == null) {
+			return;
+		}
+
+		ExpirationStatus status = ExpirationEvaluator.evaluate(spec);
+		if (!status.requiresWarning()) {
+			return;
+		}
+
+		WarningLevel level = WarningLevel.forStatus(status);
+		if (level == null || !level.shouldShow(verbose)) {
+			return;
+		}
+
+		String warning = ExpirationWarningRenderer.render(spec, status);
+		if (!warning.isEmpty()) {
+			System.out.println(warning);
+		}
 	}
 
 	/**
@@ -878,6 +932,7 @@ public class ProbabilisticTestExtension implements
 	 * test verdict, suitable for auditors, stakeholders, and educational purposes.
 	 */
 	private void printTransparentStatsSummary(
+			ExtensionContext context,
 			String testName,
 			SampleResultAggregator aggregator,
 			TestConfiguration config,
@@ -920,6 +975,9 @@ public class ProbabilisticTestExtension implements
 		ConsoleExplanationRenderer renderer = new ConsoleExplanationRenderer(config.transparentStats());
 		String rendered = renderer.render(explanation);
 		System.out.println(rendered);
+
+		// Print expiration warning (verbose=true for transparent stats mode)
+		printExpirationWarning(context, true);
 	}
 
 	/**
@@ -977,6 +1035,17 @@ public class ProbabilisticTestExtension implements
 
 	private AtomicInteger getSampleCounter(ExtensionContext context) {
 		return getFromStoreOrParent(context, SAMPLE_COUNTER_KEY, AtomicInteger.class);
+	}
+
+	private ExecutionSpecification getSpec(ExtensionContext context) {
+		ExtensionContext.Store store = context.getStore(NAMESPACE);
+		ExecutionSpecification spec = store.get(SPEC_KEY, ExecutionSpecification.class);
+		if (spec != null) {
+			return spec;
+		}
+		return context.getParent()
+				.map(parent -> parent.getStore(NAMESPACE).get(SPEC_KEY, ExecutionSpecification.class))
+				.orElse(null);
 	}
 
 	/**

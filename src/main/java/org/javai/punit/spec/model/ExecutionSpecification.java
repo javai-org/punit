@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.model.ExpirationPolicy;
+import org.javai.punit.model.ExpirationStatus;
 
 /**
  * An execution specification containing empirical data for probabilistic testing.
@@ -50,6 +52,7 @@ public final class ExecutionSpecification {
 	private final EmpiricalBasis empiricalBasis;
 	private final ExtendedStatistics extendedStatistics;
 	private final FactorSourceMetadata factorSourceMetadata;
+	private final ExpirationPolicy expirationPolicy;
 
 	private ExecutionSpecification(Builder builder) {
 		this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
@@ -71,6 +74,7 @@ public final class ExecutionSpecification {
 		this.empiricalBasis = builder.empiricalBasis;
 		this.extendedStatistics = builder.extendedStatistics;
 		this.factorSourceMetadata = builder.factorSourceMetadata;
+		this.expirationPolicy = builder.expirationPolicy;
 	}
 
 	public static Builder builder() {
@@ -189,6 +193,44 @@ public final class ExecutionSpecification {
 	 */
 	public boolean hasFactorSourceMetadata() {
 		return factorSourceMetadata != null && factorSourceMetadata.hasHash();
+	}
+
+	/**
+	 * Returns the expiration policy for this baseline.
+	 *
+	 * <p>The expiration policy defines how long the baseline remains valid
+	 * after the experiment end time. Use {@link #evaluateExpiration(Instant)}
+	 * to check the current status.
+	 *
+	 * @return the expiration policy, or null if no policy was set
+	 */
+	public ExpirationPolicy getExpirationPolicy() {
+		return expirationPolicy;
+	}
+
+	/**
+	 * Returns true if this specification has an expiration policy.
+	 *
+	 * @return true if an expiration policy is present and has a non-zero validity period
+	 */
+	public boolean hasExpirationPolicy() {
+		return expirationPolicy != null && expirationPolicy.hasExpiration();
+	}
+
+	/**
+	 * Evaluates the expiration status at the given time.
+	 *
+	 * <p>Convenience method that delegates to the expiration policy.
+	 * Returns {@link ExpirationStatus.NoExpiration} if no policy is set.
+	 *
+	 * @param currentTime the time at which to evaluate
+	 * @return the expiration status
+	 */
+	public ExpirationStatus evaluateExpiration(Instant currentTime) {
+		if (expirationPolicy == null) {
+			return ExpirationStatus.noExpiration();
+		}
+		return expirationPolicy.evaluateAt(currentTime);
 	}
 
 	/**
@@ -417,6 +459,7 @@ public final class ExecutionSpecification {
 		private EmpiricalBasis empiricalBasis;
 		private ExtendedStatistics extendedStatistics;
 		private FactorSourceMetadata factorSourceMetadata;
+		private ExpirationPolicy expirationPolicy;
 
 		private Builder() {
 		}
@@ -513,6 +556,33 @@ public final class ExecutionSpecification {
 
 		public Builder factorSourceMetadata(String sourceHash, String sourceName, int samplesUsed, boolean earlyTermination) {
 			this.factorSourceMetadata = new FactorSourceMetadata(sourceHash, sourceName, samplesUsed, earlyTermination);
+			return this;
+		}
+
+		/**
+		 * Sets the expiration policy for this specification.
+		 *
+		 * @param expirationPolicy the expiration policy
+		 * @return this builder
+		 */
+		public Builder expirationPolicy(ExpirationPolicy expirationPolicy) {
+			this.expirationPolicy = expirationPolicy;
+			return this;
+		}
+
+		/**
+		 * Sets the expiration policy for this specification.
+		 *
+		 * @param expiresInDays the validity period in days (0 = no expiration)
+		 * @param baselineEndTime the experiment end time
+		 * @return this builder
+		 */
+		public Builder expirationPolicy(int expiresInDays, Instant baselineEndTime) {
+			if (expiresInDays > 0) {
+				this.expirationPolicy = ExpirationPolicy.of(expiresInDays, baselineEndTime);
+			} else {
+				this.expirationPolicy = null;
+			}
 			return this;
 		}
 

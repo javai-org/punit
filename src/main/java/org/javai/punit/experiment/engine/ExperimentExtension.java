@@ -1,12 +1,14 @@
 package org.javai.punit.experiment.engine;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,6 +90,9 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         Method testMethod = context.getRequiredTestMethod();
         Experiment annotation = testMethod.getAnnotation(Experiment.class);
         
+        // Validate annotation attributes
+        ExperimentAnnotationValidator.validate(annotation, testMethod.getName());
+        
         // Validate samples/samplesPerConfig mutual exclusivity
         validateSampleConfiguration(annotation, testMethod);
         
@@ -164,7 +169,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         Method testMethod = store.get("testMethod", Method.class);
         FactorSource factorSource = testMethod != null ? testMethod.getAnnotation(FactorSource.class) : null;
         
-        if (factorSource != null && testMethod != null) {
+        if (factorSource != null) {
             // MEASURE mode with factor source - use cycling
             return provideMeasureWithFactorsInvocationContexts(
                 testMethod, factorSource, samples, useCaseId, store, aggregator, terminated);
@@ -196,29 +201,11 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
                 String methodName = parts[1];
                 Class<?> targetClass = resolveClass(className, testMethod.getDeclaringClass());
                 Method sourceMethod = targetClass.getDeclaredMethod(methodName);
-                sourceMethod.setAccessible(true);
-                Object result = sourceMethod.invoke(null);
-                if (result instanceof Stream) {
-                    factorStream = (Stream<FactorArguments>) result;
-                } else if (result instanceof java.util.Collection) {
-                    factorStream = ((java.util.Collection<FactorArguments>) result).stream();
-                } else {
-                    throw new ExtensionConfigurationException(
-                        "Factor source method must return Stream or Collection: " + sourceReference);
-                }
+                factorStream = getFactorArguments(sourceMethod, sourceReference);
             } else {
                 // Same-class reference
                 Method sourceMethod = testMethod.getDeclaringClass().getDeclaredMethod(sourceReference);
-                sourceMethod.setAccessible(true);
-                Object result = sourceMethod.invoke(null);
-                if (result instanceof Stream) {
-                    factorStream = (Stream<FactorArguments>) result;
-                } else if (result instanceof java.util.Collection) {
-                    factorStream = ((java.util.Collection<FactorArguments>) result).stream();
-                } else {
-                    throw new ExtensionConfigurationException(
-                        "Factor source method must return Stream or Collection: " + sourceReference);
-                }
+                factorStream = getFactorArguments(sourceMethod, sourceReference);
             }
         } catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
             throw new ExtensionConfigurationException(
@@ -233,7 +220,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         }
         
         // Extract factor names from the first FactorArguments
-        List<FactorInfo> factorInfos = extractFactorInfosFromArguments(testMethod, factorsList.get(0));
+        List<FactorInfo> factorInfos = extractFactorInfosFromArguments(testMethod, factorsList.getFirst());
         store.put("factorInfos", factorInfos);
         
         // Generate sample stream with cycling factors
@@ -249,7 +236,22 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
                     i, samples, useCaseId, new ResultCaptor(), factorValues, factorInfos);
             });
     }
-    
+
+    private Stream<FactorArguments> getFactorArguments(Method testMethod, String sourceReference)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Method sourceMethod = testMethod.getDeclaringClass().getDeclaredMethod(sourceReference);
+        sourceMethod.setAccessible(true);
+        Object result = sourceMethod.invoke(null);
+        if (result instanceof Stream) {
+            return (Stream<FactorArguments>) result;
+        } else if (result instanceof java.util.Collection) {
+            return ((Collection<FactorArguments>) result).stream();
+        } else {
+            throw new ExtensionConfigurationException(
+                    "Factor source method must return Stream or Collection: " + sourceReference);
+        }
+    }
+
     /**
      * Extracts factor info from FactorArguments and method parameters.
      */
@@ -441,8 +443,8 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     private List<FactorInfo> extractFactorInfos(Method method, FactorSource factorSource, 
                                                  List<FactorArguments> argsList) {
         // 1. Prefer names embedded in FactorArguments (best DX)
-        if (!argsList.isEmpty() && argsList.get(0).hasNames()) {
-            String[] names = argsList.get(0).names();
+        if (!argsList.isEmpty() && argsList.getFirst().hasNames()) {
+            String[] names = argsList.getFirst().names();
             List<FactorInfo> factorInfos = new ArrayList<>();
             for (int i = 0; i < names.length; i++) {
                 factorInfos.add(new FactorInfo(i, names[i], names[i], Object.class));
@@ -462,9 +464,15 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         }
         
         // 3. Fall back to @Factor annotations on method parameters
+        List<FactorInfo> factorInfos = getFactorInfos(method);
+
+        return factorInfos;
+    }
+
+    private static List<FactorInfo> getFactorInfos(Method method) {
         List<FactorInfo> factorInfos = new ArrayList<>();
         Parameter[] parameters = method.getParameters();
-        
+
         for (int i = 0; i < parameters.length; i++) {
             Factor factor = parameters[i].getAnnotation(Factor.class);
             if (factor != null) {
@@ -473,10 +481,9 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
                 factorInfos.add(new FactorInfo(i, name, filePrefix, parameters[i].getType()));
             }
         }
-        
         return factorInfos;
     }
-    
+
     /**
      * Builds a configuration name from factor values for file naming.
      *
@@ -499,7 +506,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         
         // If there are more values than factorInfos, add generic names
         for (int i = count; i < values.length; i++) {
-            if (sb.length() > 0) sb.append("_");
+            if (!sb.isEmpty()) sb.append("_");
             String valueStr = formatFactorValue(values[i]);
             sb.append("f").append(i).append("-").append(valueStr);
         }
@@ -867,12 +874,21 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         UseCaseContext useCaseContext = store.get("useCaseContext", UseCaseContext.class);
         Experiment annotation = store.get("annotation", Experiment.class);
         
+        int expiresInDays = annotation.expiresInDays();
+        
+        // Emit informational note if no expiration is set
+        if (expiresInDays == 0) {
+            context.publishReportEntry("punit.info.expiration",
+                "Consider setting expiresInDays to track baseline freshness");
+        }
+        
         EmpiricalBaselineGenerator generator = new EmpiricalBaselineGenerator();
         EmpiricalBaseline baseline = generator.generate(
             aggregator,
             context.getTestClass().orElse(null),
             context.getTestMethod().orElse(null),
-            useCaseContext
+            useCaseContext,
+            expiresInDays
         );
         
         // Write spec to file (in src/test/resources/punit/specs/)
@@ -906,13 +922,15 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         
         Experiment annotation = store.get("annotation", Experiment.class);
         String useCaseId = store.get("useCaseId", String.class);
+        int expiresInDays = annotation.expiresInDays();
         
         EmpiricalBaselineGenerator generator = new EmpiricalBaselineGenerator();
         EmpiricalBaseline baseline = generator.generate(
             aggregator,
             context.getTestClass().orElse(null),
             context.getTestMethod().orElse(null),
-            useCaseContext
+            useCaseContext,
+            expiresInDays
         );
         
         // Write spec to config-specific file (in explorations/)

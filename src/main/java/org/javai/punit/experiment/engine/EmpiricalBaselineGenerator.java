@@ -8,6 +8,7 @@ import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.experiment.model.EmpiricalBaseline.CostSummary;
 import org.javai.punit.experiment.model.EmpiricalBaseline.ExecutionSummary;
 import org.javai.punit.experiment.model.EmpiricalBaseline.StatisticsSummary;
+import org.javai.punit.model.ExpirationPolicy;
 
 /**
  * Generates empirical baselines from experiment results.
@@ -28,6 +29,25 @@ public class EmpiricalBaselineGenerator {
             Class<?> experimentClass,
             Method experimentMethod,
             UseCaseContext context) {
+        return generate(aggregator, experimentClass, experimentMethod, context, 0);
+    }
+
+    /**
+     * Generates an empirical baseline from an experiment's aggregated results.
+     *
+     * @param aggregator the experiment result aggregator
+     * @param experimentClass the experiment class (may be null)
+     * @param experimentMethod the experiment method (may be null)
+     * @param context the use case context
+     * @param expiresInDays the validity period in days (0 = no expiration)
+     * @return the generated baseline
+     */
+    public EmpiricalBaseline generate(
+            ExperimentResultAggregator aggregator,
+            Class<?> experimentClass,
+            Method experimentMethod,
+            UseCaseContext context,
+            int expiresInDays) {
         
         double[] ci = aggregator.getConfidenceInterval95();
         
@@ -86,6 +106,12 @@ public class EmpiricalBaselineGenerator {
         // Add result projections (EXPLORE mode only)
         if (aggregator.hasResultProjections()) {
             builder.resultProjections(aggregator.getResultProjections());
+        }
+
+        // Add expiration policy if specified
+        if (expiresInDays > 0) {
+            Instant endTime = aggregator.getEndTime();
+            builder.expirationPolicy(ExpirationPolicy.of(expiresInDays, endTime));
         }
         
         return builder.build();

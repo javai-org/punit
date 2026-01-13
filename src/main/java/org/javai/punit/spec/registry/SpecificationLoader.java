@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.spec.model.ExecutionSpecification;
 
 /**
@@ -111,6 +112,7 @@ public final class SpecificationLoader {
 		boolean inEmpiricalBasis = false;
 		boolean inExtendedStatistics = false;
 		boolean inFailureDistribution = false;
+		boolean inExpiration = false;
 
 		// Requirements fields
 		double minPassRate = 1.0;
@@ -136,6 +138,10 @@ public final class SpecificationLoader {
 		long totalTokens = 0;
 		long avgTokensPerSample = 0;
 
+		// Expiration fields
+		int expiresInDays = 0;
+		Instant baselineEndTime = null;
+
 		for (String line : lines) {
 			if (line.trim().isEmpty() || line.trim().startsWith("#")) {
 				continue;
@@ -152,6 +158,7 @@ public final class SpecificationLoader {
 				inEmpiricalBasis = false;
 				inExtendedStatistics = false;
 				inFailureDistribution = false;
+				inExpiration = false;
 
 				if (line.startsWith("specId:") || line.startsWith("useCaseId:")) {
 					// Both specId (legacy) and useCaseId map to useCaseId
@@ -180,6 +187,8 @@ public final class SpecificationLoader {
 					inEmpiricalBasis = true;
 				} else if (line.startsWith("extendedStatistics:")) {
 					inExtendedStatistics = true;
+				} else if (line.startsWith("expiration:")) {
+					inExpiration = true;
 				}
 				// Skip schemaVersion and contentFingerprint - already validated
 				continue;
@@ -250,6 +259,13 @@ public final class SpecificationLoader {
 				} else if (trimmed.startsWith("avgTokensPerSample:")) {
 					avgTokensPerSample = Long.parseLong(extractValue(trimmed));
 				}
+			} else if (inExpiration) {
+				if (trimmed.startsWith("expiresInDays:")) {
+					expiresInDays = Integer.parseInt(extractValue(trimmed));
+				} else if (trimmed.startsWith("baselineEndTime:")) {
+					baselineEndTime = parseInstant(extractValue(trimmed));
+				}
+				// expirationDate is computed, no need to parse
 			}
 		}
 
@@ -269,6 +285,15 @@ public final class SpecificationLoader {
 					standardError, ciLower, ciUpper, failureDistribution,
 					totalTimeMs, avgTimePerSampleMs, totalTokens, avgTokensPerSample
 			));
+		}
+
+		// Set expiration policy if we found expiration data
+		if (expiresInDays > 0) {
+			// Use baselineEndTime if available, otherwise fall back to basisGeneratedAt
+			Instant endTime = baselineEndTime != null ? baselineEndTime : basisGeneratedAt;
+			if (endTime != null) {
+				builder.expirationPolicy(ExpirationPolicy.of(expiresInDays, endTime));
+			}
 		}
 
 		return builder.build();

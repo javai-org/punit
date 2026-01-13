@@ -191,4 +191,32 @@ public @interface Experiment {
      */
     String experimentId() default "";
 
+    /**
+     * Number of days for which the baseline remains valid.
+     *
+     * <p>When set to a positive value, probabilistic tests using this baseline
+     * will display warnings as the expiration date approaches, and prominent
+     * warnings after expiration.
+     *
+     * <p><b>Default: 0 (no expiration)</b>
+     *
+     * <p>When set to 0, the baseline does not expire. During MEASURE execution,
+     * PUnit emits a one-time informational note suggesting the experimenter
+     * consider setting an expiration policy.
+     *
+     * <p>Expiration is computed from the <em>end time</em> of the experiment
+     * (the timestamp of the last sample), not the start time.
+     *
+     * <p>Typical values:
+     * <ul>
+     *   <li>7-14 days: Rapidly evolving systems (LLM APIs, A/B tests)</li>
+     *   <li>30 days: Standard recommendation for most use cases</li>
+     *   <li>90 days: Stable internal systems</li>
+     *   <li>0: Algorithms with no expected drift</li>
+     * </ul>
+     *
+     * @return validity period in days, or 0 for no expiration
+     */
+    int expiresInDays() default 0;
+
 }

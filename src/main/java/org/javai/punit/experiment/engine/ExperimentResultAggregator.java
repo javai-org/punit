@@ -28,6 +28,7 @@ public class ExperimentResultAggregator {
     private final String useCaseId;
     private final int totalSamples;
     private final long startTimeMs;
+    private long lastSampleTimeMs;
     
     private int successes = 0;
     private int failures = 0;
@@ -49,6 +50,7 @@ public class ExperimentResultAggregator {
         this.useCaseId = Objects.requireNonNull(useCaseId, "useCaseId must not be null");
         this.totalSamples = totalSamples;
         this.startTimeMs = System.currentTimeMillis();
+        this.lastSampleTimeMs = this.startTimeMs;
     }
     
     /**
@@ -61,6 +63,7 @@ public class ExperimentResultAggregator {
         successes++;
         results.add(result);
         trackTokens(result);
+        updateLastSampleTime();
     }
     
     /**
@@ -74,6 +77,7 @@ public class ExperimentResultAggregator {
         failures++;
         results.add(result);
         trackTokens(result);
+        updateLastSampleTime();
         
         if (failureCategory != null && !failureCategory.isEmpty()) {
             failureDistribution.merge(failureCategory, 1, Integer::sum);
@@ -93,6 +97,14 @@ public class ExperimentResultAggregator {
             ? exception.getClass().getSimpleName() 
             : "unknown";
         failureDistribution.merge(category, 1, Integer::sum);
+        updateLastSampleTime();
+    }
+
+    /**
+     * Updates the last sample completion timestamp.
+     */
+    private void updateLastSampleTime() {
+        this.lastSampleTimeMs = System.currentTimeMillis();
     }
     
     private void trackTokens(UseCaseResult result) {
@@ -216,6 +228,17 @@ public class ExperimentResultAggregator {
     
     public long getElapsedMs() {
         return System.currentTimeMillis() - startTimeMs;
+    }
+
+    /**
+     * Returns the timestamp of the last sample completion.
+     *
+     * <p>This is used as the baseline end time for expiration calculation.
+     *
+     * @return the end time as an Instant
+     */
+    public java.time.Instant getEndTime() {
+        return java.time.Instant.ofEpochMilli(lastSampleTimeMs);
     }
     
     public long getTotalTokens() {
