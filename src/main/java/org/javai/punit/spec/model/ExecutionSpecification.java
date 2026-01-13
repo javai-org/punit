@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.model.ExpirationStatus;
 
@@ -53,6 +54,8 @@ public final class ExecutionSpecification {
 	private final ExtendedStatistics extendedStatistics;
 	private final FactorSourceMetadata factorSourceMetadata;
 	private final ExpirationPolicy expirationPolicy;
+	private final CovariateProfile covariateProfile;
+	private final String footprint;
 
 	private ExecutionSpecification(Builder builder) {
 		this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
@@ -75,6 +78,8 @@ public final class ExecutionSpecification {
 		this.extendedStatistics = builder.extendedStatistics;
 		this.factorSourceMetadata = builder.factorSourceMetadata;
 		this.expirationPolicy = builder.expirationPolicy;
+		this.covariateProfile = builder.covariateProfile;
+		this.footprint = builder.footprint;
 	}
 
 	public static Builder builder() {
@@ -215,6 +220,49 @@ public final class ExecutionSpecification {
 	 */
 	public boolean hasExpirationPolicy() {
 		return expirationPolicy != null && expirationPolicy.hasExpiration();
+	}
+
+	/**
+	 * Returns the covariate profile captured during the experiment.
+	 *
+	 * <p>The covariate profile contains the environmental conditions under which
+	 * the baseline was established, used for conformance checking during tests.
+	 *
+	 * @return the covariate profile, or null if not recorded
+	 */
+	public CovariateProfile getCovariateProfile() {
+		return covariateProfile;
+	}
+
+	/**
+	 * Returns true if this specification has a covariate profile.
+	 *
+	 * @return true if a covariate profile is present
+	 */
+	public boolean hasCovariateProfile() {
+		return covariateProfile != null && !covariateProfile.isEmpty();
+	}
+
+	/**
+	 * Returns the invocation footprint.
+	 *
+	 * <p>The footprint uniquely identifies the combination of use case,
+	 * factors, and covariate declarations. Only baselines with matching
+	 * footprints are candidates for selection.
+	 *
+	 * @return the footprint hash, or null if not recorded
+	 */
+	public String getFootprint() {
+		return footprint;
+	}
+
+	/**
+	 * Returns true if this specification has a footprint.
+	 *
+	 * @return true if a footprint is present
+	 */
+	public boolean hasFootprint() {
+		return footprint != null && !footprint.isEmpty();
 	}
 
 	/**
@@ -460,6 +508,8 @@ public final class ExecutionSpecification {
 		private ExtendedStatistics extendedStatistics;
 		private FactorSourceMetadata factorSourceMetadata;
 		private ExpirationPolicy expirationPolicy;
+		private CovariateProfile covariateProfile;
+		private String footprint;
 
 		private Builder() {
 		}
@@ -583,6 +633,28 @@ public final class ExecutionSpecification {
 			} else {
 				this.expirationPolicy = null;
 			}
+			return this;
+		}
+
+		/**
+		 * Sets the covariate profile for this specification.
+		 *
+		 * @param covariateProfile the covariate profile
+		 * @return this builder
+		 */
+		public Builder covariateProfile(CovariateProfile covariateProfile) {
+			this.covariateProfile = covariateProfile;
+			return this;
+		}
+
+		/**
+		 * Sets the invocation footprint for this specification.
+		 *
+		 * @param footprint the footprint hash
+		 * @return this builder
+		 */
+		public Builder footprint(String footprint) {
+			this.footprint = footprint;
 			return this;
 		}
 

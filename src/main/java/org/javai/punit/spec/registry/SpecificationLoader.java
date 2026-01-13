@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.model.CovariateValue;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.spec.model.ExecutionSpecification;
 
@@ -35,7 +37,7 @@ public final class SpecificationLoader {
 	private static final Pattern YAML_KEY_VALUE = Pattern.compile("^\\s*(\\w+)\\s*:\\s*(.+?)\\s*$");
 
 	/** Supported schema versions. */
-	private static final Set<String> SUPPORTED_SCHEMA_VERSIONS = Set.of("punit-spec-1", "punit-spec-2");
+	private static final Set<String> SUPPORTED_SCHEMA_VERSIONS = Set.of("punit-spec-1", "punit-spec-2", "punit-spec-3");
 
 	/** Field name for content fingerprint. */
 	private static final String FINGERPRINT_FIELD = "contentFingerprint";
@@ -113,6 +115,7 @@ public final class SpecificationLoader {
 		boolean inExtendedStatistics = false;
 		boolean inFailureDistribution = false;
 		boolean inExpiration = false;
+		boolean inCovariates = false;
 
 		// Requirements fields
 		double minPassRate = 1.0;
@@ -142,6 +145,10 @@ public final class SpecificationLoader {
 		int expiresInDays = 0;
 		Instant baselineEndTime = null;
 
+		// Covariate fields
+		CovariateProfile.Builder covariateProfileBuilder = CovariateProfile.builder();
+		String footprint = null;
+
 		for (String line : lines) {
 			if (line.trim().isEmpty() || line.trim().startsWith("#")) {
 				continue;
@@ -159,6 +166,7 @@ public final class SpecificationLoader {
 				inExtendedStatistics = false;
 				inFailureDistribution = false;
 				inExpiration = false;
+				inCovariates = false;
 
 				if (line.startsWith("specId:") || line.startsWith("useCaseId:")) {
 					// Both specId (legacy) and useCaseId map to useCaseId
@@ -189,6 +197,10 @@ public final class SpecificationLoader {
 					inExtendedStatistics = true;
 				} else if (line.startsWith("expiration:")) {
 					inExpiration = true;
+				} else if (line.startsWith("covariates:")) {
+					inCovariates = true;
+				} else if (line.startsWith("footprint:")) {
+					footprint = extractValue(line);
 				}
 				// Skip schemaVersion and contentFingerprint - already validated
 				continue;
@@ -266,6 +278,20 @@ public final class SpecificationLoader {
 					baselineEndTime = parseInstant(extractValue(trimmed));
 				}
 				// expirationDate is computed, no need to parse
+			} else if (inCovariates) {
+				Matcher m = YAML_KEY_VALUE.matcher(trimmed);
+				if (m.matches()) {
+					String key = m.group(1);
+					String value = m.group(2).trim();
+					// Remove quotes if present
+					if ((value.startsWith("\"") && value.endsWith("\"")) ||
+							(value.startsWith("'") && value.endsWith("'"))) {
+						value = value.substring(1, value.length() - 1);
+					}
+					// Try to parse as TimeWindowValue, fall back to StringValue
+					CovariateValue covValue = parseCovariateValue(value);
+					covariateProfileBuilder.put(key, covValue);
+				}
 			}
 		}
 
@@ -296,7 +322,31 @@ public final class SpecificationLoader {
 			}
 		}
 
+		// Set covariate profile and footprint
+		CovariateProfile covariateProfile = covariateProfileBuilder.build();
+		if (!covariateProfile.isEmpty()) {
+			builder.covariateProfile(covariateProfile);
+		}
+		if (footprint != null && !footprint.isEmpty()) {
+			builder.footprint(footprint);
+		}
+
 		return builder.build();
+	}
+
+	/**
+	 * Parses a covariate value from its YAML string representation.
+	 */
+	private static CovariateValue parseCovariateValue(String value) {
+		// Try to parse as TimeWindowValue (format: "HH:mm-HH:mm Timezone")
+		if (value.contains("-") && value.contains(" ")) {
+			try {
+				return CovariateValue.TimeWindowValue.parse(value);
+			} catch (Exception e) {
+				// Fall through to StringValue
+			}
+		}
+		return new CovariateValue.StringValue(value);
 	}
 
 	/**

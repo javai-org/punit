@@ -129,5 +129,61 @@ public @interface UseCase {
      * @return maximum line length (default: 60)
      */
     int diffableContentMaxLineLength() default 60;
+
+    /**
+     * Standard covariates that may influence this use case's performance.
+     *
+     * <p>Declared covariates:
+     * <ul>
+     *   <li>Are captured during MEASURE experiments</li>
+     *   <li>Contribute to the invocation footprint (by name)</li>
+     *   <li>Participate in baseline selection and conformance checking</li>
+     * </ul>
+     *
+     * <p>Order matters: earlier covariates are prioritized during matching.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * @UseCase(
+     *     value = "shopping.product.search",
+     *     covariates = {
+     *         StandardCovariate.WEEKDAY_VERSUS_WEEKEND,
+     *         StandardCovariate.TIME_OF_DAY
+     *     }
+     * )
+     * public class ShoppingUseCase { }
+     * }</pre>
+     *
+     * @return array of standard covariates (empty by default)
+     * @see StandardCovariate
+     */
+    StandardCovariate[] covariates() default {};
+
+    /**
+     * Custom covariate keys for user-defined contextual factors.
+     *
+     * <p>Custom covariates are resolved from (in order):
+     * <ol>
+     *   <li>System property: {@code -D{key}=value}</li>
+     *   <li>Environment variable: {@code KEY=value} (uppercased)</li>
+     *   <li>PUnit environment map (programmatic)</li>
+     * </ol>
+     *
+     * <p>If a custom covariate is not found in the environment, its value
+     * is recorded as "not_set". Values of "not_set" never match, even if
+     * both baseline and test have "not_set".
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * @UseCase(
+     *     value = "shopping.product.search",
+     *     customCovariates = { "hosting_environment", "feature_flag_new_ranking" }
+     * )
+     * public class ShoppingUseCase { }
+     * }</pre>
+     *
+     * @return array of custom covariate keys (empty by default)
+     */
+    String[] customCovariates() default {};
 }
 

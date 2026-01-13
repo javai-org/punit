@@ -54,9 +54,17 @@ public enum StandardCovariate {
      * <p>Resolution: System default timezone
      * <p>Matching: Exact string match
      */
-    TIMEZONE("timezone");
-    
-    private final String key;
+    TIMEZONE("timezone"),
+
+	/**
+	 * Region.
+	 *
+	 * <p>Resolution: System property or environment variable
+	 * <p>Matching: Case-insensitive string match
+	 */
+	REGION("region");
+
+	private final String key;
     
     StandardCovariate(String key) {
         this.key = key;
@@ -126,7 +134,7 @@ public @interface UseCase {
         StandardCovariate.WEEKDAY_VERSUS_WEEKEND,
         StandardCovariate.TIME_OF_DAY 
     },
-    customCovariates = { "region", "feature_flag_new_ranking" }
+    customCovariates = { "hosting_environment", "feature_flag_new_ranking" }
 )
 public class ShoppingUseCase {
     // ...
@@ -864,14 +872,14 @@ footprint: "ax43"  # Hash of use case + factors + covariate names
 
 covariates:
   weekday_vs_weekend: "Mo-Fr"
-  time_of_day: "09:03-09:25 Europe/London"
+  time_of_day: "14:30-14:45 Europe/London"
   region: "EU"
 
 empiricalBasis:
   samples: 1000
   successes: 973
-  generatedAt: "2026-01-10T14:30:00Z"
-  experimentEndTime: "2026-01-10T14:45:00Z"  # For expiration computation
+  experimentStartTime: "2026-01-10T14:30:00Z"
+  experimentEndTime: "2026-01-10T14:45:00Z"
 
 # ... rest of spec ...
 ```
