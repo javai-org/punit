@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenChargeRecorder;
 import org.javai.punit.ptest.engine.FactorConsistencyValidator.ValidationResult;
 import org.javai.punit.api.FactorSource;
@@ -235,7 +235,7 @@ public class ProbabilisticTestExtension implements
 				// Transparent stats configuration
 				transparentStats,
 				// Provenance metadata
-				resolved.targetSource(),
+				resolved.thresholdOrigin(),
 				resolved.contractRef()
 		);
 	}
@@ -859,12 +859,12 @@ public class ProbabilisticTestExtension implements
 	/**
 	 * Appends provenance information to the verdict output if configured.
 	 *
-	 * <p>Provenance lines are added in order: targetSource, then contractRef.
+	 * <p>Provenance lines are added in order: thresholdOrigin, then contractRef.
 	 * Lines are only added if the respective value is set (not UNSPECIFIED/empty).
 	 */
 	private void appendProvenance(StringBuilder sb, TestConfiguration config) {
-		if (config.hasTargetSource()) {
-			sb.append(String.format("  Target source: %s%n", config.targetSource().name()));
+		if (config.hasThresholdOrigin()) {
+			sb.append(String.format("  Threshold origin: %s%n", config.thresholdOrigin().name()));
 		}
 		if (config.hasContractRef()) {
 			sb.append(String.format("  Contract ref: %s%n", config.contractRef()));
@@ -887,6 +887,7 @@ public class ProbabilisticTestExtension implements
 		
 		// Build the explanation based on whether we have statistical context
 		StatisticalExplanation explanation;
+		String thresholdOriginName = config.thresholdOrigin() != null ? config.thresholdOrigin().name() : "UNSPECIFIED";
 		if (config.hasStatisticalContext()) {
 			// Convert spec data to BaselineData (avoiding dependency on spec package from statistics)
 			BaselineData baseline = loadBaselineData(config.specId());
@@ -898,21 +899,21 @@ public class ProbabilisticTestExtension implements
 					baseline,
 					config.minPassRate(),
 					passed,
-					config.confidence() != null ? config.confidence() : 0.95,
-					config.targetSource() != null ? config.targetSource().name() : "UNSPECIFIED",
-					config.contractRef()
-			);
-		} else {
-			// Inline threshold mode (no baseline spec)
-			explanation = builder.buildWithInlineThreshold(
-					testName,
-					aggregator.getSamplesExecuted(),
-					aggregator.getSuccesses(),
-					config.minPassRate(),
-					passed,
-					config.targetSource() != null ? config.targetSource().name() : "UNSPECIFIED",
-					config.contractRef()
-			);
+				config.confidence() != null ? config.confidence() : 0.95,
+					thresholdOriginName,
+				config.contractRef()
+		);
+	} else {
+		// Inline threshold mode (no baseline spec)
+		explanation = builder.buildWithInlineThreshold(
+				testName,
+				aggregator.getSamplesExecuted(),
+				aggregator.getSuccesses(),
+				config.minPassRate(),
+				passed,
+				thresholdOriginName,
+				config.contractRef()
+		);
 		}
 
 		// Render and print
@@ -1052,12 +1053,12 @@ public class ProbabilisticTestExtension implements
 			String specId,
 			// Pacing configuration
 			PacingConfiguration pacing,
-			// Transparent stats configuration
-			TransparentStatsConfig transparentStats,
-			// Provenance metadata
-			TargetSource targetSource,
-			String contractRef
-	) {
+		// Transparent stats configuration
+		TransparentStatsConfig transparentStats,
+		// Provenance metadata
+		ThresholdOrigin thresholdOrigin,
+		String contractRef
+) {
 		boolean hasMultiplier() {
 			return appliedMultiplier != 1.0;
 		}
@@ -1086,14 +1087,14 @@ public class ProbabilisticTestExtension implements
 		 * Returns true if any provenance information is specified.
 		 */
 		boolean hasProvenance() {
-			return hasTargetSource() || hasContractRef();
+			return hasThresholdOrigin() || hasContractRef();
 		}
 
 		/**
-		 * Returns true if targetSource is specified (not UNSPECIFIED).
+		 * Returns true if thresholdOrigin is specified (not UNSPECIFIED).
 		 */
-		boolean hasTargetSource() {
-			return targetSource != null && targetSource != TargetSource.UNSPECIFIED;
+		boolean hasThresholdOrigin() {
+			return thresholdOrigin != null && thresholdOrigin != ThresholdOrigin.UNSPECIFIED;
 		}
 
 		/**

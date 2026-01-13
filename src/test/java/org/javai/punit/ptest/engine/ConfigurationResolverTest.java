@@ -7,7 +7,7 @@ import java.util.Map;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -282,8 +282,8 @@ class ConfigurationResolverTest {
             }
 
             @Override
-            public TargetSource targetSource() {
-                return TargetSource.UNSPECIFIED;
+            public ThresholdOrigin thresholdOrigin() {
+                return ThresholdOrigin.UNSPECIFIED;
             }
 
             @Override
@@ -384,8 +384,8 @@ class ConfigurationResolverTest {
             }
 
             @Override
-            public TargetSource targetSource() {
-                return TargetSource.UNSPECIFIED;
+            public ThresholdOrigin thresholdOrigin() {
+                return ThresholdOrigin.UNSPECIFIED;
             }
 
             @Override

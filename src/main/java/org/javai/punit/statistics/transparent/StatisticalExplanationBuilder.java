@@ -65,7 +65,7 @@ public class StatisticalExplanationBuilder {
      * @param threshold The pass/fail threshold
      * @param passed Whether the test passed
      * @param confidenceLevel The confidence level used (e.g., 0.95)
-     * @param targetSourceName The name of the target source (e.g., "SLA", "SLO")
+     * @param thresholdOriginName The name of the threshold origin (e.g., "SLA", "SLO")
      * @param contractRef Human-readable reference to the source document
      * @return A complete statistical explanation
      */
@@ -77,22 +77,22 @@ public class StatisticalExplanationBuilder {
             double threshold,
             boolean passed,
             double confidenceLevel,
-            String targetSourceName,
+            String thresholdOriginName,
             String contractRef) {
 
         BaselineData effectiveBaseline = baseline != null ? baseline : BaselineData.empty();
         StatisticalExplanation.Provenance provenance = new StatisticalExplanation.Provenance(
-                targetSourceName != null ? targetSourceName : "UNSPECIFIED",
+                thresholdOriginName != null ? thresholdOriginName : "UNSPECIFIED",
                 contractRef != null ? contractRef : ""
         );
         
         return new StatisticalExplanation(
                 testName,
-                buildHypothesis(threshold),
+                buildHypothesis(threshold, thresholdOriginName),
                 buildObservedData(samples, successes),
                 buildBaselineReference(effectiveBaseline, threshold, confidenceLevel),
                 buildInference(samples, successes, confidenceLevel),
-                buildVerdict(passed, samples, successes, threshold, effectiveBaseline, confidenceLevel),
+                buildVerdict(passed, samples, successes, threshold, effectiveBaseline, confidenceLevel, thresholdOriginName),
                 provenance
         );
     }
@@ -124,7 +124,7 @@ public class StatisticalExplanationBuilder {
      * @param successes Number of successful samples
      * @param threshold The pass/fail threshold
      * @param passed Whether the test passed
-     * @param targetSourceName The name of the target source (e.g., "SLA", "SLO")
+     * @param thresholdOriginName The name of the threshold origin (e.g., "SLA", "SLO")
      * @param contractRef Human-readable reference to the source document
      * @return A complete statistical explanation
      */
@@ -134,22 +134,22 @@ public class StatisticalExplanationBuilder {
             int successes,
             double threshold,
             boolean passed,
-            String targetSourceName,
+            String thresholdOriginName,
             String contractRef) {
 
         double confidenceLevel = 0.95; // Default confidence for legacy mode
         StatisticalExplanation.Provenance provenance = new StatisticalExplanation.Provenance(
-                targetSourceName != null ? targetSourceName : "UNSPECIFIED",
+                thresholdOriginName != null ? thresholdOriginName : "UNSPECIFIED",
                 contractRef != null ? contractRef : ""
         );
         
         return new StatisticalExplanation(
                 testName,
-                buildHypothesis(threshold),
+                buildHypothesis(threshold, thresholdOriginName),
                 buildObservedData(samples, successes),
                 buildInlineThresholdBaselineReference(threshold),
                 buildInference(samples, successes, confidenceLevel),
-                buildInlineThresholdVerdict(passed, samples, successes, threshold),
+                buildInlineThresholdVerdict(passed, samples, successes, threshold, thresholdOriginName),
                 provenance
         );
     }
@@ -158,14 +158,17 @@ public class StatisticalExplanationBuilder {
     // SECTION BUILDERS
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private StatisticalExplanation.HypothesisStatement buildHypothesis(double threshold) {
+    private StatisticalExplanation.HypothesisStatement buildHypothesis(double threshold, String thresholdOriginName) {
+        // Adapt hypothesis framing based on threshold origin (per STATISTICAL-COMPANION Section 7.4)
+        HypothesisFraming framing = getHypothesisFraming(thresholdOriginName);
+        
         String nullHypothesis = String.format(
-                "True success rate %s %s %.2f (system does not meet spec)",
-                StatisticalVocabulary.PI, StatisticalVocabulary.LEQ, threshold);
+                "True success rate %s %s %.2f (%s)",
+                StatisticalVocabulary.PI, StatisticalVocabulary.GEQ, threshold, framing.h0Text);
         
         String alternativeHypothesis = String.format(
-                "True success rate %s > %.2f (system meets spec)",
-                StatisticalVocabulary.PI, threshold);
+                "True success rate %s < %.2f (%s)",
+                StatisticalVocabulary.PI, threshold, framing.h1Text);
         
         return new StatisticalExplanation.HypothesisStatement(
                 nullHypothesis,
@@ -173,6 +176,44 @@ public class StatisticalExplanationBuilder {
                 "One-sided binomial proportion test"
         );
     }
+
+    /**
+     * Returns hypothesis framing text based on the threshold origin.
+     * 
+     * <p>This implements the framing described in STATISTICAL-COMPANION Section 7.4:
+     * <ul>
+     *   <li>SLA: "System meets SLA requirement" / "System violates SLA"</li>
+     *   <li>SLO: "System meets SLO target" / "System falls short of SLO"</li>
+     *   <li>POLICY: "System meets policy requirement" / "System violates policy"</li>
+     *   <li>EMPIRICAL: "No degradation from baseline" / "Degradation from baseline"</li>
+     *   <li>UNSPECIFIED: "Success rate meets threshold" / "Success rate below threshold"</li>
+     * </ul>
+     */
+    private HypothesisFraming getHypothesisFraming(String thresholdOriginName) {
+        if (thresholdOriginName == null) {
+            thresholdOriginName = "UNSPECIFIED";
+        }
+        
+        return switch (thresholdOriginName.toUpperCase()) {
+            case "SLA" -> new HypothesisFraming(
+                    "system meets SLA requirement",
+                    "system violates SLA");
+            case "SLO" -> new HypothesisFraming(
+                    "system meets SLO target",
+                    "system falls short of SLO");
+            case "POLICY" -> new HypothesisFraming(
+                    "system meets policy requirement",
+                    "system violates policy");
+            case "EMPIRICAL" -> new HypothesisFraming(
+                    "no degradation from baseline",
+                    "degradation from baseline");
+            default -> new HypothesisFraming(
+                    "success rate meets threshold",
+                    "success rate below threshold");
+        };
+    }
+
+    private record HypothesisFraming(String h0Text, String h1Text) {}
 
     private StatisticalExplanation.ObservedData buildObservedData(int samples, int successes) {
         return StatisticalExplanation.ObservedData.of(samples, successes);
@@ -265,33 +306,35 @@ public class StatisticalExplanationBuilder {
             int successes,
             double threshold,
             BaselineData baseline,
-            double confidenceLevel) {
+            double confidenceLevel,
+            String thresholdOriginName) {
 
         double observedRate = samples > 0 ? (double) successes / samples : 0.0;
         String technicalResult = passed ? "PASS" : "FAIL";
+        VerdictFraming framing = getVerdictFraming(thresholdOriginName);
 
         String plainEnglish;
         if (passed) {
             if (baseline != null && baseline.hasData()) {
                 plainEnglish = String.format(
                         "The observed success rate of %.1f%% is consistent with the baseline expectation of %.1f%%. " +
-                        "The test passes because the observed rate (%.1f%%) meets or exceeds the min pass rate (%.1f%%).",
+                        "%s",
                         observedRate * 100,
                         baseline.baselineRate() * 100,
-                        observedRate * 100,
-                        threshold * 100);
+                        framing.passText);
             } else {
                 plainEnglish = String.format(
-                        "The observed success rate of %.1f%% meets the required min pass rate of %.1f%%.",
+                        "The observed success rate of %.1f%% meets the required threshold of %.1f%%. %s",
                         observedRate * 100,
-                        threshold * 100);
+                        threshold * 100,
+                        framing.passText);
             }
         } else {
             plainEnglish = String.format(
-                    "The observed success rate of %.1f%% falls below the required min pass rate of %.1f%%. " +
-                    "This suggests a potential regression or the system is not meeting its expected performance level.",
+                    "The observed success rate of %.1f%% falls below the required threshold of %.1f%%. %s",
                     observedRate * 100,
-                    threshold * 100);
+                    threshold * 100,
+                    framing.failText);
         }
 
         List<String> caveats = buildCaveats(samples, observedRate, threshold);
@@ -308,28 +351,37 @@ public class StatisticalExplanationBuilder {
             boolean passed,
             int samples,
             int successes,
-            double threshold) {
+            double threshold,
+            String thresholdOriginName) {
 
         double observedRate = samples > 0 ? (double) successes / samples : 0.0;
         String technicalResult = passed ? "PASS" : "FAIL";
+        VerdictFraming framing = getVerdictFraming(thresholdOriginName);
 
         String plainEnglish;
         if (passed) {
             plainEnglish = String.format(
-                    "The observed success rate of %.1f%% meets the required min pass rate of %.1f%%.",
+                    "The observed success rate of %.1f%% meets the required threshold of %.1f%%. %s",
                     observedRate * 100,
-                    threshold * 100);
+                    threshold * 100,
+                    framing.passText);
         } else {
             plainEnglish = String.format(
-                    "The observed success rate of %.1f%% falls below the required min pass rate of %.1f%%.",
+                    "The observed success rate of %.1f%% falls below the required threshold of %.1f%%. %s",
                     observedRate * 100,
-                    threshold * 100);
+                    threshold * 100,
+                    framing.failText);
         }
 
         List<String> caveats = buildCaveats(samples, observedRate, threshold);
         caveats = new ArrayList<>(caveats);
-        caveats.add("Using inline threshold (no baseline spec). For statistically-derived " +
-                "thresholds with confidence intervals, run a MEASURE experiment first.");
+        
+        // Add caveat about inline threshold if not using SLA/SLO/POLICY source
+        if (thresholdOriginName == null || thresholdOriginName.equalsIgnoreCase("UNSPECIFIED") 
+                || thresholdOriginName.equalsIgnoreCase("EMPIRICAL")) {
+            caveats.add("Using inline threshold (no baseline spec). For statistically-derived " +
+                    "thresholds with confidence intervals, run a MEASURE experiment first.");
+        }
 
         return new StatisticalExplanation.VerdictInterpretation(
                 passed,
@@ -338,6 +390,35 @@ public class StatisticalExplanationBuilder {
                 caveats
         );
     }
+
+    /**
+     * Returns verdict framing text based on the threshold origin.
+     */
+    private VerdictFraming getVerdictFraming(String thresholdOriginName) {
+        if (thresholdOriginName == null) {
+            thresholdOriginName = "UNSPECIFIED";
+        }
+        
+        return switch (thresholdOriginName.toUpperCase()) {
+            case "SLA" -> new VerdictFraming(
+                    "The system meets its SLA requirement.",
+                    "This indicates the system is not meeting its SLA obligation.");
+            case "SLO" -> new VerdictFraming(
+                    "The system meets its SLO target.",
+                    "This indicates the system is falling short of its SLO target.");
+            case "POLICY" -> new VerdictFraming(
+                    "The system meets the policy requirement.",
+                    "This indicates a policy violation.");
+            case "EMPIRICAL" -> new VerdictFraming(
+                    "No degradation from baseline detected.",
+                    "This suggests potential degradation from the established baseline.");
+            default -> new VerdictFraming(
+                    "The test passes.",
+                    "This suggests the system is not meeting its expected performance level.");
+        };
+    }
+
+    private record VerdictFraming(String passText, String failText) {}
 
     private List<String> buildCaveats(int samples, double observedRate, double threshold) {
         List<String> caveats = new ArrayList<>();

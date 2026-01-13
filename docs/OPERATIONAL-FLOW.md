@@ -29,7 +29,7 @@ The threshold comes from an **external requirement**—a contract, policy, or SL
 @ProbabilisticTest(
     samples = 100,
     minPassRate = 0.999,        // From SLA: "99.9% uptime"
-    targetSource = TargetSource.SLA,
+    thresholdOrigin = ThresholdOrigin.SLA,
     contractRef = "Customer API SLA §3.1"
 )
 void apiMeetsSla() { ... }

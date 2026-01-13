@@ -7,7 +7,7 @@ import java.time.Instant;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.OperationalApproach;
 import org.junit.jupiter.api.BeforeEach;
@@ -282,7 +282,7 @@ class StatisticsAwareConfigurationTest {
             @Override public ExceptionHandling onException() { return ExceptionHandling.FAIL_SAMPLE; }
             @Override public int maxExampleFailures() { return 5; }
             @Override public boolean transparentStats() { return false; }
-            @Override public TargetSource targetSource() { return TargetSource.UNSPECIFIED; }
+            @Override public ThresholdOrigin thresholdOrigin() { return ThresholdOrigin.UNSPECIFIED; }
             @Override public String contractRef() { return ""; }
         };
     }

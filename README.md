@@ -38,7 +38,7 @@ PUnit lets you express expectations statistically:
 @ProbabilisticTest(
     samples = 100,
     minPassRate = 0.995,
-    targetSource = TargetSource.SLA,
+    thresholdOrigin = ThresholdOrigin.SLA,
     contractRef = "Customer API SLA v2.1 §3.1"
 )
 void apiMeetsSlaUptime() {
@@ -52,7 +52,7 @@ This test runs 100 samples, requires 99.5% success, and documents where that thr
 ```
 PUnit PASSED: apiMeetsSlaUptime
   Observed pass rate: 100.0% (100/100) >= min pass rate: 99.5%
-  Target source: SLA
+  Threshold origin: SLA
   Contract ref: Customer API SLA v2.1 §3.1
 ```
 
@@ -130,7 +130,7 @@ dependencies {
 
 ```java
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MyServiceTest {
@@ -138,7 +138,7 @@ class MyServiceTest {
     @ProbabilisticTest(
         samples = 100,
         minPassRate = 0.95,
-        targetSource = TargetSource.SLA,
+        thresholdOrigin = ThresholdOrigin.SLA,
         contractRef = "Service Agreement §4.2"
     )
     void serviceReturnsValidResponse() {
@@ -155,7 +155,7 @@ This test:
 4. **Fails** if the success rate falls below 95%
 5. **Documents** that the 95% threshold comes from an SLA
 
-The `targetSource` and `contractRef` are optional—they provide traceability for audits and compliance. See the [User Guide](docs/USER-GUIDE.md) for details.
+The `thresholdOrigin` and `contractRef` are optional—they provide traceability for audits and compliance. See the [User Guide](docs/USER-GUIDE.md) for details.
 
 ### Step 3: Run It
 
@@ -378,7 +378,7 @@ void evaluateWhatWeHave(TokenChargeRecorder recorder) {
 |----------------------|--------------|---------------|---------------------------------------------|
 | `samples`            | int          | 100           | Number of test invocations                  |
 | `minPassRate`        | double       | 0.95          | Minimum success rate (0.0 to 1.0)           |
-| `targetSource`       | TargetSource | UNSPECIFIED   | Origin of threshold (SLA, SLO, POLICY, etc) |
+| `thresholdOrigin`       | ThresholdOrigin | UNSPECIFIED   | Origin of threshold (SLA, SLO, POLICY, etc) |
 | `contractRef`        | String       | ""            | Reference to source document                |
 | `timeBudgetMs`       | long         | 0             | Max time in ms (0 = unlimited)              |
 | `tokenCharge`        | int          | 0             | Static tokens per sample                    |

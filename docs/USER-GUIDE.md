@@ -94,7 +94,7 @@ dependencies {
 @ProbabilisticTest(
     samples = 100,
     minPassRate = 0.95,
-    targetSource = TargetSource.SLA,
+    thresholdOrigin = ThresholdOrigin.SLA,
     contractRef = "API SLA §3.1"
 )
 void apiMeetsSla() {
@@ -214,7 +214,7 @@ Use SLA-driven testing when:
 
 ```java
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiSlaTest {
@@ -224,7 +224,7 @@ class ApiSlaTest {
     @ProbabilisticTest(
         samples = 100,
         minPassRate = 0.995,
-        targetSource = TargetSource.SLA,
+        thresholdOrigin = ThresholdOrigin.SLA,
         contractRef = "Vendor API Agreement §2.3"
     )
     void vendorApiMeetsSla() {
@@ -242,13 +242,13 @@ Run with:
 
 ### Threshold Provenance
 
-The `targetSource` and `contractRef` attributes document **where the threshold came from**. This information appears in the verdict:
+The `thresholdOrigin` and `contractRef` attributes document **where the threshold came from**. This information appears in the verdict:
 
 ```
 ═══════════════════════════════════════════════════════════════
 PUnit PASSED: vendorApiMeetsSla
   Observed pass rate: 99.6% (996/1000) >= min pass rate: 99.5%
-  Target source: SLA
+  Threshold origin: SLA
   Contract ref: Vendor API Agreement §2.3
   Elapsed: 45234ms
 ═══════════════════════════════════════════════════════════════
@@ -268,21 +268,21 @@ PUnit PASSED: vendorApiMeetsSla
 // SLA from customer contract
 @ProbabilisticTest(
     samples = 100, minPassRate = 0.999,
-    targetSource = TargetSource.SLA,
+    thresholdOrigin = ThresholdOrigin.SLA,
     contractRef = "Acme Corp Contract #12345 §4.1"
 )
 
 // Internal SLO
 @ProbabilisticTest(
     samples = 100, minPassRate = 0.95,
-    targetSource = TargetSource.SLO,
+    thresholdOrigin = ThresholdOrigin.SLO,
     contractRef = "Platform Team SLO Dashboard"
 )
 
 // Compliance policy
 @ProbabilisticTest(
     samples = 100, minPassRate = 0.99,
-    targetSource = TargetSource.POLICY,
+    thresholdOrigin = ThresholdOrigin.POLICY,
     contractRef = "SOC 2 Type II Control CC7.1"
 )
 ```
@@ -328,7 +328,7 @@ When testing rate-limited APIs, use `@Pacing` to stay under limits:
 @ProbabilisticTest(
     samples = 200,
     minPassRate = 0.95,
-    targetSource = TargetSource.SLA,
+    thresholdOrigin = ThresholdOrigin.SLA,
     contractRef = "OpenAI API Terms"
 )
 @Pacing(maxRequestsPerMinute = 60)
@@ -532,7 +532,7 @@ git commit -m "Add baseline for JSON generation (93.5% @ N=1000)"
 package com.example.tests;
 
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class JsonGenerationTest {
@@ -542,7 +542,7 @@ class JsonGenerationTest {
     @ProbabilisticTest(
         useCase = JsonGenerationUseCase.class,  // Spec looked up by use case ID
         samples = 100,
-        targetSource = TargetSource.EMPIRICAL,
+        thresholdOrigin = ThresholdOrigin.EMPIRICAL,
         contractRef = "usecase.json.generation.yaml"
     )
     void shouldGenerateValidJson() {
@@ -760,7 +760,7 @@ Use this flowchart to choose the right approach:
           │                      │        │ configurations to try?  │
           │  @ProbabilisticTest( │        └────────────┬────────────┘
           │    minPassRate=...,  │                     │
-          │    targetSource=SLA  │         ┌───────────┴───────────┐
+          │    thresholdOrigin=SLA  │         ┌───────────┴───────────┐
           │  )                   │         │                       │
           └──────────────────────┘        YES                      NO
                                            │                       │
@@ -778,7 +778,7 @@ Use this flowchart to choose the right approach:
 
 | Your Situation                            | Approach             | Key Parameters                      |
 |-------------------------------------------|----------------------|-------------------------------------|
-| Have SLA/SLO threshold                    | SLA-Driven           | `minPassRate`, `targetSource`       |
+| Have SLA/SLO threshold                    | SLA-Driven           | `minPassRate`, `thresholdOrigin`       |
 | Need to discover acceptable rate          | MEASURE → Spec-Test  | `useCase`, spec file                |
 | Want to compare models/prompts/configs    | EXPLORE first        | `samplesPerConfig`, `@FactorSource` |
 | Need detailed statistical output          | Transparent mode     | `transparentStats = true`           |

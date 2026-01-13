@@ -2,15 +2,78 @@
 
 ## Formal Statistical Foundations for PUnit
 
-This document provides a rigorous statistical treatment of the methods employed by PUnit for probabilistic testing of non-deterministic systems. It is intended for professional statisticians, quality engineers with statistical training, and auditors who need to validate the mathematical foundations of the framework.
+---
+
+## Introduction: The Determinism Assumption in Software Testing
+
+For decades, the dominant paradigm in software testing has rested on an implicit assumption: **systems under test behave deterministically**. Given the same input, a correctly functioning system produces the same output. This assumption has shaped our tools, our practices, and our intuitions about what "correct" means.
+
+Under this paradigm, tests produce **binary outcomes**—pass or fail—and a single failure is definitive evidence of a defect. Test frameworks report success as a count of green checkmarks, and any red mark warrants investigation. The entire edifice of continuous integration, test-driven development, and quality gates is built on this foundation.
+
+Of course, non-determinism has always existed. Network timeouts, race conditions, clock skew, and resource contention introduce variability into even carefully designed systems. But the traditional response has been to **treat non-determinism as a defect to eliminate**—a source of "flaky tests" to be fixed, mocked away, or suppressed. The goal was to restore the deterministic ideal.
+
+### The LLM Inflection Point
+
+Large Language Models fundamentally challenge this paradigm. Their non-determinism is not a bug to fix but an **intrinsic characteristic of the technology**. When a model uses a temperature > 0, or when slight prompt variations produce different outputs, this is the system working as designed. The same input genuinely produces different outputs, and the distribution of those outputs *is* the system's behavior.
+
+This represents a qualitative shift in the testing challenge:
+
+| Traditional Non-Determinism | LLM Non-Determinism                |
+|-----------------------------|------------------------------------|
+| Accidental (bugs, races)    | Intentional (sampling, creativity) |
+| To be eliminated            | To be characterized                |
+| Failure is binary           | Failure is probabilistic           |
+| Single test is definitive   | Single test is a sample            |
+
+The average software developer has encountered non-determinism, but typically as an annoyance to work around. LLMs bring it into the foreground as a **permanent feature** of the systems we build. A customer service chatbot that "usually" gives correct answers is not buggy—it's behaving exactly as its underlying model does.
+
+### The Need for Statistical Rigor
+
+This shift demands a corresponding evolution in testing methodology. We cannot simply run a test once and declare success. Nor can we run it many times and hope for the best. We need:
+
+1. **Principled sample sizes**: How many trials provide sufficient evidence?
+2. **Quantified uncertainty**: What confidence can we place in our conclusions?
+3. **Controlled error rates**: How do we balance false positives against false negatives?
+4. **Reproducible thresholds**: How do we set pass/fail criteria that are defensible?
+
+These are fundamentally **statistical questions**, and they deserve statistical answers. PUnit exists to bring the rigor of hypothesis testing, confidence intervals, and power analysis to the practical problem of testing non-deterministic systems.
+
+This document provides the formal foundations for that approach.
+
+---
+
+## Document Purpose and Audience
+
+This document provides a rigorous statistical treatment of the methods employed by PUnit for probabilistic testing of non-deterministic systems. It is intended for:
+
+- **Professional statisticians** validating the mathematical foundations
+- **Quality engineers** with statistical training designing test strategies
+- **Auditors** who need to verify that testing methodology is sound
+- **Technical leads** establishing organizational testing standards
 
 For operational context and workflow guidance, see the companion document: [Operational Flow](./OPERATIONAL-FLOW.md).
 
 ---
 
-## Running Example
+## Running Examples
 
-Throughout this document, we use a single example to illustrate the statistical methods:
+Throughout this document, we use two examples to illustrate the statistical methods—one for each testing paradigm.
+
+### SLA-Driven Example (Simpler)
+
+**Application**: A third-party payment processing API with a contractual uptime guarantee.
+
+**SLA Requirement**: The contract states: "The API shall successfully process transactions at least 99.5% of the time."
+
+**Success Criterion**: A trial is successful if the API returns a successful response (HTTP 2xx with valid transaction confirmation).
+
+**Characteristic**: The threshold (99.5%) is *given* by contract—not measured. The statistical question is: "Does the system meet its contractual obligation?"
+
+**Key parameters**:
+- $p_{\text{SLA}} = 0.995$ (given by contract)
+- No baseline experiment required
+
+### Spec-Driven Example (More Complex)
 
 **Application**: A customer service system that accepts natural language queries and uses a Large Language Model (LLM) to generate structured JSON responses containing customer information lookups.
 
@@ -21,7 +84,61 @@ Throughout this document, we use a single example to illustrate the statistical 
 2. The response contains all required fields
 3. The field values are semantically appropriate (not hallucinated)
 
-**Characteristic**: Due to the stochastic nature of the LLM, identical inputs may produce different outputs across invocations. The system exhibits non-deterministic behavior with an unknown but stable success probability *p*.
+**Characteristic**: Due to the stochastic nature of the LLM, identical inputs may produce different outputs across invocations. The system exhibits non-deterministic behavior with an unknown but stable success probability *p*. Since no external threshold exists, we must first *measure* the system's behavior through experimentation.
+
+**Key parameters**:
+- $\hat{p}_{\text{exp}} = 0.951$ (measured from 1000-sample experiment)
+- Threshold derived from empirical baseline
+
+---
+
+## 1.5 Two Testing Paradigms
+
+PUnit supports two distinct paradigms for probabilistic testing. They share the same statistical foundations but differ in where the threshold comes from and how results are interpreted.
+
+| Paradigm        | Threshold Source                   | Statistical Question                                  |
+|-----------------|------------------------------------|-------------------------------------------------------|
+| **SLA-Driven**  | Contract, SLA, SLO, policy         | "Does the system meet the contractual requirement?"   |
+| **Spec-Driven** | Empirical estimate from experiment | "Has the system degraded from its measured baseline?" |
+
+### SLA-Driven Paradigm
+
+The threshold is a **normative claim**—a business or contractual requirement:
+
+- The threshold $p_{\text{SLA}}$ is given, not estimated
+- No baseline experiment is required
+- The test verifies conformance to an external standard
+- Failure means: "Evidence that the system does not meet the requirement"
+
+**When to use**: Third-party APIs with SLAs, internal services with SLOs, compliance requirements, contractual obligations.
+
+### Spec-Driven Paradigm
+
+The threshold is an **empirical estimate** derived from measurement:
+
+- The threshold is derived from experimental data $(\hat{p}_{\text{exp}}, n_{\text{exp}})$
+- A baseline experiment (MEASURE mode) is required first
+- The test detects regression from the measured baseline
+- Failure means: "Evidence that the system has degraded"
+
+**When to use**: LLM-based systems, ML models, any system where developers need to discover acceptable performance through experimentation.
+
+### Mathematical Structure is Identical
+
+Both paradigms use the same hypothesis test structure:
+
+$$
+H_0: p \geq p_{\text{threshold}} \quad \text{(acceptable)}
+$$
+
+$$
+H_1: p < p_{\text{threshold}} \quad \text{(unacceptable)}
+$$
+
+The difference is in:
+1. **Source** of $p_{\text{threshold}}$ (given vs. derived)
+2. **Interpretation** of results (SLA violation vs. regression)
+3. **Prerequisite steps** (none vs. MEASURE experiment)
 
 ---
 
@@ -64,7 +181,28 @@ The Bernoulli model assumes:
 
 3. **Binary outcomes**: Each trial has exactly two outcomes. Complex quality metrics may require more sophisticated models.
 
-**Recommendation**: For most LLM-based systems accessed via stateless APIs, these assumptions are reasonable. Monitor for temporal drift in long-running experiments.
+#### Developer Responsibility for Trial Independence
+
+While PUnit provides the statistical machinery, **developers share responsibility** for ensuring that the independence assumption holds in practice. Many LLM service providers offer features that can introduce correlation between trials:
+
+| Feature               | Risk to Independence                               | Mitigation                                                   |
+|-----------------------|----------------------------------------------------|--------------------------------------------------------------|
+| Cached system prompts | Cached prompts may produce more consistent outputs | Disable caching during experiments, or document its presence |
+| Conversation context  | Prior exchanges influence subsequent responses     | Use fresh sessions for each trial                            |
+| Request batching      | Batched requests may share internal state          | Submit requests individually                                 |
+| Seed parameters       | Fixed seeds produce identical outputs              | Use random or rotating seeds                                 |
+
+**Example**: An LLM provider's "cache system prompt" feature improves latency by reusing parsed prompts. While beneficial in production, this can reduce output variance during testing. The developer should either:
+- Disable the cache via configuration during experiments
+- Document that the measured success rate reflects cached behavior
+- Understand that the true variance may be higher than observed
+
+PUnit cannot detect or correct for these effects—they require domain knowledge and deliberate configuration choices. When trial independence is uncertain, developers should consider:
+- Running sensitivity analyses with different configurations
+- Documenting assumptions in test annotations or comments
+- Increasing sample sizes to account for potential correlation (see Section 8.2)
+
+**Recommendation**: For most LLM-based systems accessed via stateless APIs, the independence assumption is reasonable when caching and context features are disabled. Monitor for temporal drift in long-running experiments.
 
 ---
 
@@ -91,7 +229,51 @@ $$\text{SE} = \sqrt{\frac{0.951 \times 0.049}{1000}} = \sqrt{0.0000466} \approx 
 
 ### 2.3 Confidence Intervals
 
-#### 2.3.1 Wald Interval (Normal Approximation)
+**PUnit uses the Wilson score interval exclusively** for all confidence interval calculations. This section documents the Wilson method and, for completeness, includes the Wald (normal approximation) method that statisticians may encounter in textbooks.
+
+#### 2.3.1 Wilson Score Interval (PUnit's Method)
+
+The Wilson score interval is PUnit's sole method for confidence interval construction. It has superior coverage properties across all conditions encountered in probabilistic testing:
+
+- Correct coverage for all sample sizes (including *n* < 40)
+- Valid for proportions near 0 or 1 (including $\hat{p} = 1$)
+- Never produces bounds outside [0, 1]
+
+The Wilson interval endpoints are:
+
+$$\frac{\hat{p} + \frac{z^2}{2n} \pm z\sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}$$
+
+**Example** (95% CI for $\hat{p} = 0.951$, $n = 1000$):
+
+$$\text{Lower} = \frac{0.951 + \frac{1.96^2}{2000} - 1.96\sqrt{\frac{0.951 \times 0.049}{1000} + \frac{1.96^2}{4000000}}}{1 + \frac{1.96^2}{1000}} \approx 0.937$$
+
+$$\text{Upper} \approx 0.963$$
+
+##### Why Wilson Exclusively?
+
+PUnit uses Wilson for all calculations because:
+
+1. **Wilson is never worse**: For large samples and moderate proportions, Wilson produces results nearly identical to the Wald approximation. There is no penalty for using Wilson universally.
+
+2. **Wilson avoids pathologies**: For small samples, extreme proportions, or perfect baselines ($\hat{p} = 1$), alternative methods produce incorrect or degenerate results. Wilson handles all cases correctly.
+
+3. **Consistency**: A single method ensures results are always comparable across tests. No edge cases where method switching affects verdicts.
+
+4. **LLM testing reality**: High success rates ($p > 0.85$) are common in probabilistic testing of LLM-based systems. This is precisely where Wilson provides the most benefit.
+
+##### What This Means for Developers Using PUnit
+
+- Developers do not need to choose a method or configure thresholds for method switching
+- PUnit's statistical calculations are consistent across all sample sizes
+- The formulas shown above are what PUnit uses—always
+
+##### Implementation Reference
+
+See `BinomialProportionEstimator.java` in the `punit-statistics` module.
+
+#### 2.3.2 Wald Interval (For Completeness)
+
+For completeness, this section documents the Wald interval (normal approximation), which statisticians will encounter in many textbooks. **PUnit does not use this method**, but understanding it helps explain why Wilson is preferred.
 
 For large *n*, by the Central Limit Theorem:
 
@@ -106,31 +288,18 @@ where $z_{\alpha/2}$ is the $(1-\alpha/2)$ quantile of the standard normal distr
 **Example** (95% CI, $z_{0.025} = 1.96$):
 $$0.951 \pm 1.96 \times 0.00683 = [0.938, 0.964]$$
 
-#### 2.3.2 Wilson Score Interval
+##### Why PUnit Does Not Use Wald
 
-The Wilson score interval has better coverage properties, especially for:
-- Small sample sizes (*n* < 40)
-- Proportions near 0 or 1 (*p* < 0.1 or *p* > 0.9)
+Statistics textbooks often present guidelines for when Wald is acceptable:
 
-The Wilson interval endpoints are:
-
-$$\frac{\hat{p} + \frac{z^2}{2n} \pm z\sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}$$
-
-**Example** (95% CI):
-$$\text{Lower} = \frac{0.951 + \frac{1.96^2}{2000} - 1.96\sqrt{\frac{0.951 \times 0.049}{1000} + \frac{1.96^2}{4000000}}}{1 + \frac{1.96^2}{1000}} \approx 0.937$$
-
-$$\text{Upper} \approx 0.963$$
-
-#### 2.3.3 Method Selection
-
-| Condition                                            | Recommended Method                  |
+| Condition                                            | Textbook Guidance                   |
 |------------------------------------------------------|-------------------------------------|
 | $n \geq 40$ and $0.1 \leq \hat{p} \leq 0.9$          | Wald acceptable                     |
 | $n \geq 20$ and ($\hat{p} < 0.1$ or $\hat{p} > 0.9$) | Wilson preferred                    |
 | $n < 20$                                             | Wilson strongly recommended         |
 | $n < 10$                                             | Wilson required; Wald inappropriate |
 
-**For PUnit**: Given typical use cases (high success rates *p* > 0.85, test sample sizes 50-200), the Wilson interval is the default.
+Rather than implement conditional method selection, PUnit uses Wilson universally. This simplifies the implementation while providing correct results in all cases—including the edge cases where Wald fails.
 
 ### 2.4 Sample Size Determination
 
@@ -169,14 +338,26 @@ Even if the true *p* equals the experimental rate, observed rates will vary. At 
 
 ### 3.2 One-Sided Hypothesis Testing Framework
 
-Regression testing is fundamentally a **one-sided hypothesis test**:
+Both SLA-driven and spec-driven testing use a **one-sided hypothesis test**:
 
-$$H_0: p \geq p_{\text{exp}} \quad \text{(no degradation)}$$
-$$H_1: p < p_{\text{exp}} \quad \text{(degradation has occurred)}$$
+$$
+H_0: p \geq p_{\text{threshold}} \quad \text{(acceptable)}
+$$
+
+$$
+H_1: p < p_{\text{threshold}} \quad \text{(unacceptable)}
+$$
+
+The difference lies in how $p_{\text{threshold}}$ is determined and interpreted:
+
+| Paradigm        | Threshold                           | $H_0$ Interpretation         | $H_1$ Interpretation    |
+|-----------------|-------------------------------------|------------------------------|-------------------------|
+| **SLA-Driven**  | $p_{\text{SLA}}$ (given)            | System meets requirement     | System violates SLA     |
+| **Spec-Driven** | Derived from $\hat{p}_{\text{exp}}$ | No degradation from baseline | Regression has occurred |
 
 We seek a decision rule that:
 - Controls the Type I error rate (false positive) at level $\alpha$
-- Maximizes power to detect true degradation
+- Maximizes power to detect true violations/degradation
 
 ### 3.3 One-Sided Lower Confidence Bound
 
@@ -192,47 +373,81 @@ Note: For one-sided bounds, we use $z_\alpha$ (not $z_{\alpha/2}$).
 | 95%              | 1.645      | 5% false positive rate  |
 | 99%              | 2.326      | 1% false positive rate  |
 
-### 3.4 Threshold Calculation (Normal Approximation)
+### 3.4 Threshold Calculation (Wilson Score Lower Bound)
 
-Given experimental results $(\hat{p}_{\text{exp}}$, $n_{\text{exp}})$ and test configuration $(n_{\text{test}}$, $\alpha)$:
+PUnit derives thresholds using the Wilson one-sided lower bound, consistent with its exclusive use of Wilson for all statistical calculations (see Section 2.3.1).
 
-$$\text{SE}_{\text{test}} = \sqrt{\frac{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})}{n_{\text{test}}}}$$
+Given experimental results $(\hat{p}_{\text{exp}}, n_{\text{exp}})$ and test configuration $(n_{\text{test}}, \alpha)$, the threshold is the one-sided Wilson lower bound:
 
-$$p_{\text{threshold}} = \hat{p}_{\text{exp}} - z_\alpha \cdot \text{SE}_{\text{test}}$$
+$$p_{\text{threshold}} = \frac{\hat{p} + \frac{z^2}{2n} - z\sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}$$
 
-**Example**:
-- $\hat{p}_{\text{exp}} = 0.951$, $n_{\text{test}} = 100$, $\alpha = 0.05$
-- $\text{SE}_{\text{test}} = \sqrt{0.951 \times 0.049 / 100} = 0.0216$
-- $p_{\text{threshold}} = 0.951 - 1.645 \times 0.0216 = 0.951 - 0.0355 = 0.916$
+where $z = z_\alpha$ is the one-sided critical value.
 
-**Interpretation**: A 100-sample test with threshold 0.916 will have a 5% false positive rate if the true success probability equals the experimental rate.
+**Example** ($\hat{p}_{\text{exp}} = 0.951$, $n_{\text{test}} = 100$, $\alpha = 0.05$, $z = 1.645$):
 
-### 3.5 Wilson Score Lower Bound
-
-For small $n_{\text{test}}$ or $\hat{p}$ near 0 or 1, use the Wilson one-sided lower bound:
-
-$$p_{\text{lower}} = \frac{\hat{p} + \frac{z^2}{2n} - z\sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}$$
-
-**Example** ($\hat{p} = 0.951$, $n = 100$, $z = 1.645$):
-
-$$p_{\text{lower}} = \frac{0.951 + \frac{2.706}{200} - 1.645\sqrt{\frac{0.0466}{100} + \frac{2.706}{40000}}}{1 + \frac{2.706}{100}}$$
+$$p_{\text{threshold}} = \frac{0.951 + \frac{2.706}{200} - 1.645\sqrt{\frac{0.0466}{100} + \frac{2.706}{40000}}}{1 + \frac{2.706}{100}}$$
 
 $$= \frac{0.951 + 0.0135 - 1.645 \times 0.0218}{1.027} = \frac{0.9286}{1.027} \approx 0.904$$
 
-The Wilson bound (0.904) is slightly more conservative than the normal approximation (0.916) because $\hat{p} = 0.951$ is near the boundary.
+**Interpretation**: A 100-sample test with threshold 0.904 will have a 5% false positive rate if the true success probability equals the experimental rate.
 
-### 3.6 Reference Table: Derived Thresholds
+### 3.5 Reference Table: Wilson Score Lower Bounds
 
 For experimental rate $\hat{p}_{\text{exp}} = 0.951$ from $n_{\text{exp}} = 1000$:
 
-| Test Samples | Method | 95% Threshold | 99% Threshold |
-|--------------|--------|---------------|---------------|
-| 50           | Wilson | 0.890         | 0.869         |
-| 100          | Wilson | 0.904         | 0.889         |
-| 200          | Wilson | 0.918         | 0.907         |
-| 500          | Wilson | 0.932         | 0.925         |
+| Test Samples | 95% Lower Bound | 99% Lower Bound |
+|--------------|-----------------|-----------------|
+| 50           | 0.890           | 0.869           |
+| 100          | 0.904           | 0.889           |
+| 200          | 0.918           | 0.907           |
+| 500          | 0.932           | 0.925           |
 
-**Observation**: Smaller test samples require lower thresholds to maintain the same false positive rate.
+**Observation**: Smaller test samples require lower bounds (and hence lower thresholds) to maintain the same false positive rate.
+
+### 3.6 Testing Against a Given Threshold (SLA-Driven)
+
+For SLA-driven testing, the threshold is **given**, not derived:
+
+$$
+p_{\text{threshold}} = p_{\text{SLA}}
+$$
+
+There is no experimental baseline—the threshold comes directly from a contract, SLA, SLO, or organizational policy.
+
+**Example**: A payment processing SLA states "99.5% transaction success rate."
+
+- $p_{\text{SLA}} = 0.995$ (given by contract)
+- No $\hat{p}_{\text{exp}}$ to estimate
+- Test directly verifies: does $p \geq 0.995$?
+
+#### Why This Changes the Statistics
+
+In spec-driven testing, we derive a *lowered* threshold from $\hat{p}_{\text{exp}}$ to account for sampling variance. In SLA-driven testing, the threshold is fixed—but this creates a different challenge:
+
+**The False Positive Problem**: If a test uses $p_{\text{threshold}} = p_{\text{SLA}} = 0.995$ and the true system rate is exactly 0.995, then approximately 50% of tests will fail purely due to sampling variance. This is not a bug—it's statistics.
+
+**Solutions**:
+
+1. **Sample-Size-First**: Accept a fixed sample count and let PUnit compute what confidence this achieves against the SLA threshold.
+
+2. **Confidence-First**: Specify required confidence and `minDetectableEffect`. PUnit computes the sample size needed to detect violations of at least that magnitude.
+
+3. **Direct Threshold**: Use the exact SLA threshold and accept the statistical consequences (high false positive rate near threshold boundary).
+
+#### Reference Table: Sample Sizes for SLA Verification
+
+To verify $p \geq p_{\text{SLA}}$ with 95% confidence and 80% power:
+
+| $p_{\text{SLA}}$ | Min Detectable Effect ($\delta$) | Required Samples |
+|------------------|----------------------------------|------------------|
+| 0.95             | 0.05 (detect drop to 90%)        | 73               |
+| 0.95             | 0.02 (detect drop to 93%)        | 456              |
+| 0.99             | 0.02 (detect drop to 97%)        | 152              |
+| 0.99             | 0.01 (detect drop to 98%)        | 609              |
+| 0.999            | 0.005 (detect drop to 99.4%)     | 609              |
+| 0.999            | 0.001 (detect drop to 99.8%)     | 15,252           |
+
+**Key insight**: Higher SLAs and smaller detectable effects require dramatically more samples. This is why `minDetectableEffect` is essential for the confidence-first approach—without it, the question "how many samples to verify 99.9%?" has no finite answer.
 
 ---
 
@@ -248,29 +463,11 @@ This commonly occurs when testing highly reliable systems (e.g., well-establishe
 
 **Example**: An experiment with $n = 1000$ trials against a payment gateway API yields $k = 1000$ successes.
 
-### 4.2 Why Standard Methods Fail
+**Why this matters**: With $\hat{p} = 1$, naive threshold derivation would set $p_{\text{threshold}} = 1$, meaning any single failure causes test failure—regardless of sample size or confidence level. This is statistically unsound.
 
-#### 4.2.1 Standard Error Collapse
+**PUnit's solution**: The Wilson score method (Section 2.3.1) handles this case correctly. This is another reason PUnit uses Wilson exclusively—it remains valid at the boundaries where other methods fail.
 
-When $\hat{p} = 1$:
-
-$$\text{SE}(\hat{p}) = \sqrt{\frac{1 \times 0}{n}} = 0$$
-
-The plug-in standard error collapses to zero, regardless of sample size.
-
-#### 4.2.2 Threshold Degeneracy
-
-Using the normal approximation threshold formula:
-
-$$p_{\text{threshold}} = \hat{p} - z_\alpha \cdot \text{SE} = 1 - z_\alpha \times 0 = 1$$
-
-**Consequence**: Any single failure causes the test to fail, regardless of test sample size or confidence level. This produces an undefined (or effectively 50%) false positive rate.
-
-#### 4.2.3 Wald Interval Collapse
-
-The Wald confidence interval becomes $[1, 1]$—a degenerate point interval that provides no information about uncertainty.
-
-### 4.3 Interpretation of 100% Observed Success
+### 4.2 Interpretation of 100% Observed Success
 
 An observed rate of $\hat{p} = 1$ from $n$ trials does **not** mean $p = 1$. Rather, it provides evidence that:
 
@@ -291,7 +488,7 @@ $$p \geq 1 - \frac{3}{n}$$
 
 (Side note: this assumes conditions are stable and runs are independent.)
 
-### 4.4 PUnit's Solution: Wilson Lower Bound
+### 4.3 PUnit's Solution: Wilson Lower Bound
 
 PUnit resolves this pathology using the **Wilson score lower bound**, which remains well-defined when $\hat{p} = 1$.
 
@@ -302,7 +499,7 @@ PUnit resolves this pathology using the **Wilson score lower bound**, which rema
 2. Use $p_0$ (not $\hat{p}$) as the effective baseline for threshold derivation
 3. Apply the standard threshold formula using $p_0$
 
-#### 4.4.1 Wilson Lower Bound Formula
+#### 4.3.1 Wilson Lower Bound Formula
 
 The general Wilson one-sided lower bound is:
 
@@ -312,7 +509,7 @@ When $\hat{p} = 1$, this simplifies to:
 
 $$p_{\text{lower}} = \frac{n}{n + z^2}$$
 
-#### 4.4.2 Worked Example
+#### 4.3.2 Worked Example
 
 **Baseline**: $n = 1000$ trials, $k = 1000$ successes (100% observed)
 
@@ -328,7 +525,7 @@ $$p_{\text{threshold}} = 0.9973 - 1.645 \times 0.0052 = 0.9973 - 0.0086 \approx 
 
 **Interpretation**: For 100-sample tests, the threshold is 0.989 (at most 1 failure permitted). Compare this to the naive approach, which would set threshold = 1.0 (zero failures permitted), producing an undefined false positive rate.
 
-#### 4.4.3 Reference Table: Thresholds for 100% Baselines
+#### 4.3.3 Reference Table: Thresholds for 100% Baselines
 
 | Baseline $n$ | $p_0$ (Wilson 95%) | Test $n=50$ threshold | Test $n=100$ threshold |
 |--------------|--------------------|-----------------------|------------------------|
@@ -337,7 +534,7 @@ $$p_{\text{threshold}} = 0.9973 - 1.645 \times 0.0052 = 0.9973 - 0.0086 \approx 
 | 1000         | 0.9973             | 0.985                 | 0.989                  |
 | 3000         | 0.9991             | 0.993                 | 0.996                  |
 
-### 4.5 Extended Example: Highly Reliable API
+### 4.4 Extended Example: Highly Reliable API
 
 **Scenario**: Testing a payment gateway integration.
 
@@ -359,7 +556,7 @@ $$p_{\text{threshold}} = 0.9973 - 1.645 \times 0.0052 = 0.9973 - 0.0086 \approx 
 
 **Result**: Even for this highly reliable system, PUnit produces statistically principled thresholds with valid confidence level interpretation.
 
-### 4.6 Theoretical Note: Beta-Binomial Alternative
+### 4.5 Theoretical Note: Beta-Binomial Alternative
 
 For statisticians reviewing this framework: the **Beta-Binomial posterior predictive** approach offers a theoretically superior treatment that fully propagates baseline uncertainty and produces integer thresholds. However, PUnit uses the Wilson bound because:
 
@@ -444,74 +641,271 @@ $$n = \left(\frac{1.645 \times 0.218 + 0.842 \times 0.300}{0.05}\right)^2 = \lef
 | 10% (95%→85%) | 40        | 55        | 70        |
 | 3% (95%→92%)  | 410       | 550       | 700       |
 
+### 5.5 Sample Size for SLA Verification
+
+When verifying an SLA threshold $p_{\text{SLA}}$ (rather than detecting degradation from a baseline), the sample size formula adapts:
+
+$$
+n = \left(\frac{z_\alpha \sqrt{p_{\text{SLA}}(1-p_{\text{SLA}})} + z_\beta \sqrt{(p_{\text{SLA}}-\delta)(1-p_{\text{SLA}}+\delta)}}{\delta}\right)^2
+$$
+
+Where:
+- $p_{\text{SLA}}$ is the given SLA threshold (e.g., 0.995)
+- $\delta$ is the minimum detectable effect—the smallest violation worth detecting
+- $\alpha$ is the significance level (Type I error rate)
+- $\beta$ is the Type II error rate ($1 - \beta$ is power)
+
+**Example**: Verify 99.5% SLA with 95% confidence, 80% power, detecting drops of 1% or more:
+
+- $p_{\text{SLA}} = 0.995$, $\delta = 0.01$, $\alpha = 0.05$, $\beta = 0.20$
+
+$$
+n = \left(\frac{1.645 \times \sqrt{0.995 \times 0.005} + 0.842 \times \sqrt{0.985 \times 0.015}}{0.01}\right)^2
+$$
+
+$$
+= \left(\frac{1.645 \times 0.0705 + 0.842 \times 0.1215}{0.01}\right)^2 = \left(\frac{0.116 + 0.102}{0.01}\right)^2 = (21.8)^2 \approx 476
+$$
+
+**Reference Table: Sample Sizes for High SLAs**
+
+| SLA Threshold | Effect Size ($\delta$) | 95% Confidence, 80% Power |
+|---------------|------------------------|---------------------------|
+| 99.0%         | 2% (detect ≤97%)       | 152                       |
+| 99.0%         | 1% (detect ≤98%)       | 609                       |
+| 99.5%         | 1% (detect ≤98.5%)     | 476                       |
+| 99.5%         | 0.5% (detect ≤99%)     | 1,903                     |
+| 99.9%         | 0.5% (detect ≤99.4%)   | 609                       |
+| 99.9%         | 0.1% (detect ≤99.8%)   | 15,252                    |
+
+**Key insight**: Verifying high SLAs with small detectable effects requires substantial sample sizes. A 99.9% SLA with 0.1% detection requires over 15,000 samples.
+
+### 5.6 The Role of Minimum Detectable Effect
+
+The `minDetectableEffect` parameter answers a critical question:
+
+> "What's the smallest degradation worth detecting?"
+
+Without this parameter, the question "how many samples to verify $p \geq 0.999$?" has no finite answer. Here's why:
+
+**Mathematical necessity**: To detect an arbitrarily small degradation from 99.9% to 99.89% would require millions of samples. To detect a drop to 99.899% requires even more. For infinitesimal effects, infinite samples are required.
+
+**Practical reality**: No organization needs to detect every possible degradation. There's always a threshold below which degradation doesn't matter operationally:
+
+| System Type               | Typical $\delta$       | Rationale                           |
+|---------------------------|------------------------|-------------------------------------|
+| E-commerce checkout       | 1-2%                   | 1% drop = significant revenue loss  |
+| Internal tooling          | 5-10%                  | User productivity impact            |
+| Safety-critical systems   | 0.1-0.5%               | Regulatory requirements             |
+| High-frequency trading    | 0.01%                  | Financial impact per transaction    |
+
+**When `minDetectableEffect` is required**:
+
+In the **Confidence-First approach**, developers must specify `minDetectableEffect` for PUnit to compute the required sample size. This applies to both SLA-driven and spec-driven testing:
+
+```java
+@ProbabilisticTest(
+    minPassRate = 0.995,        // SLA threshold
+    confidence = 0.95,          // 95% confidence
+    power = 0.80,               // 80% power
+    minDetectableEffect = 0.01  // Detect drops of 1% or more
+)
+```
+
+Without `minDetectableEffect`, PUnit cannot compute a finite sample size and will use the default sample count instead.
+
 ---
 
 ## 6. The Three Operational Approaches: Mathematical Formulation
 
-### 6.1 Approach 1: Sample-Size-First
+The three operational approaches apply to **both** paradigms. The key difference is the source of the threshold:
+
+| Paradigm        | Threshold Source                | Symbol Used            |
+|-----------------|---------------------------------|------------------------|
+| **SLA-Driven**  | Given by contract/policy        | $p_{\text{SLA}}$       |
+| **Spec-Driven** | Derived from experimental basis | $\hat{p}_{\text{exp}}$ |
+
+Below, we present each approach with formulations for both paradigms.
+
+### 6.1 Approach 1: Sample-Size-First (Cost-Driven)
+
+Fix the sample count based on budget constraints; compute the implied threshold or confidence.
+
+#### Spec-Driven Formulation
 
 **Given**: $n_{\text{test}}$, $\alpha$, experimental basis $(\hat{p}_{\text{exp}}, n_{\text{exp}})$
 
 **Compute**: $p_{\text{threshold}}$
 
-$$p_{\text{threshold}} = \hat{p}_{\text{exp}} - z_\alpha \sqrt{\frac{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})}{n_{\text{test}}}}$$
+$$
+p_{\text{threshold}} = \hat{p}_{\text{exp}} - z_\alpha \sqrt{\frac{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})}{n_{\text{test}}}}
+$$
 
 **Trade-off**: Fixed cost; confidence is controlled; threshold (sensitivity) is determined.
 
-### 6.2 Approach 2: Confidence-First
+#### SLA-Driven Formulation
 
-**Given**: $\alpha$, desired power $(1-\beta)$, minimum detectable effect $\delta$, experimental basis
+**Given**: $n_{\text{test}}$, $p_{\text{SLA}}$
+
+**Compute**: Implied confidence level
+
+Since the threshold is fixed ($p_{\text{threshold}} = p_{\text{SLA}}$), we compute what confidence the test achieves:
+
+$$
+z = \frac{\hat{p}_{\text{observed}} - p_{\text{SLA}}}{\sqrt{p_{\text{SLA}}(1-p_{\text{SLA}})/n_{\text{test}}}}
+$$
+
+The achieved confidence is $1 - \Phi(-z)$ where $\Phi$ is the standard normal CDF.
+
+**Trade-off**: Fixed cost and threshold; confidence is determined by the data.
+
+### 6.2 Approach 2: Confidence-First (Risk-Driven)
+
+Fix the confidence and power requirements; compute the required sample size.
+
+#### Spec-Driven Formulation
+
+**Given**: $\alpha$, desired power $(1-\beta)$, minimum detectable effect $\delta$, experimental basis $(\hat{p}_{\text{exp}}, n_{\text{exp}})$
 
 **Compute**: $n_{\text{test}}$
 
-$$n_{\text{test}} = \left(\frac{z_\alpha \sqrt{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})} + z_\beta \sqrt{(\hat{p}_{\text{exp}}-\delta)(1-\hat{p}_{\text{exp}}+\delta)}}{\delta}\right)^2$$
+$$
+n_{\text{test}} = \left(\frac{z_\alpha \sqrt{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})} + z_\beta \sqrt{(\hat{p}_{\text{exp}}-\delta)(1-\hat{p}_{\text{exp}}+\delta)}}{\delta}\right)^2
+$$
 
 **Trade-off**: Fixed confidence and detection capability; cost (sample size) is determined.
 
-### 6.3 Approach 3: Threshold-First
+#### SLA-Driven Formulation
+
+**Given**: $\alpha$, desired power $(1-\beta)$, minimum detectable effect $\delta$, SLA threshold $p_{\text{SLA}}$
+
+**Compute**: $n_{\text{test}}$
+
+$$
+n_{\text{test}} = \left(\frac{z_\alpha \sqrt{p_{\text{SLA}}(1-p_{\text{SLA}})} + z_\beta \sqrt{(p_{\text{SLA}}-\delta)(1-p_{\text{SLA}}+\delta)}}{\delta}\right)^2
+$$
+
+**Example**: Verify 99.5% SLA, detecting drops of 1% or more with 95% confidence and 80% power:
+
+- $p_{\text{SLA}} = 0.995$, $\delta = 0.01$, $z_\alpha = 1.645$, $z_\beta = 0.842$
+
+$$
+n = \left(\frac{1.645 \times 0.0705 + 0.842 \times 0.1215}{0.01}\right)^2 \approx 476
+$$
+
+**Trade-off**: Fixed confidence and detection capability; cost (sample size) is determined.
+
+**Critical**: The `minDetectableEffect` ($\delta$) is essential. Without it, verifying any SLA requires infinite samples.
+
+### 6.3 Approach 3: Direct Threshold (Threshold-First)
+
+Use an explicit threshold directly; compute the implied confidence.
+
+#### Spec-Driven Formulation
 
 **Given**: $n_{\text{test}}$, $p_{\text{threshold}}$ (often = $\hat{p}_{\text{exp}}$), experimental basis
 
 **Compute**: Implied $\alpha$
 
-$$z_\alpha = \frac{\hat{p}_{\text{exp}} - p_{\text{threshold}}}{\sqrt{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})/n_{\text{test}}}}$$
+$$
+z_\alpha = \frac{\hat{p}_{\text{exp}} - p_{\text{threshold}}}{\sqrt{\hat{p}_{\text{exp}}(1-\hat{p}_{\text{exp}})/n_{\text{test}}}}
+$$
 
-$$\alpha = 1 - \Phi(z_\alpha)$$
+$$
+\alpha = 1 - \Phi(z_\alpha)
+$$
 
 **Example**: Using threshold = 0.951 with $n = 100$:
 
-$$z_\alpha = \frac{0.951 - 0.951}{0.0216} = 0$$
-$$\alpha = 1 - \Phi(0) = 0.50$$
+$$
+z_\alpha = \frac{0.951 - 0.951}{0.0216} = 0
+$$
+
+$$
+\alpha = 1 - \Phi(0) = 0.50
+$$
 
 **Interpretation**: A 50% false positive rate—half of all test runs will fail even with no degradation.
 
-**Trade-off**: Fixed cost and threshold; confidence (reliability of verdicts) is determined—often poorly.
+#### SLA-Driven Formulation
+
+**Given**: $n_{\text{test}}$, $p_{\text{SLA}}$
+
+**Compute**: Implied $\alpha$ (using observed data)
+
+The test directly uses the SLA threshold. After running, we compute:
+
+$$
+z = \frac{\hat{p}_{\text{observed}} - p_{\text{SLA}}}{\sqrt{p_{\text{SLA}}(1-p_{\text{SLA}})/n_{\text{test}}}}
+$$
+
+The implied Type I error rate depends on where the true system rate lies relative to $p_{\text{SLA}}$:
+
+- If true $p = p_{\text{SLA}}$: approximately 50% of tests will fail (the threshold boundary problem)
+- If true $p > p_{\text{SLA}}$: fewer false positives
+- If true $p < p_{\text{SLA}}$: the test correctly detects the violation
+
+**Trade-off**: Fixed cost and threshold; confidence (reliability of verdicts) is determined—often poorly when the true rate is near the threshold.
+
+**When to use**: Learning the trade-offs, strict compliance requirements where the SLA threshold is non-negotiable.
 
 ---
 
 ## 7. Reporting and Interpretation
 
-### 7.1 Test Failure Report
+### 7.1 Transparent Statistics Output
 
-When $\hat{p}_{\text{test}} < p_{\text{threshold}}$, the report should include:
+When transparent statistics mode is enabled (`transparentStats = true`), PUnit outputs a structured report containing the following sections:
 
-| Metric             | Value                                                        | Interpretation                         |
-|--------------------|--------------------------------------------------------------|----------------------------------------|
-| Observed rate      | $\hat{p}_{\text{test}}$                                      | Point estimate from test               |
-| Threshold          | $p_{\text{threshold}}$                                       | Derived from experimental basis        |
-| Shortfall          | $p_{\text{threshold}} - \hat{p}_{\text{test}}$               | Magnitude of deviation                 |
-| Z-score            | $(\hat{p}_{\text{test}} - \hat{p}_{\text{exp}}) / \text{SE}$ | Standardized deviation                 |
-| One-tailed p-value | $\Phi(z)$                                                    | Probability of observing this or worse |
-| Confidence level   | $1 - \alpha$                                                 | Pre-specified false positive control   |
+| Section                   | Contents                                                    | Purpose                                        |
+|---------------------------|-------------------------------------------------------------|------------------------------------------------|
+| **HYPOTHESIS TEST**       | $H_0$, $H_1$, test type                                     | Frames the statistical question being answered |
+| **OBSERVED DATA**         | Sample size $n$, successes $k$, observed rate $\hat{p}$     | Raw observations from test execution           |
+| **BASELINE REFERENCE**    | Source, empirical basis or SLA threshold, derivation method | Traces threshold to its origin                 |
+| **STATISTICAL INFERENCE** | Standard error, confidence interval, z-score, p-value       | Full calculation transparency                  |
+| **VERDICT**               | Result (PASS/FAIL), plain English interpretation, caveats   | Human-readable conclusion                      |
+| **THRESHOLD PROVENANCE**  | Threshold origin, contract reference (if specified)            | Auditability for SLA-driven tests              |
 
-**Example**: Test observes 87/100 successes against threshold 0.916:
+#### Key Metrics in the Report
 
-- Observed rate: 0.870
-- Threshold: 0.916
-- Shortfall: 0.046 (4.6 percentage points)
-- Z-score: $(0.870 - 0.951) / 0.0216 = -3.75$
-- p-value: $\Phi(-3.75) < 0.0001$
-- Interpretation: Highly significant degradation; probability of this result under $H_0$ is < 0.01%.
+| Metric              | Formula/Value                                        | Interpretation                         |
+|---------------------|------------------------------------------------------|----------------------------------------|
+| Sample size         | $n$                                                  | Number of trials executed              |
+| Successes           | $k$                                                  | Number of passing trials               |
+| Observed rate       | $\hat{p} = k/n$                                      | Point estimate from test               |
+| Standard error      | $\text{SE} = \sqrt{\hat{p}(1-\hat{p})/n}$            | Precision of the estimate              |
+| Confidence interval | Wilson score bounds                                  | Range of plausible true values         |
+| Z-score             | $z = (\hat{p} - p_{\text{threshold}}) / \text{SE}_0$ | Standardized deviation from threshold  |
+| p-value             | $P(Z > z)$                                           | Probability of observing this or worse |
+
+#### Example Output
+
+For a test observing 87/100 successes against threshold 0.904:
+
+```
+OBSERVED DATA
+  Sample size (n):     100
+  Successes (k):       87
+  Observed rate (p̂):   0.870
+
+STATISTICAL INFERENCE
+  Standard error:      SE = √(p̂(1-p̂)/n) = √(0.87 × 0.13 / 100) = 0.0336
+  95% Confidence interval: [0.790, 0.926]
+  
+  Test statistic:      z = (p̂ - π₀) / √(π₀(1-π₀)/n)
+                       z = (0.87 - 0.904) / √(0.904 × 0.096 / 100)
+                       z = -1.15
+  
+  p-value:             P(Z > -1.15) = 0.875
+
+VERDICT
+  Result:              PASS
+  Interpretation:      The observed success rate of 87% is below the threshold
+                       of 90.4%, but the difference is not statistically 
+                       significant at the 95% confidence level.
+```
+
+See Section 10 for complete example outputs including both SLA-driven and spec-driven paradigms.
 
 ### 7.2 Confidence Statement
 
@@ -540,6 +934,66 @@ $$P(\text{at least one false positive}) = 1 - (1-\alpha)^m$$
 - Bonferroni correction: Use $\alpha' = \alpha / m$
 - Benjamini-Hochberg: Control false discovery rate
 - Accept inflated family-wise rate with documentation
+
+### 7.4 Threshold Provenance
+
+For auditability and traceability, PUnit records the **source** of the threshold through two annotation attributes:
+
+| Attribute       | Purpose                                            | Example Values                              |
+|-----------------|----------------------------------------------------|---------------------------------------------|
+| `thresholdOrigin`  | Category of threshold origin                       | `SLA`, `SLO`, `POLICY`, `EMPIRICAL`         |
+| `contractRef`   | Human-readable reference to source document        | `"SLA v2.1 §4.3"`, `"Policy-2024-Q1"`       |
+
+#### Target Source Values
+
+| Value         | Meaning                                   | Hypothesis Framing                |
+|---------------|-------------------------------------------|-----------------------------------|
+| `SLA`         | Service Level Agreement (contractual)     | "System meets SLA requirement"    |
+| `SLO`         | Service Level Objective (internal target) | "System meets SLO target"         |
+| `POLICY`      | Organizational policy or standard         | "System meets policy requirement" |
+| `EMPIRICAL`   | Derived from baseline experiment          | "No degradation from baseline"    |
+| `UNSPECIFIED` | Not specified (default)                   | "Success rate meets threshold"    |
+
+#### Example Usage
+
+```java
+@ProbabilisticTest(
+    minPassRate = 0.995,
+    samples = 200,
+    thresholdOrigin = ThresholdOrigin.SLA,
+    contractRef = "Payment Gateway SLA v3.2 §5.1.2",
+    transparentStats = true
+)
+void verifySlaCompliance() { ... }
+```
+
+#### Provenance in Transparent Statistics Output
+
+When `transparentStats = true`, the provenance appears in the output:
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║ THRESHOLD PROVENANCE                                                 ║
+╠══════════════════════════════════════════════════════════════════════╣
+║ Threshold origin    : SLA                                               ║
+║ Contract ref     : Payment Gateway SLA v3.2 §5.1.2                   ║
+║ Threshold origin : Normative claim from external contract            ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
+#### Impact on Hypothesis Formulation
+
+The `thresholdOrigin` influences how PUnit frames the hypothesis test in detailed reports:
+
+| `thresholdOrigin` | $H_0$ (Null Hypothesis)           | $H_1$ (Alternative)              |
+|----------------|-----------------------------------|----------------------------------|
+| `SLA`          | System meets SLA requirement      | System violates SLA              |
+| `SLO`          | System meets SLO target           | System falls short of SLO        |
+| `POLICY`       | System meets policy requirement   | System violates policy           |
+| `EMPIRICAL`    | No degradation from baseline      | Degradation from baseline        |
+| `UNSPECIFIED`  | Success rate meets threshold      | Success rate below threshold     |
+
+This adaptation ensures that verdicts are framed in the appropriate business context, making reports immediately understandable to stakeholders.
 
 ---
 
@@ -654,15 +1108,22 @@ Transparent Statistics Mode exposes the complete statistical reasoning behind ev
 
 When enabled, each test produces a structured explanation containing:
 
-| Section | Content | Statistical Purpose |
-|---------|---------|---------------------|
-| **Hypothesis Test** | $H_0$, $H_1$, test type | Frames the statistical question |
-| **Observed Data** | $n$, $k$, $\hat{p}$ | Raw observations from test execution |
-| **Baseline Reference** | Spec source, empirical basis, threshold derivation | Traces threshold back to experimental data |
-| **Statistical Inference** | SE, CI, z-score, p-value | Full calculation transparency |
-| **Verdict** | Pass/fail with interpretation and caveats | Human-readable conclusion |
+| Section                   | Content                                                  | Statistical Purpose                                   |
+|---------------------------|----------------------------------------------------------|-------------------------------------------------------|
+| **Hypothesis Test**       | $H_0$, $H_1$, test type                                  | Frames the statistical question (adapted to paradigm) |
+| **Observed Data**         | $n$, $k$, $\hat{p}$                                      | Raw observations from test execution                  |
+| **Threshold Reference**   | Source (SLA/empirical), provenance, threshold derivation | Traces threshold back to origin                       |
+| **Statistical Inference** | SE, CI, z-score, p-value                                 | Full calculation transparency                         |
+| **Verdict**               | Pass/fail with interpretation and caveats                | Human-readable conclusion                             |
 
-### 10.3 Example Output
+The **Threshold Reference** section adapts based on the testing paradigm:
+
+| Paradigm        | Content Displayed                                                       |
+|-----------------|-------------------------------------------------------------------------|
+| **SLA-Driven**  | Threshold origin (SLA/SLO/POLICY), contract reference, normative threshold |
+| **Spec-Driven** | Spec file, empirical basis (samples, rate), threshold derivation method |
+
+### 10.3 Example Output: Spec-Driven Paradigm
 
 ```
 ══════════════════════════════════════════════════════════════════════════════
@@ -670,8 +1131,8 @@ STATISTICAL ANALYSIS: shouldReturnValidJson
 ══════════════════════════════════════════════════════════════════════════════
 
 HYPOTHESIS TEST
-  H₀ (null):        True success rate π ≤ 0.85 (system does not meet spec)
-  H₁ (alternative): True success rate π > 0.85 (system meets spec)
+  H₀ (null):        True success rate π ≥ 0.85 (no degradation from baseline)
+  H₁ (alternative): True success rate π < 0.85 (degradation has occurred)
   Test type:        One-sided binomial proportion test
 
 OBSERVED DATA
@@ -679,7 +1140,7 @@ OBSERVED DATA
   Successes (k):       87
   Observed rate (p̂):   0.870
 
-BASELINE REFERENCE
+THRESHOLD REFERENCE
   Source:              ShoppingUseCase.yaml (generated 2026-01-10)
   Empirical basis:     1000 samples, 872 successes (87.2%)
   Threshold derivation: Lower bound of 95% CI = 85.1%, rounded to 85%
@@ -707,23 +1168,79 @@ VERDICT
 ══════════════════════════════════════════════════════════════════════════════
 ```
 
-### 10.4 Mathematical Notation
+### 10.4 Example Output: SLA-Driven Paradigm
+
+```
+══════════════════════════════════════════════════════════════════════════════
+STATISTICAL ANALYSIS: verifyPaymentGatewaySla
+══════════════════════════════════════════════════════════════════════════════
+
+HYPOTHESIS TEST
+  H₀ (null):        True success rate π ≥ 0.995 (system meets SLA requirement)
+  H₁ (alternative): True success rate π < 0.995 (system violates SLA)
+  Test type:        One-sided binomial proportion test
+
+OBSERVED DATA
+  Sample size (n):     500
+  Successes (k):       496
+  Observed rate (p̂):   0.992
+
+THRESHOLD REFERENCE
+  Threshold origin:       SLA
+  Contract ref:        Payment Gateway SLA v3.2 §5.1.2
+  Threshold origin:    Normative claim from external contract
+  Threshold value:     0.995 (99.5%)
+
+STATISTICAL INFERENCE
+  Standard error:      SE = √(p̂(1-p̂)/n) = √(0.992 × 0.008 / 500) = 0.0040
+  95% Confidence interval: [0.984, 1.000]
+  
+  Test statistic:      z = (p̂ - π₀) / √(π₀(1-π₀)/n)
+                       z = (0.992 - 0.995) / √(0.995 × 0.005 / 500)
+                       z = -0.95
+  
+  p-value:             P(Z < -0.95) = 0.171
+
+VERDICT
+  Result:              PASS (but borderline)
+  Interpretation:      The observed success rate of 99.2% is below the SLA 
+                       threshold of 99.5%, but the difference is not 
+                       statistically significant (p = 0.171 > 0.05).
+                       
+                       The 95% confidence interval [98.4%, 100%] includes 
+                       the SLA threshold, so we cannot reject the hypothesis 
+                       that the system meets its contractual obligation.
+                       
+  Caveat:              The observed rate (99.2%) is below the SLA threshold 
+                       (99.5%). While not statistically significant with 
+                       n=500 samples, this warrants monitoring. Consider 
+                       increasing sample size for more conclusive evidence.
+
+══════════════════════════════════════════════════════════════════════════════
+```
+
+**Key differences in SLA-driven output**:
+- Hypothesis framing uses "meets SLA requirement" / "violates SLA"
+- Threshold Reference shows provenance (`Threshold origin`, `Contract ref`) instead of empirical basis
+- Verdict interpretation is framed in terms of contractual compliance
+
+### 10.5 Mathematical Notation
 
 The output uses proper mathematical symbols where terminal capabilities allow:
 
-| Concept | Unicode | ASCII Fallback |
-|---------|---------|----------------|
-| Sample proportion | $\hat{p}$ (p̂) | p-hat |
-| Population proportion | $\pi$ | pi |
-| Null hypothesis | $H_0$ | H0 |
-| Alternative hypothesis | $H_1$ | H1 |
-| Less than or equal | $\leq$ | <= |
-| Greater than or equal | $\geq$ | >= |
-| Square root | $\sqrt{}$ | sqrt |
-| Approximately | $\approx$ | ~= |
-| Alpha (significance) | $\alpha$ | alpha |
+| Concept                | Unicode        | ASCII Fallback |
+|------------------------|----------------|----------------|
+| Sample proportion      | $\hat{p}$ (p̂) | p-hat          |
+| Population proportion  | $\pi$          | pi             |
+| Null hypothesis        | $H_0$          | H0             |
+| Alternative hypothesis | $H_1$          | H1             |
+| Less than or equal     | $\leq$         | <=             |
+| Greater than or equal  | $\geq$         | >=             |
+| Square root            | $\sqrt{}$      | sqrt           |
+| Approximately          | $\approx$      | ~=             |
+| Alpha (significance)   | $\alpha$       | alpha          |
 
-### 10.5 Enabling Transparent Mode
+### 10.6 Enabling Transparent Mode
 
 **System property**:
 ```bash
@@ -741,7 +1258,7 @@ PUNIT_STATS_TRANSPARENT=true ./gradlew test
 void myTest() { ... }
 ```
 
-### 10.6 Configuration Hierarchy
+### 10.7 Configuration Hierarchy
 
 Configuration follows precedence (highest to lowest):
 
@@ -750,15 +1267,15 @@ Configuration follows precedence (highest to lowest):
 3. `PUNIT_STATS_TRANSPARENT=true` — environment variable
 4. Default: `false`
 
-### 10.7 Detail Levels
+### 10.8 Detail Levels
 
-| Level | Description | Use Case |
-|-------|-------------|----------|
-| `SUMMARY` | Verdict + key numbers | Quick reference |
-| `STANDARD` | Full explanation | Normal audit/review |
-| `VERBOSE` | + power analysis, sensitivity | Deep investigation |
+| Level      | Description                   | Use Case            |
+|------------|-------------------------------|---------------------|
+| `SUMMARY`  | Verdict + key numbers         | Quick reference     |
+| `STANDARD` | Full explanation              | Normal audit/review |
+| `VERBOSE`  | + power analysis, sensitivity | Deep investigation  |
 
-### 10.8 Validation by Statisticians
+### 10.9 Validation by Statisticians
 
 The transparent output enables statisticians to verify:
 

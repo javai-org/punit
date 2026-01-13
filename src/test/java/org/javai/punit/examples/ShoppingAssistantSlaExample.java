@@ -4,7 +4,7 @@ import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenChargeRecorder;
 import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
@@ -48,12 +48,12 @@ import org.junit.jupiter.api.Disabled;
  * <h2>Scenario</h2>
  * <p>Our e-commerce company has an SLA with customers guaranteeing that the shopping assistant
  * returns valid responses at least 95% of the time. This threshold comes from the business
- * contract, not from measurement. We use {@link TargetSource#SLA} to document this provenance.
+ * contract, not from measurement. We use {@link ThresholdOrigin#SLA} to document this provenance.
  *
- * @see org.javai.punit.api.TargetSource
+ * @see org.javai.punit.api.ThresholdOrigin
  * @see <a href="../../../../../../../docs/OPERATIONAL-FLOW.md">OPERATIONAL-FLOW.md</a>
  */
-//@Disabled("Example - demonstrates the three operational approaches for SLA-driven testing")
+@Disabled("Example - demonstrates the three operational approaches for SLA-driven testing")
 @ProbabilisticTestBudget(
 		tokenBudget = 50000,
 		timeBudgetMs = 120000,  // 2 minutes for entire class
@@ -129,7 +129,7 @@ class ShoppingAssistantSlaExample {
 	@ProbabilisticTest(
 			samples = 100,                      // Fixed by budget: "We can afford 100 samples"
 			minPassRate = SLA_THRESHOLD,        // 95% from SLA
-			targetSource = TargetSource.SLA,
+			thresholdOrigin = ThresholdOrigin.SLA,
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true
 	)
@@ -195,7 +195,7 @@ class ShoppingAssistantSlaExample {
 			confidence = 0.95,                  // 95% confidence level
 			power = 0.80,                       // 80% detection probability
 			minDetectableEffect = 0.02,         // Detect drops of 2% or more
-			targetSource = TargetSource.SLA,
+			thresholdOrigin = ThresholdOrigin.SLA,
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true
 	)
@@ -262,7 +262,7 @@ class ShoppingAssistantSlaExample {
 	@ProbabilisticTest(
 			samples = 50,                       // Small sample for demonstration
 			minPassRate = SLA_THRESHOLD,        // Exact threshold from SLA
-			targetSource = TargetSource.SLA,
+			thresholdOrigin = ThresholdOrigin.SLA,
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true             // Show the statistical analysis
 	)

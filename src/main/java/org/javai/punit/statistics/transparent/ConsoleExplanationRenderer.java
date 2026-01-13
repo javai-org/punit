@@ -255,8 +255,8 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
         }
 
         sb.append("THRESHOLD PROVENANCE\n");
-        if (provenance.hasTargetSource()) {
-            sb.append(String.format("  Target source:       %s%n", provenance.targetSourceName()));
+        if (provenance.hasThresholdOrigin()) {
+            sb.append(String.format("  Threshold origin:    %s%n", provenance.thresholdOriginName()));
         }
         if (provenance.hasContractRef()) {
             sb.append(String.format("  Contract ref:        %s%n", provenance.contractRef()));

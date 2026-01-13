@@ -1,12 +1,12 @@
 package org.javai.punit.ptest.engine;
 
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceContractRefOnlyTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceEmpiricalSourceTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenancePolicySourceTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceSlaSourceTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceSloSourceTest;
-import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceTargetSourceOnlyTest;
+import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceThresholdOriginOnlyTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceUnspecifiedTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceWithBothTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.AlwaysPassingTest;
@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <ul>
  *   <li>Provenance information is included in verdict output when specified</li>
  *   <li>Provenance is omitted when not specified</li>
- *   <li>All TargetSource values are rendered correctly</li>
+ *   <li>All ThresholdOrigin values are rendered correctly</li>
  * </ul>
  */
 class ProvenanceTest {
@@ -37,7 +37,7 @@ class ProvenanceTest {
     void noProvenanceSet_verdictDoesNotIncludeProvenance() {
         String output = captureTestOutput(AlwaysPassingTest.class);
         
-        assertThat(output).doesNotContain("Target source:");
+        assertThat(output).doesNotContain("Threshold origin:");
         assertThat(output).doesNotContain("Contract ref:");
     }
 
@@ -45,15 +45,15 @@ class ProvenanceTest {
     void provenanceUnspecified_verdictDoesNotIncludeProvenance() {
         String output = captureTestOutput(ProvenanceUnspecifiedTest.class);
         
-        assertThat(output).doesNotContain("Target source:");
+        assertThat(output).doesNotContain("Threshold origin:");
         assertThat(output).doesNotContain("Contract ref:");
     }
 
     @Test
-    void targetSourceOnly_includedInVerdict() {
-        String output = captureTestOutput(ProvenanceTargetSourceOnlyTest.class);
+    void thresholdOriginOnly_includedInVerdict() {
+        String output = captureTestOutput(ProvenanceThresholdOriginOnlyTest.class);
         
-        assertThat(output).contains("Target source: SLO");
+        assertThat(output).contains("Threshold origin: SLO");
         assertThat(output).doesNotContain("Contract ref:");
     }
 
@@ -62,46 +62,46 @@ class ProvenanceTest {
         String output = captureTestOutput(ProvenanceContractRefOnlyTest.class);
         
         assertThat(output).contains("Contract ref: Internal Policy DOC-001");
-        assertThat(output).doesNotContain("Target source:");
+        assertThat(output).doesNotContain("Threshold origin:");
     }
 
     @Test
     void bothSet_includedInCorrectOrder() {
         String output = captureTestOutput(ProvenanceWithBothTest.class);
         
-        assertThat(output).contains("Target source: SLA");
+        assertThat(output).contains("Threshold origin: SLA");
         assertThat(output).contains("Contract ref: Acme API SLA v3.2 §2.1");
         
-        // Verify order: targetSource before contractRef
-        int targetSourceIndex = output.indexOf("Target source:");
+        // Verify order: thresholdOrigin before contractRef
+        int thresholdOriginIndex = output.indexOf("Threshold origin:");
         int contractRefIndex = output.indexOf("Contract ref:");
-        assertThat(targetSourceIndex)
-                .as("Target source should appear before Contract ref")
+        assertThat(thresholdOriginIndex)
+                .as("Threshold origin should appear before Contract ref")
                 .isLessThan(contractRefIndex);
     }
 
     @Test
     void slaSource_renderedCorrectly() {
         String output = captureTestOutput(ProvenanceSlaSourceTest.class);
-        assertThat(output).contains("Target source: SLA");
+        assertThat(output).contains("Threshold origin: SLA");
     }
 
     @Test
     void sloSource_renderedCorrectly() {
         String output = captureTestOutput(ProvenanceSloSourceTest.class);
-        assertThat(output).contains("Target source: SLO");
+        assertThat(output).contains("Threshold origin: SLO");
     }
 
     @Test
     void policySource_renderedCorrectly() {
         String output = captureTestOutput(ProvenancePolicySourceTest.class);
-        assertThat(output).contains("Target source: POLICY");
+        assertThat(output).contains("Threshold origin: POLICY");
     }
 
     @Test
     void empiricalSource_renderedCorrectly() {
         String output = captureTestOutput(ProvenanceEmpiricalSourceTest.class);
-        assertThat(output).contains("Target source: EMPIRICAL");
+        assertThat(output).contains("Threshold origin: EMPIRICAL");
     }
 
     @Test
@@ -114,13 +114,13 @@ class ProvenanceTest {
                 org.javai.punit.api.ExceptionHandling.FAIL_SAMPLE,
                 5,
                 null, null, null, null,
-                TargetSource.SLA, "Test Contract"
+                ThresholdOrigin.SLA, "Test Contract"
             );
         
         assertThat(config.hasProvenance()).isTrue();
-        assertThat(config.hasTargetSource()).isTrue();
+        assertThat(config.hasThresholdOrigin()).isTrue();
         assertThat(config.hasContractRef()).isTrue();
-        assertThat(config.targetSource()).isEqualTo(TargetSource.SLA);
+        assertThat(config.thresholdOrigin()).isEqualTo(ThresholdOrigin.SLA);
         assertThat(config.contractRef()).isEqualTo("Test Contract");
     }
 
@@ -135,7 +135,7 @@ class ProvenanceTest {
             );
         
         assertThat(config.hasProvenance()).isFalse();
-        assertThat(config.hasTargetSource()).isFalse();
+        assertThat(config.hasThresholdOrigin()).isFalse();
         assertThat(config.hasContractRef()).isFalse();
     }
 
@@ -148,11 +148,11 @@ class ProvenanceTest {
                 org.javai.punit.api.ExceptionHandling.FAIL_SAMPLE,
                 5,
                 null, null, null, null,
-                TargetSource.SLA, ""
+                ThresholdOrigin.SLA, ""
             );
         
-        assertThat(config.hasProvenance()).isTrue();  // has targetSource
-        assertThat(config.hasTargetSource()).isTrue();
+        assertThat(config.hasProvenance()).isTrue();  // has thresholdOrigin
+        assertThat(config.hasThresholdOrigin()).isTrue();
         assertThat(config.hasContractRef()).isFalse();  // empty string
     }
 

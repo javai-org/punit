@@ -361,23 +361,30 @@ public @interface ProbabilisticTest {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Documents the source of the threshold target (e.g., SLA, SLO, policy).
+     * Documents the origin of the threshold (e.g., SLA, SLO, policy, empirical).
      *
-     * <p>This metadata is surfaced in the verdict output for traceability:
+     * <p>This metadata is surfaced in the verdict output for traceability and
+     * affects how hypothesis tests and verdicts are framed:
      * <pre>
      * PUnit PASSED: testServiceResponds
      *   Observed pass rate: 97.0% (97/100) >= min pass rate: 95.0%
-     *   Target source: SLA
+     *   Threshold origin: SLA
      *   Contract ref: Acme API SLA v3.2 §2.1
      * </pre>
      *
-     * <p>Provenance is informational only—it does not affect pass/fail logic.
+     * <p>The origin determines hypothesis framing:
+     * <ul>
+     *   <li>SLA: "System meets SLA requirement" / "System violates SLA"</li>
+     *   <li>SLO: "System meets SLO target" / "System falls short of SLO"</li>
+     *   <li>POLICY: "System meets policy" / "System violates policy"</li>
+     *   <li>EMPIRICAL: "No degradation from baseline" / "Degradation detected"</li>
+     * </ul>
      *
-     * @return the target source, or {@link TargetSource#UNSPECIFIED} if not documented
-     * @see TargetSource
+     * @return the threshold origin, or {@link ThresholdOrigin#UNSPECIFIED} if not documented
+     * @see ThresholdOrigin
      * @see #contractRef()
      */
-    TargetSource targetSource() default TargetSource.UNSPECIFIED;
+    ThresholdOrigin thresholdOrigin() default ThresholdOrigin.UNSPECIFIED;
 
     /**
      * A human-readable reference to the contract, policy, or document
@@ -394,7 +401,7 @@ public @interface ProbabilisticTest {
      * <p>This value is surfaced in verdict output when set.
      *
      * @return the contract reference, or empty string if not specified
-     * @see #targetSource()
+     * @see #thresholdOrigin()
      */
     String contractRef() default "";
 

@@ -5,7 +5,7 @@ import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.registry.SpecificationIntegrityException;
@@ -171,7 +171,7 @@ public class ConfigurationResolver {
         int maxExampleFailures = annotation.maxExampleFailures();
 
         // Get provenance values (annotation-only, no override)
-        TargetSource targetSource = annotation.targetSource();
+        ThresholdOrigin thresholdOrigin = annotation.thresholdOrigin();
         String contractRef = annotation.contractRef();
 
         return new ResolvedConfiguration(
@@ -185,7 +185,7 @@ public class ConfigurationResolver {
                 onException,
                 maxExampleFailures,
                 null, null, null, null,  // Statistical context (not resolved here)
-                targetSource,
+                thresholdOrigin,
                 contractRef
         );
     }
@@ -338,7 +338,7 @@ public class ConfigurationResolver {
             Integer baselineSamples,
             String specId,
             // Provenance metadata (annotation-only, no override)
-            TargetSource targetSource,
+            ThresholdOrigin thresholdOrigin,
             String contractRef
     ) {
         /**
@@ -357,7 +357,7 @@ public class ConfigurationResolver {
             this(samples, minPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
                     onBudgetExhausted, onException, maxExampleFailures,
                     null, null, null, null,
-                    TargetSource.UNSPECIFIED, "");
+                    ThresholdOrigin.UNSPECIFIED, "");
         }
 
         /**
@@ -399,14 +399,14 @@ public class ConfigurationResolver {
          * Returns true if any provenance information is specified.
          */
         public boolean hasProvenance() {
-            return hasTargetSource() || hasContractRef();
+            return hasThresholdOrigin() || hasContractRef();
         }
 
         /**
-         * Returns true if targetSource is specified (not UNSPECIFIED).
+         * Returns true if thresholdOrigin is specified (not UNSPECIFIED).
          */
-        public boolean hasTargetSource() {
-            return targetSource != null && targetSource != TargetSource.UNSPECIFIED;
+        public boolean hasThresholdOrigin() {
+            return thresholdOrigin != null && thresholdOrigin != ThresholdOrigin.UNSPECIFIED;
         }
 
         /**

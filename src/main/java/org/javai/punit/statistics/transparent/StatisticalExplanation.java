@@ -29,32 +29,32 @@ public record StatisticalExplanation(
 ) {
 
     /**
-     * Provenance information documenting the source of the threshold.
+     * Provenance information documenting the origin of the threshold.
      * 
      * <p>This record uses String values to avoid dependencies on the API package,
      * keeping the statistics module isolated.
      *
-     * @param targetSourceName The name of the target source (e.g., "SLA", "SLO", "UNSPECIFIED")
+     * @param thresholdOriginName The name of the threshold origin (e.g., "SLA", "SLO", "UNSPECIFIED")
      * @param contractRef Human-readable reference to the source document
      */
     public record Provenance(
-            String targetSourceName,
+            String thresholdOriginName,
             String contractRef
     ) {
         /**
          * Returns true if any provenance information is specified.
          */
         public boolean hasProvenance() {
-            return hasTargetSource() || hasContractRef();
+            return hasThresholdOrigin() || hasContractRef();
         }
 
         /**
-         * Returns true if targetSource is specified (not UNSPECIFIED or empty).
+         * Returns true if thresholdOrigin is specified (not UNSPECIFIED or empty).
          */
-        public boolean hasTargetSource() {
-            return targetSourceName != null 
-                    && !targetSourceName.isEmpty() 
-                    && !"UNSPECIFIED".equals(targetSourceName);
+        public boolean hasThresholdOrigin() {
+            return thresholdOriginName != null 
+                    && !thresholdOriginName.isEmpty() 
+                    && !"UNSPECIFIED".equals(thresholdOriginName);
         }
 
         /**

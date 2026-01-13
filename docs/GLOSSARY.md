@@ -23,7 +23,7 @@
 | **Success Criteria**               | Expression evaluated against `UseCaseResult` to determine per-sample success.               |
 | **Provenance**                     | The chain of artifacts from definition to enforcement.                                      |
 | **Threshold Provenance**           | Optional metadata documenting where a test's threshold originated (SLA, SLO, policy, etc.). |
-| **Target Source**                  | Enum indicating the source of a probabilistic test's threshold (e.g., SLA, SLO, POLICY).    |
+| **Threshold Origin**               | Enum indicating the origin of a probabilistic test's threshold (e.g., SLA, SLO, POLICY).    |
 | **Contract Reference**             | Human-readable string identifying the document/clause defining a test threshold.            |
 | **SLA (Service Level Agreement)**  | Contractual commitment to external customers defining minimum service quality.              |
 | **SLO (Service Level Objective)**  | Internal target for service quality, often more stringent than SLAs.                        |

@@ -1,23 +1,24 @@
 package org.javai.punit.api;
 
 /**
- * Indicates the source of a probabilistic test's threshold target.
+ * Indicates the origin of a probabilistic test's threshold.
  *
- * <p>This enum documents where the {@code minPassRate} threshold originated,
- * enabling traceability between test configuration and business requirements.
+ * <p>This enum documents where the {@code minPassRate} threshold came from,
+ * enabling traceability between test configuration and business requirements,
+ * and determining how hypothesis tests and verdicts should be framed.
  *
  * <h2>Usage</h2>
  * <pre>{@code
  * @ProbabilisticTest(
  *     samples = 100,
  *     minPassRate = 0.95,
- *     targetSource = TargetSource.SLA,
+ *     thresholdOrigin = ThresholdOrigin.SLA,
  *     contractRef = "Acme API SLA v3.2 §2.1"
  * )
  * void serviceReturnsValidResponse() { ... }
  * }</pre>
  *
- * <h2>Available Sources</h2>
+ * <h2>Available Origins</h2>
  * <ul>
  *   <li>{@link #UNSPECIFIED} - Default; threshold origin not documented</li>
  *   <li>{@link #SLA} - Service Level Agreement (external contract)</li>
@@ -26,13 +27,23 @@ package org.javai.punit.api;
  *   <li>{@link #EMPIRICAL} - Derived from baseline measurement</li>
  * </ul>
  *
- * @see ProbabilisticTest#targetSource()
+ * <h2>Impact on Hypothesis Framing</h2>
+ * <p>The threshold origin affects how PUnit frames hypothesis tests and verdicts:
+ * <ul>
+ *   <li>{@code SLA}: "System meets SLA requirement" / "System violates SLA"</li>
+ *   <li>{@code SLO}: "System meets SLO target" / "System falls short of SLO"</li>
+ *   <li>{@code POLICY}: "System meets policy requirement" / "System violates policy"</li>
+ *   <li>{@code EMPIRICAL}: "No degradation from baseline" / "Degradation from baseline"</li>
+ *   <li>{@code UNSPECIFIED}: "Success rate meets threshold" / "Success rate below threshold"</li>
+ * </ul>
+ *
+ * @see ProbabilisticTest#thresholdOrigin()
  * @see ProbabilisticTest#contractRef()
  */
-public enum TargetSource {
+public enum ThresholdOrigin {
 
     /**
-     * No source specified (default).
+     * No origin specified (default).
      * The threshold is ad-hoc or its origin is not documented.
      */
     UNSPECIFIED,

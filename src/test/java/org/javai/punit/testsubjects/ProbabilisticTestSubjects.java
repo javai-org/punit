@@ -3,7 +3,7 @@ package org.javai.punit.testsubjects;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
-import org.javai.punit.api.TargetSource;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenChargeRecorder;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -291,13 +291,13 @@ public class ProbabilisticTestSubjects {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Test with both targetSource and contractRef specified.
+     * Test with both thresholdOrigin and contractRef specified.
      */
     public static class ProvenanceWithBothTest {
         @ProbabilisticTest(
             samples = 5,
             minPassRate = 0.8,
-            targetSource = TargetSource.SLA,
+            thresholdOrigin = ThresholdOrigin.SLA,
             contractRef = "Acme API SLA v3.2 §2.1"
         )
         void testWithFullProvenance() {
@@ -306,15 +306,15 @@ public class ProbabilisticTestSubjects {
     }
 
     /**
-     * Test with only targetSource specified.
+     * Test with only thresholdOrigin specified.
      */
-    public static class ProvenanceTargetSourceOnlyTest {
+    public static class ProvenanceThresholdOriginOnlyTest {
         @ProbabilisticTest(
             samples = 5,
             minPassRate = 0.8,
-            targetSource = TargetSource.SLO
+            thresholdOrigin = ThresholdOrigin.SLO
         )
-        void testWithTargetSourceOnly() {
+        void testWithThresholdOriginOnly() {
             assertThat(true).isTrue();
         }
     }
@@ -334,13 +334,13 @@ public class ProbabilisticTestSubjects {
     }
 
     /**
-     * Test with explicit UNSPECIFIED targetSource (should not print provenance).
+     * Test with explicit UNSPECIFIED thresholdOrigin (should not print provenance).
      */
     public static class ProvenanceUnspecifiedTest {
         @ProbabilisticTest(
             samples = 5,
             minPassRate = 0.8,
-            targetSource = TargetSource.UNSPECIFIED
+            thresholdOrigin = ThresholdOrigin.UNSPECIFIED
         )
         void testWithUnspecifiedSource() {
             assertThat(true).isTrue();
@@ -351,28 +351,28 @@ public class ProbabilisticTestSubjects {
      * Test each target source value.
      */
     public static class ProvenanceSlaSourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, targetSource = TargetSource.SLA)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.SLA)
         void testSlaSource() {
             assertThat(true).isTrue();
         }
     }
 
     public static class ProvenanceSloSourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, targetSource = TargetSource.SLO)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.SLO)
         void testSloSource() {
             assertThat(true).isTrue();
         }
     }
 
     public static class ProvenancePolicySourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, targetSource = TargetSource.POLICY)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.POLICY)
         void testPolicySource() {
             assertThat(true).isTrue();
         }
     }
 
     public static class ProvenanceEmpiricalSourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, targetSource = TargetSource.EMPIRICAL)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.EMPIRICAL)
         void testEmpiricalSource() {
             assertThat(true).isTrue();
         }
