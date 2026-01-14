@@ -293,38 +293,177 @@ These should never affect baseline selection or generate warnings.
 
 ---
 
-## 7. Implementation Plan
+## 7. Developer Experience: Covariate Value Resolution
 
-### 7.1 New Components
+### 7.1 Resolution Hierarchy
+
+Covariate values are resolved in the following order:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Covariate Resolution Order                    │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Instance-provided value (@CovariateSource method)            │
+│    → Returns whatever the instance's configuration says         │
+│    ↓ if method not present                                      │
+│ 2. System property: org.javai.punit.covariate.<key>             │
+│    → Fallback for covariates without resolver methods           │
+│    ↓ if null                                                    │
+│ 3. Environment variable: ORG_JAVAI_PUNIT_COVARIATE_<KEY>        │
+│    → Alternative fallback                                       │
+│    ↓ if null                                                    │
+│ 4. Default resolver (for standard covariates)                   │
+│    → TIME_OF_DAY, TIMEZONE use system values automatically      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 7.2 Naming Convention for System/Environment Properties
+
+| Covariate Key | System Property | Environment Variable |
+|---------------|-----------------|---------------------|
+| `llm_model` | `org.javai.punit.covariate.llm_model` | `ORG_JAVAI_PUNIT_COVARIATE_LLM_MODEL` |
+| `region` | `org.javai.punit.covariate.region` | `ORG_JAVAI_PUNIT_COVARIATE_REGION` |
+| `hosting_environment` | `org.javai.punit.covariate.hosting_environment` | `ORG_JAVAI_PUNIT_COVARIATE_HOSTING_ENVIRONMENT` |
+
+### 7.3 The @CovariateSource Annotation
+
+Developers provide covariate values via annotated instance methods:
+
+```java
+@UseCase(
+    value = "ProductSearch",
+    covariates = { StandardCovariate.TIME_OF_DAY },
+    customCovariates = {
+        @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
+        @Covariate(key = "region", category = CovariateCategory.INFRASTRUCTURE)
+    }
+)
+@Component
+public class ProductSearchUseCase {
+    
+    private final LlmClient llmClient;
+    
+    @Value("${app.region}")
+    private String region;
+    
+    @CovariateSource("llm_model")
+    public String getLlmModel() {
+        return llmClient.getModelName();  // Reads from injected config
+    }
+    
+    @CovariateSource("region")
+    public String getRegion() {
+        return region;  // Reads from Spring config (operator-controlled)
+    }
+    
+    // TIME_OF_DAY: No resolver needed — default resolver handles it
+}
+```
+
+**Key points:**
+
+- **Instance method, not static**: Works naturally with dependency injection
+- **Reads from configuration**: The method returns whatever the application's configuration says
+- **Operator control via deployment config**: Operators control values by setting `application.yml`, environment variables, etc.
+- **No override mechanism**: PUnit trusts the instance; operators control values at deployment level
+
+### 7.4 Return Types
+
+`@CovariateSource` methods may return:
+
+| Return Type | Conversion |
+|-------------|------------|
+| `String` | Wrapped as `CovariateValue.StringValue` |
+| `CovariateValue` | Used directly (for complex types like `TimeWindowValue`) |
+
+```java
+// Simple string value
+@CovariateSource("llm_model")
+public String getLlmModel() {
+    return "gpt-4.1-mini";
+}
+
+// Complex value (time window)
+@CovariateSource("business_hours")
+public CovariateValue getBusinessHours() {
+    return new CovariateValue.TimeWindowValue(
+        LocalTime.of(9, 0), LocalTime.of(17, 0), ZoneId.of("Europe/London"));
+}
+```
+
+### 7.5 When Each Resolution Level Applies
+
+| Covariate | Typical Source | Rationale |
+|-----------|----------------|-----------|
+| `llm_model` | `@CovariateSource` method | Application code knows the model |
+| `prompt_version` | `@CovariateSource` method | Application code knows the version |
+| `region` | `@CovariateSource` or sys/env prop | Deployment config determines region |
+| `timezone` | Default resolver | JVM knows system timezone |
+| `time_of_day` | Default resolver | PUnit captures execution time |
+| `run_id` | Sys/env prop | Operator sets for traceability |
+
+### 7.6 Design Rationale: No Override Mechanism
+
+**The instance is the source of truth.** If the developer provides a `@CovariateSource` method, that value is used.
+
+**Operators control values via deployment configuration:**
+- In Spring: `application.yml`, `application-prod.yml`, environment-specific profiles
+- The use case instance reads from this configuration
+- The `@CovariateSource` method returns the operator-configured value
+
+**This avoids complexity:**
+- No "who can override whom" rules
+- No category-specific override permissions
+- Leverages existing configuration patterns (Spring profiles, env-specific config)
+
+**If an operator needs control:**
+1. Operator sets deployment configuration (`app.llm.model=gpt-4`)
+2. Instance reads from config (`@Value("${app.llm.model}")`)
+3. `@CovariateSource` returns the operator-set value
+
+**If a developer hard-codes a value they shouldn't:**
+- This is a developer bug, not a PUnit problem
+- Peer review and code check gates should catch this
+- Developer should read from configuration, not hard-code
+
+---
+
+## 8. Implementation Plan
+
+### 8.1 New Components
 
 | Component | Description |
 |-----------|-------------|
 | `CovariateCategory` enum | Six categories as defined above |
 | `@Covariate` annotation | For declaring custom covariates with category |
+| `@CovariateSource` annotation | Marks instance methods that provide covariate values |
 
-### 7.2 Modified Components
+### 8.2 Modified Components
 
 | Component | Changes |
 |-----------|---------|
 | `StandardCovariate` | Add `category()` method |
 | `CovariateDeclaration` | Track category for each covariate |
+| `CovariateResolverRegistry` | Support `@CovariateSource` method discovery |
 | `BaselineSelector` | Two-phase algorithm with category-aware logic |
 | `NoCompatibleBaselineException` | Distinguish footprint vs configuration mismatch |
 | `CovariateWarningRenderer` | Category-specific warning messages |
 
-### 7.3 Test Coverage
+### 8.3 Test Coverage
 
 - CONFIGURATION mismatch causes hard fail
 - Soft-match categories generate appropriate warnings
 - INFORMATIONAL covariates are ignored
 - Two-phase algorithm selects correct baseline
 - Error messages include actionable guidance
+- `@CovariateSource` methods are discovered and invoked
+- Resolution hierarchy (instance → sys prop → env var → default) works correctly
 
 ---
 
-## 8. Future Considerations
+## 9. Future Considerations
 
-### 8.1 Custom Matching Strategies
+### 9.1 Custom Matching Strategies
 
 Allow developers to specify matching behavior per covariate:
 ```java
@@ -335,7 +474,7 @@ Allow developers to specify matching behavior per covariate:
 )
 ```
 
-### 8.2 Configuration Tolerance
+### 9.2 Configuration Tolerance
 
 For some CONFIGURATION covariates, minor variations might be acceptable:
 ```java
@@ -346,7 +485,7 @@ For some CONFIGURATION covariates, minor variations might be acceptable:
 )
 ```
 
-### 8.3 Baseline Recommendation
+### 9.3 Baseline Recommendation
 
 When CONFIGURATION mismatch occurs, suggest the closest available baseline:
 ```
@@ -356,7 +495,7 @@ Closest available: llm_model=gpt-3.5-turbo (1 version difference)
 
 ---
 
-## 9. Glossary Additions
+## 10. Glossary Additions
 
 | Term | Definition |
 |------|------------|
@@ -364,11 +503,14 @@ Closest available: llm_model=gpt-3.5-turbo (1 version difference)
 | **Hard Gate** | A matching requirement that must be satisfied exactly; failure excludes the candidate |
 | **Soft Match** | A matching approach that allows partial conformance with warnings |
 | **Configuration Mismatch** | When a CONFIGURATION-category covariate differs between test and all available baselines |
+| **@CovariateSource** | Annotation marking an instance method that provides a covariate's value |
+| **Resolution Hierarchy** | The order in which covariate values are resolved: instance → sys prop → env var → default |
 
 ---
 
-## 10. Acceptance Criteria
+## 11. Acceptance Criteria
 
+### Category-Aware Selection
 - [ ] `CovariateCategory` enum implemented with six categories
 - [ ] `StandardCovariate` extended with category assignment
 - [ ] `@Covariate` annotation supports custom covariates with categories
@@ -376,6 +518,17 @@ Closest available: llm_model=gpt-3.5-turbo (1 version difference)
 - [ ] CONFIGURATION mismatch produces hard fail with guidance
 - [ ] Soft-match categories produce category-specific warnings
 - [ ] INFORMATIONAL covariates are ignored in selection
+
+### Covariate Value Resolution
+- [ ] `@CovariateSource` annotation implemented
+- [ ] Instance methods are discovered and invoked for covariate resolution
+- [ ] System property fallback works: `org.javai.punit.covariate.<key>`
+- [ ] Environment variable fallback works: `ORG_JAVAI_PUNIT_COVARIATE_<KEY>`
+- [ ] Resolution hierarchy is respected (instance → sys prop → env var → default)
+- [ ] Both `String` and `CovariateValue` return types are supported
+
+### General
 - [ ] All existing tests continue to pass
 - [ ] New tests cover category-aware behavior
+- [ ] New tests cover resolution hierarchy
 
