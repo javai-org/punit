@@ -13,11 +13,17 @@
 | **ExperimentGoal**                 | Optional criteria for early termination.                                                    |
 | **Factor**                         | One independently varied dimension in EXPLORE mode (e.g., `model`, `temperature`).          |
 | **FactorSource**                   | JUnit-style source of factor combinations (e.g., `@MethodSource`, `@CsvFactorSource`).      |
+| **Footprint**                      | A stable hash identifying the combination of use case identity, functional parameters, and covariate declarations. Two baselines with the same footprint are candidates for covariate-based selection. |
 | **BASELINE Mode**                  | Default experiment mode: precise estimation of one configuration with many samples.         |
+| **Baseline Selection**             | The process of choosing the most appropriate baseline for a probabilistic test based on footprint match and covariate conformance. When multiple baselines exist, the one with the best covariate match is selected. |
 | **EXPLORE Mode**                   | Experiment mode for comparing multiple configurations with fewer samples each.              |
 | **Empirical Baseline**             | Machine-generated record of observed behavior.                                              |
 | **Execution Specification**        | Human-approved contract derived from baselines.                                             |
 | **Conformance Test**               | A probabilistic test that validates behavior against a specification.                       |
+| **Covariate**                      | A contextual factor that drives variance in system behavior. Covariates are declared on a use case to indicate which environmental or configuration variables should be tracked for baseline matching and statistical comparison. Unlike functional inputs (Factors), covariates represent conditions that affect outcomes but are often outside direct control. |
+| **Covariate Category**             | Classification of a covariate by its nature: TEMPORAL (time-based), CONFIGURATION (deliberate choices), EXTERNAL_DEPENDENCY (third-party services), INFRASTRUCTURE (execution environment), DATA_STATE (data context), or INFORMATIONAL (traceability only). |
+| **Covariate Conformance**          | The degree to which a test's covariate values match those of the baseline. Full conformance means all covariates match; non-conformance indicates the test ran under different conditions than the baseline was established. |
+| **Covariate Profile**              | An immutable record of covariate values captured at a specific point in time, used to characterize the conditions under which an experiment or test was executed. |
 | **Backend**                        | A pluggable component providing domain-specific configuration.                              |
 | **llmx**                           | The LLM-specific backend extension.                                                         |
 | **Success Criteria**               | Expression evaluated against `UseCaseResult` to determine per-sample success.               |
