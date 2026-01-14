@@ -2,10 +2,10 @@
 
 ## Status
 
-| Attribute | Value |
-|-----------|-------|
-| Status | PROPOSED |
-| Created | 2026-01-14 |
+| Attribute  | Value                       |
+|------------|-----------------------------|
+| Status     | PROPOSED                    |
+| Created    | 2026-01-14                  |
 | Depends on | DES-COV (Covariate Support) |
 
 ---
@@ -55,9 +55,9 @@ A developer:
 
 Covariates serve fundamentally different purposes:
 
-| Purpose | Nature | Mismatch Meaning |
-|---------|--------|------------------|
-| Track environmental conditions | Cannot control | "Conditions differ — be cautious" |
+| Purpose                         | Nature             | Mismatch Meaning                              |
+|---------------------------------|--------------------|-----------------------------------------------|
+| Track environmental conditions  | Cannot control     | "Conditions differ — be cautious"             |
 | Record deliberate configuration | Developer controls | "You changed this — this explains the result" |
 
 ---
@@ -164,14 +164,14 @@ Phase 2: Soft Matching (remaining categories)
 
 ### 4.2 Matching Behavior by Category
 
-| Category | Matching | On Mismatch | Rationale |
-|----------|----------|-------------|-----------|
-| CONFIGURATION | Hard gate | Fail test setup | Wrong tool for comparison; guide to EXPLORE/MEASURE |
-| TEMPORAL | Soft match | Warn | Environmental; approximate comparison acceptable |
-| EXTERNAL_DEPENDENCY | Soft match | Warn | External factors change; warn but proceed |
-| INFRASTRUCTURE | Soft match | Warn | Environment differs; performance affected |
-| DATA_STATE | Soft match | Warn | Data context varies; results may vary |
-| INFORMATIONAL | Ignored | Nothing | For traceability only |
+| Category            | Matching   | On Mismatch     | Rationale                                           |
+|---------------------|------------|-----------------|-----------------------------------------------------|
+| CONFIGURATION       | Hard gate  | Fail test setup | Wrong tool for comparison; guide to EXPLORE/MEASURE |
+| TEMPORAL            | Soft match | Warn            | Environmental; approximate comparison acceptable    |
+| EXTERNAL_DEPENDENCY | Soft match | Warn            | External factors change; warn but proceed           |
+| INFRASTRUCTURE      | Soft match | Warn            | Environment differs; performance affected           |
+| DATA_STATE          | Soft match | Warn            | Data context varies; results may vary               |
+| INFORMATIONAL       | Ignored    | Nothing         | For traceability only                               |
 
 ### 4.3 Scoring for Soft-Match Categories
 
@@ -249,9 +249,95 @@ When candidates have equal scores:
 
 ---
 
-## 6. Design Rationale
+## 6. Baseline File Naming
 
-### 6.1 Why Hard Fail for CONFIGURATION?
+### 6.1 Filename Format
+
+```
+<UseCaseId>.<MethodName>-<YYYYMMDD-HHMM>-<FootprintHash>-<CovHash1>-<CovHash2>.yaml
+```
+
+### 6.2 Component Breakdown
+
+| Component | Purpose | Example |
+|-----------|---------|---------|
+| `UseCaseId` | Group files by use case class | `ShoppingUseCase` |
+| `MethodName` | Distinguish experiment methods | `searchProducts` |
+| `YYYYMMDD-HHMM` | Temporal ordering (sortable) | `20260114-1030` |
+| `FootprintHash` | Hash of factors + covariate declaration | `a1b2` |
+| `CovHash1-CovHash2...` | Covariate value hashes (declaration order) | `c3d4-e5f6` |
+
+### 6.3 Examples
+
+```
+ShoppingUseCase.measureSearch-20260114-1030-a1b2-c3d4-e5f6.yaml
+ShoppingUseCase.measureSearch-20260114-1445-a1b2-c3d4-e5f6.yaml  ← Same covariates, later run
+ShoppingUseCase.measureSearch-20260114-1500-a1b2-7x8y-e5f6.yaml  ← Different TIME_OF_DAY
+ShoppingUseCase.measureCart-20260114-1030-a1b2-c3d4-e5f6.yaml    ← Different method
+```
+
+### 6.4 Design Goals
+
+| Goal | How Achieved |
+|------|--------------|
+| **Grouped by use case** | `UseCaseId.` prefix ensures related files sort together |
+| **Multiple methods supported** | Method name included after use case ID |
+| **Temporal ordering** | Timestamp before hashes → alphabetical sort = chronological order |
+| **Diffable** | Sort by name, compare adjacent files to see progression |
+| **Unique by covariates** | Value hashes ensure distinct configurations create distinct files |
+
+### 6.5 What Gets Hashed in Filename
+
+| Category            | In Filename Hash? | Rationale |
+|---------------------|-------------------|-----------|
+| CONFIGURATION       | ✅ Yes | Different config = different baseline |
+| TEMPORAL            | ✅ Yes | Different conditions = different baseline for selection |
+| INFRASTRUCTURE      | ✅ Yes | Different environment = different baseline |
+| EXTERNAL_DEPENDENCY | ✅ Yes | Different external state = different baseline |
+| DATA_STATE          | ✅ Yes | Different data context = different baseline |
+| **INFORMATIONAL**   | ❌ **No** | Traceability only; not used for baseline differentiation |
+
+### 6.6 Overwrite Behavior
+
+If two experiments produce files with **identical names** (same method, same footprint, same covariate values), the **newer file overwrites** the older. This is intentional:
+- It's a re-run of the same configuration
+- The newer baseline is more relevant
+- Prevents accumulation of stale baselines
+
+**INFORMATIONAL covariates do not affect filename:**
+- Two runs differing only by `run_id` or `operator` → same filename → overwrite
+- INFORMATIONAL data is recorded inside the file for traceability
+
+### 6.7 Multiple Experiment Methods per Use Case
+
+```java
+@UseCase("ShoppingUseCase")
+public class ShoppingUseCase {
+    public UseCaseResult searchProducts(String query) { ... }
+    public UseCaseResult addToCart(String productId) { ... }
+}
+
+// Experiment class
+public class ShoppingExperiment {
+    
+    @Experiment(useCase = ShoppingUseCase.class)
+    void measureSearch() { ... }  // → ShoppingUseCase.measureSearch-...
+    
+    @Experiment(useCase = ShoppingUseCase.class)
+    void measureCart() { ... }    // → ShoppingUseCase.measureCart-...
+}
+```
+
+The **experiment method name** (not the use case method) appears in the filename. This ensures:
+- Different experiments targeting the same use case are distinguishable
+- Factor variations within an experiment share a common prefix
+- Temporal sorting works within each experiment method
+
+---
+
+## 7. Design Rationale
+
+### 7.1 Why Hard Fail for CONFIGURATION?
 
 **Principle:** Use the right tool for the job.
 
@@ -270,7 +356,7 @@ Running a probabilistic test with a mismatched CONFIGURATION covariate is using 
 2. Decided to switch to gpt-3.5? → Run MEASURE to create baseline
 3. Running regression tests? → Probabilistic test matches configuration
 
-### 6.2 Why Soft Match for TEMPORAL?
+### 7.2 Why Soft Match for TEMPORAL?
 
 Environmental conditions vary legitimately:
 - Tests run at different times of day
@@ -282,7 +368,7 @@ Soft matching allows:
 - Developer to understand comparison context
 - Gradual baseline staleness without hard failures
 
-### 6.3 Why Ignore INFORMATIONAL?
+### 7.3 Why Ignore INFORMATIONAL?
 
 Some covariates exist purely for:
 - Audit trails (`run_id`, `operator`)
@@ -293,9 +379,9 @@ These should never affect baseline selection or generate warnings.
 
 ---
 
-## 7. Developer Experience: Covariate Value Resolution
+## 8. Developer Experience: Covariate Value Resolution
 
-### 7.1 Resolution Hierarchy
+### 8.1 Resolution Hierarchy
 
 Covariate values are resolved in the following order:
 
@@ -317,15 +403,15 @@ Covariate values are resolved in the following order:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 Naming Convention for System/Environment Properties
+### 8.2 Naming Convention for System/Environment Properties
 
-| Covariate Key | System Property | Environment Variable |
-|---------------|-----------------|---------------------|
-| `llm_model` | `org.javai.punit.covariate.llm_model` | `ORG_JAVAI_PUNIT_COVARIATE_LLM_MODEL` |
-| `region` | `org.javai.punit.covariate.region` | `ORG_JAVAI_PUNIT_COVARIATE_REGION` |
+| Covariate Key         | System Property                                 | Environment Variable                            |
+|-----------------------|-------------------------------------------------|-------------------------------------------------|
+| `llm_model`           | `org.javai.punit.covariate.llm_model`           | `ORG_JAVAI_PUNIT_COVARIATE_LLM_MODEL`           |
+| `region`              | `org.javai.punit.covariate.region`              | `ORG_JAVAI_PUNIT_COVARIATE_REGION`              |
 | `hosting_environment` | `org.javai.punit.covariate.hosting_environment` | `ORG_JAVAI_PUNIT_COVARIATE_HOSTING_ENVIRONMENT` |
 
-### 7.3 The @CovariateSource Annotation
+### 8.3 The @CovariateSource Annotation
 
 Developers provide covariate values via annotated instance methods:
 
@@ -367,13 +453,13 @@ public class ProductSearchUseCase {
 - **Operator control via deployment config**: Operators control values by setting `application.yml`, environment variables, etc.
 - **No override mechanism**: PUnit trusts the instance; operators control values at deployment level
 
-### 7.4 Return Types
+### 8.4 Return Types
 
 `@CovariateSource` methods may return:
 
-| Return Type | Conversion |
-|-------------|------------|
-| `String` | Wrapped as `CovariateValue.StringValue` |
+| Return Type      | Conversion                                               |
+|------------------|----------------------------------------------------------|
+| `String`         | Wrapped as `CovariateValue.StringValue`                  |
 | `CovariateValue` | Used directly (for complex types like `TimeWindowValue`) |
 
 ```java
@@ -391,18 +477,18 @@ public CovariateValue getBusinessHours() {
 }
 ```
 
-### 7.5 When Each Resolution Level Applies
+### 8.5 When Each Resolution Level Applies
 
-| Covariate | Typical Source | Rationale |
-|-----------|----------------|-----------|
-| `llm_model` | `@CovariateSource` method | Application code knows the model |
-| `prompt_version` | `@CovariateSource` method | Application code knows the version |
-| `region` | `@CovariateSource` or sys/env prop | Deployment config determines region |
-| `timezone` | Default resolver | JVM knows system timezone |
-| `time_of_day` | Default resolver | PUnit captures execution time |
-| `run_id` | Sys/env prop | Operator sets for traceability |
+| Covariate        | Typical Source                     | Rationale                           |
+|------------------|------------------------------------|-------------------------------------|
+| `llm_model`      | `@CovariateSource` method          | Application code knows the model    |
+| `prompt_version` | `@CovariateSource` method          | Application code knows the version  |
+| `region`         | `@CovariateSource` or sys/env prop | Deployment config determines region |
+| `timezone`       | Default resolver                   | JVM knows system timezone           |
+| `time_of_day`    | Default resolver                   | PUnit captures execution time       |
+| `run_id`         | Sys/env prop                       | Operator sets for traceability      |
 
-### 7.6 Design Rationale: No Override Mechanism
+### 8.6 Design Rationale: No Override Mechanism
 
 **The instance is the source of truth.** If the developer provides a `@CovariateSource` method, that value is used.
 
@@ -428,28 +514,28 @@ public CovariateValue getBusinessHours() {
 
 ---
 
-## 8. Implementation Plan
+## 9. Implementation Plan
 
-### 8.1 New Components
+### 9.1 New Components
 
-| Component | Description |
-|-----------|-------------|
-| `CovariateCategory` enum | Six categories as defined above |
-| `@Covariate` annotation | For declaring custom covariates with category |
+| Component                     | Description                                          |
+|-------------------------------|------------------------------------------------------|
+| `CovariateCategory` enum      | Six categories as defined above                      |
+| `@Covariate` annotation       | For declaring custom covariates with category        |
 | `@CovariateSource` annotation | Marks instance methods that provide covariate values |
 
-### 8.2 Modified Components
+### 9.2 Modified Components
 
-| Component | Changes |
-|-----------|---------|
-| `StandardCovariate` | Add `category()` method |
-| `CovariateDeclaration` | Track category for each covariate |
-| `CovariateResolverRegistry` | Support `@CovariateSource` method discovery |
-| `BaselineSelector` | Two-phase algorithm with category-aware logic |
+| Component                       | Changes                                         |
+|---------------------------------|-------------------------------------------------|
+| `StandardCovariate`             | Add `category()` method                         |
+| `CovariateDeclaration`          | Track category for each covariate               |
+| `CovariateResolverRegistry`     | Support `@CovariateSource` method discovery     |
+| `BaselineSelector`              | Two-phase algorithm with category-aware logic   |
 | `NoCompatibleBaselineException` | Distinguish footprint vs configuration mismatch |
-| `CovariateWarningRenderer` | Category-specific warning messages |
+| `CovariateWarningRenderer`      | Category-specific warning messages              |
 
-### 8.3 Test Coverage
+### 9.3 Test Coverage
 
 - CONFIGURATION mismatch causes hard fail
 - Soft-match categories generate appropriate warnings
@@ -461,9 +547,9 @@ public CovariateValue getBusinessHours() {
 
 ---
 
-## 9. Future Considerations
+## 10. Future Considerations
 
-### 9.1 Custom Matching Strategies
+### 10.1 Custom Matching Strategies
 
 Allow developers to specify matching behavior per covariate:
 ```java
@@ -474,7 +560,7 @@ Allow developers to specify matching behavior per covariate:
 )
 ```
 
-### 9.2 Configuration Tolerance
+### 10.2 Configuration Tolerance
 
 For some CONFIGURATION covariates, minor variations might be acceptable:
 ```java
@@ -485,7 +571,7 @@ For some CONFIGURATION covariates, minor variations might be acceptable:
 )
 ```
 
-### 9.3 Baseline Recommendation
+### 10.3 Baseline Recommendation
 
 When CONFIGURATION mismatch occurs, suggest the closest available baseline:
 ```
@@ -495,20 +581,20 @@ Closest available: llm_model=gpt-3.5-turbo (1 version difference)
 
 ---
 
-## 10. Glossary Additions
+## 11. Glossary Additions
 
-| Term | Definition |
-|------|------------|
-| **Covariate Category** | Classification of a covariate by its nature and matching semantics |
-| **Hard Gate** | A matching requirement that must be satisfied exactly; failure excludes the candidate |
-| **Soft Match** | A matching approach that allows partial conformance with warnings |
-| **Configuration Mismatch** | When a CONFIGURATION-category covariate differs between test and all available baselines |
-| **@CovariateSource** | Annotation marking an instance method that provides a covariate's value |
-| **Resolution Hierarchy** | The order in which covariate values are resolved: instance → sys prop → env var → default |
+| Term                       | Definition                                                                                |
+|----------------------------|-------------------------------------------------------------------------------------------|
+| **Covariate Category**     | Classification of a covariate by its nature and matching semantics                        |
+| **Hard Gate**              | A matching requirement that must be satisfied exactly; failure excludes the candidate     |
+| **Soft Match**             | A matching approach that allows partial conformance with warnings                         |
+| **Configuration Mismatch** | When a CONFIGURATION-category covariate differs between test and all available baselines  |
+| **@CovariateSource**       | Annotation marking an instance method that provides a covariate's value                   |
+| **Resolution Hierarchy**   | The order in which covariate values are resolved: instance → sys prop → env var → default |
 
 ---
 
-## 11. Acceptance Criteria
+## 12. Acceptance Criteria
 
 ### Category-Aware Selection
 - [ ] `CovariateCategory` enum implemented with six categories
@@ -527,8 +613,15 @@ Closest available: llm_model=gpt-3.5-turbo (1 version difference)
 - [ ] Resolution hierarchy is respected (instance → sys prop → env var → default)
 - [ ] Both `String` and `CovariateValue` return types are supported
 
+### Baseline File Naming
+- [ ] Filename format: `<UseCaseId>.<MethodName>-<YYYYMMDD-HHMM>-<FootprintHash>-<CovHashes>.yaml`
+- [ ] INFORMATIONAL covariates excluded from filename hash
+- [ ] Same filename → overwrite (newer baseline replaces older)
+- [ ] Multiple experiment methods produce distinct filenames
+
 ### General
 - [ ] All existing tests continue to pass
 - [ ] New tests cover category-aware behavior
 - [ ] New tests cover resolution hierarchy
+- [ ] New tests cover baseline file naming
 
