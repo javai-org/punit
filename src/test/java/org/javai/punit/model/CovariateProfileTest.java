@@ -205,13 +205,13 @@ class CovariateProfileTest {
     }
 
     @Nested
-    @DisplayName("NOT_SET constant")
-    class NotSetTests {
+    @DisplayName("UNDEFINED constant")
+    class UndefinedTests {
 
         @Test
-        @DisplayName("NOT_SET should be 'not_set'")
-        void notSetShouldBeNotSet() {
-            assertThat(CovariateProfile.NOT_SET).isEqualTo("not_set");
+        @DisplayName("UNDEFINED should be 'UNDEFINED'")
+        void undefinedShouldBeUppercase() {
+            assertThat(CovariateProfile.UNDEFINED).isEqualTo("UNDEFINED");
         }
     }
 

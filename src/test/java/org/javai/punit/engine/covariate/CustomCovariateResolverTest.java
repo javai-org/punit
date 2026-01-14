@@ -63,7 +63,7 @@ class CustomCovariateResolverTest {
             var resolver = new CustomCovariateResolver("nonexistent.covariate.key");
             var result = resolver.resolve(context);
             
-            assertThat(result.toCanonicalString()).isEqualTo(CovariateProfile.NOT_SET);
+            assertThat(result.toCanonicalString()).isEqualTo(CovariateProfile.UNDEFINED);
         }
     }
 

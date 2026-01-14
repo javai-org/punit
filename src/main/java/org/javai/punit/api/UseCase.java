@@ -170,8 +170,8 @@ public @interface UseCase {
      * </ol>
      *
      * <p>If a custom covariate is not found in the environment, its value
-     * is recorded as "not_set". Values of "not_set" never match, even if
-     * both baseline and test have "not_set".
+     * is recorded as "undefined". Values of "undefined" never match, even if
+     * both baseline and test have "undefined".
      *
      * <h3>Example</h3>
      * <pre>{@code

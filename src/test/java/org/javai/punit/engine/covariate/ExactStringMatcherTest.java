@@ -92,8 +92,8 @@ class ExactStringMatcherTest {
         @Test
         @DisplayName("NOT_SET should never match itself")
         void notSetShouldNeverMatchItself() {
-            var baseline = new CovariateValue.StringValue(CovariateProfile.NOT_SET);
-            var test = new CovariateValue.StringValue(CovariateProfile.NOT_SET);
+            var baseline = new CovariateValue.StringValue(CovariateProfile.UNDEFINED);
+            var test = new CovariateValue.StringValue(CovariateProfile.UNDEFINED);
             
             assertThat(matcher.match(baseline, test)).isEqualTo(MatchResult.DOES_NOT_CONFORM);
         }
@@ -101,7 +101,7 @@ class ExactStringMatcherTest {
         @Test
         @DisplayName("NOT_SET in baseline should not match any value")
         void notSetInBaselineShouldNotMatchAnyValue() {
-            var baseline = new CovariateValue.StringValue(CovariateProfile.NOT_SET);
+            var baseline = new CovariateValue.StringValue(CovariateProfile.UNDEFINED);
             var test = new CovariateValue.StringValue("EU");
             
             assertThat(matcher.match(baseline, test)).isEqualTo(MatchResult.DOES_NOT_CONFORM);
@@ -111,7 +111,7 @@ class ExactStringMatcherTest {
         @DisplayName("NOT_SET in test should not match any baseline")
         void notSetInTestShouldNotMatchAnyBaseline() {
             var baseline = new CovariateValue.StringValue("EU");
-            var test = new CovariateValue.StringValue(CovariateProfile.NOT_SET);
+            var test = new CovariateValue.StringValue(CovariateProfile.UNDEFINED);
             
             assertThat(matcher.match(baseline, test)).isEqualTo(MatchResult.DOES_NOT_CONFORM);
         }

@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.experiment.model.ResultProjection;
+import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.model.CovariateValue;
 import org.javai.punit.model.ExpirationPolicy;
 
 /**
@@ -98,6 +100,28 @@ public class BaselineWriter {
         }
         if (baseline.getExperimentMethod() != null) {
             sb.append("experimentMethod: ").append(baseline.getExperimentMethod()).append("\n");
+        }
+        
+        // Footprint
+        if (baseline.hasFootprint()) {
+            sb.append("footprint: ").append(baseline.getFootprint()).append("\n");
+        }
+        
+        // Covariates
+        if (baseline.hasCovariates()) {
+            sb.append("\ncovariates:\n");
+            CovariateProfile profile = baseline.getCovariateProfile();
+            for (String key : profile.orderedKeys()) {
+                CovariateValue value = profile.get(key);
+                sb.append("  ").append(key).append(": ");
+                String canonicalValue = value.toCanonicalString();
+                if (needsYamlQuoting(canonicalValue)) {
+                    sb.append("\"").append(escapeYamlString(canonicalValue)).append("\"");
+                } else {
+                    sb.append(canonicalValue);
+                }
+                sb.append("\n");
+            }
         }
         
         // Execution

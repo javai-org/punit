@@ -24,7 +24,7 @@ import java.util.Objects;
 public final class CovariateProfile {
 
     /** Sentinel value for unresolved custom covariates. */
-    public static final String NOT_SET = "not_set";
+    public static final String UNDEFINED = "UNDEFINED";
 
     private final Map<String, CovariateValue> values;
     private final List<String> orderedKeys;
@@ -114,7 +114,8 @@ public final class CovariateProfile {
     /**
      * Computes individual hashes for each covariate value, in declaration order.
      *
-     * <p>These hashes are used in baseline filename construction.
+     * <p>These hashes include both the key and value, producing different hashes
+     * when values differ. Used for content fingerprinting.
      *
      * @return list of 4-character hex hashes
      */
@@ -123,6 +124,27 @@ public final class CovariateProfile {
         for (String key : orderedKeys) {
             var value = values.get(key);
             var hash = sha256(key + "=" + value.toCanonicalString());
+            hashes.add(hash.substring(0, Math.min(4, hash.length())));
+        }
+        return hashes;
+    }
+
+    /**
+     * Computes individual hashes for each covariate key (name), in declaration order.
+     *
+     * <p>These hashes are based ONLY on the covariate names, not their values.
+     * This ensures stable filename generation across different experiment runs
+     * with the same covariate declaration.
+     *
+     * <p>Used in baseline filename construction to identify which covariates
+     * are declared, supporting later baseline selection.
+     *
+     * @return list of 4-character hex hashes based on covariate names only
+     */
+    public List<String> computeKeyHashes() {
+        var hashes = new ArrayList<String>();
+        for (String key : orderedKeys) {
+            var hash = sha256("covariate:" + key);
             hashes.add(hash.substring(0, Math.min(4, hash.length())));
         }
         return hashes;

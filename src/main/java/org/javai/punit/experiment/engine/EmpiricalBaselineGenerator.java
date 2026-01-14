@@ -8,6 +8,7 @@ import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.experiment.model.EmpiricalBaseline.CostSummary;
 import org.javai.punit.experiment.model.EmpiricalBaseline.ExecutionSummary;
 import org.javai.punit.experiment.model.EmpiricalBaseline.StatisticsSummary;
+import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
 
 /**
@@ -48,6 +49,29 @@ public class EmpiricalBaselineGenerator {
             Method experimentMethod,
             UseCaseContext context,
             int expiresInDays) {
+        return generate(aggregator, experimentClass, experimentMethod, context, expiresInDays, null, null);
+    }
+
+    /**
+     * Generates an empirical baseline from an experiment's aggregated results with covariate support.
+     *
+     * @param aggregator the experiment result aggregator
+     * @param experimentClass the experiment class (may be null)
+     * @param experimentMethod the experiment method (may be null)
+     * @param context the use case context
+     * @param expiresInDays the validity period in days (0 = no expiration)
+     * @param footprint the invocation footprint hash (may be null)
+     * @param covariateProfile the resolved covariate profile (may be null)
+     * @return the generated baseline
+     */
+    public EmpiricalBaseline generate(
+            ExperimentResultAggregator aggregator,
+            Class<?> experimentClass,
+            Method experimentMethod,
+            UseCaseContext context,
+            int expiresInDays,
+            String footprint,
+            CovariateProfile covariateProfile) {
         
         double[] ci = aggregator.getConfidenceInterval95();
         
@@ -112,6 +136,14 @@ public class EmpiricalBaselineGenerator {
         if (expiresInDays > 0) {
             Instant endTime = aggregator.getEndTime();
             builder.expirationPolicy(ExpirationPolicy.of(expiresInDays, endTime));
+        }
+        
+        // Add covariate information if present
+        if (footprint != null && !footprint.isEmpty()) {
+            builder.footprint(footprint);
+        }
+        if (covariateProfile != null && !covariateProfile.isEmpty()) {
+            builder.covariateProfile(covariateProfile);
         }
         
         return builder.build();

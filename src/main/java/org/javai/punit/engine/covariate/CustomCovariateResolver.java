@@ -15,7 +15,7 @@ import org.javai.punit.model.CovariateValue;
  *   <li>PUnit environment map: {@code key}</li>
  * </ol>
  *
- * <p>If not found, returns {@link CovariateProfile#NOT_SET}.
+ * <p>If not found, returns {@link CovariateProfile#UNDEFINED}.
  */
 public final class CustomCovariateResolver implements CovariateResolver {
 
@@ -45,7 +45,7 @@ public final class CustomCovariateResolver implements CovariateResolver {
         var value = context.getSystemProperty(key)
             .or(() -> context.getEnvironmentVariable(toEnvVarName(key)))
             .or(() -> context.getPunitEnvironment(key))
-            .orElse(CovariateProfile.NOT_SET);
+            .orElse(CovariateProfile.UNDEFINED);
 
         return new CovariateValue.StringValue(value);
     }

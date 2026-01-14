@@ -7,6 +7,7 @@ import java.lang.reflect.Parameter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -27,9 +28,16 @@ import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.api.UseCaseContext;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.DiffableContentProvider;
+import org.javai.punit.engine.covariate.BaselineFileNamer;
+import org.javai.punit.engine.covariate.CovariateProfileResolver;
+import org.javai.punit.engine.covariate.DefaultCovariateResolutionContext;
+import org.javai.punit.engine.covariate.FootprintComputer;
+import org.javai.punit.engine.covariate.UseCaseCovariateExtractor;
 import org.javai.punit.experiment.model.DefaultUseCaseContext;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.experiment.model.ResultProjection;
+import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CriterionOutcome;
 import org.javai.punit.model.UseCaseCriteria;
 import org.javai.punit.model.UseCaseResult;
@@ -220,7 +228,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         }
         
         // Extract factor names from the first FactorArguments
-        List<FactorInfo> factorInfos = extractFactorInfosFromArguments(testMethod, factorsList.getFirst());
+        List<FactorInfo> factorInfos = extractFactorInfosFromArguments(testMethod, factorsList.get(0));
         store.put("factorInfos", factorInfos);
         
         // Generate sample stream with cycling factors
@@ -442,8 +450,8 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     private List<FactorInfo> extractFactorInfos(Method method, FactorSource factorSource, 
                                                  List<FactorArguments> argsList) {
         // 1. Prefer names embedded in FactorArguments (best DX)
-        if (!argsList.isEmpty() && argsList.getFirst().hasNames()) {
-            String[] names = argsList.getFirst().names();
+        if (!argsList.isEmpty() && argsList.get(0).hasNames()) {
+            String[] names = argsList.get(0).names();
             List<FactorInfo> factorInfos = new ArrayList<>();
             for (int i = 0; i < names.length; i++) {
                 factorInfos.add(new FactorInfo(i, names[i], names[i], Object.class));
@@ -624,7 +632,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             if (!terminated.get()) {
                 aggregator.setCompleted();
             }
-            generateSpec(extensionContext, store);
+            generateSpecOnce(extensionContext, store);
         }
     }
     
@@ -864,6 +872,33 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     private void checkAndGenerateSpec(ExtensionContext context, ExtensionContext.Store store) {
         ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
         if (aggregator.getSamplesExecuted() > 0) {
+            generateSpecOnce(context, store);
+        }
+    }
+
+    /**
+     * Generates the spec file exactly once per experiment run.
+     *
+     * <p>Uses a guard flag in the store to ensure that even if this method
+     * is called multiple times (e.g., from different threads in parallel
+     * execution or from different code paths), only one spec file is generated.
+     *
+     * <p><b>Thread Safety:</b> Uses {@code getOrComputeIfAbsent} for atomic
+     * initialization of the guard flag, combined with {@code compareAndSet}
+     * for atomic state transition. This ensures exactly-once semantics even
+     * under concurrent access.
+     */
+    private void generateSpecOnce(ExtensionContext context, ExtensionContext.Store store) {
+        // Thread-safe lazy initialization using getOrComputeIfAbsent
+        // This ensures all threads see the SAME AtomicBoolean instance
+        AtomicBoolean specGenerated = store.getOrComputeIfAbsent(
+            "specGenerated",
+            key -> new AtomicBoolean(false),
+            AtomicBoolean.class
+        );
+        
+        // Atomically check-and-set to ensure only one thread executes generateSpec
+        if (specGenerated.compareAndSet(false, true)) {
             generateSpec(context, store);
         }
     }
@@ -872,6 +907,8 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
         UseCaseContext useCaseContext = store.get("useCaseContext", UseCaseContext.class);
         Experiment annotation = store.get("annotation", Experiment.class);
+        Class<?> useCaseClass = store.get("useCaseClass", Class.class);
+        String useCaseId = aggregator.getUseCaseId();
         
         int expiresInDays = annotation.expiresInDays();
         
@@ -881,18 +918,53 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
                 "Consider setting expiresInDays to track baseline freshness");
         }
         
+        // Resolve covariates from use case class
+        String footprint = null;
+        CovariateProfile covariateProfile = null;
+        
+        if (useCaseClass != null && useCaseClass != Void.class) {
+            UseCaseCovariateExtractor extractor = new UseCaseCovariateExtractor();
+            CovariateDeclaration declaration = extractor.extractDeclaration(useCaseClass);
+            
+            if (!declaration.isEmpty()) {
+                // Resolve covariate values using experiment timing
+                Long startTimeMs = store.get("startTimeMs", Long.class);
+                Instant startTime = startTimeMs != null 
+                    ? Instant.ofEpochMilli(startTimeMs)
+                    : Instant.now().minusSeconds(60); // fallback
+                Instant endTime = aggregator.getEndTime();
+                
+                DefaultCovariateResolutionContext resolutionContext = 
+                    DefaultCovariateResolutionContext.builder()
+                        .experimentTiming(startTime, endTime)
+                        .build();
+                
+                CovariateProfileResolver resolver = new CovariateProfileResolver();
+                covariateProfile = resolver.resolve(declaration, resolutionContext);
+                
+                // Compute footprint
+                FootprintComputer footprintComputer = new FootprintComputer();
+                footprint = footprintComputer.computeFootprint(useCaseId, declaration);
+                
+                context.publishReportEntry("punit.covariates.count", 
+                    String.valueOf(covariateProfile.size()));
+            }
+        }
+        
         EmpiricalBaselineGenerator generator = new EmpiricalBaselineGenerator();
         EmpiricalBaseline baseline = generator.generate(
             aggregator,
             context.getTestClass().orElse(null),
             context.getTestMethod().orElse(null),
             useCaseContext,
-            expiresInDays
+            expiresInDays,
+            footprint,
+            covariateProfile
         );
         
         // Write spec to file (in src/test/resources/punit/specs/)
         try {
-            Path outputPath = resolveMeasureOutputPath(annotation, aggregator.getUseCaseId());
+            Path outputPath = resolveMeasureOutputPath(useCaseId, footprint, covariateProfile);
             BaselineWriter writer = new BaselineWriter();
             writer.write(baseline, outputPath);
             
@@ -963,10 +1035,26 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     /**
      * Resolves the output path for MEASURE mode (single configuration).
      *
-     * <p>Output: {@code src/test/resources/punit/specs/{useCaseId}.yaml}
+     * <p>Output: {@code src/test/resources/punit/specs/{UseCaseName}-{footprint}[-{covHashes}].yaml}
+     *
+     * @param useCaseId the use case identifier
+     * @param footprint the footprint hash (may be null)
+     * @param covariateProfile the covariate profile (may be null)
+     * @return the output path
      */
-    private Path resolveMeasureOutputPath(Experiment annotation, String useCaseId) throws IOException {
-        String filename = useCaseId.replace('.', '-') + ".yaml";
+    private Path resolveMeasureOutputPath(String useCaseId, String footprint, CovariateProfile covariateProfile) 
+            throws IOException {
+        
+        String filename;
+        if (footprint != null && !footprint.isEmpty()) {
+            // Use BaselineFileNamer for covariate-aware naming
+            BaselineFileNamer namer = new BaselineFileNamer();
+            CovariateProfile profile = covariateProfile != null ? covariateProfile : CovariateProfile.empty();
+            filename = namer.generateFilename(useCaseId, footprint, profile);
+        } else {
+            // Legacy naming for baselines without covariates
+            filename = useCaseId.replace('.', '-') + ".yaml";
+        }
         
         // Check for system property override (set by Gradle task)
         String outputDirOverride = System.getProperty("punit.specs.outputDir");

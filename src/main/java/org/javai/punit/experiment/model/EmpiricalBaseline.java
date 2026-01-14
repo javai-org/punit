@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
 
 /**
@@ -37,6 +38,8 @@ public final class EmpiricalBaseline {
     private final String successCriteriaDefinition;
     private final List<ResultProjection> resultProjections;
     private final ExpirationPolicy expirationPolicy;
+    private final String footprint;
+    private final CovariateProfile covariateProfile;
     
     private EmpiricalBaseline(Builder builder) {
         this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
@@ -51,6 +54,8 @@ public final class EmpiricalBaseline {
         this.successCriteriaDefinition = builder.successCriteriaDefinition;
         this.resultProjections = Collections.unmodifiableList(new ArrayList<>(builder.resultProjections));
         this.expirationPolicy = builder.expirationPolicy;
+        this.footprint = builder.footprint;
+        this.covariateProfile = builder.covariateProfile;
     }
     
     public static Builder builder() {
@@ -134,6 +139,48 @@ public final class EmpiricalBaseline {
         return expirationPolicy != null && expirationPolicy.hasExpiration();
     }
 
+    /**
+     * Returns the footprint hash for this baseline.
+     *
+     * <p>The footprint uniquely identifies the combination of use case, factors,
+     * and covariate declarations. Used for baseline matching.
+     *
+     * @return the footprint hash, or null if not set
+     */
+    public String getFootprint() {
+        return footprint;
+    }
+
+    /**
+     * Returns true if this baseline has a footprint.
+     *
+     * @return true if footprint is set
+     */
+    public boolean hasFootprint() {
+        return footprint != null && !footprint.isEmpty();
+    }
+
+    /**
+     * Returns the covariate profile for this baseline.
+     *
+     * <p>The covariate profile contains the resolved values of all declared
+     * covariates at the time the experiment was run.
+     *
+     * @return the covariate profile, or null if no covariates
+     */
+    public CovariateProfile getCovariateProfile() {
+        return covariateProfile;
+    }
+
+    /**
+     * Returns true if this baseline has covariates.
+     *
+     * @return true if covariate profile is present and non-empty
+     */
+    public boolean hasCovariates() {
+        return covariateProfile != null && !covariateProfile.isEmpty();
+    }
+
 	/**
 	 * Summary of experiment execution.
 	 */
@@ -202,6 +249,8 @@ public final class EmpiricalBaseline {
         private String successCriteriaDefinition;
         private final List<ResultProjection> resultProjections = new ArrayList<>();
         private ExpirationPolicy expirationPolicy;
+        private String footprint;
+        private CovariateProfile covariateProfile;
         
         private Builder() {}
         
@@ -312,6 +361,28 @@ public final class EmpiricalBaseline {
             } else {
                 this.expirationPolicy = null;
             }
+            return this;
+        }
+
+        /**
+         * Sets the footprint hash for this baseline.
+         *
+         * @param footprint the footprint hash
+         * @return this builder
+         */
+        public Builder footprint(String footprint) {
+            this.footprint = footprint;
+            return this;
+        }
+
+        /**
+         * Sets the covariate profile for this baseline.
+         *
+         * @param covariateProfile the covariate profile
+         * @return this builder
+         */
+        public Builder covariateProfile(CovariateProfile covariateProfile) {
+            this.covariateProfile = covariateProfile;
             return this;
         }
         

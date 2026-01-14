@@ -8,13 +8,22 @@ import org.javai.punit.model.CovariateProfile;
 /**
  * Generates and parses baseline filenames.
  *
- * <p>Format: {@code {UseCaseName}-{footprintHash}[-{covHash1}[-{covHash2}...]].yaml}
+ * <p>Format: {@code {UseCaseName}-{footprintHash}.yaml}
+ *
+ * <p>The footprint hash encodes:
+ * <ul>
+ *   <li>Use case identity</li>
+ *   <li>Functional parameters (factors)</li>
+ *   <li>Covariate declaration (names only, not values)</li>
+ * </ul>
+ *
+ * <p>Covariate <em>values</em> are stored in the YAML content, not the filename.
+ * This ensures that running MEASURE multiple times with the same configuration
+ * produces the same filename, allowing baseline updates rather than proliferation.
  *
  * <p>Examples:
  * <ul>
- *   <li>{@code ShoppingUseCase-a1b2c3d4.yaml} (no covariates)</li>
- *   <li>{@code ShoppingUseCase-a1b2c3d4-e5f6.yaml} (one covariate)</li>
- *   <li>{@code ShoppingUseCase-a1b2c3d4-e5f6-7890.yaml} (two covariates)</li>
+ *   <li>{@code ShoppingUseCase-a1b2c3d4.yaml}</li>
  * </ul>
  */
 public final class BaselineFileNamer {
@@ -25,9 +34,18 @@ public final class BaselineFileNamer {
     /**
      * Generates the filename for a baseline.
      *
+     * <p>The filename includes hashes for each covariate's key AND value.
+     * This ensures that different environmental circumstances (different covariate values)
+     * produce different baseline files, allowing probabilistic tests to select
+     * the most appropriate baseline for their current environment.
+     *
+     * <p><b>Important:</b> The covariate profile must be resolved with stable timestamps
+     * (experiment start/end time) to produce consistent filenames across a single
+     * experiment run.
+     *
      * @param useCaseName the use case name (will be sanitized)
      * @param footprintHash the footprint hash (8 chars)
-     * @param covariateProfile the covariate profile
+     * @param covariateProfile the covariate profile with resolved values
      * @return the filename
      */
     public String generateFilename(
@@ -43,6 +61,7 @@ public final class BaselineFileNamer {
         sb.append(sanitize(useCaseName));
         sb.append("-").append(truncateHash(footprintHash));
 
+        // Use value hashes so different covariate circumstances produce different filenames
         for (String hash : covariateProfile.computeValueHashes()) {
             sb.append("-").append(truncateHash(hash));
         }

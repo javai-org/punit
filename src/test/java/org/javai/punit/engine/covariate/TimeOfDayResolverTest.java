@@ -107,5 +107,78 @@ class TimeOfDayResolverTest {
             assertThat(result.toCanonicalString()).isEqualTo("14:30-14:45 Europe/London");
         }
     }
+
+    @Nested
+    @DisplayName("time precision truncation")
+    class TimePrecisionTruncation {
+
+        @Test
+        @DisplayName("should truncate seconds and milliseconds to minute precision")
+        void shouldTruncateToMinutePrecision() {
+            // Times with seconds and milliseconds that should be truncated
+            var start = Instant.parse("2026-01-10T07:54:22.988Z");
+            var end = Instant.parse("2026-01-10T07:54:23.379Z");
+            
+            var context = DefaultCovariateResolutionContext.builder()
+                .experimentTiming(start, end)
+                .systemTimezone(ZoneId.of("UTC"))
+                .build();
+            
+            var result = resolver.resolve(context);
+            var window = (CovariateValue.TimeWindowValue) result;
+            
+            // Both should be truncated to 07:54
+            assertThat(window.start()).isEqualTo(LocalTime.of(7, 54));
+            assertThat(window.end()).isEqualTo(LocalTime.of(7, 54));
+            assertThat(result.toCanonicalString()).isEqualTo("07:54-07:54 UTC");
+        }
+
+        @Test
+        @DisplayName("different sub-minute times in same minute should produce identical values")
+        void differentSubMinuteTimesShouldProduceIdenticalValues() {
+            var zone = ZoneId.of("Europe/Zurich");
+            
+            // Simulate multiple resolutions within the same minute
+            var context1 = DefaultCovariateResolutionContext.builder()
+                .experimentTiming(
+                    Instant.parse("2026-01-10T07:54:22.988Z"),
+                    Instant.parse("2026-01-10T07:54:23.379Z"))
+                .systemTimezone(zone)
+                .build();
+            
+            var context2 = DefaultCovariateResolutionContext.builder()
+                .experimentTiming(
+                    Instant.parse("2026-01-10T07:54:01.123Z"),
+                    Instant.parse("2026-01-10T07:54:59.999Z"))
+                .systemTimezone(zone)
+                .build();
+            
+            var result1 = resolver.resolve(context1);
+            var result2 = resolver.resolve(context2);
+            
+            // Both should produce identical canonical strings (stable for hashing)
+            assertThat(result1.toCanonicalString())
+                .as("Sub-minute differences should produce identical values for stable hashing")
+                .isEqualTo(result2.toCanonicalString());
+        }
+
+        @Test
+        @DisplayName("current time should also be truncated to minute precision")
+        void currentTimeShouldBeTruncatedToMinutePrecision() {
+            // Time with seconds/nanos
+            var now = Instant.parse("2026-01-10T09:15:47.123456789Z");
+            
+            var context = DefaultCovariateResolutionContext.builder()
+                .now(now)
+                .systemTimezone(ZoneId.of("UTC"))
+                .build();
+            
+            var result = resolver.resolve(context);
+            var window = (CovariateValue.TimeWindowValue) result;
+            
+            assertThat(window.start()).isEqualTo(LocalTime.of(9, 15));
+            assertThat(window.end()).isEqualTo(LocalTime.of(9, 15));
+        }
+    }
 }
 
