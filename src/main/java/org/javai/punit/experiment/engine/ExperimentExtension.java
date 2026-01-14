@@ -237,9 +237,8 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             });
     }
 
-    private Stream<FactorArguments> getFactorArguments(Method testMethod, String sourceReference)
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method sourceMethod = testMethod.getDeclaringClass().getDeclaredMethod(sourceReference);
+    private Stream<FactorArguments> getFactorArguments(Method sourceMethod, String sourceReference)
+            throws InvocationTargetException, IllegalAccessException {
         sourceMethod.setAccessible(true);
         Object result = sourceMethod.invoke(null);
         if (result instanceof Stream) {

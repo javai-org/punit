@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.javai.punit.api.FactorSetter;
+import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseContract;
 import org.javai.punit.api.FactorArguments;
@@ -25,6 +26,8 @@ import org.javai.punit.model.UseCaseResult;
  *   <li>Baseline file naming: {@code baselines/ShoppingUseCase.yaml}</li>
  *   <li>Spec file location: {@code specs/ShoppingUseCase/v1.yaml}</li>
  *   <li>Linking experiments and tests to specifications</li>
+ *   <li>Covariates declated in the {@code @UseCase} accotation improve statistical robustness by making experiments
+ *   and tests sensitive to environmental temporal factors</li>
  * </ul>
  *
  * <h2>Success Criteria</h2>
@@ -45,7 +48,7 @@ import org.javai.punit.model.UseCaseResult;
  * @see org.javai.punit.api.UseCaseProvider
  * @see UseCaseContract
  */
-@UseCase  // Optional marker annotation
+@UseCase(covariates = { StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIME_OF_DAY, StandardCovariate.REGION })
 public class ShoppingUseCase implements UseCaseContract {
 
     private ShoppingAssistant assistant;

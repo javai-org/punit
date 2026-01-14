@@ -871,7 +871,7 @@ When transparent statistics mode is enabled (`transparentStats = true`), PUnit o
 | **BASELINE REFERENCE**    | Source, empirical basis or SLA threshold, derivation method | Traces threshold to its origin                 |
 | **STATISTICAL INFERENCE** | Standard error, confidence interval, z-score, p-value       | Full calculation transparency                  |
 | **VERDICT**               | Result (PASS/FAIL), plain English interpretation, caveats   | Human-readable conclusion                      |
-| **THRESHOLD PROVENANCE**  | Threshold origin, contract reference (if specified)            | Auditability for SLA-driven tests              |
+| **THRESHOLD PROVENANCE**  | Threshold origin, contract reference (if specified)         | Auditability for SLA-driven tests              |
 
 #### Key Metrics in the Report
 
@@ -1099,13 +1099,6 @@ PUnit provides tools; developers must use them wisely:
 | Investigate warnings         | Clear warning messages with specifics       | Don't ignore non-conformance warnings       |
 | Refresh stale baselines      | Prominent expiration alerts                 | Run MEASURE experiments when prompted       |
 
-**Detection techniques** (for additional rigor):
-
-- Plot success rate over time within long experiments; test for trend using Cochran-Armitage or Mann-Kendall
-- Compare success rates across different time windows or contexts
-- Monitor for structural breaks using CUSUM or similar methods
-- Track baseline age and set conservative expiration policies
-
 ### 8.4 PUnit's Guardrails for Assumption Validity
 
 The statistical validity of probabilistic testing depends on the assumptions outlined in Section 1.3. While no framework can guarantee these assumptions hold, PUnit provides **guardrails**—features that surface violations, qualify results, and encourage practices that preserve statistical validity.
@@ -1324,10 +1317,10 @@ When enabled, each test produces a structured explanation containing:
 
 The **Threshold Reference** section adapts based on the testing paradigm:
 
-| Paradigm        | Content Displayed                                                       |
-|-----------------|-------------------------------------------------------------------------|
+| Paradigm        | Content Displayed                                                          |
+|-----------------|----------------------------------------------------------------------------|
 | **SLA-Driven**  | Threshold origin (SLA/SLO/POLICY), contract reference, normative threshold |
-| **Spec-Driven** | Spec file, empirical basis (samples, rate), threshold derivation method |
+| **Spec-Driven** | Spec file, empirical basis (samples, rate), threshold derivation method    |
 
 ### 10.3 Example Output: Spec-Driven Paradigm
 
@@ -1510,26 +1503,26 @@ PUnit addresses each of these failures with specific features.
 
 ### 11.2 How PUnit Encourages Good Practice
 
-| Statistical Principle | Common Violation | PUnit's Guardrail |
-|-----------------------|------------------|-------------------|
-| **Principled sample sizes** | Arbitrary numbers (10, 100, 1000) | Power analysis, confidence-first approach |
-| **Controlled error rates** | Unknown false positive rates | Threshold derivation with specified α |
-| **Empirically-grounded thresholds** | Hardcoded guesses | MEASURE experiments, spec-driven testing |
-| **Assumption validity** | Silent violations | Covariate tracking, expiration warnings |
-| **Reproducibility** | Undocumented conditions | Baseline provenance, machine-readable metadata |
-| **Transparency** | Black-box verdicts | Transparent statistics mode |
+| Statistical Principle               | Common Violation                  | PUnit's Guardrail                              |
+|-------------------------------------|-----------------------------------|------------------------------------------------|
+| **Principled sample sizes**         | Arbitrary numbers (10, 100, 1000) | Power analysis, confidence-first approach      |
+| **Controlled error rates**          | Unknown false positive rates      | Threshold derivation with specified α          |
+| **Empirically-grounded thresholds** | Hardcoded guesses                 | MEASURE experiments, spec-driven testing       |
+| **Assumption validity**             | Silent violations                 | Covariate tracking, expiration warnings        |
+| **Reproducibility**                 | Undocumented conditions           | Baseline provenance, machine-readable metadata |
+| **Transparency**                    | Black-box verdicts                | Transparent statistics mode                    |
 
 ### 11.3 Explicit Over Implicit
 
 PUnit's design favors explicitness:
 
-| Aspect | Implicit (Hidden) | Explicit (PUnit) |
-|--------|-------------------|------------------|
-| Threshold origin | Hardcoded number | `thresholdOrigin`, `contractRef` |
-| Baseline conditions | Unmarked file | Covariate profile in spec |
-| Baseline age | Check file timestamp | `expiresInDays`, expiration status |
-| Comparison validity | Assumed | Non-conformance warnings |
-| Statistical reasoning | Hidden in code | Transparent statistics output |
+| Aspect                | Implicit (Hidden)    | Explicit (PUnit)                   |
+|-----------------------|----------------------|------------------------------------|
+| Threshold origin      | Hardcoded number     | `thresholdOrigin`, `contractRef`   |
+| Baseline conditions   | Unmarked file        | Covariate profile in spec          |
+| Baseline age          | Check file timestamp | `expiresInDays`, expiration status |
+| Comparison validity   | Assumed              | Non-conformance warnings           |
+| Statistical reasoning | Hidden in code       | Transparent statistics output      |
 
 This explicitness serves multiple audiences:
 
@@ -1560,12 +1553,12 @@ Traditional statistical frameworks treat stationarity as an **assumption**—som
 
 PUnit treats stationarity as a **managed condition**:
 
-| Traditional Approach | PUnit Approach |
-|----------------------|----------------|
-| Assume stationarity holds | Declare relevant factors (covariates) |
+| Traditional Approach           | PUnit Approach                             |
+|--------------------------------|--------------------------------------------|
+| Assume stationarity holds      | Declare relevant factors (covariates)      |
 | Hope baselines are still valid | Set explicit validity periods (expiration) |
-| Silently violate assumptions | Surface violations as warnings |
-| Binary: valid or invalid | Graduated: valid, cautionary, expired |
+| Silently violate assumptions   | Surface violations as warnings             |
+| Binary: valid or invalid       | Graduated: valid, cautionary, expired      |
 
 This shift—from hidden assumption to managed condition—is at the heart of PUnit's approach to statistical validity.
 
