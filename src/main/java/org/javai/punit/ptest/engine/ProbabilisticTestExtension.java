@@ -20,8 +20,19 @@ import org.javai.punit.ptest.engine.FactorConsistencyValidator.ValidationResult;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.experiment.engine.FactorSourceAdapter;
+import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.covariate.BaselineRepository;
+import org.javai.punit.engine.covariate.BaselineSelectionTypes.BaselineCandidate;
+import org.javai.punit.engine.covariate.BaselineSelectionTypes.SelectionResult;
+import org.javai.punit.engine.covariate.BaselineSelector;
+import org.javai.punit.engine.covariate.CovariateProfileResolver;
+import org.javai.punit.engine.covariate.DefaultCovariateResolutionContext;
+import org.javai.punit.engine.covariate.FootprintComputer;
+import org.javai.punit.engine.covariate.NoCompatibleBaselineException;
+import org.javai.punit.engine.covariate.UseCaseCovariateExtractor;
 import org.javai.punit.engine.expiration.ExpirationEvaluator;
 import org.javai.punit.engine.expiration.ExpirationWarningRenderer;
 import org.javai.punit.engine.expiration.ExpirationReportPublisher;
@@ -79,8 +90,14 @@ public class ProbabilisticTestExtension implements
 	private static final String SAMPLE_COUNTER_KEY = "sampleCounter";
 	private static final String LAST_SAMPLE_TIME_KEY = "lastSampleTime";
 	private static final String SPEC_KEY = "spec";
+	private static final String SELECTION_RESULT_KEY = "selectionResult";
 
 	private final ConfigurationResolver configResolver;
+	private final BaselineRepository baselineRepository;
+	private final BaselineSelector baselineSelector;
+	private final CovariateProfileResolver covariateProfileResolver;
+	private final FootprintComputer footprintComputer;
+	private final UseCaseCovariateExtractor covariateExtractor;
 	private final PacingResolver pacingResolver;
 	private final PacingReporter pacingReporter;
 
@@ -88,14 +105,18 @@ public class ProbabilisticTestExtension implements
 	 * Default constructor using standard configuration resolver.
 	 */
 	public ProbabilisticTestExtension() {
-		this(new ConfigurationResolver(), new PacingResolver(), new PacingReporter());
+		this(new ConfigurationResolver(), new PacingResolver(), new PacingReporter(),
+			 new BaselineRepository(), new BaselineSelector(), new CovariateProfileResolver(),
+			 new FootprintComputer(), new UseCaseCovariateExtractor());
 	}
 
 	/**
 	 * Constructor for testing with custom resolvers.
 	 */
 	ProbabilisticTestExtension(ConfigurationResolver configResolver) {
-		this(configResolver, new PacingResolver(), new PacingReporter());
+		this(configResolver, new PacingResolver(), new PacingReporter(),
+			 new BaselineRepository(), new BaselineSelector(), new CovariateProfileResolver(),
+			 new FootprintComputer(), new UseCaseCovariateExtractor());
 	}
 
 	/**
@@ -104,9 +125,30 @@ public class ProbabilisticTestExtension implements
 	ProbabilisticTestExtension(ConfigurationResolver configResolver, 
 							   PacingResolver pacingResolver,
 							   PacingReporter pacingReporter) {
+		this(configResolver, pacingResolver, pacingReporter,
+			 new BaselineRepository(), new BaselineSelector(), new CovariateProfileResolver(),
+			 new FootprintComputer(), new UseCaseCovariateExtractor());
+	}
+
+	/**
+	 * Full constructor for testing with all dependencies injectable.
+	 */
+	ProbabilisticTestExtension(ConfigurationResolver configResolver, 
+							   PacingResolver pacingResolver,
+							   PacingReporter pacingReporter,
+							   BaselineRepository baselineRepository,
+							   BaselineSelector baselineSelector,
+							   CovariateProfileResolver covariateProfileResolver,
+							   FootprintComputer footprintComputer,
+							   UseCaseCovariateExtractor covariateExtractor) {
 		this.configResolver = configResolver;
 		this.pacingResolver = pacingResolver;
 		this.pacingReporter = pacingReporter;
+		this.baselineRepository = baselineRepository;
+		this.baselineSelector = baselineSelector;
+		this.covariateProfileResolver = covariateProfileResolver;
+		this.footprintComputer = footprintComputer;
+		this.covariateExtractor = covariateExtractor;
 	}
 
 	// ========== TestTemplateInvocationContextProvider ==========
@@ -173,11 +215,8 @@ public class ProbabilisticTestExtension implements
 			store.put(TOKEN_RECORDER_KEY, tokenRecorder);
 		}
 
-		// Load and store spec for expiration checking
-		if (resolved.specId() != null) {
-			configResolver.loadSpec(resolved.specId()).ifPresent(spec -> 
-				store.put(SPEC_KEY, spec));
-		}
+		// Load and store spec for expiration checking (with covariate-aware baseline selection)
+		loadBaselineWithCovariateSelection(annotation, resolved.specId(), store);
 
 		// Print pre-flight report if pacing is configured
 		if (pacing.hasPacing()) {
@@ -1046,6 +1085,132 @@ public class ProbabilisticTestExtension implements
 		return context.getParent()
 				.map(parent -> parent.getStore(NAMESPACE).get(SPEC_KEY, ExecutionSpecification.class))
 				.orElse(null);
+	}
+
+	/**
+	 * Gets the baseline selection result if available.
+	 */
+	private SelectionResult getSelectionResult(ExtensionContext context) {
+		ExtensionContext.Store store = context.getStore(NAMESPACE);
+		SelectionResult result = store.get(SELECTION_RESULT_KEY, SelectionResult.class);
+		if (result != null) {
+			return result;
+		}
+		return context.getParent()
+				.map(parent -> parent.getStore(NAMESPACE).get(SELECTION_RESULT_KEY, SelectionResult.class))
+				.orElse(null);
+	}
+
+	/**
+	 * Loads a baseline with covariate-aware selection.
+	 *
+	 * <p>If the use case has covariates declared:
+	 * <ol>
+	 *   <li>Extract covariate declaration from use case class</li>
+	 *   <li>Compute footprint for the test</li>
+	 *   <li>Find baseline candidates with matching footprint</li>
+	 *   <li>Resolve the test's current covariate profile</li>
+	 *   <li>Select the best-matching baseline</li>
+	 *   <li>Store both the spec and selection result</li>
+	 * </ol>
+	 *
+	 * <p>If no covariates are declared, falls back to simple spec loading.
+	 *
+	 * @param annotation the test annotation
+	 * @param specId the resolved spec ID (may be null)
+	 * @param store the extension context store
+	 */
+	private void loadBaselineWithCovariateSelection(
+			ProbabilisticTest annotation,
+			String specId,
+			ExtensionContext.Store store) {
+
+		if (specId == null) {
+			return;
+		}
+
+		// Get the use case class from annotation
+		Class<?> useCaseClass = annotation.useCase();
+		if (useCaseClass == null || useCaseClass == Void.class) {
+			// No use case - fall back to simple loading
+			configResolver.loadSpec(specId).ifPresent(spec -> store.put(SPEC_KEY, spec));
+			return;
+		}
+
+		// Extract covariate declaration
+		CovariateDeclaration declaration = covariateExtractor.extractDeclaration(useCaseClass);
+
+		if (declaration.isEmpty()) {
+			// No covariates declared - fall back to simple loading
+			configResolver.loadSpec(specId).ifPresent(spec -> store.put(SPEC_KEY, spec));
+			return;
+		}
+
+		// Compute the test's footprint
+		// For probabilistic tests, we don't have factor source at this point, so we compute
+		// footprint based solely on covariate declaration (empty factors)
+		String footprint = footprintComputer.computeFootprint(specId, declaration);
+
+		// Find baseline candidates with matching footprint
+		List<BaselineCandidate> candidates = baselineRepository.findCandidates(specId, footprint);
+
+		if (candidates.isEmpty()) {
+			// No baselines with matching footprint
+			List<String> availableFootprints = baselineRepository.findAvailableFootprints(specId);
+			throw new NoCompatibleBaselineException(specId, footprint, availableFootprints);
+		}
+
+		// Resolve the test's current covariate profile (using current time as test execution time)
+		DefaultCovariateResolutionContext resolutionContext = DefaultCovariateResolutionContext.forNow();
+		CovariateProfile testProfile = covariateProfileResolver.resolve(declaration, resolutionContext);
+
+		// Select the best-matching baseline
+		SelectionResult result = baselineSelector.select(candidates, testProfile);
+
+		if (!result.hasSelection()) {
+			// This shouldn't happen if candidates is non-empty, but handle defensively
+			List<String> availableFootprints = baselineRepository.findAvailableFootprints(specId);
+			throw new NoCompatibleBaselineException(specId, footprint, availableFootprints);
+		}
+
+		// Store the selected spec and selection result
+		store.put(SPEC_KEY, result.selected().spec());
+		store.put(SELECTION_RESULT_KEY, result);
+
+		// Log warning if non-conforming covariates exist
+		if (result.hasNonConformance()) {
+			logCovariateNonConformanceWarning(result, specId);
+		}
+	}
+
+	/**
+	 * Logs a warning about covariate non-conformance.
+	 */
+	private void logCovariateNonConformanceWarning(SelectionResult result, String specId) {
+		var nonConforming = result.nonConformingDetails();
+		if (nonConforming.isEmpty()) {
+			return;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("\n┌─ COVARIATE NON-CONFORMANCE WARNING ─────────────────────────────────────┐\n");
+		sb.append("│ Baseline: ").append(result.selected().filename()).append("\n");
+		sb.append("│ Use case: ").append(specId).append("\n");
+		sb.append("├──────────────────────────────────────────────────────────────────────────┤\n");
+		sb.append("│ The following covariates do not match the baseline:                      \n");
+
+		for (var detail : nonConforming) {
+			sb.append("│   • ").append(detail.covariateKey()).append(":\n");
+			sb.append("│       baseline: ").append(detail.baselineValue().toCanonicalString()).append("\n");
+			sb.append("│       test:     ").append(detail.testValue().toCanonicalString()).append("\n");
+		}
+
+		sb.append("├──────────────────────────────────────────────────────────────────────────┤\n");
+		sb.append("│ Statistical comparison may be less reliable when covariates differ.      \n");
+		sb.append("│ Consider running a new MEASURE experiment under current conditions.      \n");
+		sb.append("└──────────────────────────────────────────────────────────────────────────┘\n");
+
+		System.err.println(sb);
 	}
 
 	/**

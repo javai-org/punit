@@ -4,6 +4,24 @@ This document provides a phased implementation plan for DES-COV (Covariate Suppo
 
 ---
 
+## Implementation Status
+
+| Phase | Description | Status | Notes |
+|-------|-------------|--------|-------|
+| Phase 1 | Foundation — Data Model and API | ✅ Complete | StandardCovariate, CovariateValue, CovariateProfile, CovariateDeclaration |
+| Phase 2 | Covariate Resolution | ✅ Complete | All resolvers implemented, registry created |
+| Phase 3 | Covariate Matching | ✅ Complete | All matchers implemented, registry created |
+| Phase 4 | Baseline Selection Logic | ✅ Complete | FootprintComputer, BaselineFileNamer, BaselineSelector |
+| Phase 5 | Specification Extension | ✅ Complete | ExecutionSpecification extended, loader/writer updated |
+| Phase 6 | Experiment Extension Integration | ✅ Complete | ExperimentExtension resolves covariates, uses covariate-aware filenames |
+| Phase 7 | Probabilistic Test Integration | 🔄 In Progress | BaselineSelector exists but not integrated into ProbabilisticTestExtension |
+| Phase 8 | Reporting Integration | ⏳ Pending | BaselineProvenance, CovariateWarningRenderer exist but not integrated |
+| Phase 9 | Testing and Documentation | ⏳ Pending | Awaiting Phase 7-8 completion |
+
+**Last Updated**: 2026-01-14
+
+---
+
 ## Overview
 
 | Aspect           | Value                              |
