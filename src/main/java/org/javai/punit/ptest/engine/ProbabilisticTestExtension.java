@@ -89,6 +89,7 @@ public class ProbabilisticTestExtension implements
 	private static final Logger logger = LogManager.getLogger(ProbabilisticTestExtension.class);
 	private static final PUnitReporter reporter = new PUnitReporter();
 	private static final ProbabilisticTestValidator testValidator = new ProbabilisticTestValidator();
+	private static final FinalConfigurationLogger configurationLogger = new FinalConfigurationLogger(reporter);
 
 	private static final String AGGREGATOR_KEY = "aggregator";
 	private static final String CONFIG_KEY = "config";
@@ -1292,43 +1293,15 @@ public class ProbabilisticTestExtension implements
 				.map(java.lang.reflect.Method::getName)
 				.orElse(context.getDisplayName());
 		
-		StringBuilder sb = new StringBuilder();
+		FinalConfigurationLogger.ConfigurationData configData = new FinalConfigurationLogger.ConfigurationData(
+				config.samples(),
+				config.minPassRate(),
+				config.specId(),
+				config.thresholdOrigin(),
+				config.contractRef()
+		);
 		
-		// Determine if threshold is from a normative source (SLA/SLO/POLICY)
-		boolean isNormativeThreshold = config.thresholdOrigin() == ThresholdOrigin.SLA
-				|| config.thresholdOrigin() == ThresholdOrigin.SLO
-				|| config.thresholdOrigin() == ThresholdOrigin.POLICY;
-		
-		if (isNormativeThreshold) {
-			// Threshold is explicitly specified from a normative source
-			sb.append(PUnitReporter.labelValueLn("Mode:", config.thresholdOrigin().name() + "-DRIVEN"));
-			if (config.specId() != null) {
-				sb.append(PUnitReporter.labelValueLn("Use Case:", config.specId()));
-			}
-			sb.append(PUnitReporter.labelValueLn("Threshold:", 
-					String.format("%.1f%% (%s)", config.minPassRate() * 100, config.thresholdOrigin().name())));
-			if (config.contractRef() != null && !config.contractRef().isEmpty()) {
-				sb.append(PUnitReporter.labelValueLn("Contract:", config.contractRef()));
-			}
-		} else if (config.specId() != null) {
-			// Threshold derived from baseline spec
-			sb.append(PUnitReporter.labelValueLn("Mode:", "SPEC-DRIVEN"));
-			sb.append(PUnitReporter.labelValueLn("Spec:", config.specId()));
-			sb.append(PUnitReporter.labelValueLn("Threshold:", 
-					String.format("%.1f%% (derived from baseline)", config.minPassRate() * 100)));
-		} else {
-			// Explicit threshold without spec
-			sb.append(PUnitReporter.labelValueLn("Mode:", "EXPLICIT THRESHOLD"));
-			String thresholdNote = "";
-			if (config.thresholdOrigin() != null && config.thresholdOrigin() != ThresholdOrigin.UNSPECIFIED) {
-				thresholdNote = " (" + config.thresholdOrigin().name() + ")";
-			}
-			sb.append(PUnitReporter.labelValueLn("Threshold:", 
-					String.format("%.1f%%%s", config.minPassRate() * 100, thresholdNote)));
-		}
-		sb.append(PUnitReporter.labelValue("Samples:", String.valueOf(config.samples())));
-		
-		reporter.reportInfo("TEST CONFIGURATION FOR: " + testName, sb.toString());
+		configurationLogger.log(testName, configData);
 	}
 
 	/**
