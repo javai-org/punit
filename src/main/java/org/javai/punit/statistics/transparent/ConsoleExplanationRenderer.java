@@ -2,7 +2,6 @@ package org.javai.punit.statistics.transparent;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-
 import org.javai.punit.reporting.PUnitReporter;
 
 /**
@@ -63,7 +62,7 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
      * @return a RenderResult containing title and body
      */
     public RenderResult renderForReporter(StatisticalExplanation explanation) {
-        String title = "STATISTICAL ANALYSIS: " + explanation.testName();
+        String title = "STATISTICAL ANALYSIS FOR: " + explanation.testName();
         StringBuilder sb = new StringBuilder();
 
         // Sections (no header/footer - PUnitReporter handles those)

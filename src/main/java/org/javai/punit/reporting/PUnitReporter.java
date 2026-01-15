@@ -1,5 +1,7 @@
 package org.javai.punit.reporting;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -193,7 +195,14 @@ public final class PUnitReporter {
     }
 
     private String format(String title, String body) {
-        String trimmed = body == null ? "" : body.trim();
-        return headerDivider(title) + "\n" + trimmed + "\n" + footerDivider();
+        String trimmed = body == null ? "" : indent(body.trim());
+        return headerDivider(title) + "\n\n" + trimmed + "\n";
+    }
+
+    private String indent(String text) {
+        String[] parts = text.split("\n");
+        return Arrays.stream(parts)
+                .map(line -> "  " + line)
+                .collect(Collectors.joining("\n"));
     }
 }

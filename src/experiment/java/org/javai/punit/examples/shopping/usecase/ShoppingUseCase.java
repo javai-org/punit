@@ -6,11 +6,11 @@ import java.util.List;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.CovariateSource;
+import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseContract;
-import org.javai.punit.api.FactorArguments;
 import org.javai.punit.model.UseCaseCriteria;
 import org.javai.punit.model.UseCaseOutcome;
 import org.javai.punit.model.UseCaseResult;
@@ -52,7 +52,7 @@ import org.javai.punit.model.UseCaseResult;
  * @see UseCaseContract
  */
 @UseCase(
-    covariates = { StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIME_OF_DAY, StandardCovariate.REGION },
+    covariates = { StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIME_OF_DAY },
     categorizedCovariates = {
         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
         @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)

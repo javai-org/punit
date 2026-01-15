@@ -16,18 +16,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
+import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenChargeRecorder;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.ptest.engine.FactorConsistencyValidator.ValidationResult;
-import org.javai.punit.api.FactorSource;
-import org.javai.punit.api.HashableFactorSource;
-import org.javai.punit.experiment.engine.FactorSourceAdapter;
-import org.javai.punit.model.CovariateDeclaration;
-import org.javai.punit.model.CovariateProfile;
-import org.javai.punit.model.TerminationReason;
-import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.engine.covariate.BaselineRepository;
 import org.javai.punit.engine.covariate.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.engine.covariate.BaselineSelectionTypes.SelectionResult;
@@ -38,17 +32,23 @@ import org.javai.punit.engine.covariate.FootprintComputer;
 import org.javai.punit.engine.covariate.NoCompatibleBaselineException;
 import org.javai.punit.engine.covariate.UseCaseCovariateExtractor;
 import org.javai.punit.engine.expiration.ExpirationEvaluator;
-import org.javai.punit.engine.expiration.ExpirationWarningRenderer;
 import org.javai.punit.engine.expiration.ExpirationReportPublisher;
+import org.javai.punit.engine.expiration.ExpirationWarningRenderer;
 import org.javai.punit.engine.expiration.WarningLevel;
+import org.javai.punit.experiment.engine.FactorSourceAdapter;
+import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationStatus;
+import org.javai.punit.model.TerminationReason;
+import org.javai.punit.ptest.engine.FactorConsistencyValidator.ValidationResult;
+import org.javai.punit.reporting.PUnitReporter;
+import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.statistics.transparent.ConsoleExplanationRenderer;
 import org.javai.punit.statistics.transparent.StatisticalExplanation;
 import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder;
 import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder.CovariateMisalignment;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
-import org.javai.punit.reporting.PUnitReporter;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -1303,7 +1303,7 @@ public class ProbabilisticTestExtension implements
 		}
 		sb.append(PUnitReporter.labelValue("Samples:", String.valueOf(config.samples())));
 		
-		reporter.reportInfo("CONFIGURATION FOR TEST: " + testName, sb.toString());
+		reporter.reportInfo("TEST CONFIGURATION FOR: " + testName, sb.toString());
 	}
 
 	/**
@@ -1410,16 +1410,15 @@ public class ProbabilisticTestExtension implements
 	 */
 	private void logBaselineSelectionResult(SelectionResult result, String specId) {
 		boolean isApproximate = result.hasNonConformance() || result.ambiguous();
-		String title = isApproximate ? "BASELINE: APPROXIMATE MATCH FOUND" : "BASELINE: MATCH FOUND";
+		String title = "BASELINE FOUND FOR USE CASE: " + specId;
 
 		StringBuilder sb = new StringBuilder();
-		sb.append(PUnitReporter.labelValueLn("Use case:", specId));
-		sb.append(PUnitReporter.labelValue("Baseline:", result.selected().filename()));
+		sb.append(PUnitReporter.labelValue("Baseline file:", result.selected().filename()));
 
 		// Add non-conformance details if present
 		var nonConforming = result.nonConformingDetails();
 		if (!nonConforming.isEmpty()) {
-			sb.append("\n\nThe following covariates do not match the baseline:\n");
+			sb.append("\n\nPlease note, the following covariates do not match the baseline:\n");
 			for (var detail : nonConforming) {
 				sb.append("  - ").append(detail.covariateKey());
 				sb.append(": baseline=").append(detail.baselineValue().toCanonicalString());
