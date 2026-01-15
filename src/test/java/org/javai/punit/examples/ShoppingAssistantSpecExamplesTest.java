@@ -8,7 +8,7 @@ import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
 import org.javai.punit.model.UseCaseOutcome;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -67,49 +67,31 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * @see ShoppingUseCase
  * @see UseCaseProvider
  */
-@Disabled("Example - run MEASURE experiment first to generate spec")
+//@Disabled("Example - run MEASURE experiment first to generate spec")
 @DisplayName("Shopping Assistant Spec-Driven Tests")
 class ShoppingAssistantSpecExamplesTest {
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // USE CASE PROVIDER (STATIC FOR COVARIATE RESOLUTION)
+    // USE CASE PROVIDER (INSTANCE-OWNED)
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * The use case provider - MUST be static for covariate-aware baseline selection.
+     * The use case provider is owned by the test instance.
      *
-     * <p>Baseline selection happens during {@code provideTestTemplateInvocationContexts},
-     * which runs BEFORE test instances are created. For PUnit to resolve CONFIGURATION
-     * covariates via {@code @CovariateSource} methods, it needs to create a use case
-     * instance. This requires the provider to be static with factory registered in
-     * {@code @BeforeAll}.
-     *
-     * <p>This pattern ensures that:
-     * <ol>
-     *   <li>{@code @BeforeAll} registers the factory (creates use case with model/temp config)</li>
-     *   <li>PUnit can create an instance during baseline selection</li>
-     *   <li>{@code @CovariateSource} methods on the use case are invoked</li>
-     *   <li>CONFIGURATION covariates are matched against baseline specs</li>
-     * </ol>
+     * <p>Baseline selection is now resolved lazily on the first sample invocation,
+     * so registration in {@code @BeforeEach} is sufficient.
      */
     @RegisterExtension
-    static UseCaseProvider provider = new UseCaseProvider();
+    UseCaseProvider provider = new UseCaseProvider();
 
     /**
-     * Registers the use case factory BEFORE baseline selection occurs.
-     *
-     * <p>This runs before {@code provideTestTemplateInvocationContexts}, ensuring
-     * PUnit can create use case instances to resolve CONFIGURATION covariates
-     * like {@code llm_model} and {@code temperature}.
+     * Registers the use case factory before each test run.
      *
      * <p>The configuration here MUST match what was used in the MEASURE experiment.
      * For different configurations, use EXPLORE mode to compare.
      */
-    @BeforeAll
-    static void setUpProvider() {
-        // Register how ShoppingUseCase instances are created.
-        // The model and temperature here define the CONFIGURATION covariates.
-        // These MUST match the baseline from MEASURE experiment for tests to run.
+    @BeforeEach
+    void setUpProvider() {
         provider.register(ShoppingUseCase.class, () ->
             new ShoppingUseCase(
                 new MockShoppingAssistant(
