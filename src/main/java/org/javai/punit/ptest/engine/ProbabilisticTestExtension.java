@@ -182,12 +182,10 @@ public class ProbabilisticTestExtension implements
 		ConfigurationResolver.ResolvedConfiguration resolved;
 		try {
 			resolved = configResolver.resolve(annotation, testMethod.getName());
-		} catch (ProbabilisticTestConfigurationException e) {
-			throw new ExtensionConfigurationException(e.getMessage(), e);
-		} catch (IllegalArgumentException e) {
+		} catch (ProbabilisticTestConfigurationException | IllegalArgumentException e) {
 			throw new ExtensionConfigurationException(e.getMessage(), e);
 		}
-		
+
 		// Note: Configuration logging moved to ensureBaselineSelected() so that
 		// derived minPassRate from baseline is available for accurate reporting.
 
