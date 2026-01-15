@@ -28,7 +28,7 @@ class FootprintComputerTest {
         void sameInputsShouldProduceSameHash() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION),
-                List.of()
+                Map.of()
             );
             
             var hash1 = computer.computeFootprint("shopping.search", Map.of("country", "UK"), declaration);
@@ -110,11 +110,11 @@ class FootprintComputerTest {
         void differentCovariateDeclarationsShouldProduceDifferentHashes() {
             var declaration1 = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION),
-                List.of()
+                Map.of()
             );
             var declaration2 = new CovariateDeclaration(
                 List.of(StandardCovariate.TIMEZONE),
-                List.of()
+                Map.of()
             );
             
             var hash1 = computer.computeFootprint("usecase", declaration1);
@@ -128,11 +128,11 @@ class FootprintComputerTest {
         void covariateOrderingShouldMatter() {
             var declaration1 = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION, StandardCovariate.TIMEZONE),
-                List.of()
+                Map.of()
             );
             var declaration2 = new CovariateDeclaration(
                 List.of(StandardCovariate.TIMEZONE, StandardCovariate.REGION),
-                List.of()
+                Map.of()
             );
             
             var hash1 = computer.computeFootprint("usecase", declaration1);

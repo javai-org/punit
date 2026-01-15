@@ -19,6 +19,10 @@ public final class UseCaseCovariateExtractor {
     /**
      * Extracts the covariate declaration from a use case class.
      *
+     * <p>Legacy {@code customCovariates} (String[]) are automatically assigned
+     * the {@link CovariateCategory#OPERATIONAL} category. All covariates in the
+     * returned declaration have an explicit category.
+     *
      * @param useCaseClass the use case class
      * @return the covariate declaration (empty if no covariates declared)
      */
@@ -38,13 +42,19 @@ public final class UseCaseCovariateExtractor {
             return CovariateDeclaration.EMPTY;
         }
 
-        // Convert @Covariate array to map
+        // Convert all custom covariates to categorized map
+        // Legacy customCovariates get OPERATIONAL as their category
         Map<String, CovariateCategory> categorizedMap = new HashMap<>();
+        
+        for (String legacyKey : legacyCustom) {
+            categorizedMap.put(legacyKey, CovariateCategory.OPERATIONAL);
+        }
+        
         for (Covariate cov : categorized) {
             categorizedMap.put(cov.key(), cov.category());
         }
 
-        return CovariateDeclaration.of(standard, legacyCustom, categorizedMap);
+        return CovariateDeclaration.of(standard, categorizedMap);
     }
 }
 

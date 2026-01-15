@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
+import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.model.CovariateDeclaration;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +41,7 @@ class CovariateProfileResolverTest {
         void shouldResolveAllDeclaredCovariates() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIMEZONE),
-                List.of()
+                Map.of()
             );
             var context = DefaultCovariateResolutionContext.builder()
                 .now(Instant.parse("2026-01-13T10:00:00Z")) // Tuesday
@@ -58,7 +60,7 @@ class CovariateProfileResolverTest {
         void shouldPreserveDeclarationOrder() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.TIMEZONE, StandardCovariate.REGION),
-                List.of("custom1")
+                Map.of("custom1", CovariateCategory.OPERATIONAL)
             );
             var context = DefaultCovariateResolutionContext.forNow();
             

@@ -169,18 +169,21 @@ public final class BaselineSelector {
         var details = new ArrayList<ConformanceDetail>();
         int matchCount = 0;
 
-        for (String key : baseline.orderedKeys()) {
+        // Score based on declared covariates, not profile keys
+        // This ensures we only consider covariates that were explicitly declared
+        for (String key : declaration.allKeys()) {
             var category = declaration.getCategory(key);
             
             // Skip INFORMATIONAL covariates in scoring
             if (category == CovariateCategory.INFORMATIONAL) {
                 continue;
             }
+
+            var baselineValue = baseline.get(key);
+            var testValue = test.get(key);
             
             // Skip CONFIGURATION covariates (already filtered in phase 1)
             if (category == CovariateCategory.CONFIGURATION) {
-                var baselineValue = baseline.get(key);
-                var testValue = test.get(key);
                 // Add as CONFORMS since we already filtered
                 details.add(new ConformanceDetail(key, baselineValue, testValue, 
                     CovariateMatcher.MatchResult.CONFORMS));
@@ -188,13 +191,15 @@ public final class BaselineSelector {
                 continue;
             }
 
-            var baselineValue = baseline.get(key);
-            var testValue = test.get(key);
-
             CovariateMatcher.MatchResult result;
-            if (testValue == null) {
+            if (baselineValue == null || testValue == null) {
                 result = CovariateMatcher.MatchResult.DOES_NOT_CONFORM;
-                testValue = new org.javai.punit.model.CovariateValue.StringValue("<missing>");
+                if (testValue == null) {
+                    testValue = new org.javai.punit.model.CovariateValue.StringValue("<missing>");
+                }
+                if (baselineValue == null) {
+                    baselineValue = new org.javai.punit.model.CovariateValue.StringValue("<missing>");
+                }
             } else {
                 var matcher = matcherRegistry.getMatcher(key);
                 result = matcher.match(baselineValue, testValue);

@@ -5,18 +5,24 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.StandardCovariate;
 
 /**
  * The set of covariates declared by a use case.
  *
- * <p>A covariate declaration captures which covariates are relevant for a use case,
- * both standard (from {@link StandardCovariate}) and custom (user-defined strings),
- * along with their categories.
+ * <p>A covariate declaration captures which covariates are relevant for a use case:
+ * <ul>
+ *   <li>Standard covariates (from {@link StandardCovariate}) — have built-in categories</li>
+ *   <li>Custom covariates — user-defined with explicit categories</li>
+ * </ul>
+ *
+ * <p><strong>Every covariate has a category.</strong> There are no uncategorized covariates.
  *
  * <p>The declaration is used for:
  * <ul>
@@ -27,41 +33,30 @@ import org.javai.punit.api.StandardCovariate;
  * </ul>
  *
  * @param standardCovariates the standard covariates in declaration order
- * @param customCovariates the custom covariate keys in declaration order (legacy, treated as INFRASTRUCTURE)
- * @param categorizedCovariates map of custom covariate key to category
+ * @param customCovariates map of custom covariate key to category (all have explicit categories)
  */
 public record CovariateDeclaration(
         List<StandardCovariate> standardCovariates,
-        List<String> customCovariates,
-        Map<String, CovariateCategory> categorizedCovariates
+        Map<String, CovariateCategory> customCovariates
 ) {
 
     /** An empty covariate declaration. */
-    public static final CovariateDeclaration EMPTY = new CovariateDeclaration(List.of(), List.of(), Map.of());
+    public static final CovariateDeclaration EMPTY = new CovariateDeclaration(List.of(), Map.of());
 
     public CovariateDeclaration {
         standardCovariates = List.copyOf(standardCovariates);
-        customCovariates = List.copyOf(customCovariates);
-        categorizedCovariates = Map.copyOf(categorizedCovariates);
+        customCovariates = Map.copyOf(customCovariates);
     }
 
     /**
-     * Legacy constructor for backward compatibility.
-     */
-    public CovariateDeclaration(List<StandardCovariate> standardCovariates, List<String> customCovariates) {
-        this(standardCovariates, customCovariates, Map.of());
-    }
-
-    /**
-     * Returns all covariate keys in declaration order (standard first, then legacy custom, then categorized).
+     * Returns all covariate keys in declaration order (standard first, then custom).
      *
      * @return list of all covariate keys
      */
     public List<String> allKeys() {
         var keys = new ArrayList<String>();
         standardCovariates.forEach(sc -> keys.add(sc.key()));
-        keys.addAll(customCovariates);
-        keys.addAll(categorizedCovariates.keySet());
+        keys.addAll(customCovariates.keySet());
         return keys;
     }
 
@@ -89,10 +84,10 @@ public record CovariateDeclaration(
     /**
      * Returns true if no covariates are declared.
      *
-     * @return true if all covariate collections are empty
+     * @return true if both standard and custom collections are empty
      */
     public boolean isEmpty() {
-        return standardCovariates.isEmpty() && customCovariates.isEmpty() && categorizedCovariates.isEmpty();
+        return standardCovariates.isEmpty() && customCovariates.isEmpty();
     }
 
     /**
@@ -101,20 +96,21 @@ public record CovariateDeclaration(
      * @return count of all covariates
      */
     public int size() {
-        return standardCovariates.size() + customCovariates.size() + categorizedCovariates.size();
+        return standardCovariates.size() + customCovariates.size();
     }
 
     /**
      * Returns the category for a covariate key.
      *
-     * <p>Resolution order:
-     * <ol>
-     *   <li>Standard covariate category (from enum)</li>
-     *   <li>Categorized covariate map</li>
-     * </ol>
+     * <p>Every covariate in this declaration has a category:
+     * <ul>
+     *   <li>Standard covariates get their category from the enum</li>
+     *   <li>Custom covariates have explicit categories in the map</li>
+     * </ul>
      *
      * @param key the covariate key
-     * @return the category, or OPERATIONAL if not found
+     * @return the category
+     * @throws IllegalArgumentException if the key is not in this declaration
      */
     public CovariateCategory getCategory(String key) {
         // Check standard covariates
@@ -124,65 +120,75 @@ public record CovariateDeclaration(
             }
         }
         
-        // Check categorized custom covariates
-        if (categorizedCovariates.containsKey(key)) {
-            return categorizedCovariates.get(key);
+        // Check custom covariates
+        if (customCovariates.containsKey(key)) {
+            return customCovariates.get(key);
         }
 
-        // Unknown covariate - default to OPERATIONAL
-        return CovariateCategory.OPERATIONAL;
+        throw new IllegalArgumentException(
+            "Covariate '" + key + "' is not declared. Declared covariates: " + allKeys());
     }
 
     /**
-     * Returns all custom covariate keys (both legacy and categorized).
+     * Returns true if this declaration contains the given covariate key.
      *
-     * @return combined list of custom keys
+     * @param key the covariate key
+     * @return true if declared
+     */
+    public boolean contains(String key) {
+        for (StandardCovariate sc : standardCovariates) {
+            if (sc.key().equals(key)) {
+                return true;
+            }
+        }
+        return customCovariates.containsKey(key);
+    }
+
+    /**
+     * Returns all custom covariate keys.
+     *
+     * @return list of custom keys
      */
     public List<String> allCustomKeys() {
-        var keys = new ArrayList<>(customCovariates);
-        keys.addAll(categorizedCovariates.keySet());
-        return keys;
+        return new ArrayList<>(customCovariates.keySet());
     }
 
     /**
-     * Creates a declaration from arrays (convenience for annotation processing).
+     * Creates a declaration with standard covariates only.
      *
      * @param standard array of standard covariates
-     * @param custom array of custom covariate keys (legacy, treated as INFRASTRUCTURE)
      * @return the covariate declaration
      */
-    public static CovariateDeclaration of(StandardCovariate[] standard, String[] custom) {
+    public static CovariateDeclaration of(StandardCovariate[] standard) {
         Objects.requireNonNull(standard, "standard must not be null");
-        Objects.requireNonNull(custom, "custom must not be null");
         
-        if (standard.length == 0 && custom.length == 0) {
+        if (standard.length == 0) {
             return EMPTY;
         }
         
-        return new CovariateDeclaration(List.of(standard), List.of(custom), Map.of());
+        return new CovariateDeclaration(List.of(standard), Map.of());
     }
 
     /**
-     * Creates a declaration with categorized custom covariates.
+     * Creates a declaration with standard and custom covariates.
+     *
+     * <p>Every custom covariate must have an explicit category in the map.
      *
      * @param standard array of standard covariates
-     * @param legacyCustom array of legacy custom covariate keys
-     * @param categorized map of custom key to category
+     * @param custom map of custom covariate key to category
      * @return the covariate declaration
      */
     public static CovariateDeclaration of(
             StandardCovariate[] standard, 
-            String[] legacyCustom,
-            Map<String, CovariateCategory> categorized) {
+            Map<String, CovariateCategory> custom) {
         Objects.requireNonNull(standard, "standard must not be null");
-        Objects.requireNonNull(legacyCustom, "legacyCustom must not be null");
-        Objects.requireNonNull(categorized, "categorized must not be null");
+        Objects.requireNonNull(custom, "custom must not be null");
         
-        if (standard.length == 0 && legacyCustom.length == 0 && categorized.isEmpty()) {
+        if (standard.length == 0 && custom.isEmpty()) {
             return EMPTY;
         }
         
-        return new CovariateDeclaration(List.of(standard), List.of(legacyCustom), categorized);
+        return new CovariateDeclaration(List.of(standard), custom);
     }
 
     private static String sha256(String input) {

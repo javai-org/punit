@@ -1,9 +1,13 @@
 package org.javai.punit.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.StandardCovariate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,36 +33,36 @@ class CovariateDeclarationTest {
         }
 
         @Test
-        @DisplayName("of() should create from arrays")
-        void ofShouldCreateFromArrays() {
+        @DisplayName("of() should create from standard array and custom map")
+        void ofShouldCreateFromArrayAndMap() {
             var declaration = CovariateDeclaration.of(
                 new StandardCovariate[] { StandardCovariate.WEEKDAY_VERSUS_WEEKEND },
-                new String[] { "custom1" }
+                Map.of("custom1", CovariateCategory.CONFIGURATION)
             );
             
             assertThat(declaration.standardCovariates())
                 .containsExactly(StandardCovariate.WEEKDAY_VERSUS_WEEKEND);
             assertThat(declaration.customCovariates())
-                .containsExactly("custom1");
+                .containsEntry("custom1", CovariateCategory.CONFIGURATION);
         }
 
         @Test
-        @DisplayName("of() with empty arrays should return EMPTY")
-        void ofWithEmptyArraysShouldReturnEmpty() {
+        @DisplayName("of() with empty inputs should return EMPTY")
+        void ofWithEmptyInputsShouldReturnEmpty() {
             var declaration = CovariateDeclaration.of(
                 new StandardCovariate[] {},
-                new String[] {}
+                Map.of()
             );
             
             assertThat(declaration).isSameAs(CovariateDeclaration.EMPTY);
         }
 
         @Test
-        @DisplayName("should create immutable copies of lists")
-        void shouldCreateImmutableCopiesOfLists() {
+        @DisplayName("should create immutable copies")
+        void shouldCreateImmutableCopies() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION),
-                List.of("custom")
+                Map.of("custom", CovariateCategory.OPERATIONAL)
             );
             
             assertThat(declaration.standardCovariates()).isUnmodifiable();
@@ -79,9 +83,14 @@ class CovariateDeclarationTest {
         @Test
         @DisplayName("should return standard keys first, then custom")
         void shouldReturnStandardKeysFirstThenCustom() {
+            // Use LinkedHashMap to preserve order
+            var customMap = new LinkedHashMap<String, CovariateCategory>();
+            customMap.put("custom1", CovariateCategory.OPERATIONAL);
+            customMap.put("custom2", CovariateCategory.CONFIGURATION);
+            
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIMEZONE),
-                List.of("custom1", "custom2")
+                customMap
             );
             
             assertThat(declaration.allKeys()).containsExactly(
@@ -97,21 +106,90 @@ class CovariateDeclarationTest {
         void shouldPreserveStandardCovariateOrdering() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION, StandardCovariate.TIME_OF_DAY),
-                List.of()
+                Map.of()
             );
             
             assertThat(declaration.allKeys()).containsExactly("region", "time_of_day");
         }
+    }
+
+    @Nested
+    @DisplayName("getCategory()")
+    class GetCategoryTests {
 
         @Test
-        @DisplayName("should preserve custom covariate ordering")
-        void shouldPreserveCustomCovariateOrdering() {
+        @DisplayName("should return category for standard covariate")
+        void shouldReturnCategoryForStandardCovariate() {
             var declaration = new CovariateDeclaration(
-                List.of(),
-                List.of("z_custom", "a_custom", "m_custom")
+                List.of(StandardCovariate.REGION),
+                Map.of()
             );
             
-            assertThat(declaration.allKeys()).containsExactly("z_custom", "a_custom", "m_custom");
+            assertThat(declaration.getCategory("region"))
+                .isEqualTo(CovariateCategory.OPERATIONAL);
+        }
+
+        @Test
+        @DisplayName("should return category for custom covariate")
+        void shouldReturnCategoryForCustomCovariate() {
+            var declaration = new CovariateDeclaration(
+                List.of(),
+                Map.of("llm_model", CovariateCategory.CONFIGURATION)
+            );
+            
+            assertThat(declaration.getCategory("llm_model"))
+                .isEqualTo(CovariateCategory.CONFIGURATION);
+        }
+
+        @Test
+        @DisplayName("should throw for unknown covariate")
+        void shouldThrowForUnknownCovariate() {
+            var declaration = new CovariateDeclaration(
+                List.of(StandardCovariate.REGION),
+                Map.of()
+            );
+            
+            assertThatThrownBy(() -> declaration.getCategory("unknown"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not declared");
+        }
+    }
+
+    @Nested
+    @DisplayName("contains()")
+    class ContainsTests {
+
+        @Test
+        @DisplayName("should return true for declared standard covariate")
+        void shouldReturnTrueForDeclaredStandardCovariate() {
+            var declaration = new CovariateDeclaration(
+                List.of(StandardCovariate.REGION),
+                Map.of()
+            );
+            
+            assertThat(declaration.contains("region")).isTrue();
+        }
+
+        @Test
+        @DisplayName("should return true for declared custom covariate")
+        void shouldReturnTrueForDeclaredCustomCovariate() {
+            var declaration = new CovariateDeclaration(
+                List.of(),
+                Map.of("custom", CovariateCategory.OPERATIONAL)
+            );
+            
+            assertThat(declaration.contains("custom")).isTrue();
+        }
+
+        @Test
+        @DisplayName("should return false for undeclared covariate")
+        void shouldReturnFalseForUndeclaredCovariate() {
+            var declaration = new CovariateDeclaration(
+                List.of(StandardCovariate.REGION),
+                Map.of()
+            );
+            
+            assertThat(declaration.contains("unknown")).isFalse();
         }
     }
 
@@ -130,7 +208,7 @@ class CovariateDeclarationTest {
         void hashShouldBeStableAcrossCalls() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.WEEKDAY_VERSUS_WEEKEND),
-                List.of("custom")
+                Map.of("custom", CovariateCategory.OPERATIONAL)
             );
             
             var hash1 = declaration.computeDeclarationHash();
@@ -144,7 +222,7 @@ class CovariateDeclarationTest {
         void hashShouldBe8Characters() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION),
-                List.of()
+                Map.of()
             );
             
             assertThat(declaration.computeDeclarationHash()).hasSize(8);
@@ -155,11 +233,11 @@ class CovariateDeclarationTest {
         void differentDeclarationsShouldProduceDifferentHashes() {
             var declaration1 = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION),
-                List.of()
+                Map.of()
             );
             var declaration2 = new CovariateDeclaration(
                 List.of(StandardCovariate.TIMEZONE),
-                List.of()
+                Map.of()
             );
             
             assertThat(declaration1.computeDeclarationHash())
@@ -171,11 +249,11 @@ class CovariateDeclarationTest {
         void orderingShouldAffectHash() {
             var declaration1 = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION, StandardCovariate.TIMEZONE),
-                List.of()
+                Map.of()
             );
             var declaration2 = new CovariateDeclaration(
                 List.of(StandardCovariate.TIMEZONE, StandardCovariate.REGION),
-                List.of()
+                Map.of()
             );
             
             assertThat(declaration1.computeDeclarationHash())
@@ -198,7 +276,7 @@ class CovariateDeclarationTest {
         void shouldReturnFalseWhenStandardCovariatesPresent() {
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION),
-                List.of()
+                Map.of()
             );
             
             assertThat(declaration.isEmpty()).isFalse();
@@ -209,7 +287,7 @@ class CovariateDeclarationTest {
         void shouldReturnFalseWhenCustomCovariatesPresent() {
             var declaration = new CovariateDeclaration(
                 List.of(),
-                List.of("custom")
+                Map.of("custom", CovariateCategory.OPERATIONAL)
             );
             
             assertThat(declaration.isEmpty()).isFalse();
@@ -229,13 +307,17 @@ class CovariateDeclarationTest {
         @Test
         @DisplayName("should count all covariates")
         void shouldCountAllCovariates() {
+            var customMap = new LinkedHashMap<String, CovariateCategory>();
+            customMap.put("custom1", CovariateCategory.OPERATIONAL);
+            customMap.put("custom2", CovariateCategory.CONFIGURATION);
+            customMap.put("custom3", CovariateCategory.DATA_STATE);
+            
             var declaration = new CovariateDeclaration(
                 List.of(StandardCovariate.REGION, StandardCovariate.TIMEZONE),
-                List.of("custom1", "custom2", "custom3")
+                customMap
             );
             
             assertThat(declaration.size()).isEqualTo(5);
         }
     }
 }
-
