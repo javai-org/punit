@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.javai.punit.engine.covariate.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.engine.covariate.CovariateMatcher.MatchResult;
+import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.junit.jupiter.api.DisplayName;
@@ -45,7 +46,7 @@ class BaselineSelectorTest {
         @Test
         @DisplayName("should return noMatch for empty candidate list")
         void shouldReturnNoMatchForEmptyCandidateList() {
-            var result = selector.select(List.of(), CovariateProfile.empty());
+            var result = selector.select(List.of(), CovariateProfile.empty(), CovariateDeclaration.EMPTY);
             
             assertThat(result.hasSelection()).isFalse();
             assertThat(result.candidateCount()).isEqualTo(0);
@@ -68,7 +69,7 @@ class BaselineSelectorTest {
             
             var candidate = candidate("baseline1", candidateProfile, Instant.now());
             
-            var result = selector.select(List.of(candidate), testProfile);
+            var result = selector.select(List.of(candidate), testProfile, CovariateDeclaration.EMPTY);
             
             assertThat(result.hasSelection()).isTrue();
             assertThat(result.selected()).isEqualTo(candidate);
@@ -102,7 +103,7 @@ class BaselineSelectorTest {
             var candidate1 = candidate("baseline1", profile1, now);
             var candidate2 = candidate("baseline2", profile2, now);
             
-            var result = selector.select(List.of(candidate1, candidate2), testProfile);
+            var result = selector.select(List.of(candidate1, candidate2), testProfile, CovariateDeclaration.EMPTY);
             
             assertThat(result.selected().filename()).isEqualTo("baseline2.yaml");
             assertThat(result.hasNonConformance()).isFalse();
@@ -120,7 +121,7 @@ class BaselineSelectorTest {
             
             var candidate = candidate("baseline1", baselineProfile, Instant.now());
             
-            var result = selector.select(List.of(candidate), testProfile);
+            var result = selector.select(List.of(candidate), testProfile, CovariateDeclaration.EMPTY);
             
             assertThat(result.hasSelection()).isTrue();
             assertThat(result.hasNonConformance()).isTrue();
@@ -147,7 +148,7 @@ class BaselineSelectorTest {
             var candidate1 = candidate("older", profile, older);
             var candidate2 = candidate("newer", profile, newer);
             
-            var result = selector.select(List.of(candidate1, candidate2), profile);
+            var result = selector.select(List.of(candidate1, candidate2), profile, CovariateDeclaration.EMPTY);
             
             assertThat(result.selected().filename()).isEqualTo("newer.yaml");
         }
@@ -170,7 +171,7 @@ class BaselineSelectorTest {
             var candidate1 = candidate("baseline1", profile, now);
             var candidate2 = candidate("baseline2", profile, now);
             
-            var result = selector.select(List.of(candidate1, candidate2), profile);
+            var result = selector.select(List.of(candidate1, candidate2), profile, CovariateDeclaration.EMPTY);
             
             assertThat(result.ambiguous()).isTrue();
         }
@@ -194,7 +195,7 @@ class BaselineSelectorTest {
             var candidate1 = candidate("baseline1", profile1, now);
             var candidate2 = candidate("baseline2", profile2, now);
             
-            var result = selector.select(List.of(candidate1, candidate2), testProfile);
+            var result = selector.select(List.of(candidate1, candidate2), testProfile, CovariateDeclaration.EMPTY);
             
             assertThat(result.ambiguous()).isFalse();
         }
@@ -218,7 +219,7 @@ class BaselineSelectorTest {
             
             var candidate = candidate("baseline1", baselineProfile, Instant.now());
             
-            var result = selector.select(List.of(candidate), testProfile);
+            var result = selector.select(List.of(candidate), testProfile, CovariateDeclaration.EMPTY);
             
             assertThat(result.conformanceDetails()).hasSize(2);
             assertThat(result.conformanceDetails().get(0).covariateKey()).isEqualTo("region");

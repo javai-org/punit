@@ -1164,8 +1164,8 @@ public class ProbabilisticTestExtension implements
 		DefaultCovariateResolutionContext resolutionContext = DefaultCovariateResolutionContext.forNow();
 		CovariateProfile testProfile = covariateProfileResolver.resolve(declaration, resolutionContext);
 
-		// Select the best-matching baseline
-		SelectionResult result = baselineSelector.select(candidates, testProfile);
+		// Select the best-matching baseline (category-aware)
+		SelectionResult result = baselineSelector.select(candidates, testProfile, declaration);
 
 		if (!result.hasSelection()) {
 			// This shouldn't happen if candidates is non-empty, but handle defensively

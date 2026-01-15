@@ -108,20 +108,6 @@ public final class BaselineSelector {
         );
     }
 
-    /**
-     * Legacy select method without category awareness.
-     *
-     * @param candidates baselines with matching footprint
-     * @param testProfile the test's current covariate profile
-     * @return selection result including the chosen baseline and conformance info
-     */
-    public SelectionResult select(
-            List<BaselineCandidate> candidates,
-            CovariateProfile testProfile) {
-        // Use empty declaration for backward compatibility (all covariates treated as INFRASTRUCTURE)
-        return select(candidates, testProfile, CovariateDeclaration.EMPTY);
-    }
-
     private boolean matchesConfigurationCovariates(
             CovariateProfile baseline, 
             CovariateProfile test, 
