@@ -1248,7 +1248,8 @@ public class ProbabilisticTestExtension implements
 
 	/**
 	 * Resolves baseline selection lazily during the first sample invocation.
-	 * Also validates the test configuration after baseline selection.
+	 * Also validates the test configuration after baseline selection and derives
+	 * minPassRate from baseline if not explicitly specified.
 	 */
 	private void ensureBaselineSelected(ExtensionContext context) {
 		ExtensionContext.Store store = getMethodStore(context);
@@ -1266,18 +1267,57 @@ public class ProbabilisticTestExtension implements
 
 		store.getOrComputeIfAbsent(SELECTION_RESULT_KEY, key -> {
 			SelectionResult result = performBaselineSelection(context, pending);
+			ExecutionSpecification baseline = result.selected().spec();
 
 			// Store the selected spec and selection result
-			store.put(SPEC_KEY, result.selected().spec());
+			store.put(SPEC_KEY, baseline);
 
 			// Validate test configuration now that we have the selected baseline
-			validateTestConfiguration(context, result.selected().spec());
+			validateTestConfiguration(context, baseline);
+
+			// Derive minPassRate from baseline if not explicitly specified
+			deriveMinPassRateFromBaseline(store, baseline);
 
 			// Log baseline selection result (single consolidated report)
 			logBaselineSelectionResult(result, pending.specId());
 
 			return result;
 		}, SelectionResult.class);
+	}
+
+	/**
+	 * Derives minPassRate from baseline and updates stored configuration if needed.
+	 *
+	 * <p>If the current TestConfiguration has a NaN minPassRate (meaning it wasn't
+	 * explicitly specified), this method derives it from the baseline's empirical data
+	 * and updates both the TestConfiguration and EarlyTerminationEvaluator.
+	 */
+	private void deriveMinPassRateFromBaseline(ExtensionContext.Store store, ExecutionSpecification baseline) {
+		TestConfiguration config = store.get(CONFIG_KEY, TestConfiguration.class);
+		if (config == null || !Double.isNaN(config.minPassRate())) {
+			return; // Config missing or minPassRate already set
+		}
+
+		// Derive minPassRate from baseline
+		double derivedMinPassRate = baseline.getMinPassRate();
+		if (Double.isNaN(derivedMinPassRate) || derivedMinPassRate <= 0) {
+			// Baseline doesn't have a valid minPassRate - this shouldn't happen if validation passed
+			throw new ExtensionConfigurationException(
+					"Baseline for use case '" + baseline.getUseCaseId() + "' does not contain a valid minPassRate. " +
+					"Run a MEASURE experiment to establish baseline data.");
+		}
+
+		// Update TestConfiguration with derived minPassRate
+		TestConfiguration updatedConfig = config.withMinPassRate(derivedMinPassRate);
+		store.put(CONFIG_KEY, updatedConfig);
+
+		// Update EarlyTerminationEvaluator with derived minPassRate
+		EarlyTerminationEvaluator oldEvaluator = store.get(EVALUATOR_KEY, EarlyTerminationEvaluator.class);
+		if (oldEvaluator != null) {
+			EarlyTerminationEvaluator updatedEvaluator = new EarlyTerminationEvaluator(
+					config.samples(), derivedMinPassRate);
+			store.put(EVALUATOR_KEY, updatedEvaluator);
+		}
 	}
 
 	/**
@@ -1572,6 +1612,20 @@ public class ProbabilisticTestExtension implements
 		 */
 		boolean hasContractRef() {
 			return contractRef != null && !contractRef.isEmpty();
+		}
+
+		/**
+		 * Creates a copy of this configuration with an updated minPassRate.
+		 *
+		 * <p>Used when the minPassRate is derived from a baseline after lazy selection.
+		 */
+		TestConfiguration withMinPassRate(double newMinPassRate) {
+			return new TestConfiguration(
+					samples, newMinPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
+					tokenMode, onBudgetExhausted, onException, maxExampleFailures,
+					confidence, baselineRate, baselineSamples, specId,
+					pacing, transparentStats, thresholdOrigin, contractRef
+			);
 		}
 
 		/**

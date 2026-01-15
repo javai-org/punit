@@ -294,13 +294,15 @@ class ConfigurationResolverTest {
     }
 
     @Test
-    void throwsExceptionWhenNoMinPassRateAndNoUseCase() {
-        // When minPassRate is NaN and there's no useCase, should throw configuration error
+    void returnsNaNMinPassRateWhenNoExplicitThreshold() {
+        // When minPassRate is NaN and there's no useCase, ConfigurationResolver returns NaN.
+        // The validation is done later by ProbabilisticTestValidator after baseline selection.
         ProbabilisticTest annotation = createAnnotationWithNaNMinPassRate(100);
         
-        assertThatThrownBy(() -> resolver.resolve(annotation, "testMethod"))
-                .isInstanceOf(ProbabilisticTestConfigurationException.class)
-                .hasMessageContaining("No Threshold Specified");
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        
+        assertThat(config.minPassRate()).isNaN();
+        assertThat(config.samples()).isEqualTo(100);
     }
 
     /**

@@ -107,83 +107,49 @@ public class ConfigurationResolver {
         // Ensure at least 1 sample after multiplier (small multiplier shouldn't reduce below 1)
         effectiveSamples = Math.max(1, effectiveSamples);
 
-        // Resolve minPassRate
+        // Resolve minPassRate from explicit sources only
         // Priority:
-        // 1. Explicit annotation value (not NaN)
-        // 2. System property or env var override
-        // 3. Spec lookup (via useCase class or explicit spec ID)
-        // 4. Framework default
+        // 1. System property or env var override
+        // 2. Explicit annotation value (not NaN)
+        // 3. Leave as NaN (will be derived from baseline by ProbabilisticTestValidator)
+        //
+        // NOTE: We do NOT derive threshold from baseline here. That is done after
+        // baseline selection by ProbabilisticTestExtension. ProbabilisticTestValidator
+        // is the single source of truth for configuration validity.
         double annotationMinPassRate = annotation.minPassRate();
         
         // Determine if we have a spec reference (via useCase class)
         Optional<String> specIdOpt = resolveSpecId(annotation);
-        boolean hasSpec = specIdOpt.isPresent();
         
         double minPassRate;
         
-        if (!Double.isNaN(annotationMinPassRate)) {
-            // Explicit minPassRate takes precedence
-            minPassRate = resolveDouble(
-                    PROP_MIN_PASS_RATE, ENV_MIN_PASS_RATE,
-                    annotationMinPassRate,
-                    DEFAULT_MIN_PASS_RATE);
-        } else {
-            // Check for system property or env var override
-            String sysPropValue = System.getProperty(PROP_MIN_PASS_RATE);
-            String envValue = getEnvironmentVariable(ENV_MIN_PASS_RATE);
-            
-            if (sysPropValue != null && !sysPropValue.isEmpty()) {
+        // Check for system property or env var override first
+        String sysPropValue = System.getProperty(PROP_MIN_PASS_RATE);
+        String envValue = getEnvironmentVariable(ENV_MIN_PASS_RATE);
+        
+        if (sysPropValue != null && !sysPropValue.isEmpty()) {
+            try {
                 minPassRate = Double.parseDouble(sysPropValue.trim());
-            } else if (envValue != null && !envValue.isEmpty()) {
-                minPassRate = Double.parseDouble(envValue.trim());
-            } else if (hasSpec) {
-                // Spec-driven mode: load minPassRate from spec (fail if not found)
-                minPassRate = loadMinPassRateFromSpec(specIdOpt.get());
-            } else {
-                // No explicit threshold AND no spec → configuration error
-                throw new ProbabilisticTestConfigurationException(String.format("""
-                    
-                    ═══════════════════════════════════════════════════════════════════════════
-                    ❌ PROBABILISTIC TEST CONFIGURATION ERROR: No Threshold Specified
-                    ═══════════════════════════════════════════════════════════════════════════
-                    
-                    Test: %s
-                    
-                    @ProbabilisticTest requires you to specify how to determine the pass/fail
-                    threshold. You have two options:
-                    
-                    ───────────────────────────────────────────────────────────────────────────
-                    OPTION 1: Spec-Driven (Recommended)
-                    ───────────────────────────────────────────────────────────────────────────
-                    
-                    Reference a use case that has baseline data. The threshold is derived
-                    automatically from empirical measurements.
-                    
-                    @ProbabilisticTest(
-                        useCase = MyUseCase.class,  // Spec provides threshold
-                        samples = 100
-                    )
-                    
-                    ───────────────────────────────────────────────────────────────────────────
-                    OPTION 2: Explicit Threshold (Spec-less)
-                    ───────────────────────────────────────────────────────────────────────────
-                    
-                    Specify an explicit minPassRate. Use this when you have a known SLA/SLO
-                    or when baseline data is not available.
-                    
-                    @ProbabilisticTest(
-                        samples = 100,
-                        minPassRate = 0.95,              // Explicit threshold
-                        thresholdOrigin = ThresholdOrigin.SLA,
-                        contractRef = "SLA-2024-001"
-                    )
-                    
-                    ═══════════════════════════════════════════════════════════════════════════
-                    """, contextName));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        "Invalid " + PROP_MIN_PASS_RATE + " value: '" + sysPropValue + "' is not a valid number");
             }
+        } else if (envValue != null && !envValue.isEmpty()) {
+            try {
+                minPassRate = Double.parseDouble(envValue.trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        "Invalid " + ENV_MIN_PASS_RATE + " value: '" + envValue + "' is not a valid number");
+            }
+        } else if (!Double.isNaN(annotationMinPassRate)) {
+            // Explicit annotation value
+            minPassRate = annotationMinPassRate;
+        } else {
+            // Leave as NaN - will be derived from baseline or validated by ProbabilisticTestValidator
+            minPassRate = Double.NaN;
         }
 
-        // Validate minPassRate (only if set)
+        // Validate minPassRate range (only if explicitly set)
         if (!Double.isNaN(minPassRate)) {
             validateMinPassRate(minPassRate, contextName);
         }
@@ -484,78 +450,6 @@ public class ConfigurationResolver {
         }
 
         return Optional.empty();
-    }
-
-    /**
-     * Loads the minPassRate from a specification file.
-     *
-     * @param specId the specification ID (the use case ID)
-     * @return the minPassRate from the spec
-     * @throws SpecificationIntegrityException if spec file fails integrity validation
-     * @throws ProbabilisticTestConfigurationException if spec not found or minPassRate invalid
-     */
-    private double loadMinPassRateFromSpec(String specId) {
-        ExecutionSpecification spec = loadSpec(specId)
-                .orElseThrow(() -> new ProbabilisticTestConfigurationException(String.format("""
-                    
-                    ═══════════════════════════════════════════════════════════════════════════
-                    ❌ SPECIFICATION NOT FOUND
-                    ═══════════════════════════════════════════════════════════════════════════
-                    
-                    A use case was specified but no matching spec file could be found.
-                    
-                    Use case ID: %s
-                    Expected spec file: punit-specs/%s.yaml
-                    
-                    ───────────────────────────────────────────────────────────────────────────
-                    WHY THIS MATTERS
-                    ───────────────────────────────────────────────────────────────────────────
-                    
-                    When you reference a use case without an explicit minPassRate, PUnit needs
-                    to load the spec file to derive the threshold from baseline data.
-                    
-                    ───────────────────────────────────────────────────────────────────────────
-                    HOW TO FIX
-                    ───────────────────────────────────────────────────────────────────────────
-                    
-                    Option 1: Create the spec file by running a MEASURE experiment
-                    
-                      @Experiment(mode = ExperimentMode.MEASURE)
-                      void measureBaseline(...) { ... }
-                    
-                    Option 2: Use an explicit threshold (spec-less mode)
-                    
-                      @ProbabilisticTest(
-                          samples = 100,
-                          minPassRate = 0.95  // Explicit threshold, no spec needed
-                      )
-                    
-                    ═══════════════════════════════════════════════════════════════════════════
-                    """, specId, specId)));
-        
-        double minPassRate = spec.getMinPassRate();
-        if (minPassRate <= 0 || minPassRate > 1.0) {
-            throw new ProbabilisticTestConfigurationException(String.format("""
-                    
-                    ═══════════════════════════════════════════════════════════════════════════
-                    ❌ INVALID SPEC: Missing or Invalid minPassRate
-                    ═══════════════════════════════════════════════════════════════════════════
-                    
-                    The spec file was found but does not contain a valid minPassRate.
-                    
-                    Spec ID: %s
-                    minPassRate in spec: %s
-                    
-                    The minPassRate must be a value between 0 (exclusive) and 1.0 (inclusive).
-                    
-                    This usually means the spec file was created without baseline data.
-                    Run a MEASURE experiment to generate baseline data and approve the results.
-                    
-                    ═══════════════════════════════════════════════════════════════════════════
-                    """, specId, minPassRate <= 0 ? "(not set)" : String.valueOf(minPassRate)));
-        }
-        
-        return minPassRate;
     }
 
     /**

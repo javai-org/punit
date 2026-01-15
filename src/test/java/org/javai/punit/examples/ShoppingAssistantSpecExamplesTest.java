@@ -134,11 +134,9 @@ class ShoppingAssistantSpecExamplesTest {
      */
     @ProbabilisticTest(
         useCase = ShoppingUseCase.class,
-        samples = 30,
-        minPassRate = 0.95,  // TODO: Should be derived from selected baseline
-        maxExampleFailures = 5
+        samples = 30
     )
-    @DisplayName("Should return valid JSON (spec-driven)")
+    @DisplayName("Should return valid JSON")
     void shouldReturnValidJson(
             ShoppingUseCase useCase,
             TokenChargeRecorder tokenRecorder) {
@@ -169,9 +167,7 @@ class ShoppingAssistantSpecExamplesTest {
      */
     @ProbabilisticTest(
         useCase = ShoppingUseCase.class,
-        samples = 30,
-        minPassRate = 0.95,  // TODO: Should be derived from selected baseline
-        maxExampleFailures = 3
+        samples = 30
     )
     @DisplayName("Should return valid JSON (with configuration mismatch test)")
     void shouldReturnValidJsonExplicit(
@@ -216,11 +212,9 @@ class ShoppingAssistantSpecExamplesTest {
      */
     @ProbabilisticTest(
         useCase = ShoppingUseCase.class,
-        samples = 30,
-        minPassRate = 0.95,  // TODO: Should be derived from selected baseline
-        maxExampleFailures = 5
+        samples = 30
     )
-    @DisplayName("Should pass all success criteria (spec-driven)")
+    @DisplayName("Should pass all success criteria")
     void shouldPassAllSuccessCriteria(
             ShoppingUseCase useCase,
             TokenChargeRecorder tokenRecorder) {
@@ -247,11 +241,9 @@ class ShoppingAssistantSpecExamplesTest {
      */
     @ProbabilisticTest(
         useCase = ShoppingUseCase.class,
-        samples = 25,
-        minPassRate = 0.95,  // TODO: Should be derived from selected baseline
-        maxExampleFailures = 3
+        samples = 25
     )
-    @DisplayName("Should pass success criteria (spec-driven)")
+    @DisplayName("Should pass success criteria")
     void shouldPassSuccessCriteriaExplicit(
             ShoppingUseCase useCase,
             TokenChargeRecorder tokenRecorder) {
