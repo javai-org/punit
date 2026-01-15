@@ -91,6 +91,7 @@ public class ProbabilisticTestExtension implements
 	private static final ProbabilisticTestValidator testValidator = new ProbabilisticTestValidator();
 	private static final FinalConfigurationLogger configurationLogger = new FinalConfigurationLogger(reporter);
 	private static final SampleFailureFormatter sampleFailureFormatter = new SampleFailureFormatter();
+	private static final BudgetOrchestrator budgetOrchestrator = new BudgetOrchestrator();
 
 	private static final String AGGREGATOR_KEY = "aggregator";
 	private static final String CONFIG_KEY = "config";
@@ -413,13 +414,14 @@ public class ProbabilisticTestExtension implements
 		}
 
 		// Pre-sample budget checks (suite → class → method precedence)
-		Optional<TerminationReason> preSampleTermination = checkAllBudgetsBeforeSample(
+		BudgetOrchestrator.BudgetCheckResult preSampleCheck = budgetOrchestrator.checkBeforeSample(
 				suiteBudgetMonitor, classBudgetMonitor, budgetMonitor);
-		if (preSampleTermination.isPresent()) {
-			BudgetExhaustedBehavior behavior = determineBehavior(
-					preSampleTermination.get(), suiteBudgetMonitor, classBudgetMonitor, config);
+		if (preSampleCheck.shouldTerminate()) {
+			TerminationReason reason = preSampleCheck.terminationReason().get();
+			BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
+					reason, suiteBudgetMonitor, classBudgetMonitor, config.onBudgetExhausted());
 			handleBudgetExhaustion(extensionContext, aggregator, config, budgetMonitor,
-					classBudgetMonitor, suiteBudgetMonitor, preSampleTermination.get(), behavior, terminated);
+					classBudgetMonitor, suiteBudgetMonitor, reason, behavior, terminated);
 			invocation.skip();
 			return;
 		}
@@ -458,17 +460,18 @@ public class ProbabilisticTestExtension implements
 		}
 
 		// Post-sample processing: record tokens and propagate to all scopes
-		recordAndPropagateTokens(tokenRecorder, budgetMonitor, config,
-				classBudgetMonitor, suiteBudgetMonitor);
+		budgetOrchestrator.recordAndPropagateTokens(tokenRecorder, budgetMonitor,
+				config.tokenMode(), config.tokenCharge(), classBudgetMonitor, suiteBudgetMonitor);
 
 		// Post-sample budget checks (dynamic mode)
-		Optional<TerminationReason> postSampleTermination = checkAllBudgetsAfterSample(
+		BudgetOrchestrator.BudgetCheckResult postSampleCheck = budgetOrchestrator.checkAfterSample(
 				suiteBudgetMonitor, classBudgetMonitor, budgetMonitor);
-		if (postSampleTermination.isPresent()) {
-			BudgetExhaustedBehavior behavior = determineBehavior(
-					postSampleTermination.get(), suiteBudgetMonitor, classBudgetMonitor, config);
+		if (postSampleCheck.shouldTerminate()) {
+			TerminationReason reason = postSampleCheck.terminationReason().get();
+			BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
+					reason, suiteBudgetMonitor, classBudgetMonitor, config.onBudgetExhausted());
 			handleBudgetExhaustion(extensionContext, aggregator, config, budgetMonitor,
-					classBudgetMonitor, suiteBudgetMonitor, postSampleTermination.get(), behavior, terminated);
+					classBudgetMonitor, suiteBudgetMonitor, reason, behavior, terminated);
 			return;
 		}
 
@@ -512,108 +515,6 @@ public class ProbabilisticTestExtension implements
 		}
 	}
 
-	/**
-	 * Checks all budget scopes before a sample (suite → class → method).
-	 */
-	private Optional<TerminationReason> checkAllBudgetsBeforeSample(
-			SharedBudgetMonitor suiteBudget,
-			SharedBudgetMonitor classBudget,
-			CostBudgetMonitor methodBudget) {
-
-		// 1. Suite-level time budget
-		if (suiteBudget != null) {
-			Optional<TerminationReason> reason = suiteBudget.checkTimeBudget();
-			if (reason.isPresent()) return reason;
-
-			reason = suiteBudget.checkTokenBudget();
-			if (reason.isPresent()) return reason;
-		}
-
-		// 2. Class-level time budget
-		if (classBudget != null) {
-			Optional<TerminationReason> reason = classBudget.checkTimeBudget();
-			if (reason.isPresent()) return reason;
-
-			reason = classBudget.checkTokenBudget();
-			if (reason.isPresent()) return reason;
-		}
-
-		// 3. Method-level budgets
-		Optional<TerminationReason> reason = methodBudget.checkTimeBudget();
-		if (reason.isPresent()) return reason;
-
-		return methodBudget.checkTokenBudgetBeforeSample();
-	}
-
-	/**
-	 * Checks all budget scopes after a sample (for dynamic token mode).
-	 */
-	private Optional<TerminationReason> checkAllBudgetsAfterSample(
-			SharedBudgetMonitor suiteBudget,
-			SharedBudgetMonitor classBudget,
-			CostBudgetMonitor methodBudget) {
-
-		// Check in order: suite → class → method
-		if (suiteBudget != null) {
-			Optional<TerminationReason> reason = suiteBudget.checkTokenBudget();
-			if (reason.isPresent()) return reason;
-		}
-
-		if (classBudget != null) {
-			Optional<TerminationReason> reason = classBudget.checkTokenBudget();
-			if (reason.isPresent()) return reason;
-		}
-
-		return methodBudget.checkTokenBudgetAfterSample();
-	}
-
-	/**
-	 * Records tokens and propagates consumption to all active scopes.
-	 */
-	private long recordAndPropagateTokens(DefaultTokenChargeRecorder tokenRecorder,
-										  CostBudgetMonitor methodBudget,
-										  TestConfiguration config,
-										  SharedBudgetMonitor classBudget,
-										  SharedBudgetMonitor suiteBudget) {
-		long sampleTokens = 0;
-
-		if (tokenRecorder != null) {
-			sampleTokens = tokenRecorder.finalizeSample();
-			methodBudget.recordDynamicTokens(sampleTokens);
-		} else if (config.tokenMode() == CostBudgetMonitor.TokenMode.STATIC) {
-			sampleTokens = config.tokenCharge();
-			methodBudget.recordStaticTokenCharge();
-		}
-
-		// Propagate to class and suite scopes
-		if (sampleTokens > 0) {
-			if (classBudget != null) {
-				classBudget.addTokens(sampleTokens);
-			}
-			if (suiteBudget != null) {
-				suiteBudget.addTokens(sampleTokens);
-			}
-		}
-
-		return sampleTokens;
-	}
-
-	/**
-	 * Determines the budget exhaustion behavior based on the scope that triggered it.
-	 */
-	private BudgetExhaustedBehavior determineBehavior(TerminationReason reason,
-													  SharedBudgetMonitor suiteBudget,
-													  SharedBudgetMonitor classBudget,
-													  TestConfiguration config) {
-		if (reason.name().startsWith("SUITE_") && suiteBudget != null) {
-			return suiteBudget.getOnBudgetExhausted();
-		} else if (reason.name().startsWith("CLASS_") && classBudget != null) {
-			return classBudget.getOnBudgetExhausted();
-		} else {
-			return config.onBudgetExhausted();
-		}
-	}
-
 	private void handleBudgetExhaustion(ExtensionContext context,
 										SampleResultAggregator aggregator,
 										TestConfiguration config,
@@ -624,7 +525,7 @@ public class ProbabilisticTestExtension implements
 										BudgetExhaustedBehavior behavior,
 										AtomicBoolean terminated) {
 
-		String details = buildBudgetExhaustionMessage(reason, methodBudget, classBudget, suiteBudget);
+		String details = budgetOrchestrator.buildExhaustionMessage(reason, methodBudget, classBudget, suiteBudget);
 		aggregator.setTerminated(reason, details);
 		terminated.set(true);
 
@@ -634,73 +535,6 @@ public class ProbabilisticTestExtension implements
 		}
 
 		finalizeProbabilisticTest(context, aggregator, config, methodBudget, classBudget, suiteBudget);
-	}
-
-	/**
-	 * Builds a failure message for budget exhaustion scenarios.
-	 * This is used when the test is forced to fail due to budget limits, not pass rate.
-	 */
-	private String buildBudgetExhaustionFailureMessage(SampleResultAggregator aggregator,
-													   TestConfiguration config) {
-		StringBuilder sb = new StringBuilder();
-
-		String details = aggregator.getTerminationDetails();
-
-		String failureReason = aggregator.getTerminationReason()
-				.map(TerminationReason::getDescription)
-				.orElse("Budget exhausted");
-		sb.append(String.format("PUnit FAILED: %s.%n", failureReason));
-
-		if (details != null && !details.isEmpty()) {
-			sb.append(String.format("  %s%n", details));
-		}
-
-		sb.append(String.format("%n  Samples executed: %d of %d%n",
-				aggregator.getSamplesExecuted(), config.samples()));
-		sb.append(String.format("  Pass rate at termination: %.1f%% (%d/%d)%n",
-				aggregator.getObservedPassRate() * 100.0,
-				aggregator.getSuccesses(),
-				aggregator.getSamplesExecuted()));
-		sb.append(String.format("  Required pass rate: %.1f%%%n", config.minPassRate() * 100.0));
-		sb.append(String.format("  Elapsed: %dms%n", aggregator.getElapsedMs()));
-
-		return sb.toString();
-	}
-
-	private String buildBudgetExhaustionMessage(TerminationReason reason,
-												CostBudgetMonitor methodBudget,
-												SharedBudgetMonitor classBudget,
-												SharedBudgetMonitor suiteBudget) {
-		switch (reason) {
-			case SUITE_TIME_BUDGET_EXHAUSTED:
-				return suiteBudget != null
-						? String.format("Suite time budget exhausted: %dms elapsed >= %dms budget",
-						suiteBudget.getElapsedMs(), suiteBudget.getTimeBudgetMs())
-						: reason.getDescription();
-			case SUITE_TOKEN_BUDGET_EXHAUSTED:
-				return suiteBudget != null
-						? String.format("Suite token budget exhausted: %d tokens >= %d budget",
-						suiteBudget.getTokensConsumed(), suiteBudget.getTokenBudget())
-						: reason.getDescription();
-			case CLASS_TIME_BUDGET_EXHAUSTED:
-				return classBudget != null
-						? String.format("Class time budget exhausted: %dms elapsed >= %dms budget",
-						classBudget.getElapsedMs(), classBudget.getTimeBudgetMs())
-						: reason.getDescription();
-			case CLASS_TOKEN_BUDGET_EXHAUSTED:
-				return classBudget != null
-						? String.format("Class token budget exhausted: %d tokens >= %d budget",
-						classBudget.getTokensConsumed(), classBudget.getTokenBudget())
-						: reason.getDescription();
-			case METHOD_TIME_BUDGET_EXHAUSTED:
-				return String.format("Method time budget exhausted: %dms elapsed >= %dms budget",
-						methodBudget.getElapsedMs(), methodBudget.getTimeBudgetMs());
-			case METHOD_TOKEN_BUDGET_EXHAUSTED:
-				return String.format("Method token budget exhausted: %d tokens >= %d budget",
-						methodBudget.getTokensConsumed(), methodBudget.getTokenBudget());
-			default:
-				return reason.getDescription();
-		}
 	}
 
 	private void finalizeProbabilisticTest(ExtensionContext context,
@@ -722,7 +556,15 @@ public class ProbabilisticTestExtension implements
 
 			if (aggregator.isForcedFailure()) {
 				// Budget exhaustion failure - don't show misleading pass rate comparison
-				message = buildBudgetExhaustionFailureMessage(aggregator, config);
+				message = budgetOrchestrator.buildExhaustionFailureMessage(
+						aggregator.getTerminationReason().orElse(null),
+						aggregator.getTerminationDetails(),
+						aggregator.getSamplesExecuted(),
+						config.samples(),
+						aggregator.getObservedPassRate(),
+						aggregator.getSuccesses(),
+						config.minPassRate(),
+						aggregator.getElapsedMs());
 			} else {
 				// Genuine pass rate failure - show full statistical context
 				PunitFailureMessages.StatisticalContext statisticalContext = config.buildStatisticalContext(
