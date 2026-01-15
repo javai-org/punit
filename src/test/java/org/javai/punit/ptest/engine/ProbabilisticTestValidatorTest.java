@@ -81,6 +81,49 @@ class ProbabilisticTestValidatorTest {
             assertThat(result.valid()).isTrue();
             assertThat(result.errors()).isEmpty();
         }
+
+        @Test
+        @DisplayName("should accept when baseline exists and minPassRate specified with SLA origin")
+        void acceptsBaselineWithMinPassRateAndSlaOrigin() {
+            // When thresholdOrigin is SLA/SLO/POLICY, the developer is intentionally
+            // overriding the baseline threshold with a normative requirement
+            ProbabilisticTest annotation = createAnnotationWithOrigin(
+                    100,        // samples
+                    0.95,       // minPassRate - explicit SLA threshold
+                    Double.NaN, // thresholdConfidence
+                    Double.NaN, // confidence
+                    Double.NaN, // minDetectableEffect
+                    Double.NaN, // power
+                    ThresholdOrigin.SLA
+            );
+
+            var result = validator.validate(annotation, mockBaseline, "testMethod");
+
+            assertThat(result.valid()).isTrue();
+            assertThat(result.errors()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("should reject when baseline exists and minPassRate specified with EMPIRICAL origin")
+        void rejectsBaselineWithMinPassRateAndEmpiricalOrigin() {
+            // EMPIRICAL origin is contradictory when overriding baseline - the empirical
+            // value should come FROM the baseline, not override it
+            ProbabilisticTest annotation = createAnnotationWithOrigin(
+                    100,        // samples
+                    0.95,       // minPassRate - explicit
+                    Double.NaN, // thresholdConfidence
+                    Double.NaN, // confidence
+                    Double.NaN, // minDetectableEffect
+                    Double.NaN, // power
+                    ThresholdOrigin.EMPIRICAL
+            );
+
+            var result = validator.validate(annotation, mockBaseline, "testMethod");
+
+            assertThat(result.valid()).isFalse();
+            assertThat(result.errors().get(0)).contains("CONFLICT");
+            assertThat(result.errors().get(0)).contains("EMPIRICAL is contradictory");
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -185,11 +228,11 @@ class ProbabilisticTestValidatorTest {
     class Rule4_ConfidenceFirstRequiresBaseline {
 
         @Test
-        @DisplayName("should reject Confidence-First without baseline")
-        void rejectsConfidenceFirstWithoutBaseline() {
+        @DisplayName("should reject Confidence-First without baseline and without explicit minPassRate")
+        void rejectsConfidenceFirstWithoutBaselineOrMinPassRate() {
             ProbabilisticTest annotation = createAnnotation(
                     100,        // samples (ignored in Confidence-First)
-                    Double.NaN, // minPassRate
+                    Double.NaN, // minPassRate - NOT specified
                     Double.NaN, // thresholdConfidence
                     0.99,       // confidence
                     0.05,       // minDetectableEffect
@@ -200,7 +243,7 @@ class ProbabilisticTestValidatorTest {
 
             assertThat(result.valid()).isFalse();
             assertThat(result.errors().stream().anyMatch(e -> 
-                    e.contains("INVALID") && e.contains("Confidence-First approach requires baseline")))
+                    e.contains("INVALID") && e.contains("Confidence-First approach requires a baseline rate")))
                     .isTrue();
         }
 
@@ -217,6 +260,27 @@ class ProbabilisticTestValidatorTest {
             );
 
             var result = validator.validate(annotation, mockBaseline, "testMethod");
+
+            assertThat(result.valid()).isTrue();
+        }
+
+        @Test
+        @DisplayName("should accept Confidence-First with explicit minPassRate (no baseline)")
+        void acceptsConfidenceFirstWithExplicitMinPassRate() {
+            // This is the SLA-driven Confidence-First scenario:
+            // - minPassRate comes from an SLA (not baseline)
+            // - Confidence-First parameters compute sample size
+            ProbabilisticTest annotation = createAnnotation(
+                    100,        // samples (will be overridden by power analysis)
+                    0.95,       // minPassRate - explicit SLA threshold
+                    Double.NaN, // thresholdConfidence
+                    0.95,       // confidence
+                    0.02,       // minDetectableEffect
+                    0.80        // power
+            );
+
+            // No baseline provided - minPassRate serves as the baseline rate
+            var result = validator.validate(annotation, null, "testMethod");
 
             assertThat(result.valid()).isTrue();
         }
@@ -431,6 +495,103 @@ class ProbabilisticTestValidatorTest {
             @Override
             public ThresholdOrigin thresholdOrigin() {
                 return ThresholdOrigin.UNSPECIFIED;
+            }
+
+            @Override
+            public String contractRef() {
+                return "";
+            }
+        };
+    }
+
+    private ProbabilisticTest createAnnotationWithOrigin(
+            int samples,
+            double minPassRate,
+            double thresholdConfidence,
+            double confidence,
+            double minDetectableEffect,
+            double power,
+            ThresholdOrigin origin) {
+        
+        return new ProbabilisticTest() {
+            @Override
+            public Class<? extends java.lang.annotation.Annotation> annotationType() {
+                return ProbabilisticTest.class;
+            }
+
+            @Override
+            public int samples() {
+                return samples;
+            }
+
+            @Override
+            public double minPassRate() {
+                return minPassRate;
+            }
+
+            @Override
+            public long timeBudgetMs() {
+                return 0;
+            }
+
+            @Override
+            public int tokenCharge() {
+                return 0;
+            }
+
+            @Override
+            public long tokenBudget() {
+                return 0;
+            }
+
+            @Override
+            public BudgetExhaustedBehavior onBudgetExhausted() {
+                return BudgetExhaustedBehavior.FAIL;
+            }
+
+            @Override
+            public ExceptionHandling onException() {
+                return ExceptionHandling.FAIL_SAMPLE;
+            }
+
+            @Override
+            public int maxExampleFailures() {
+                return 5;
+            }
+
+            @Override
+            public Class<?> useCase() {
+                return Void.class;
+            }
+
+            @Override
+            public double thresholdConfidence() {
+                return thresholdConfidence;
+            }
+
+            @Override
+            public double confidence() {
+                return confidence;
+            }
+
+            @Override
+            public double minDetectableEffect() {
+                return minDetectableEffect;
+            }
+
+            @Override
+            public double power() {
+                return power;
+            }
+
+            @Override
+            public boolean transparentStats() {
+                return false;
+            }
+
+            @Override
+            public ThresholdOrigin thresholdOrigin() {
+                return origin;
             }
 
             @Override

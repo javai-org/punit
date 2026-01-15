@@ -1,16 +1,18 @@
 package org.javai.punit.examples;
 
+import java.util.Random;
 import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenChargeRecorder;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
 import org.javai.punit.model.UseCaseOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
  * Demonstrates the THREE OPERATIONAL APPROACHES for SLA-driven probabilistic testing.
@@ -76,13 +78,25 @@ class ShoppingAssistantSlaExample {
 	private static final double SLA_THRESHOLD = 0.95;
 	private static final String CONTRACT_REFERENCE = "E-Commerce Platform SLA v2.1 §4.3";
 
-	private ShoppingUseCase useCase;
+	// ═══════════════════════════════════════════════════════════════════════════
+	// USE CASE PROVIDER (INSTANCE-OWNED)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	@RegisterExtension
+	UseCaseProvider provider = new UseCaseProvider();
 
 	@BeforeEach
 	void setUp() {
-		useCase = new ShoppingUseCase(new MockShoppingAssistant());
-		useCase.setModel("gpt-4");
-		useCase.setTemperature(0.7);
+		provider.register(ShoppingUseCase.class, () ->
+			new ShoppingUseCase(
+				new MockShoppingAssistant(
+					new Random(),
+					MockShoppingAssistant.MockConfiguration.experimentRealistic()
+				),
+				"gpt-4",    // llm_model - matches expected configuration
+				0.7         // temperature - matches expected configuration
+			)
+		);
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -127,14 +141,16 @@ class ShoppingAssistantSlaExample {
 	 * <p><b>Best for:</b> Continuous monitoring, CI pipelines, rate-limited APIs.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 100,                      // Fixed by budget: "We can afford 100 samples"
 			minPassRate = SLA_THRESHOLD,        // 95% from SLA
 			thresholdOrigin = ThresholdOrigin.SLA,
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true
 	)
-	@Pacing(maxRequestsPerMinute = 30)         // Respect API rate limits
-	void sampleSizeFirst_costDrivenApproach(TokenChargeRecorder tokenRecorder) {
+	void sampleSizeFirst_costDrivenApproach(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
 
@@ -191,6 +207,7 @@ class ShoppingAssistantSlaExample {
 	 * <p><b>Best for:</b> Safety-critical systems, compliance audits, pre-release testing.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			minPassRate = SLA_THRESHOLD,        // 95% from SLA
 			confidence = 0.95,                  // 95% confidence level
 			power = 0.80,                       // 80% detection probability
@@ -199,8 +216,9 @@ class ShoppingAssistantSlaExample {
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true
 	)
-	@Pacing(maxRequestsPerMinute = 30)
-	void confidenceFirst_riskDrivenApproach(TokenChargeRecorder tokenRecorder) {
+	void confidenceFirst_riskDrivenApproach(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		// Note: PUnit computes the required sample size based on the statistical
 		// parameters above. This test may run significantly more samples than
 		// the sample-size-first approach.
@@ -260,14 +278,16 @@ class ShoppingAssistantSlaExample {
 	 * using Approach 1 with more samples for production use.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 50,                       // Small sample for demonstration
 			minPassRate = SLA_THRESHOLD,        // Exact threshold from SLA
 			thresholdOrigin = ThresholdOrigin.SLA,
 			contractRef = CONTRACT_REFERENCE,
 			transparentStats = true             // Show the statistical analysis
 	)
-	@Pacing(maxRequestsPerMinute = 30)
-	void thresholdFirst_baselineAnchoredApproach(TokenChargeRecorder tokenRecorder) {
+	void thresholdFirst_baselineAnchoredApproach(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		// With only 50 samples against a 95% threshold, PUnit will report:
 		// - The observed pass rate
 		// - The implied confidence level

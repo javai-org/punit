@@ -1,6 +1,7 @@
 package org.javai.punit.ptest.engine;
 
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.spec.model.ExecutionSpecification;
 
 import java.util.ArrayList;
@@ -80,27 +81,60 @@ public final class ProbabilisticTestValidator {
         boolean hasPartialConfidenceFirst = isConfidenceFirstPartial(annotation);
 
         // ═══════════════════════════════════════════════════════════════════
-        // RULE 1: Baseline + explicit minPassRate = CONFLICT
+        // RULE 1: Baseline + explicit minPassRate = CONFLICT (unless normative)
         // ═══════════════════════════════════════════════════════════════════
         // Statistical basis: A baseline's threshold is derived from empirical
         // observation. Overriding it discards the statistical foundation.
+        //
+        // EXCEPTION: If the threshold origin is a normative source (SLA, SLO, 
+        // or POLICY), then the developer is intentionally overriding the 
+        // baseline threshold with a documented business requirement. This is
+        // allowed because the normative claim takes precedence.
+        //
+        // CONFLICT if: thresholdOrigin is UNSPECIFIED (likely a mistake) or 
+        //              EMPIRICAL (contradictory - empirical should use baseline)
         // ═══════════════════════════════════════════════════════════════════
         if (hasBaseline && hasExplicitMinPassRate) {
-            errors.add(String.format("""
-                CONFLICT: Baseline exists but explicit minPassRate specified.
-                
-                Test: %s
-                Baseline: %s
-                minPassRate in annotation: %.2f
-                
-                When a baseline exists, the threshold should be derived from it.
-                Remove minPassRate to use the baseline's statistically-derived threshold.
-                
-                If you need a specific threshold (e.g., from an SLA), do not reference
-                a use case with a baseline.""",
-                    testName,
-                    selectedBaseline.getUseCaseId(),
-                    annotation.minPassRate()));
+            ThresholdOrigin origin = annotation.thresholdOrigin();
+            boolean isNormativeOrigin = origin == ThresholdOrigin.SLA 
+                    || origin == ThresholdOrigin.SLO 
+                    || origin == ThresholdOrigin.POLICY;
+            
+            if (!isNormativeOrigin) {
+                String originAdvice = origin == ThresholdOrigin.EMPIRICAL
+                        ? "thresholdOrigin = EMPIRICAL is contradictory when overriding baseline."
+                        : "thresholdOrigin is UNSPECIFIED, so this appears to be an accidental override.";
+                        
+                errors.add(String.format("""
+                    CONFLICT: Baseline exists but explicit minPassRate specified.
+                    
+                    Test: %s
+                    Baseline: %s
+                    minPassRate in annotation: %.2f
+                    thresholdOrigin: %s
+                    
+                    %s
+                    
+                    When a baseline exists, the threshold should be derived from it.
+                    
+                    If you intentionally want to override the baseline threshold with a
+                    normative requirement (e.g., from an SLA), specify thresholdOrigin:
+                    
+                        @ProbabilisticTest(
+                            useCase = ...,
+                            minPassRate = %.2f,
+                            thresholdOrigin = ThresholdOrigin.SLA,  // or SLO, POLICY
+                            contractRef = "Reference to requirement"
+                        )
+                    
+                    Otherwise, remove minPassRate to use the baseline's derived threshold.""",
+                        testName,
+                        selectedBaseline.getUseCaseId(),
+                        annotation.minPassRate(),
+                        origin,
+                        originAdvice,
+                        annotation.minPassRate()));
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -146,14 +180,17 @@ public final class ProbabilisticTestValidator {
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // RULE 4: Confidence-First parameters require baseline
+        // RULE 4: Confidence-First parameters require a baseline rate
         // ═══════════════════════════════════════════════════════════════════
         // Statistical basis: Confidence-First uses power analysis to compute
-        // sample size, which requires baseline success rate as input.
+        // sample size, which requires a baseline success rate as input.
+        // This rate can come from either:
+        //   1. A baseline/spec (empirical data from MEASURE experiment), OR
+        //   2. An explicit minPassRate (normative claim from SLA/SLO)
         // ═══════════════════════════════════════════════════════════════════
-        if (hasConfidenceFirstParams && !hasBaseline) {
+        if (hasConfidenceFirstParams && !hasBaseline && !hasExplicitMinPassRate) {
             errors.add(String.format("""
-                INVALID: Confidence-First approach requires baseline data.
+                INVALID: Confidence-First approach requires a baseline rate.
                 
                 Test: %s
                 confidence: %.2f
@@ -161,11 +198,12 @@ public final class ProbabilisticTestValidator {
                 power: %.2f
                 
                 The Confidence-First approach uses power analysis to compute the
-                required sample size. This requires the baseline success rate as
-                input. Without a baseline, sample size cannot be determined.
+                required sample size. This requires a baseline success rate as
+                input. Without a baseline rate, sample size cannot be determined.
                 
-                Either provide a use case with baseline data, or use the
-                Threshold-First approach with explicit samples and minPassRate.""",
+                Either:
+                  • Provide a use case with baseline data, OR
+                  • Specify minPassRate explicitly (e.g., from an SLA/SLO)""",
                     testName,
                     annotation.confidence(),
                     annotation.minDetectableEffect(),

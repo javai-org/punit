@@ -1,15 +1,18 @@
 package org.javai.punit.examples;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Random;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
 import org.javai.punit.api.TokenChargeRecorder;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
 import org.javai.punit.model.UseCaseOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
  * Example probabilistic tests for an LLM-powered shopping assistant.
@@ -68,16 +71,25 @@ import org.junit.jupiter.api.Disabled;
 )
 class ShoppingAssistantExamplesTest {
 
-	private ShoppingUseCase useCase;
+	// ═══════════════════════════════════════════════════════════════════════════
+	// USE CASE PROVIDER (INSTANCE-OWNED)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	@RegisterExtension
+	UseCaseProvider provider = new UseCaseProvider();
 
 	@BeforeEach
 	void setUp() {
-		// Create use case with mock shopping assistant
-		useCase = new ShoppingUseCase(new MockShoppingAssistant());
-		
-		// Configuration fixed post-EXPLORE (same as MEASURE experiment)
-		useCase.setModel("gpt-4");
-		useCase.setTemperature(0.7);
+		provider.register(ShoppingUseCase.class, () ->
+			new ShoppingUseCase(
+				new MockShoppingAssistant(
+					new Random(),
+					MockShoppingAssistant.MockConfiguration.experimentRealistic()
+				),
+				"gpt-4",    // llm_model - matches expected configuration
+				0.7         // temperature - matches expected configuration
+			)
+		);
 	}
 
 	// ========== Response Format Validation ==========
@@ -89,12 +101,15 @@ class ShoppingAssistantExamplesTest {
 	 * before we can validate its contents. We expect 90% of responses to be valid.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 30,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.90,
 			maxExampleFailures = 5
 	)
-	void shouldReturnValidJsonFormat(TokenChargeRecorder tokenRecorder) {
+	void shouldReturnValidJsonFormat(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
 
 		// Record tokens from the use case result
@@ -117,12 +132,15 @@ class ShoppingAssistantExamplesTest {
 	 * </ul>
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 30,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.85,
 			maxExampleFailures = 5
 	)
-	void shouldIncludeAllRequiredFields(TokenChargeRecorder tokenRecorder) {
+	void shouldIncludeAllRequiredFields(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("laptop stand");
 
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
@@ -152,12 +170,15 @@ class ShoppingAssistantExamplesTest {
 	 * </ul>
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 25,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.85,
 			maxExampleFailures = 5
 	)
-	void shouldReturnProductsWithRequiredAttributes(TokenChargeRecorder tokenRecorder) {
+	void shouldReturnProductsWithRequiredAttributes(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("USB-C hub");
 
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
@@ -178,12 +199,15 @@ class ShoppingAssistantExamplesTest {
 	 * responses should contain only highly relevant products.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 20,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.80,
 			maxExampleFailures = 5
 	)
-	void shouldReturnRelevantProducts(TokenChargeRecorder tokenRecorder) {
+	void shouldReturnRelevantProducts(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		double minRelevanceScore = 0.7;
 
 		UseCaseOutcome outcome = useCase.searchProductsWithRelevanceCheck("mechanical keyboard", minRelevanceScore);
@@ -207,12 +231,15 @@ class ShoppingAssistantExamplesTest {
 	 * above the limit, so we allow for some failures.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 25,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.85,
 			maxExampleFailures = 5
 	)
-	void shouldRespectPriceRangeFilter(TokenChargeRecorder tokenRecorder) {
+	void shouldRespectPriceRangeFilter(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		double maxPrice = 50.00;
 
 		UseCaseOutcome outcome = useCase.searchProductsWithPriceConstraint("webcam 4k", maxPrice);
@@ -235,12 +262,15 @@ class ShoppingAssistantExamplesTest {
 	 * return more products than requested.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 20,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.95,
 			maxExampleFailures = 2
 	)
-	void shouldRespectResultCountLimit(TokenChargeRecorder tokenRecorder) {
+	void shouldRespectResultCountLimit(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		int maxResults = 5;
 
 		UseCaseOutcome outcome = useCase.searchProductsWithLimit("bluetooth speaker waterproof", maxResults);
@@ -258,12 +288,15 @@ class ShoppingAssistantExamplesTest {
 	 * Tests that the totalResults field matches the actual product count.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 20,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.90,
 			maxExampleFailures = 3
 	)
-	void shouldHaveConsistentResultCount(TokenChargeRecorder tokenRecorder) {
+	void shouldHaveConsistentResultCount(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		int maxResults = 5;
 
 		UseCaseOutcome outcome = useCase.searchProductsWithLimit("noise cancelling earbuds", maxResults);
@@ -284,12 +317,15 @@ class ShoppingAssistantExamplesTest {
 	 * <p>This is a stricter test that combines format validation with field presence.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 30,
 			// TODO replace hard-coded params with spec-driven probabilistic test
 			minPassRate = 0.80,
 			maxExampleFailures = 5
 	)
-	void shouldReturnCompleteValidResponse(TokenChargeRecorder tokenRecorder) {
+	void shouldReturnCompleteValidResponse(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("microphone for streaming");
 
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
@@ -321,11 +357,14 @@ class ShoppingAssistantExamplesTest {
 	 * </ul>
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 30,
 			minPassRate = 0.85,
 			maxExampleFailures = 5
 	)
-	void shouldPassAllSuccessCriteria(TokenChargeRecorder tokenRecorder) {
+	void shouldPassAllSuccessCriteria(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
 
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));
@@ -341,11 +380,14 @@ class ShoppingAssistantExamplesTest {
 	 * <p>Demonstrates using the bundled criteria for validation.
 	 */
 	@ProbabilisticTest(
+			useCase = ShoppingUseCase.class,
 			samples = 25,
 			minPassRate = 0.80,
 			maxExampleFailures = 5
 	)
-	void shouldPassCriteriaForProductSearch(TokenChargeRecorder tokenRecorder) {
+	void shouldPassCriteriaForProductSearch(
+			ShoppingUseCase useCase,
+			TokenChargeRecorder tokenRecorder) {
 		UseCaseOutcome outcome = useCase.searchProducts("laptop stand");
 
 		tokenRecorder.recordTokens(outcome.result().getInt("tokensUsed", 0));

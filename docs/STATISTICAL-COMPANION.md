@@ -946,10 +946,10 @@ $$P(\text{at least one false positive}) = 1 - (1-\alpha)^m$$
 
 For auditability and traceability, PUnit records the **source** of the threshold through two annotation attributes:
 
-| Attribute       | Purpose                                            | Example Values                              |
-|-----------------|----------------------------------------------------|---------------------------------------------|
-| `thresholdOrigin`  | Category of threshold origin                       | `SLA`, `SLO`, `POLICY`, `EMPIRICAL`         |
-| `contractRef`   | Human-readable reference to source document        | `"SLA v2.1 §4.3"`, `"Policy-2024-Q1"`       |
+| Attribute         | Purpose                                     | Example Values                        |
+|-------------------|---------------------------------------------|---------------------------------------|
+| `thresholdOrigin` | Category of threshold origin                | `SLA`, `SLO`, `POLICY`, `EMPIRICAL`   |
+| `contractRef`     | Human-readable reference to source document | `"SLA v2.1 §4.3"`, `"Policy-2024-Q1"` |
 
 #### Target Source Values
 
@@ -992,13 +992,13 @@ When `transparentStats = true`, the provenance appears in the output:
 
 The `thresholdOrigin` influences how PUnit frames the hypothesis test in detailed reports:
 
-| `thresholdOrigin` | $H_0$ (Null Hypothesis)           | $H_1$ (Alternative)              |
-|----------------|-----------------------------------|----------------------------------|
-| `SLA`          | System meets SLA requirement      | System violates SLA              |
-| `SLO`          | System meets SLO target           | System falls short of SLO        |
-| `POLICY`       | System meets policy requirement   | System violates policy           |
-| `EMPIRICAL`    | No degradation from baseline      | Degradation from baseline        |
-| `UNSPECIFIED`  | Success rate meets threshold      | Success rate below threshold     |
+| `thresholdOrigin` | $H_0$ (Null Hypothesis)         | $H_1$ (Alternative)          |
+|-------------------|---------------------------------|------------------------------|
+| `SLA`             | System meets SLA requirement    | System violates SLA          |
+| `SLO`             | System meets SLO target         | System falls short of SLO    |
+| `POLICY`          | System meets policy requirement | System violates policy       |
+| `EMPIRICAL`       | No degradation from baseline    | Degradation from baseline    |
+| `UNSPECIFIED`     | Success rate meets threshold    | Success rate below threshold |
 
 This adaptation ensures that verdicts are framed in the appropriate business context, making reports immediately understandable to stakeholders.
 
