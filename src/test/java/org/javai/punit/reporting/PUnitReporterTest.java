@@ -87,7 +87,8 @@ class PUnitReporterTest {
             assertThat(appender.events())
                     .hasSize(1);
             String message = appender.events().get(0).getMessage().getFormattedMessage();
-            String expected = reporter.headerDivider("TEST TITLE") + "\n" + "hello" + "\n" + reporter.footerDivider();
+            // Format: header + blank line + indented body + newline
+            String expected = reporter.headerDivider("TEST TITLE") + "\n\n" + "  hello" + "\n";
             assertThat(message)
                     .isEqualTo(expected);
         } finally {

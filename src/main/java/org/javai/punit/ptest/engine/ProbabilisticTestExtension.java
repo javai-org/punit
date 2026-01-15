@@ -90,6 +90,7 @@ public class ProbabilisticTestExtension implements
 	private static final PUnitReporter reporter = new PUnitReporter();
 	private static final ProbabilisticTestValidator testValidator = new ProbabilisticTestValidator();
 	private static final FinalConfigurationLogger configurationLogger = new FinalConfigurationLogger(reporter);
+	private static final SampleFailureFormatter sampleFailureFormatter = new SampleFailureFormatter();
 
 	private static final String AGGREGATOR_KEY = "aggregator";
 	private static final String CONFIG_KEY = "config";
@@ -500,47 +501,15 @@ public class ProbabilisticTestExtension implements
 		// The exception message includes a verdict hint so users don't panic before
 		// checking the PUnit statistical verdict in the console summary.
 		if (sampleFailure != null && !terminated.get()) {
-			String reason = extractFailureReason(sampleFailure);
-			String verdictHint = formatVerdictHint(aggregator, config);
-			throw new AssertionError(verdictHint + "\n" + reason);
+			String formattedFailure = sampleFailureFormatter.formatSampleFailure(
+					sampleFailure,
+					aggregator.getSuccesses(),
+					aggregator.getSamplesExecuted(),
+					config.samples(),
+					config.minPassRate()
+			);
+			throw new AssertionError(formattedFailure);
 		}
-	}
-
-	/**
-	 * Formats a status hint to include in exception messages.
-	 * Shows current stats without claiming a verdict (which isn't known until test completes).
-	 */
-	private String formatVerdictHint(SampleResultAggregator aggregator, TestConfiguration config) {
-		int successes = aggregator.getSuccesses();
-		int executed = aggregator.getSamplesExecuted();
-		int planned = config.samples();
-		double threshold = config.minPassRate();
-		
-		return String.format(
-			"[PUnit sample %d/%d: %d successes so far, need %.0f%% - see console for final verdict]",
-			executed, planned, successes, threshold * 100);
-	}
-
-	/**
-	 * Extracts a concise failure reason from an exception.
-	 * This provides just the essential message without verbose stack traces.
-	 */
-	private String extractFailureReason(Throwable failure) {
-		String message = failure.getMessage();
-		if (message == null || message.isBlank()) {
-			return failure.getClass().getSimpleName();
-		}
-		// Trim and take first line only (AssertJ messages can be multi-line)
-		String firstLine = message.lines().findFirst().orElse(message).trim();
-		// If the first line is empty (AssertJ often starts with newline), take next non-empty
-		if (firstLine.isEmpty()) {
-			firstLine = message.lines()
-					.filter(line -> !line.isBlank())
-					.findFirst()
-					.orElse(failure.getClass().getSimpleName())
-					.trim();
-		}
-		return firstLine;
 	}
 
 	/**
