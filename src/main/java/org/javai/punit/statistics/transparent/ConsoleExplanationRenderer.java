@@ -3,6 +3,8 @@ package org.javai.punit.statistics.transparent;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+import org.javai.punit.reporting.PUnitReporter;
+
 /**
  * Renders statistical explanations for console output with box drawing characters.
  *
@@ -117,9 +119,9 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
 
     private void renderObservedDataSection(StringBuilder sb, StatisticalExplanation.ObservedData observed) {
         sb.append("OBSERVED DATA\n");
-        sb.append(String.format("  Sample size (n):     %d%n", observed.sampleSize()));
-        sb.append(String.format("  Successes (k):       %d%n", observed.successes()));
-        sb.append(String.format("  Observed rate (%s):   %.3f%n", symbols.pHat(), observed.observedRate()));
+        sb.append(statLabel("Sample size (n):", String.valueOf(observed.sampleSize())));
+        sb.append(statLabel("Successes (k):", String.valueOf(observed.successes())));
+        sb.append(statLabel("Observed rate (" + symbols.pHat() + "):", String.format("%.3f", observed.observedRate())));
         sb.append("\n");
     }
 
@@ -130,17 +132,15 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
             String dateStr = baseline.generatedAt() != null 
                     ? DATE_FORMAT.format(baseline.generatedAt())
                     : "unknown";
-            sb.append(String.format("  Source:              %s (generated %s)%n", 
-                    baseline.sourceFile(), dateStr));
-            sb.append(String.format("  Empirical basis:     %d samples, %d successes (%.1f%%)%n",
-                    baseline.baselineSamples(),
-                    baseline.baselineSuccesses(),
-                    baseline.baselineRate() * 100));
-            sb.append(String.format("  Threshold derivation: %s%n", baseline.thresholdDerivation()));
+            sb.append(statLabel("Source:", baseline.sourceFile() + " (generated " + dateStr + ")"));
+            sb.append(statLabel("Empirical basis:", 
+                    String.format("%d samples, %d successes (%.1f%%)",
+                            baseline.baselineSamples(), baseline.baselineSuccesses(), baseline.baselineRate() * 100)));
+            sb.append(statLabel("Threshold derivation:", baseline.thresholdDerivation()));
         } else {
-            sb.append(String.format("  Source:              %s%n", baseline.sourceFile()));
-            sb.append(String.format("  Threshold:           %.1f%% (%s)%n", 
-                    baseline.threshold() * 100, baseline.thresholdDerivation()));
+            sb.append(statLabel("Source:", baseline.sourceFile()));
+            sb.append(statLabel("Threshold:", 
+                    String.format("%.1f%% (%s)", baseline.threshold() * 100, baseline.thresholdDerivation())));
         }
         sb.append("\n");
     }
@@ -209,7 +209,7 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
 
     private void renderVerdictSection(StringBuilder sb, StatisticalExplanation.VerdictInterpretation verdict) {
         sb.append("VERDICT\n");
-        sb.append(String.format("  Result:              %s%n", verdict.technicalResult()));
+        sb.append(statLabel("Result:", verdict.technicalResult()));
         
         // Wrap plain English interpretation
         sb.append("  Interpretation:      ");
@@ -265,7 +265,7 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
 
         sb.append("THRESHOLD PROVENANCE\n");
         if (provenance.hasThresholdOrigin()) {
-            sb.append(String.format("  Threshold origin:    %s%n", provenance.thresholdOriginName()));
+            sb.append(statLabel("Threshold origin:", provenance.thresholdOriginName()));
         }
         if (provenance.hasContractRef()) {
             sb.append(String.format("  Contract ref:        %s%n", provenance.contractRef()));
@@ -307,6 +307,20 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
         double y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
         return sign * y;
+    }
+
+    /**
+     * Formats a label-value line for statistical analysis sections.
+     *
+     * <p>Uses {@link PUnitReporter#STATS_LABEL_WIDTH} for consistent alignment
+     * across all statistical analysis output.
+     *
+     * @param label the label (e.g., "Sample size (n):")
+     * @param value the value
+     * @return formatted line with newline
+     */
+    private String statLabel(String label, String value) {
+        return "  " + PUnitReporter.labelValueLn(label, value, PUnitReporter.STATS_LABEL_WIDTH);
     }
 }
 

@@ -1,6 +1,6 @@
 package org.javai.punit.ptest.engine;
 
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.reporting.PUnitReporter;
 
 /**
  * Determines the final pass/fail verdict for a probabilistic test
@@ -77,27 +77,27 @@ public class FinalVerdictDecider {
 	 * Appends execution details to the failure message.
 	 */
 	private void appendExecutionDetails(StringBuilder sb, SampleResultAggregator aggregator) {
-		sb.append(String.format("  Samples executed: %d of %d%n",
-				aggregator.getSamplesExecuted(), aggregator.getTotalSamples()));
-		sb.append(String.format("  Successes: %d%n", aggregator.getSuccesses()));
-		sb.append(String.format("  Failures: %d%n", aggregator.getFailures()));
+		sb.append(PUnitReporter.labelValueLn("Samples executed:",
+				String.format("%d of %d", aggregator.getSamplesExecuted(), aggregator.getTotalSamples())));
+		sb.append(PUnitReporter.labelValueLn("Successes:", String.valueOf(aggregator.getSuccesses())));
+		sb.append(PUnitReporter.labelValueLn("Failures:", String.valueOf(aggregator.getFailures())));
 
 		// Add termination reason if early termination occurred
 		aggregator.getTerminationReason().ifPresent(
 				reason -> {
-					sb.append(String.format("  Termination: %s%n", reason.name()));
+					sb.append(PUnitReporter.labelValueLn("Termination:", reason.name()));
 					String details = aggregator.getTerminationDetails();
 					if (details != null && !details.isEmpty()) {
-						sb.append(String.format("  Reason: %s%n", details));
+						sb.append(PUnitReporter.labelValueLn("Reason:", details));
 					}
 				}
 		);
 
-		sb.append(String.format("  Elapsed: %dms%n", aggregator.getElapsedMs()));
+		sb.append(PUnitReporter.labelValueLn("Elapsed:", aggregator.getElapsedMs() + "ms"));
 
 		// Add example failures if available
 		if (!aggregator.getExampleFailures().isEmpty()) {
-			sb.append(String.format("%n  Example failures (showing %d of %d):%n",
+			sb.append(String.format("%nExample failures (showing %d of %d):%n",
 					aggregator.getExampleFailures().size(), aggregator.getFailures()));
 
 			int sampleIndex = 1;
@@ -110,7 +110,7 @@ public class FinalVerdictDecider {
 				if (message.length() > 80) {
 					message = message.substring(0, 77) + "...";
 				}
-				sb.append(String.format("    [Sample %d] %s%n", sampleIndex++, message));
+				sb.append(String.format("  [Sample %d] %s%n", sampleIndex++, message));
 			}
 		}
 	}

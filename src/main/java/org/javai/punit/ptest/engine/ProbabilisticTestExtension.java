@@ -973,24 +973,24 @@ public class ProbabilisticTestExtension implements
 	 */
 	private void logConfigurationMode(String testName, ConfigurationResolver.ResolvedConfiguration resolved) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Test: ").append(testName).append("\n");
 		
 		if (resolved.specId() != null) {
-			sb.append("Mode: SPEC-DRIVEN\n");
-			sb.append("Spec: ").append(resolved.specId()).append("\n");
-			sb.append("Threshold: ").append(String.format("%.1f%%", resolved.minPassRate() * 100));
-			sb.append(" (derived from baseline)\n");
+			sb.append(PUnitReporter.labelValueLn("Mode:", "SPEC-DRIVEN"));
+			sb.append(PUnitReporter.labelValueLn("Spec:", resolved.specId()));
+			sb.append(PUnitReporter.labelValueLn("Threshold:", 
+					String.format("%.1f%% (derived from baseline)", resolved.minPassRate() * 100)));
 		} else {
-			sb.append("Mode: EXPLICIT THRESHOLD\n");
-			sb.append("Threshold: ").append(String.format("%.1f%%", resolved.minPassRate() * 100));
+			sb.append(PUnitReporter.labelValueLn("Mode:", "EXPLICIT THRESHOLD"));
+			String thresholdNote = "";
 			if (resolved.thresholdOrigin() != null && resolved.thresholdOrigin() != ThresholdOrigin.UNSPECIFIED) {
-				sb.append(" (").append(resolved.thresholdOrigin().name()).append(")");
+				thresholdNote = " (" + resolved.thresholdOrigin().name() + ")";
 			}
-			sb.append("\n");
+			sb.append(PUnitReporter.labelValueLn("Threshold:", 
+					String.format("%.1f%%%s", resolved.minPassRate() * 100, thresholdNote)));
 		}
-		sb.append("Samples: ").append(resolved.samples());
+		sb.append(PUnitReporter.labelValue("Samples:", String.valueOf(resolved.samples())));
 		
-		reporter.reportInfo("CONFIGURATION", sb.toString());
+		reporter.reportInfo("CONFIGURATION FOR TEST: " + testName, sb.toString());
 	}
 
 	/**
@@ -1352,8 +1352,8 @@ public class ProbabilisticTestExtension implements
 		String title = isApproximate ? "BASELINE: APPROXIMATE MATCH FOUND" : "BASELINE: MATCH FOUND";
 
 		StringBuilder sb = new StringBuilder();
-		sb.append("Use case: ").append(specId).append("\n");
-		sb.append("Baseline: ").append(result.selected().filename());
+		sb.append(PUnitReporter.labelValueLn("Use case:", specId));
+		sb.append(PUnitReporter.labelValue("Baseline:", result.selected().filename()));
 
 		// Add non-conformance details if present
 		var nonConforming = result.nonConformingDetails();

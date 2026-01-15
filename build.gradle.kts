@@ -107,12 +107,6 @@ tasks.named("processTestResources") {
     dependsOn("processExperimentResources")
 }
 
-tasks.processResources {
-    filesMatching("punit.properties") {
-        expand("version" to project.version)
-    }
-}
-
 tasks.test {
     useJUnitPlatform()
     testLogging {

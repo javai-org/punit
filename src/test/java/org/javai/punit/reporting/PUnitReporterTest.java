@@ -32,10 +32,24 @@ class PUnitReporterTest {
         PUnitReporter reporter = new PUnitReporter(30);
         String divider = reporter.headerDivider("VERY LONG TITLE HERE");
 
-        // Should still include title and PUnit suffix
+        // Title is too long for suffix, so suffix is sacrificed
         assertThat(divider)
-                .contains("VERY LONG TITLE HERE")
-                .endsWith(" PUnit ═");
+                .startsWith("═ VERY LONG TITLE HERE")
+                .endsWith("═");
+    }
+
+    @Test
+    void headerDividerTruncatesExtremelyLongTitle() {
+        PUnitReporter reporter = new PUnitReporter(40);
+        String divider = reporter.headerDivider(
+                "This is an extremely long title that definitely will not fit in the header");
+
+        // Title should be truncated with ellipsis, PUnit suffix sacrificed
+        assertThat(divider)
+                .startsWith("═ This is an extremely long title")
+                .contains("...")
+                .endsWith(" ═")
+                .hasSize(40);
     }
 
     @Test

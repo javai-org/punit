@@ -6,6 +6,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.model.ExpirationStatus;
+import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.spec.model.ExecutionSpecification;
 
 /**
@@ -82,25 +83,23 @@ public final class ExpirationWarningRenderer {
     }
 
     /**
+     * Label width for expiration warnings (matches original formatting).
+     */
+    private static final int EXPIRATION_LABEL_WIDTH = 20;
+
+    /**
      * Renders a prominent warning for an expired baseline.
      */
     private static WarningContent renderExpired(ExpirationPolicy policy, ExpirationStatus.Expired status) {
-        String body = String.format("""
-            The baseline used for statistical inference has expired.
-            
-            Baseline created:   %s
-            Validity period:    %d days
-            Expiration date:    %s
-            Expired:            %s ago
-            
-            Statistical inference is based on potentially stale empirical data.
-            Consider running a fresh MEASURE experiment to update the baseline.""",
-            formatInstant(policy.baselineEndTime()),
-            policy.expiresInDays(),
-            formatInstant(policy.expirationTime().orElse(null)),
-            formatDuration(status.expiredAgo())
-        );
-        return new WarningContent("BASELINE EXPIRED", body);
+        StringBuilder sb = new StringBuilder();
+        sb.append("The baseline used for statistical inference has expired.\n\n");
+        sb.append(PUnitReporter.labelValueLn("Baseline created:", formatInstant(policy.baselineEndTime()), EXPIRATION_LABEL_WIDTH));
+        sb.append(PUnitReporter.labelValueLn("Validity period:", policy.expiresInDays() + " days", EXPIRATION_LABEL_WIDTH));
+        sb.append(PUnitReporter.labelValueLn("Expiration date:", formatInstant(policy.expirationTime().orElse(null)), EXPIRATION_LABEL_WIDTH));
+        sb.append(PUnitReporter.labelValueLn("Expired:", formatDuration(status.expiredAgo()) + " ago", EXPIRATION_LABEL_WIDTH));
+        sb.append("\nStatistical inference is based on potentially stale empirical data.\n");
+        sb.append("Consider running a fresh MEASURE experiment to update the baseline.");
+        return new WarningContent("BASELINE EXPIRED", sb.toString());
     }
 
     /**
