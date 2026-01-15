@@ -32,7 +32,7 @@ class ConsoleExplanationRendererTest {
             
             String output = renderer.render(explanation);
             
-            assertThat(output).contains("STATISTICAL ANALYSIS: shouldReturnValidJson");
+            assertThat(output).contains("STATISTICAL ANALYSIS FOR: shouldReturnValidJson");
         }
 
         @Test
