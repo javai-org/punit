@@ -137,6 +137,10 @@ tasks.test {
 //   EXPLORE mode: Specs written to src/test/resources/punit/explorations/{UseCaseId}/{config}.yaml
 //
 
+// Output directories for experiment modes
+val specsDir = "src/test/resources/punit/specs"
+val explorationsDir = "src/test/resources/punit/explorations"
+
 // Shared configuration for experiment tasks
 fun Test.configureAsExperimentTask() {
     group = "verification"
@@ -163,8 +167,8 @@ fun Test.configureAsExperimentTask() {
     }
     
     // Output directories for each mode (used by the framework based on annotation mode)
-    systemProperty("punit.specs.outputDir", "src/test/resources/punit/specs")
-    systemProperty("punit.explorations.outputDir", "src/test/resources/punit/explorations")
+    systemProperty("punit.specs.outputDir", specsDir)
+    systemProperty("punit.explorations.outputDir", explorationsDir)
     
     // Experiments never fail the build (they're exploratory, not conformance tests)
     ignoreFailures = true
@@ -181,10 +185,35 @@ fun Test.configureAsExperimentTask() {
         }
     }
     
+    // Track start time to detect which directories received output
+    var startTime = 0L
+    doFirst {
+        startTime = System.currentTimeMillis()
+    }
+    
     doLast {
         println("\n✓ Experiment complete.")
-        println("  MEASURE specs: src/test/resources/punit/specs/")
-        println("  EXPLORE results: src/test/resources/punit/explorations/")
+        
+        // Check which directories received new files during this run
+        val specsFile = file(specsDir)
+        val explorationsFile = file(explorationsDir)
+        
+        val specsUpdated = specsFile.exists() && specsFile.walkTopDown()
+            .filter { it.isFile && it.lastModified() >= startTime }
+            .any()
+        val explorationsUpdated = explorationsFile.exists() && explorationsFile.walkTopDown()
+            .filter { it.isFile && it.lastModified() >= startTime }
+            .any()
+        
+        if (specsUpdated) {
+            println("  MEASURE specs written to: $specsDir/")
+        }
+        if (explorationsUpdated) {
+            println("  EXPLORE results written to: $explorationsDir/")
+        }
+        if (!specsUpdated && !explorationsUpdated) {
+            println("  No output files were written.")
+        }
     }
 }
 
