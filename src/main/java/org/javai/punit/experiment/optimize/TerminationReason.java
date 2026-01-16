@@ -3,11 +3,14 @@ package org.javai.punit.experiment.optimize;
 /**
  * Reason for optimization termination, included in final history.
  *
- * @param cause the category of termination
+ * <p>This record wraps a {@link org.javai.punit.model.TerminationReason} cause
+ * with a detailed message for auditability.
+ *
+ * @param cause the category of termination (uses framework-wide enum)
  * @param message human-readable description
  */
 public record TerminationReason(
-        TerminationCause cause,
+        org.javai.punit.model.TerminationReason cause,
         String message
 ) {
     /**
@@ -30,7 +33,7 @@ public record TerminationReason(
      */
     public static TerminationReason maxIterations(int maxIterations) {
         return new TerminationReason(
-                TerminationCause.MAX_ITERATIONS,
+                org.javai.punit.model.TerminationReason.MAX_ITERATIONS,
                 "Reached maximum iterations: " + maxIterations
         );
     }
@@ -43,7 +46,7 @@ public record TerminationReason(
      */
     public static TerminationReason noImprovement(int windowSize) {
         return new TerminationReason(
-                TerminationCause.NO_IMPROVEMENT,
+                org.javai.punit.model.TerminationReason.NO_IMPROVEMENT,
                 "No improvement in last " + windowSize + " iterations"
         );
     }
@@ -56,7 +59,7 @@ public record TerminationReason(
      */
     public static TerminationReason timeBudgetExhausted(long budgetMs) {
         return new TerminationReason(
-                TerminationCause.TIME_BUDGET_EXHAUSTED,
+                org.javai.punit.model.TerminationReason.OPTIMIZATION_TIME_BUDGET_EXHAUSTED,
                 "Time budget exhausted: " + budgetMs + "ms"
         );
     }
@@ -69,7 +72,7 @@ public record TerminationReason(
      */
     public static TerminationReason mutationFailure(String errorMessage) {
         return new TerminationReason(
-                TerminationCause.MUTATION_FAILURE,
+                org.javai.punit.model.TerminationReason.MUTATION_FAILURE,
                 "Mutation failed: " + errorMessage
         );
     }
@@ -82,8 +85,22 @@ public record TerminationReason(
      */
     public static TerminationReason scoringFailure(String errorMessage) {
         return new TerminationReason(
-                TerminationCause.SCORING_FAILURE,
+                org.javai.punit.model.TerminationReason.SCORING_FAILURE,
                 "Scoring failed: " + errorMessage
+        );
+    }
+
+    /**
+     * Creates a termination reason for score threshold reached.
+     *
+     * @param threshold the threshold that was reached
+     * @param achievedScore the score that was achieved
+     * @return a new TerminationReason
+     */
+    public static TerminationReason scoreThresholdReached(double threshold, double achievedScore) {
+        return new TerminationReason(
+                org.javai.punit.model.TerminationReason.SCORE_THRESHOLD_REACHED,
+                String.format("Score threshold %.4f reached with score %.4f", threshold, achievedScore)
         );
     }
 }

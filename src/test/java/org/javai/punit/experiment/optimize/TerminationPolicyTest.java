@@ -3,6 +3,8 @@ package org.javai.punit.experiment.optimize;
 import org.javai.punit.experiment.model.FactorSuit;
 import org.junit.jupiter.api.Test;
 
+import static org.javai.punit.model.TerminationReason.*;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -65,7 +67,7 @@ class TerminationPolicyTest {
         OptimizationHistory history10 = createHistory(10, 0);
         Optional<TerminationReason> reason = policy.shouldTerminate(history10);
         assertTrue(reason.isPresent());
-        assertEquals(TerminationCause.MAX_ITERATIONS, reason.get().cause());
+        assertEquals(MAX_ITERATIONS, reason.get().cause());
     }
 
     @Test
@@ -98,7 +100,7 @@ class TerminationPolicyTest {
 
         Optional<TerminationReason> reason = policy.shouldTerminate(history);
         assertTrue(reason.isPresent());
-        assertEquals(TerminationCause.NO_IMPROVEMENT, reason.get().cause());
+        assertEquals(NO_IMPROVEMENT, reason.get().cause());
     }
 
     @Test
@@ -139,7 +141,7 @@ class TerminationPolicyTest {
 
         Optional<TerminationReason> reason = policy.shouldTerminate(history);
         assertTrue(reason.isPresent());
-        assertEquals(TerminationCause.TIME_BUDGET_EXHAUSTED, reason.get().cause());
+        assertEquals(OPTIMIZATION_TIME_BUDGET_EXHAUSTED, reason.get().cause());
     }
 
     @Test
@@ -185,7 +187,7 @@ class TerminationPolicyTest {
 
         Optional<TerminationReason> reason = policy.shouldTerminate(history);
         assertTrue(reason.isPresent());
-        assertEquals(TerminationCause.NO_IMPROVEMENT, reason.get().cause());
+        assertEquals(NO_IMPROVEMENT, reason.get().cause());
     }
 
     @Test

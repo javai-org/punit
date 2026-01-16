@@ -3,6 +3,8 @@ package org.javai.punit.experiment.optimize;
 import org.javai.punit.experiment.model.FactorSuit;
 import org.junit.jupiter.api.Test;
 
+import static org.javai.punit.model.TerminationReason.*;
+
 import java.time.Instant;
 import java.util.Optional;
 
@@ -267,6 +269,6 @@ class OptimizationHistoryTest {
         assertEquals("Max 20 iterations", history.terminationPolicyDescription());
         assertEquals(start, history.startTime());
         assertEquals(end, history.endTime());
-        assertEquals(TerminationCause.MAX_ITERATIONS, history.terminationReason().cause());
+        assertEquals(MAX_ITERATIONS, history.terminationReason().cause());
     }
 }

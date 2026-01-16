@@ -4,7 +4,7 @@ package org.javai.punit.experiment.optimize;
  * Thrown when mutation fails.
  *
  * <p>When a mutator throws this exception, the optimization terminates
- * with {@link TerminationCause#MUTATION_FAILURE} and returns partial results.
+ * with {@link org.javai.punit.model.TerminationReason#MUTATION_FAILURE} and returns partial results.
  */
 public class MutationException extends Exception {
 

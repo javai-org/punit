@@ -1,13 +1,14 @@
 package org.javai.punit.model;
 
 /**
- * Reasons why a probabilistic test terminated.
+ * Reasons why a probabilistic test or optimization terminated.
  *
  * <p>Termination reasons fall into several categories:
  * <ul>
  *   <li>COMPLETED: Normal completion (all samples ran)</li>
  *   <li>IMPOSSIBILITY: Mathematical impossibility to reach pass rate</li>
  *   <li>Budget exhaustion: Time or token budget exceeded at method, class, or suite level</li>
+ *   <li>Optimization-specific: Max iterations, no improvement, failures</li>
  * </ul>
  */
 public enum TerminationReason {
@@ -57,7 +58,44 @@ public enum TerminationReason {
     /**
      * Suite-level token budget was exhausted.
      */
-    SUITE_TOKEN_BUDGET_EXHAUSTED("Suite token budget exhausted");
+    SUITE_TOKEN_BUDGET_EXHAUSTED("Suite token budget exhausted"),
+
+    // === Optimization-specific termination reasons ===
+
+    /**
+     * Maximum iteration count reached during optimization.
+     */
+    MAX_ITERATIONS("Maximum iterations reached"),
+
+    /**
+     * No improvement detected within the configured window during optimization.
+     */
+    NO_IMPROVEMENT("No improvement in recent iterations"),
+
+    /**
+     * Target score threshold was reached during optimization (early success).
+     */
+    SCORE_THRESHOLD_REACHED("Target score threshold reached"),
+
+    /**
+     * Optimization time budget was exhausted.
+     */
+    OPTIMIZATION_TIME_BUDGET_EXHAUSTED("Optimization time budget exhausted"),
+
+    /**
+     * Optimization token budget was exhausted.
+     */
+    OPTIMIZATION_TOKEN_BUDGET_EXHAUSTED("Optimization token budget exhausted"),
+
+    /**
+     * Mutator failed to produce a valid new factor value during optimization.
+     */
+    MUTATION_FAILURE("Mutation failed"),
+
+    /**
+     * Scorer failed to evaluate an iteration during optimization.
+     */
+    SCORING_FAILURE("Scoring failed");
 
     private final String description;
 
@@ -106,7 +144,8 @@ public enum TerminationReason {
     public boolean isTimeBudgetExhaustion() {
         return this == METHOD_TIME_BUDGET_EXHAUSTED ||
                this == CLASS_TIME_BUDGET_EXHAUSTED ||
-               this == SUITE_TIME_BUDGET_EXHAUSTED;
+               this == SUITE_TIME_BUDGET_EXHAUSTED ||
+               this == OPTIMIZATION_TIME_BUDGET_EXHAUSTED;
     }
 
     /**
@@ -117,6 +156,32 @@ public enum TerminationReason {
     public boolean isTokenBudgetExhaustion() {
         return this == METHOD_TOKEN_BUDGET_EXHAUSTED ||
                this == CLASS_TOKEN_BUDGET_EXHAUSTED ||
-               this == SUITE_TOKEN_BUDGET_EXHAUSTED;
+               this == SUITE_TOKEN_BUDGET_EXHAUSTED ||
+               this == OPTIMIZATION_TOKEN_BUDGET_EXHAUSTED;
+    }
+
+    /**
+     * Returns true if this is an optimization-specific termination reason.
+     *
+     * @return true if optimization-related
+     */
+    public boolean isOptimizationTermination() {
+        return this == MAX_ITERATIONS ||
+               this == NO_IMPROVEMENT ||
+               this == SCORE_THRESHOLD_REACHED ||
+               this == OPTIMIZATION_TIME_BUDGET_EXHAUSTED ||
+               this == OPTIMIZATION_TOKEN_BUDGET_EXHAUSTED ||
+               this == MUTATION_FAILURE ||
+               this == SCORING_FAILURE;
+    }
+
+    /**
+     * Returns true if this termination represents a failure condition.
+     *
+     * @return true if termination due to failure
+     */
+    public boolean isFailure() {
+        return this == MUTATION_FAILURE ||
+               this == SCORING_FAILURE;
     }
 }

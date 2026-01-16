@@ -2,6 +2,8 @@ package org.javai.punit.experiment.optimize;
 
 import org.javai.punit.experiment.model.FactorSuit;
 import org.javai.punit.model.UseCaseCriteria;
+
+import static org.javai.punit.model.TerminationReason.*;
 import org.javai.punit.model.UseCaseOutcome;
 import org.javai.punit.model.UseCaseResult;
 import org.junit.jupiter.api.Test;
@@ -102,7 +104,7 @@ class OptimizationOrchestratorTest {
         OptimizationHistory history = orchestrator.run();
 
         assertEquals(5, history.iterationCount());
-        assertEquals(TerminationCause.MAX_ITERATIONS, history.terminationReason().cause());
+        assertEquals(MAX_ITERATIONS, history.terminationReason().cause());
         assertEquals(4, mutationCount.get()); // One less than iterations (no mutation after last)
     }
 
@@ -133,7 +135,7 @@ class OptimizationOrchestratorTest {
 
         // Should terminate due to no improvement after 4 iterations (1 initial + 3 no improvement)
         assertTrue(history.iterationCount() <= 20);
-        assertEquals(TerminationCause.NO_IMPROVEMENT, history.terminationReason().cause());
+        assertEquals(NO_IMPROVEMENT, history.terminationReason().cause());
     }
 
     @Test
@@ -189,7 +191,7 @@ class OptimizationOrchestratorTest {
         OptimizationHistory history = orchestrator.run();
 
         assertEquals(1, history.iterationCount());  // Only one attempt
-        assertEquals(TerminationCause.SCORING_FAILURE, history.terminationReason().cause());
+        assertEquals(SCORING_FAILURE, history.terminationReason().cause());
     }
 
     @Test
@@ -220,7 +222,7 @@ class OptimizationOrchestratorTest {
         OptimizationHistory history = orchestrator.run();
 
         assertEquals(3, history.iterationCount());  // 3 successful iterations before failure
-        assertEquals(TerminationCause.MUTATION_FAILURE, history.terminationReason().cause());
+        assertEquals(MUTATION_FAILURE, history.terminationReason().cause());
     }
 
     @Test
@@ -253,7 +255,7 @@ class OptimizationOrchestratorTest {
         OptimizationHistory history = orchestrator.run();
 
         assertEquals(3, history.iterationCount());
-        assertEquals(TerminationCause.SCORING_FAILURE, history.terminationReason().cause());
+        assertEquals(SCORING_FAILURE, history.terminationReason().cause());
     }
 
     @Test
