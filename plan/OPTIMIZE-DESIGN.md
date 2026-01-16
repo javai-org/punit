@@ -2,9 +2,15 @@
 
 ## Document Status
 **Status**: Draft
-**Version**: 0.3
+**Version**: 0.4
 **Last Updated**: 2026-01-16
 **Related Documents**: [OPTIMIZE-REQ.md](./OPTIMIZE-REQ.md)
+
+### Revision History
+| Version | Date       | Changes                                                                                                                      |
+|---------|------------|------------------------------------------------------------------------------------------------------------------------------|
+| 0.4     | 2026-01-16 | Removed @FixedFactors; introduced @TreatmentValue + @TreatmentValueSource pattern; updated to @OptimizeExperiment annotation |
+| 0.3     | 2026-01-16 | Initial design with @Experiment(mode=OPTIMIZE)                                                                               |
 
 ---
 
@@ -113,15 +119,18 @@ All factors are part of the same factor suit. The only distinction is which one 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                 @Experiment(mode=OPTIMIZE)                      │
+│                    @OptimizeExperiment                          │
 │                                                                 │
 │  Specifies:                                                     │
 │    - useCase: the use case class                                │
 │    - treatmentFactor: which factor to optimize                   │
 │    - scorer: how to evaluate aggregates                         │
 │    - mutator: how to generate new factor values                 │
-│    - samples: N samples per iteration                           │
-│    - termination criteria                                       │
+│    - samplesPerIteration: N samples per iteration               │
+│    - termination criteria (maxIterations, noImprovementWindow)  │
+│                                                                 │
+│  Initial treatment value from @TreatmentValueSource on use case │
+│  Fixed factors remain constant (implicit, no annotation needed) │
 └────────────────────────┬────────────────────────────────────────┘
                          │
                          ▼
@@ -1050,73 +1059,156 @@ public class OptimizationOrchestrator<F> {
 
 ## 7. JUnit Integration
 
-### 7.1 Annotation
+### 7.1 Annotation Design Decision: Separate Annotations
+
+We chose to implement **three separate annotations** rather than one unified `@Experiment`:
+
+- `@MeasureExperiment`
+- `@ExploreExperiment`
+- `@OptimizeExperiment`
+
+**Rationale:**
+- OPTIMIZE has 7 unique attributes (50% of total), making a unified annotation cluttered
+- Separate annotations provide compile-time validation for required fields
+- Immediate clarity of experiment purpose from the annotation name
+- Each mode has distinct semantics and outputs
+
+### 7.2 @OptimizeExperiment Annotation
 
 ```java
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @TestTemplate
 @ExtendWith(ExperimentExtension.class)
-public @interface Experiment {
+public @interface OptimizeExperiment {
 
-    // === Common fields ===
+    /** The use case class to execute. */
+    Class<?> useCase() default Void.class;
 
-    ExperimentMode mode();
-    Class<?> useCase();
-    String experimentId() default "";
-    long timeBudgetMs() default 0;
-    long tokenBudget() default 0;
+    /** Name of the factor to optimize (treatment factor). Required. */
+    String treatmentFactor();
 
-    // === MEASURE/EXPLORE fields ===
+    /** Scorer class for evaluating iteration aggregates. Required. */
+    Class<? extends Scorer<OptimizationIterationAggregate>> scorer();
 
-    int samples() default 0;
+    /** FactorMutator class for generating new treatment factor values. Required. */
+    Class<? extends FactorMutator<?>> mutator();
 
-    // === OPTIMIZE fields ===
-
-    /**
-     * Name of the factor to optimize.
-     * Must match a factor defined on the use case.
-     * Required when mode = OPTIMIZE.
-     */
-    String treatmentFactor() default "";
-
-    /**
-     * Scorer class for evaluating iterations.
-     * Required when mode = OPTIMIZE.
-     */
-    Class<? extends Scorer> scorer() default Scorer.class;
-
-    /**
-     * FactorMutator class for generating new factor values.
-     * Required when mode = OPTIMIZE.
-     */
-    Class<? extends FactorMutator> mutator() default FactorMutator.class;
-
-    /**
-     * Optimization objective.
-     * Default: MAXIMIZE
-     */
+    /** Optimization objective: MAXIMIZE or MINIMIZE. Default: MAXIMIZE. */
     OptimizationObjective objective() default OptimizationObjective.MAXIMIZE;
 
-    /**
-     * Samples per iteration (like MEASURE's sample count).
-     * Default: 20
-     */
+    /** Number of samples per iteration. Default: 20. */
     int samplesPerIteration() default 20;
 
-    /**
-     * Maximum iterations.
-     * Default: 20
-     */
+    /** Maximum number of iterations before termination. Default: 20. */
     int maxIterations() default 20;
 
-    /**
-     * Terminate if no improvement for this many iterations.
-     * Default: 5
-     */
+    /** Consecutive iterations without improvement before termination. Default: 5. */
     int noImprovementWindow() default 5;
+
+    /** Maximum wall-clock time budget in milliseconds. 0 = unlimited. */
+    long timeBudgetMs() default 0;
+
+    /** Maximum token budget across all iterations. 0 = unlimited. */
+    long tokenBudget() default 0;
+
+    /** Unique identifier for this experiment. */
+    String experimentId() default "";
 }
 ```
+
+### 7.3 Design Decision: No @FixedFactors Annotation
+
+An earlier design included a `@FixedFactors` annotation to explicitly specify which factors should remain constant during optimization. **This was removed.**
+
+**Rationale:**
+- **Superfluous ceremony**: The developer already specifies the treatment factor via `treatmentFactor`. Everything else implicitly stays constant.
+- **Developer simplicity**: Less annotations = less cognitive load. The principle is to give developers as little to do as possible.
+- **Trust the developer**: Yes, a developer *could* inadvertently change other factors, undermining the experiment. But developers can do many things to undermine an experiment—explicit guards for this one scenario add complexity without proportionate benefit.
+
+**Original (discarded):**
+```java
+@OptimizeExperiment(treatmentFactor = "systemPrompt", ...)
+@FixedFactors("shoppingFactors")  // <-- Removed
+void optimize(...) { }
+```
+
+**Current (simpler):**
+```java
+@OptimizeExperiment(treatmentFactor = "systemPrompt", ...)
+void optimize(...) { }
+// Fixed factors come from the use case instance itself
+```
+
+### 7.4 Initial Treatment Value: @TreatmentValue + @TreatmentValueSource
+
+The initial value for the treatment factor is provided via a two-part pattern:
+
+1. **@TreatmentValueSource** - Marks a method on the use case class as the source of the initial value
+2. **@TreatmentValue** - Marks a parameter on the experiment method to receive the injected value
+
+**Why this pattern?**
+
+1. **Programmatic flexibility**: Initial values may need to be computed, loaded from files, or derived from use case state. A static annotation value (`initialValue = "..."`) cannot accommodate this.
+
+2. **Type safety**: The value flows through Java methods, preserving type information. Works for any factor type (String, double, Image, etc.).
+
+3. **Use case encapsulation**: The use case owns its factors. It's natural for the use case to also provide the initial treatment value.
+
+4. **Instance vs static**: The `@TreatmentValueSource` method is an instance method on the use case, allowing access to use case state.
+
+**Use Case Definition:**
+```java
+@UseCase
+public class ShoppingUseCase {
+
+    private String systemPrompt;
+
+    @TreatmentValueSource("systemPrompt")
+    public String getSystemPrompt() {
+        return this.systemPrompt;
+    }
+
+    @FactorSetter("systemPrompt")
+    public void setSystemPrompt(String prompt) {
+        this.systemPrompt = prompt;
+    }
+}
+```
+
+**Experiment Method:**
+```java
+@OptimizeExperiment(
+    useCase = ShoppingUseCase.class,
+    treatmentFactor = "systemPrompt",
+    scorer = SuccessRateScorer.class,
+    mutator = LLMStringFactorMutator.class
+)
+void optimizeSystemPrompt(
+    ShoppingUseCase useCase,
+    @TreatmentValue String initialPrompt,  // Injected from use case
+    ResultCaptor captor
+) {
+    captor.record(useCase.searchProducts("wireless headphones"));
+}
+```
+
+### 7.5 Future-Proofing: Multi-Factor Optimization
+
+The `@TreatmentValue` annotation includes an optional `value()` parameter for future multi-factor support:
+
+**Current (single factor - common case):**
+```java
+@TreatmentValue String initialPrompt  // Factor name inferred from treatmentFactor
+```
+
+**Future (multiple factors):**
+```java
+@TreatmentValue("systemPrompt") String initialPrompt,
+@TreatmentValue("temperature") double initialTemp
+```
+
+This allows us to add multi-factor optimization without breaking the existing single-factor API.
 
 ---
 
@@ -1128,11 +1220,11 @@ OPTIMIZE mode outputs its results via `PUnitReporter`, consistent with MEASURE a
 
 **Verbosity Levels:**
 
-| Level | Output |
-|-------|--------|
-| **MINIMAL** | Treatment factor name + best value only |
+| Level       | Output                                                                |
+|-------------|-----------------------------------------------------------------------|
+| **MINIMAL** | Treatment factor name + best value only                               |
 | **SUMMARY** | Best value + score improvement + iteration count + termination reason |
-| **FULL** | Complete optimization history with all iterations |
+| **FULL**    | Complete optimization history with all iterations                     |
 
 **Example: MINIMAL verbosity**
 ```
@@ -1327,6 +1419,56 @@ This enables:
 
 ## 9. Usage Example
 
+### 9.1 Use Case Definition
+
+The use case encapsulates the factors and provides the initial treatment value:
+
+```java
+@UseCase
+public class ShoppingUseCase {
+
+    // Fixed factors (set during construction, constant throughout optimization)
+    private final String model;
+    private final double temperature;
+
+    // Treatment factor (will be mutated during optimization)
+    private String systemPrompt;
+
+    public ShoppingUseCase() {
+        // Fixed factors selected during EXPLORE phase
+        this.model = "gpt-4";
+        this.temperature = 0.7;
+        // Initial value for treatment factor
+        this.systemPrompt = "You are a helpful shopping assistant.";
+    }
+
+    /**
+     * Provides the initial value for the treatment factor.
+     * Called once at the start of optimization.
+     */
+    @TreatmentValueSource("systemPrompt")
+    public String getSystemPrompt() {
+        return this.systemPrompt;
+    }
+
+    /**
+     * Sets the treatment factor value.
+     * Called by the extension before each iteration with the mutated value.
+     */
+    @FactorSetter("systemPrompt")
+    public void setSystemPrompt(String prompt) {
+        this.systemPrompt = prompt;
+    }
+
+    public UseCaseOutcome searchProducts(String query) {
+        // Use case implementation using model, temperature, systemPrompt
+        // ...
+    }
+}
+```
+
+### 9.2 Experiment Definition
+
 ```java
 public class ShoppingOptimizationExperiment {
 
@@ -1343,7 +1485,7 @@ public class ShoppingOptimizationExperiment {
      *
      * Prerequisites:
      *   - EXPLORE completed: selected gpt-4 @ temperature 0.7
-     *   - Initial systemPrompt defined in @InitialFactorValue
+     *   - Initial systemPrompt provided by use case via @TreatmentValueSource
      *
      * This will:
      *   1. Run 20 samples per iteration (like MEASURE)
@@ -1351,8 +1493,7 @@ public class ShoppingOptimizationExperiment {
      *   3. Use LLM to suggest improved prompts
      *   4. Repeat until no improvement for 5 iterations
      */
-    @Experiment(
-        mode = ExperimentMode.OPTIMIZE,
+    @OptimizeExperiment(
         useCase = ShoppingUseCase.class,
         experimentId = "optimize-system-prompt",
 
@@ -1375,30 +1516,15 @@ public class ShoppingOptimizationExperiment {
         timeBudgetMs = 3600000,
         tokenBudget = 500000
     )
-    @FixedFactors("shoppingFactors")
-    @InitialFactorValue("initialSystemPrompt")
-    void optimizeSystemPrompt(ShoppingUseCase useCase, OutcomeCaptor captor) {
+    void optimizeSystemPrompt(
+        ShoppingUseCase useCase,
+        @TreatmentValue String initialPrompt,  // Injected from use case
+        ResultCaptor captor
+    ) {
         // This method body executes once per sample within each iteration.
         // Factor values (including the treatment factor) are already applied.
         UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
         captor.record(outcome);
-    }
-
-    /**
-     * Fixed factor suit selected during EXPLORE phase.
-     */
-    static FactorSuit shoppingFactors() {
-        return FactorSuit.of(
-            "model", "gpt-4",
-            "temperature", 0.7
-        );
-    }
-
-    /**
-     * Initial value for the treatment factor (systemPrompt).
-     */
-    static String initialSystemPrompt() {
-        return "You are a helpful shopping assistant.";
     }
 }
 ```
@@ -1413,21 +1539,32 @@ The current design supports a single treatment factor. A natural extension would
 
 **Current (single treatment factor):**
 ```java
-@Experiment(
-    mode = OPTIMIZE,
+@OptimizeExperiment(
     treatmentFactor = "systemPrompt",
     ...
 )
+void optimize(
+    ShoppingUseCase useCase,
+    @TreatmentValue String initialPrompt,
+    ResultCaptor captor
+) { ... }
 ```
 
 **Future (multiple treatment factors):**
 ```java
-@Experiment(
-    mode = OPTIMIZE,
+@OptimizeExperiment(
     treatmentFactors = {"systemPrompt", "temperature"},
     ...
 )
+void optimize(
+    ShoppingUseCase useCase,
+    @TreatmentValue("systemPrompt") String initialPrompt,
+    @TreatmentValue("temperature") double initialTemp,
+    ResultCaptor captor
+) { ... }
 ```
+
+Note: The `@TreatmentValue` annotation already supports the optional `value()` parameter for this purpose, providing forward compatibility.
 
 **Implications:**
 - The mutator interface would change from `FactorMutator<F>` (typed to factor type) to `FactorMutator` operating on `FactorSuit`
@@ -1438,7 +1575,7 @@ The current design supports a single treatment factor. A natural extension would
 **Deferred because:**
 - Single treatment factor covers the primary use case (system prompt optimization)
 - Multi-dimensional optimization adds significant complexity
-- Can be added later without breaking changes to the single-factor API
+- Can be added later without breaking changes to the single-factor API (annotation already supports it)
 
 ---
 
@@ -1457,3 +1594,12 @@ OPTIMIZE mode is:
 5. **Automated evaluation**: Scorer replaces the human evaluator from EXPLORE
 
 The key insight: the parameter being optimized is just another factor—one we choose to vary via mutation rather than holding constant.
+
+### Key Design Decisions
+
+| Decision                | Choice                                      | Rationale                                                                                            |
+|-------------------------|---------------------------------------------|------------------------------------------------------------------------------------------------------|
+| Annotation style        | Separate `@OptimizeExperiment`              | OPTIMIZE has 50% unique attributes; separate annotation provides clarity and compile-time validation |
+| Fixed factors           | Implicit (no annotation)                    | Developer specifies treatment factor; everything else stays constant by default. Minimizes ceremony. |
+| Initial value provision | `@TreatmentValueSource` + `@TreatmentValue` | Programmatic flexibility, type safety, use case encapsulation. Works with any factor type.           |
+| Multi-factor support    | Deferred but designed for                   | `@TreatmentValue(factorName)` pattern already supports it when needed                                |

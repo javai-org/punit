@@ -46,19 +46,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *     maxIterations = 20,
  *     noImprovementWindow = 5
  * )
- * @FixedFactors("shoppingFactors")
- * @InitialTreatmentValue("initialSystemPrompt")
- * void optimizeSystemPrompt(ShoppingUseCase useCase, ResultCaptor captor) {
+ * void optimizeSystemPrompt(
+ *     ShoppingUseCase useCase,
+ *     @TreatmentValue String initialPrompt,  // Injected from use case
+ *     ResultCaptor captor
+ * ) {
  *     UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
  *     captor.record(outcome);
  * }
+ * }</pre>
  *
- * static FactorSuit shoppingFactors() {
- *     return FactorSuit.of("model", "gpt-4", "temperature", 0.7);
- * }
- *
- * static String initialSystemPrompt() {
- *     return "You are a helpful shopping assistant.";
+ * <p>The initial value is obtained from the use case via a method annotated
+ * with {@link TreatmentValueSource}:
+ * <pre>{@code
+ * @UseCase
+ * public class ShoppingUseCase {
+ *     @TreatmentValueSource("systemPrompt")
+ *     public String getSystemPrompt() { return this.systemPrompt; }
  * }
  * }</pre>
  *
@@ -69,8 +73,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *
  * @see MeasureExperiment
  * @see ExploreExperiment
- * @see FixedFactors
- * @see InitialTreatmentValue
+ * @see TreatmentValue
+ * @see TreatmentValueSource
  * @see Scorer
  * @see FactorMutator
  */
