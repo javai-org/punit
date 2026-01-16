@@ -7,32 +7,32 @@ package org.javai.punit.api;
  * but have different intents and outputs. Each mode has a sensible default
  * sample size accessible via {@link #getDefaultSampleSize()}.
  *
- * <h2>Mode Comparison</h2>
+ * <h2>Experiment Types</h2>
  * <pre>
- * ┌─────────────────────────────────────────────────────────────────┐
- * │                    @Experiment Modes                             │
- * ├─────────────────────────────────────────────────────────────────┤
- * │  Mode:     MEASURE                   │ EXPLORE                  │
- * │  Intent:   Precise estimation        │ Factor comparison        │
- * │  Configs:  1 (implicit)              │ N (from factor source)   │
- * │  Samples:  1000+ (default: 1000)     │ 1+/config (default: 1)   │
- * │  Output:   spec in specs/            │ specs in explorations/   │
- * │  Decision: "What's the true rate?"   │ "Which config is best?"  │
- * │  Task:     ./gradlew measure         │ ./gradlew explore        │
- * └─────────────────────────────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────────────────────────────────────────┐
+ * │                             Experiment Annotations                                        │
+ * ├──────────────────────────────────────────────────────────────────────────────────────────┤
+ * │  Annotation:   @MeasureExperiment  │ @ExploreExperiment      │ @OptimizeExperiment        │
+ * │  Intent:       Precise estimation  │ Factor comparison       │ Iterative factor tuning    │
+ * │  Configs:      1 (implicit)        │ N (from factor source)  │ 1 (mutating treatment)     │
+ * │  Samples:      1000+ (default)     │ 1+/config (default: 1)  │ 20/iteration (default)     │
+ * │  Output:       spec in specs/      │ specs in explorations/  │ history in optimizations/  │
+ * │  Decision:     "True success rate?"│ "Which config is best?" │ "What's the best value?"   │
+ * │  Task:         ./gradlew measure   │ ./gradlew explore       │ ./gradlew optimize         │
+ * └──────────────────────────────────────────────────────────────────────────────────────────┘
  * </pre>
  *
- * <p><b>Note:</b> Mode is mandatory - you must explicitly choose MEASURE or EXPLORE.
- *
- * @see Experiment#mode()
+ * @see MeasureExperiment
+ * @see ExploreExperiment
+ * @see OptimizeExperiment
  * @see FactorSource
  */
 public enum ExperimentMode {
     
     /**
-     * MEASURE mode establishes reliable statistics for a single configuration.
+     * MEASURE establishes reliable statistics for a single configuration.
      *
-     * <p>Use it when you want to:
+     * <p>Use {@link MeasureExperiment} when you want to:
      * <ul>
      *   <li>Measure the true success rate with high precision</li>
      *   <li>Generate an empirical spec for deriving test thresholds</li>
@@ -48,7 +48,7 @@ public enum ExperimentMode {
      *
      * <h3>Example</h3>
      * <pre>{@code
-     * @Experiment(mode = MEASURE, useCase = ShoppingUseCase.class, samples = 1000)
+     * @MeasureExperiment(useCase = ShoppingUseCase.class, samples = 1000)
      * void measureShoppingSearch(ShoppingUseCase useCase, ResultCaptor captor) {
      *     captor.record(useCase.searchProducts("headphones"));
      * }
@@ -58,11 +58,11 @@ public enum ExperimentMode {
      * <p>Using &lt; 100 samples produces imprecise specs with wide confidence intervals.
      */
     MEASURE(1000),
-    
+
     /**
-     * EXPLORE mode compares multiple configurations to understand factor effects.
+     * EXPLORE compares multiple configurations to understand factor effects.
      *
-     * <p>Use this mode when you want to:
+     * <p>Use {@link ExploreExperiment} when you want to:
      * <ul>
      *   <li>Compare different LLM models</li>
      *   <li>Evaluate temperature/prompt variations</li>
@@ -81,13 +81,13 @@ public enum ExperimentMode {
      *
      * <p><b>Phase 1: "Which configs work at all?"</b>
      * <pre>{@code
-     * @Experiment(mode = EXPLORE, samplesPerConfig = 1)
+     * @ExploreExperiment(samplesPerConfig = 1)
      * }</pre>
      * <p>Fast pass through all configurations to filter out broken ones.
      *
      * <p><b>Phase 2: "Which config is best?"</b>
      * <pre>{@code
-     * @Experiment(mode = EXPLORE, samplesPerConfig = 10)
+     * @ExploreExperiment(samplesPerConfig = 10)
      * }</pre>
      * <p>More samples for remaining configs to gauge stochastic behaviors.
      *
@@ -101,9 +101,36 @@ public enum ExperimentMode {
      *
      * <h3>Anti-pattern</h3>
      * <p>Using &gt; 50 samples per config during exploration is wasteful.
-     * Use MEASURE mode once you've chosen the best configuration.
+     * Use @MeasureExperiment once you've chosen the best configuration.
      */
-    EXPLORE(1);
+    EXPLORE(1),
+
+    /**
+     * OPTIMIZE iteratively refines a single treatment factor to find its optimal value.
+     *
+     * <p>Use {@link OptimizeExperiment} when you want to:
+     * <ul>
+     *   <li>Automatically tune a parameter (e.g., system prompt)</li>
+     *   <li>Find the best value through iterative mutation and evaluation</li>
+     *   <li>After exploration has identified a promising configuration</li>
+     * </ul>
+     *
+     * <h3>Typical Configuration</h3>
+     * <ul>
+     *   <li><b>Samples per iteration:</b> 20 (default)</li>
+     *   <li><b>Max iterations:</b> 20 (default)</li>
+     *   <li><b>Output:</b> Optimization history in {@code src/test/resources/punit/optimizations/}</li>
+     *   <li><b>Task:</b> {@code ./gradlew optimize}</li>
+     * </ul>
+     *
+     * <h3>Workflow Context</h3>
+     * <pre>{@code
+     * EXPLORE → Select winning config → OPTIMIZE one factor → MEASURE (establish baseline)
+     * }</pre>
+     *
+     * @see org.javai.punit.api.OptimizeExperiment
+     */
+    OPTIMIZE(20);
 
     /**
      * The default number of samples for this mode when not explicitly specified.

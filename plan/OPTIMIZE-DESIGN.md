@@ -2,7 +2,7 @@
 
 ## Document Status
 **Status**: Draft
-**Version**: 0.2
+**Version**: 0.3
 **Last Updated**: 2026-01-16
 **Related Documents**: [OPTIMIZE-REQ.md](./OPTIMIZE-REQ.md)
 
@@ -173,7 +173,7 @@ package org.javai.punit.experiment.optimize;
  *   - For MAXIMIZE objective: higher score = better
  *   - For MINIMIZE objective: lower score = better
  *
- * @param <A> The aggregate type (typically IterationAggregate)
+ * @param <A> The aggregate type (typically OptimizationIterationAggregate)
  */
 @FunctionalInterface
 public interface Scorer<A> {
@@ -217,10 +217,10 @@ public class ScoringException extends Exception {
  * The simplest and most common scorer. Use with MAXIMIZE objective.
  * A success rate of 0.95 scores higher than 0.90.
  */
-public class SuccessRateScorer implements Scorer<IterationAggregate> {
+public class SuccessRateScorer implements Scorer<OptimizationIterationAggregate> {
 
     @Override
-    public double score(IterationAggregate aggregate) {
+    public double score(OptimizationIterationAggregate aggregate) {
         return aggregate.statistics().successRate();
     }
 
@@ -236,10 +236,10 @@ public class SuccessRateScorer implements Scorer<IterationAggregate> {
  * Balances accuracy against token consumption. Useful when optimizing
  * for both quality and cost. Use with MAXIMIZE objective.
  */
-public class CostEfficiencyScorer implements Scorer<IterationAggregate> {
+public class CostEfficiencyScorer implements Scorer<OptimizationIterationAggregate> {
 
     @Override
-    public double score(IterationAggregate aggregate) {
+    public double score(OptimizationIterationAggregate aggregate) {
         double successRate = aggregate.statistics().successRate();
         long tokens = aggregate.statistics().totalTokens();
         if (tokens == 0) return 0.0;
@@ -259,7 +259,7 @@ public class CostEfficiencyScorer implements Scorer<IterationAggregate> {
  *
  * Use when optimizing for multiple objectives simultaneously.
  */
-public class WeightedScorer implements Scorer<IterationAggregate> {
+public class WeightedScorer implements Scorer<OptimizationIterationAggregate> {
 
     private final List<WeightedComponent> components;
 
@@ -268,7 +268,7 @@ public class WeightedScorer implements Scorer<IterationAggregate> {
     }
 
     @Override
-    public double score(IterationAggregate aggregate) throws ScoringException {
+    public double score(OptimizationIterationAggregate aggregate) throws ScoringException {
         double totalScore = 0.0;
         double totalWeight = 0.0;
 
@@ -287,11 +287,11 @@ public class WeightedScorer implements Scorer<IterationAggregate> {
             .collect(Collectors.joining(" + "));
     }
 
-    public record WeightedComponent(Scorer<IterationAggregate> scorer, double weight) {}
+    public record WeightedComponent(Scorer<OptimizationIterationAggregate> scorer, double weight) {}
 }
 ```
 
-### 4.3 Mutator Interface
+### 4.3 FactorMutator Interface
 
 **Role**: Generates a new value for the treatment factor based on history. The mutator implements the search strategy for exploring the factor's value space.
 
@@ -311,7 +311,7 @@ package org.javai.punit.experiment.optimize;
  * @param <F> The type of the factor being optimized (String, Image, etc.)
  */
 @FunctionalInterface
-public interface Mutator<F> {
+public interface FactorMutator<F> {
 
     /**
      * Generate a new value for the treatment factor.
@@ -350,7 +350,7 @@ public class MutationException extends Exception {
 }
 ```
 
-### 4.4 Standard Mutator Implementations
+### 4.4 Standard FactorMutator Implementations
 
 ```java
 /**
@@ -362,7 +362,7 @@ public class MutationException extends Exception {
  *
  * This is the primary mutator for system prompt optimization.
  */
-public class LLMStringMutator implements Mutator<String> {
+public class LLMStringFactorMutator implements FactorMutator<String> {
 
     private final LLMClient llmClient;
     private final String mutationPromptTemplate;
@@ -406,9 +406,9 @@ public class LLMStringMutator implements Mutator<String> {
         }
     }
 
-    private String formatRecentIterations(List<IterationRecord> iterations) {
+    private String formatRecentIterations(List<OptimizationRecord> iterations) {
         StringBuilder sb = new StringBuilder();
-        for (IterationRecord iter : iterations) {
+        for (OptimizationRecord iter : iterations) {
             sb.append(String.format("Iteration %d: score=%.3f, successRate=%.2f%%\n",
                 iter.iterationNumber(),
                 iter.score(),
@@ -427,7 +427,7 @@ public class LLMStringMutator implements Mutator<String> {
 /**
  * No-op mutator for testing. Returns the value unchanged.
  */
-public class NoOpMutator<F> implements Mutator<F> {
+public class NoOpFactorMutator<F> implements FactorMutator<F> {
 
     @Override
     public F mutate(F currentValue, OptimizationHistory history) {
@@ -441,7 +441,7 @@ public class NoOpMutator<F> implements Mutator<F> {
 }
 ```
 
-### 4.5 TerminationPolicy Interface
+### 4.5 OptimizationTerminationPolicy Interface
 
 **Role**: Determines when the optimization loop should stop.
 
@@ -457,10 +457,10 @@ package org.javai.punit.experiment.optimize;
  *   - Budget exhausted (time, tokens, cost)
  *   - Score threshold achieved
  *
- * Policies are composable via CompositeTerminationPolicy.
+ * Policies are composable via OptimizationCompositeTerminationPolicy.
  */
 @FunctionalInterface
-public interface TerminationPolicy {
+public interface OptimizationTerminationPolicy {
 
     /**
      * Check if optimization should terminate.
@@ -468,7 +468,7 @@ public interface TerminationPolicy {
      * @param history Current optimization history
      * @return Termination reason if should stop, empty to continue
      */
-    Optional<TerminationReason> shouldTerminate(OptimizationHistory history);
+    Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history);
 
     /**
      * Human-readable description for the optimization history.
@@ -481,36 +481,28 @@ public interface TerminationPolicy {
 /**
  * Reason for termination, included in final history.
  */
-public record TerminationReason(
-    TerminationCause cause,
+public record OptimizationTerminationReason(
+    TerminationReason cause,
     String message
 ) {
-    public enum TerminationCause {
-        MAX_ITERATIONS,
-        NO_IMPROVEMENT,
-        TIME_BUDGET_EXHAUSTED,
-        TOKEN_BUDGET_EXHAUSTED,
-        SCORE_THRESHOLD_REACHED,
-        MUTATION_FAILURE,
-        SCORING_FAILURE
-    }
+    // TerminationReason is an enum defined in org.javai.punit.model
 }
 
 /**
  * Combines multiple policies. Terminates when ANY policy triggers.
  */
-public class CompositeTerminationPolicy implements TerminationPolicy {
+public class OptimizationCompositeTerminationPolicy implements OptimizationTerminationPolicy {
 
-    private final List<TerminationPolicy> policies;
+    private final List<OptimizationTerminationPolicy> policies;
 
-    public CompositeTerminationPolicy(TerminationPolicy... policies) {
+    public OptimizationCompositeTerminationPolicy(OptimizationTerminationPolicy... policies) {
         this.policies = List.of(policies);
     }
 
     @Override
-    public Optional<TerminationReason> shouldTerminate(OptimizationHistory history) {
-        for (TerminationPolicy policy : policies) {
-            Optional<TerminationReason> reason = policy.shouldTerminate(history);
+    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
+        for (OptimizationTerminationPolicy policy : policies) {
+            Optional<OptimizationTerminationReason> reason = policy.shouldTerminate(history);
             if (reason.isPresent()) {
                 return reason;
             }
@@ -521,33 +513,30 @@ public class CompositeTerminationPolicy implements TerminationPolicy {
     @Override
     public String description() {
         return policies.stream()
-            .map(TerminationPolicy::description)
+            .map(OptimizationTerminationPolicy::description)
             .collect(Collectors.joining(" OR "));
     }
 }
 ```
 
-### 4.6 Standard TerminationPolicy Implementations
+### 4.6 Standard OptimizationTerminationPolicy Implementations
 
 ```java
 /**
  * Terminates after a fixed number of iterations.
  */
-public class MaxIterationsPolicy implements TerminationPolicy {
+public class OptimizationMaxIterationsPolicy implements OptimizationTerminationPolicy {
 
     private final int maxIterations;
 
-    public MaxIterationsPolicy(int maxIterations) {
+    public OptimizationMaxIterationsPolicy(int maxIterations) {
         this.maxIterations = maxIterations;
     }
 
     @Override
-    public Optional<TerminationReason> shouldTerminate(OptimizationHistory history) {
+    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
         if (history.iterationCount() >= maxIterations) {
-            return Optional.of(new TerminationReason(
-                TerminationCause.MAX_ITERATIONS,
-                "Reached maximum iterations: " + maxIterations
-            ));
+            return Optional.of(OptimizationTerminationReason.maxIterations(maxIterations));
         }
         return Optional.empty();
     }
@@ -561,28 +550,25 @@ public class MaxIterationsPolicy implements TerminationPolicy {
 /**
  * Terminates if no improvement in the last N iterations.
  */
-public class NoImprovementPolicy implements TerminationPolicy {
+public class OptimizationNoImprovementPolicy implements OptimizationTerminationPolicy {
 
     private final int windowSize;
 
-    public NoImprovementPolicy(int windowSize) {
+    public OptimizationNoImprovementPolicy(int windowSize) {
         this.windowSize = windowSize;
     }
 
     @Override
-    public Optional<TerminationReason> shouldTerminate(OptimizationHistory history) {
+    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
         if (history.iterationCount() <= windowSize) {
             return Optional.empty();
         }
 
         int iterationsSinceBest = history.iterationCount() -
-                                  history.bestIteration().iterationNumber() - 1;
+                                  history.bestIteration().get().iterationNumber() - 1;
 
         if (iterationsSinceBest >= windowSize) {
-            return Optional.of(new TerminationReason(
-                TerminationCause.NO_IMPROVEMENT,
-                String.format("No improvement in last %d iterations", windowSize)
-            ));
+            return Optional.of(OptimizationTerminationReason.noImprovement(windowSize));
         }
         return Optional.empty();
     }
@@ -596,21 +582,18 @@ public class NoImprovementPolicy implements TerminationPolicy {
 /**
  * Terminates when time budget is exhausted.
  */
-public class TimeBudgetPolicy implements TerminationPolicy {
+public class OptimizationTimeBudgetPolicy implements OptimizationTerminationPolicy {
 
     private final Duration maxDuration;
 
-    public TimeBudgetPolicy(Duration maxDuration) {
+    public OptimizationTimeBudgetPolicy(Duration maxDuration) {
         this.maxDuration = maxDuration;
     }
 
     @Override
-    public Optional<TerminationReason> shouldTerminate(OptimizationHistory history) {
+    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
         if (history.totalDuration().compareTo(maxDuration) >= 0) {
-            return Optional.of(new TerminationReason(
-                TerminationCause.TIME_BUDGET_EXHAUSTED,
-                "Time budget exhausted: " + maxDuration
-            ));
+            return Optional.of(OptimizationTerminationReason.timeBudgetExhausted(maxDuration));
         }
         return Optional.empty();
     }
@@ -688,7 +671,7 @@ public record FactorSuit(Map<String, Object> values) {
 }
 ```
 
-### 5.2 IterationAggregate
+### 5.2 OptimizationIterationAggregate
 
 **Role**: The result of one MEASURE-like execution within the optimization loop. Contains the complete factor suit plus aggregated statistics.
 
@@ -706,7 +689,7 @@ package org.javai.punit.experiment.optimize;
  *   2. The history is self-describing and auditable
  *   3. Each iteration can be understood in isolation
  */
-public record IterationAggregate(
+public record OptimizationIterationAggregate(
 
     /** 0-indexed iteration number */
     int iterationNumber,
@@ -722,7 +705,7 @@ public record IterationAggregate(
     /**
      * The name of the factor being optimized.
      *
-     * This factor's value in factorValues was set by the Mutator.
+     * This factor's value in factorValues was set by the FactorMutator.
      * All other factors were held constant.
      */
     String treatmentFactorName,
@@ -730,7 +713,7 @@ public record IterationAggregate(
     /**
      * Statistics aggregated from N outcomes.
      */
-    AggregateStatistics statistics,
+    OptimizationStatistics statistics,
 
     /** When this iteration started */
     Instant startTime,
@@ -759,7 +742,7 @@ public record IterationAggregate(
  *
  * These are the metrics available to the Scorer for evaluation.
  */
-public record AggregateStatistics(
+public record OptimizationStatistics(
     /** Number of outcomes aggregated */
     int sampleCount,
 
@@ -780,7 +763,7 @@ public record AggregateStatistics(
 ) {}
 ```
 
-### 5.3 IterationRecord
+### 5.3 OptimizationRecord
 
 **Role**: A scored iteration for the optimization history.
 
@@ -792,15 +775,15 @@ package org.javai.punit.experiment.optimize;
  *
  * Combines the aggregate (what was evaluated) with the score (how good it was).
  */
-public record IterationRecord(
+public record OptimizationRecord(
     /** The iteration's aggregate result */
-    IterationAggregate aggregate,
+    OptimizationIterationAggregate aggregate,
 
     /** Score computed by the Scorer */
     double score,
 
     /** Whether this iteration succeeded or failed */
-    IterationStatus status,
+    OptimizationStatus status,
 
     /** Failure reason if status != SUCCESS */
     Optional<String> failureReason
@@ -810,14 +793,14 @@ public record IterationRecord(
     }
 
     public boolean isSuccessful() {
-        return status == IterationStatus.SUCCESS;
+        return status == OptimizationStatus.SUCCESS;
     }
+}
 
-    public enum IterationStatus {
-        SUCCESS,
-        EXECUTION_FAILED,
-        SCORING_FAILED
-    }
+public enum OptimizationStatus {
+    SUCCESS,
+    EXECUTION_FAILED,
+    SCORING_FAILED
 }
 ```
 
@@ -879,15 +862,15 @@ public final class OptimizationHistory {
 
     // === Iterations ===
 
-    private final List<IterationRecord> iterations;
+    private final List<OptimizationRecord> iterations;
 
     // === Results ===
 
     /** The iteration with the best score */
-    private final IterationRecord bestIteration;
+    private final OptimizationRecord bestIteration;
 
     /** Why optimization terminated */
-    private final TerminationReason terminationReason;
+    private final OptimizationTerminationReason terminationReason;
 
     // === Query Methods ===
 
@@ -895,7 +878,7 @@ public final class OptimizationHistory {
         return iterations.size();
     }
 
-    public List<IterationRecord> lastNIterations(int n) {
+    public List<OptimizationRecord> lastNIterations(int n) {
         int start = Math.max(0, iterations.size() - n);
         return iterations.subList(start, iterations.size());
     }
@@ -967,7 +950,7 @@ public class OptimizationOrchestrator<F> {
 
     private final OptimizationConfig<F> config;
     private final UseCaseExecutor executor;
-    private final OutcomeAggregator aggregator;
+    private final OptimizationOutcomeAggregator aggregator;
 
     /**
      * Execute the full optimization loop.
@@ -1004,9 +987,9 @@ public class OptimizationOrchestrator<F> {
             );
 
             // 3. Aggregate outcomes
-            AggregateStatistics statistics = aggregator.aggregate(outcomes);
+            OptimizationStatistics statistics = aggregator.aggregate(outcomes);
 
-            IterationAggregate aggregate = new IterationAggregate(
+            OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
                 iteration,
                 factorSuit,
                 config.treatmentFactorName(),
@@ -1020,26 +1003,23 @@ public class OptimizationOrchestrator<F> {
             try {
                 score = config.scorer().score(aggregate);
             } catch (ScoringException e) {
-                IterationRecord failed = new IterationRecord(
-                    aggregate, 0.0, IterationStatus.SCORING_FAILED, Optional.of(e.getMessage())
+                OptimizationRecord failed = OptimizationRecord.scoringFailed(
+                    aggregate, e.getMessage()
                 );
                 historyBuilder.addIteration(failed);
                 return historyBuilder
                     .endTime(Instant.now())
-                    .terminationReason(new TerminationReason(
-                        TerminationCause.SCORING_FAILURE, e.getMessage()))
+                    .terminationReason(OptimizationTerminationReason.scoringFailure(e.getMessage()))
                     .build();
             }
 
             // 5. Record in history
-            IterationRecord record = new IterationRecord(
-                aggregate, score, IterationStatus.SUCCESS, Optional.empty()
-            );
+            OptimizationRecord record = OptimizationRecord.success(aggregate, score);
             historyBuilder.addIteration(record);
 
             // 6. Check termination
             OptimizationHistory currentHistory = historyBuilder.buildPartial();
-            Optional<TerminationReason> termination =
+            Optional<OptimizationTerminationReason> termination =
                 config.terminationPolicy().shouldTerminate(currentHistory);
 
             if (termination.isPresent()) {
@@ -1056,8 +1036,7 @@ public class OptimizationOrchestrator<F> {
             } catch (MutationException e) {
                 return historyBuilder
                     .endTime(Instant.now())
-                    .terminationReason(new TerminationReason(
-                        TerminationCause.MUTATION_FAILURE, e.getMessage()))
+                    .terminationReason(OptimizationTerminationReason.mutationFailure(e.getMessage()))
                     .build();
             }
 
@@ -1108,10 +1087,10 @@ public @interface Experiment {
     Class<? extends Scorer> scorer() default Scorer.class;
 
     /**
-     * Mutator class for generating new factor values.
+     * FactorMutator class for generating new factor values.
      * Required when mode = OPTIMIZE.
      */
-    Class<? extends Mutator> mutator() default Mutator.class;
+    Class<? extends FactorMutator> mutator() default FactorMutator.class;
 
     /**
      * Optimization objective.
@@ -1385,7 +1364,7 @@ public class ShoppingOptimizationExperiment {
         objective = OptimizationObjective.MAXIMIZE,
 
         // How to mutate
-        mutator = LLMStringMutator.class,
+        mutator = LLMStringFactorMutator.class,
 
         // Execution parameters
         samplesPerIteration = 20,
@@ -1451,7 +1430,7 @@ The current design supports a single treatment factor. A natural extension would
 ```
 
 **Implications:**
-- The mutator interface would change from `Mutator<F>` (typed to factor type) to `Mutator` operating on `FactorSuit`
+- The mutator interface would change from `FactorMutator<F>` (typed to factor type) to `FactorMutator` operating on `FactorSuit`
 - Search becomes N-dimensional, requiring different strategies (grid search, Bayesian optimization, genetic algorithms)
 - Single treatment factor is an edge case of this general model
 - Captures interaction effects between factors (e.g., prompt style × temperature)

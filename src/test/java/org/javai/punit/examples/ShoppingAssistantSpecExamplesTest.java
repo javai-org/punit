@@ -67,7 +67,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * @see ShoppingUseCase
  * @see UseCaseProvider
  */
-@Disabled("Example - run MEASURE experiment first to generate spec")
+//@Disabled("Example - run MEASURE experiment first to generate spec")
 @DisplayName("Shopping Assistant Spec-Driven Tests")
 class ShoppingAssistantSpecExamplesTest {
 

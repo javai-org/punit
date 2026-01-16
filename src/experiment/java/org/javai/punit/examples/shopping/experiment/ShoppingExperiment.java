@@ -6,9 +6,9 @@ import org.javai.punit.api.Pacing;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
-import org.javai.punit.api.Experiment;
-import org.javai.punit.api.ExperimentMode;
+import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
+import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.ResultCaptor;
@@ -126,8 +126,7 @@ public class ShoppingExperiment {
      * └── ... (one file per configuration)
      * </pre>
      */
-    @Experiment(
-        mode = ExperimentMode.EXPLORE,
+    @ExploreExperiment(
         useCase = ShoppingUseCase.class,
         // samplesPerConfig = 1, not necessary because EXPLORE mode implies a default sample size
         experimentId = "explore-model-configs"
@@ -198,8 +197,7 @@ public class ShoppingExperiment {
      * @param query the search query (injected from factor source)
      * @param captor the result captor
      */
-    @Experiment(
-        mode = ExperimentMode.MEASURE,
+    @MeasureExperiment(
         useCase = ShoppingUseCase.class,
         //samples = 1000, // not necessary because MEASURE mode implies a default sample size
         tokenBudget = 500000,
@@ -230,8 +228,7 @@ public class ShoppingExperiment {
      *
      * <p>Demonstrates using the extended factor source for broader query coverage.
      */
-    @Experiment(
-        mode = ExperimentMode.MEASURE,
+    @MeasureExperiment(
         useCase = ShoppingUseCase.class,
         samples = 1000,
         tokenBudget = 50000,

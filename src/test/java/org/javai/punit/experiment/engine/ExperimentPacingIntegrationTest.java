@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
-import org.javai.punit.api.Experiment;
-import org.javai.punit.api.ExperimentMode;
+import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
+import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.Pacing;
@@ -28,7 +28,7 @@ import org.junit.platform.testkit.engine.EngineTestKit;
  * Integration tests for pacing in experiment execution.
  *
  * <p>These tests verify that the {@link Pacing} annotation works correctly
- * with {@link Experiment} methods in both MEASURE and EXPLORE modes.
+ * with experiment methods in both MEASURE and EXPLORE modes.
  */
 class ExperimentPacingIntegrationTest {
 
@@ -181,7 +181,7 @@ class ExperimentPacingIntegrationTest {
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.MEASURE, samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
+        @MeasureExperiment(samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @Pacing(minMsPerSample = 100)
         public void experimentWithPacing(ResultCaptor captor) {
             int count = sampleCount.incrementAndGet();
@@ -216,7 +216,7 @@ class ExperimentPacingIntegrationTest {
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.MEASURE, samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
+        @MeasureExperiment(samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         public void experimentWithoutPacing(ResultCaptor captor) {
             int count = sampleCount.incrementAndGet();
             if (count == 1) {
@@ -250,7 +250,7 @@ class ExperimentPacingIntegrationTest {
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
+        @ExploreExperiment(samplesPerConfig = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @FactorSource("options")
         @Pacing(minMsPerSample = 100)
         public void experimentWithPacing(
@@ -296,7 +296,7 @@ class ExperimentPacingIntegrationTest {
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 2, expiresInDays = 0, useCase = SimpleTestUseCase.class)
+        @ExploreExperiment(samplesPerConfig = 2, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @FactorSource("configs")
         @Pacing(minMsPerSample = 150)
         public void experimentWithGlobalCounter(
@@ -342,7 +342,7 @@ class ExperimentPacingIntegrationTest {
             totalInterSampleTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.MEASURE, samples = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
+        @MeasureExperiment(samples = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @Pacing(minMsPerSample = 150)
         public void experimentWithTimingCheck(ResultCaptor captor) {
             long now = System.currentTimeMillis();

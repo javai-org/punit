@@ -29,9 +29,9 @@ This document describes the phased implementation plan for OPTIMIZE mode. Each p
 | Component               | Package                               | Description                                |
 |-------------------------|---------------------------------------|--------------------------------------------|
 | `FactorSuit`            | `org.javai.punit.experiment.optimize` | Immutable factor value container           |
-| `AggregateStatistics`   | `org.javai.punit.experiment.optimize` | Statistics from N outcomes                 |
-| `IterationAggregate`    | `org.javai.punit.experiment.optimize` | Factor suit + statistics for one iteration |
-| `IterationRecord`       | `org.javai.punit.experiment.optimize` | Scored iteration with status               |
+| `OptimizationStatistics`          | `org.javai.punit.experiment.optimize` | Statistics from N outcomes                 |
+| `OptimizationIterationAggregate`  | `org.javai.punit.experiment.optimize` | Factor suit + statistics for one iteration |
+| `OptimizationRecord`              | `org.javai.punit.experiment.optimize` | Scored iteration with status               |
 | `OptimizationObjective` | `org.javai.punit.experiment.optimize` | Enum: MAXIMIZE, MINIMIZE                   |
 
 ### Testing
@@ -58,10 +58,10 @@ This document describes the phased implementation plan for OPTIMIZE mode. Each p
 |---------------------|---------------------------------------|-----------------------------------------|
 | `Scorer<A>`         | `org.javai.punit.experiment.optimize` | Evaluates aggregates, returns scalar    |
 | `ScoringException`  | `org.javai.punit.experiment.optimize` | Checked exception for scoring failures  |
-| `Mutator<F>`        | `org.javai.punit.experiment.optimize` | Generates new factor values             |
-| `MutationException` | `org.javai.punit.experiment.optimize` | Checked exception for mutation failures |
-| `TerminationPolicy` | `org.javai.punit.experiment.optimize` | Decides when to stop                    |
-| `TerminationReason` | `org.javai.punit.experiment.optimize` | Record with cause and message           |
+| `FactorMutator<F>`                | `org.javai.punit.experiment.optimize` | Generates new factor values             |
+| `MutationException`               | `org.javai.punit.experiment.optimize` | Checked exception for mutation failures |
+| `OptimizationTerminationPolicy`   | `org.javai.punit.experiment.optimize` | Decides when to stop                    |
+| `OptimizationTerminationReason`   | `org.javai.punit.experiment.optimize` | Record with cause and message           |
 
 ### Testing
 
@@ -92,18 +92,18 @@ This document describes the phased implementation plan for OPTIMIZE mode. Each p
 
 **Termination Policies:**
 
-| Component                    | Description                                  |
-|------------------------------|----------------------------------------------|
-| `MaxIterationsPolicy`        | Stops after N iterations                     |
-| `NoImprovementPolicy`        | Stops if no improvement for N iterations     |
-| `TimeBudgetPolicy`           | Stops when time budget exhausted             |
-| `CompositeTerminationPolicy` | Combines policies (any triggers termination) |
+| Component                              | Description                                  |
+|----------------------------------------|----------------------------------------------|
+| `OptimizationMaxIterationsPolicy`      | Stops after N iterations                     |
+| `OptimizationNoImprovementPolicy`      | Stops if no improvement for N iterations     |
+| `OptimizationTimeBudgetPolicy`         | Stops when time budget exhausted             |
+| `OptimizationCompositeTerminationPolicy` | Combines policies (any triggers termination) |
 
 **Mutators:**
 
-| Component        | Description                            |
-|------------------|----------------------------------------|
-| `NoOpMutator<F>` | Returns value unchanged (for testing)  |
+| Component              | Description                            |
+|------------------------|----------------------------------------|
+| `NoOpFactorMutator<F>` | Returns value unchanged (for testing)  |
 
 ### Testing
 
@@ -160,8 +160,7 @@ This document describes the phased implementation plan for OPTIMIZE mode. Each p
 |---------------------------------|---------------------------------------|----------------------------------------|
 | `OptimizationConfig<F>`         | `org.javai.punit.experiment.optimize` | Configuration for orchestrator         |
 | `OptimizationOrchestrator<F>`   | `org.javai.punit.experiment.optimize` | Executes the optimization loop         |
-| `UseCaseExecutor`               | `org.javai.punit.experiment.optimize` | Executes use case N times (interface)  |
-| `OutcomeAggregator`             | `org.javai.punit.experiment.optimize` | Aggregates outcomes to statistics      |
+| `OptimizationOutcomeAggregator` | `org.javai.punit.experiment.optimize` | Aggregates outcomes to statistics      |
 
 ### Key Behaviours
 
@@ -260,7 +259,7 @@ This document describes the phased implementation plan for OPTIMIZE mode. Each p
 
 | Component          | Package                | Description                      |
 |--------------------|------------------------|----------------------------------|
-| `LLMStringMutator` | `org.javai.punit.llmx` | LLM-based string factor mutation |
+| `LLMStringFactorMutator` | `org.javai.punit.llmx` | LLM-based string factor mutation |
 | `PromptGuardrails` | `org.javai.punit.llmx` | Constraints for prompt mutation  |
 
 ### Key Behaviours
@@ -278,7 +277,7 @@ This document describes the phased implementation plan for OPTIMIZE mode. Each p
 
 ### Acceptance Criteria
 
-- `LLMStringMutator` works with any `LlmClient` implementation
+- `LLMStringFactorMutator` works with any `LlmClient` implementation
 - Guardrails are configurable
 - Errors produce clear `MutationException` messages
 

@@ -18,12 +18,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.javai.punit.api.DiffableContentProvider;
-import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ExperimentMode;
+import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.FactorValues;
+import org.javai.punit.api.MeasureExperiment;
+import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.api.UseCase;
@@ -93,128 +95,327 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
         return context.getTestMethod()
-            .map(m -> m.isAnnotationPresent(Experiment.class))
+            .map(m -> m.isAnnotationPresent(MeasureExperiment.class) ||
+                      m.isAnnotationPresent(ExploreExperiment.class) ||
+                      m.isAnnotationPresent(OptimizeExperiment.class))
             .orElse(false);
     }
     
     @Override
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
         Method testMethod = context.getRequiredTestMethod();
-        Experiment annotation = testMethod.getAnnotation(Experiment.class);
-        
-        // Validate annotation attributes
-        ExperimentAnnotationValidator.validate(annotation, testMethod.getName());
-        
-        // Validate samples/samplesPerConfig mutual exclusivity
-        validateSampleConfiguration(annotation, testMethod);
-        
-        // Resolve use case ID from class reference or legacy string
-        String useCaseId = resolveUseCaseId(annotation);
-        
-        // Store annotation and metadata for later
         ExtensionContext.Store store = context.getStore(NAMESPACE);
-        store.put("annotation", annotation);
-        store.put("useCaseId", useCaseId);
-        store.put("useCaseClass", annotation.useCase());
+
+        // Detect which annotation is present and extract configuration
+        ExperimentConfig config = resolveExperimentConfig(testMethod);
+
+        // Store common metadata
+        store.put("experimentConfig", config);
+        store.put("useCaseId", config.useCaseId());
+        store.put("useCaseClass", config.useCaseClass());
         store.put("testMethod", testMethod);
         store.put("startTimeMs", System.currentTimeMillis());
         store.put("contextBuilt", new AtomicBoolean(false));
-        
+
         // Resolve pacing configuration from @Pacing annotation
-        int totalSamples = computeTotalSamples(annotation, testMethod);
-        PacingConfiguration pacing = resolvePacing(testMethod, totalSamples, annotation);
+        int totalSamples = computeTotalSamplesFromConfig(config, testMethod);
+        PacingConfiguration pacing = resolvePacingFromConfig(testMethod, totalSamples, config);
         store.put("pacing", pacing);
         store.put("globalSampleCounter", new AtomicInteger(0));
-        
+
         // Report pacing configuration if enabled
         if (pacing.hasPacing()) {
             String testName = testMethod.getDeclaringClass().getSimpleName() + "." + testMethod.getName();
             PacingReporter pacingReporter = new PacingReporter();
             pacingReporter.printPreFlightReport(testName, totalSamples, pacing, Instant.now());
-            pacingReporter.printFeasibilityWarning(pacing, annotation.timeBudgetMs(), totalSamples);
+            pacingReporter.printFeasibilityWarning(pacing, config.timeBudgetMs(), totalSamples);
         }
-        
+
         // Dispatch based on experiment mode
-        if (annotation.mode() == ExperimentMode.EXPLORE) {
-            return provideExploreInvocationContexts(context, testMethod, annotation, useCaseId, store);
-        } else {
-            return provideMeasureInvocationContexts(annotation, useCaseId, store);
-        }
+        return switch (config.mode()) {
+            case MEASURE -> provideMeasureInvocationContextsFromConfig(config, store);
+            case EXPLORE -> provideExploreInvocationContextsFromConfig(context, testMethod, config, store);
+            case OPTIMIZE -> provideOptimizeInvocationContexts(context, testMethod, config, store);
+        };
     }
-    
+
     /**
-     * Validates that samples and samplesPerConfig are not both specified.
-     *
-     * <p>These attributes are mutually exclusive:
-     * <ul>
-     *   <li>{@code samples}: Total number of samples (for MEASURE mode)</li>
-     *   <li>{@code samplesPerConfig}: Samples per factor configuration (for EXPLORE mode)</li>
-     * </ul>
-     *
-     * @param annotation the experiment annotation
-     * @param testMethod the test method (for error messages)
-     * @throws ExtensionConfigurationException if both are specified
+     * Unified configuration extracted from any experiment annotation.
      */
-    private void validateSampleConfiguration(Experiment annotation, Method testMethod) {
-        boolean hasSamples = annotation.samples() > 0;
-        boolean hasSamplesPerConfig = annotation.samplesPerConfig() > 0;
-        
-        if (hasSamples && hasSamplesPerConfig) {
+    private record ExperimentConfig(
+            ExperimentMode mode,
+            Class<?> useCaseClass,
+            String useCaseId,
+            int samples,
+            int samplesPerConfig,
+            long timeBudgetMs,
+            long tokenBudget,
+            String experimentId,
+            int expiresInDays,
+            // OPTIMIZE-specific
+            String treatmentFactor,
+            Class<?> scorerClass,
+            Class<?> mutatorClass,
+            String objective,
+            int samplesPerIteration,
+            int maxIterations,
+            int noImprovementWindow
+    ) {}
+
+    /**
+     * Resolves experiment configuration from whichever annotation is present.
+     */
+    private ExperimentConfig resolveExperimentConfig(Method testMethod) {
+        // Check for new annotations first
+        MeasureExperiment measure = testMethod.getAnnotation(MeasureExperiment.class);
+        if (measure != null) {
+            Class<?> useCaseClass = measure.useCase();
+            String useCaseId = resolveUseCaseIdFromClass(useCaseClass);
+            return new ExperimentConfig(
+                ExperimentMode.MEASURE,
+                useCaseClass,
+                useCaseId,
+                measure.samples(),
+                0, // samplesPerConfig not used in MEASURE
+                measure.timeBudgetMs(),
+                measure.tokenBudget(),
+                measure.experimentId(),
+                measure.expiresInDays(),
+                null, null, null, null, 0, 0, 0 // OPTIMIZE fields
+            );
+        }
+
+        ExploreExperiment explore = testMethod.getAnnotation(ExploreExperiment.class);
+        if (explore != null) {
+            Class<?> useCaseClass = explore.useCase();
+            String useCaseId = resolveUseCaseIdFromClass(useCaseClass);
+            return new ExperimentConfig(
+                ExperimentMode.EXPLORE,
+                useCaseClass,
+                useCaseId,
+                0, // samples not used in EXPLORE
+                explore.samplesPerConfig(),
+                explore.timeBudgetMs(),
+                explore.tokenBudget(),
+                explore.experimentId(),
+                explore.expiresInDays(),
+                null, null, null, null, 0, 0, 0 // OPTIMIZE fields
+            );
+        }
+
+        OptimizeExperiment optimize = testMethod.getAnnotation(OptimizeExperiment.class);
+        if (optimize != null) {
+            Class<?> useCaseClass = optimize.useCase();
+            String useCaseId = resolveUseCaseIdFromClass(useCaseClass);
+            return new ExperimentConfig(
+                ExperimentMode.OPTIMIZE,
+                useCaseClass,
+                useCaseId,
+                0, 0, // samples/samplesPerConfig not used directly
+                optimize.timeBudgetMs(),
+                optimize.tokenBudget(),
+                optimize.experimentId(),
+                0, // expiresInDays not used in OPTIMIZE
+                optimize.treatmentFactor(),
+                optimize.scorer(),
+                optimize.mutator(),
+                optimize.objective().name(),
+                optimize.samplesPerIteration(),
+                optimize.maxIterations(),
+                optimize.noImprovementWindow()
+            );
+        }
+
+        throw new ExtensionConfigurationException(
+            "Method must be annotated with @MeasureExperiment, @ExploreExperiment, or @OptimizeExperiment");
+    }
+
+    /**
+     * Resolves use case ID from class reference.
+     */
+    private String resolveUseCaseIdFromClass(Class<?> useCaseClass) {
+        if (useCaseClass == null || useCaseClass == Void.class) {
             throw new ExtensionConfigurationException(
-                "Experiment method '" + testMethod.getName() + "' specifies both 'samples' and 'samplesPerConfig'. " +
-                "These attributes are mutually exclusive:\n" +
-                "  - Use 'samples' for MEASURE mode (total sample count)\n" +
-                "  - Use 'samplesPerConfig' for EXPLORE mode (samples per factor configuration)\n" +
-                "Remove one of these attributes to resolve the conflict.");
+                "Experiment must specify useCase class");
         }
+        return UseCaseProvider.resolveId(useCaseClass);
     }
-    
+
     /**
-     * Computes the total number of samples for pacing purposes.
-     *
-     * <p>For MEASURE mode, this is simply the samples count.
-     * For EXPLORE mode, this is samplesPerConfig × number of configurations.
-     * Since we don't know the config count at this point, we use samplesPerConfig
-     * as a conservative estimate (pacing will be continuous across all samples anyway).
+     * Computes total samples from ExperimentConfig.
      */
-    private int computeTotalSamples(Experiment annotation, Method testMethod) {
-        if (annotation.mode() == ExperimentMode.EXPLORE) {
-            // For EXPLORE, we use samplesPerConfig as the per-config count
-            // The actual total will be higher (configs × samplesPerConfig)
-            // but pacing is continuous so this is just for reporting
-            int samplesPerConfig = annotation.mode().getEffectiveSampleSize(annotation.samplesPerConfig());
-            
-            // Try to estimate total by counting factor source entries
-            FactorSource factorSource = testMethod.getAnnotation(FactorSource.class);
-            if (factorSource != null) {
-                // We can't easily count without invoking the method, so return a placeholder
-                // The actual sample count will be tracked by globalSampleCounter
-                return samplesPerConfig; // Conservative: at least this many
+    private int computeTotalSamplesFromConfig(ExperimentConfig config, Method testMethod) {
+        return switch (config.mode()) {
+            case MEASURE -> config.mode().getEffectiveSampleSize(config.samples());
+            case EXPLORE -> {
+                int samplesPerConfig = config.mode().getEffectiveSampleSize(config.samplesPerConfig());
+                yield samplesPerConfig; // Conservative estimate
             }
-            return samplesPerConfig;
-        } else {
-            return annotation.mode().getEffectiveSampleSize(annotation.samples());
-        }
+            case OPTIMIZE -> config.samplesPerIteration() * config.maxIterations();
+        };
     }
-    
+
     /**
-     * Resolves pacing configuration from the @Pacing annotation on the test method.
-     *
-     * @param testMethod the experiment method
-     * @param samples the number of samples (for pacing calculation)
-     * @param annotation the experiment annotation (for time budget warning)
-     * @return the resolved pacing configuration
+     * Resolves pacing configuration from ExperimentConfig.
      */
-    private PacingConfiguration resolvePacing(Method testMethod, int samples, Experiment annotation) {
+    private PacingConfiguration resolvePacingFromConfig(Method testMethod, int samples, ExperimentConfig config) {
         PacingResolver resolver = new PacingResolver();
         return resolver.resolve(testMethod, samples);
     }
-    
+
+    /**
+     * Provides invocation contexts for @MeasureExperiment using ExperimentConfig.
+     */
+    @SuppressWarnings("unchecked")
+    private Stream<TestTemplateInvocationContext> provideMeasureInvocationContextsFromConfig(
+            ExperimentConfig config, ExtensionContext.Store store) {
+
+        int samples = config.mode().getEffectiveSampleSize(config.samples());
+        String useCaseId = config.useCaseId();
+
+        // Create single aggregator
+        ExperimentResultAggregator aggregator = new ExperimentResultAggregator(useCaseId, samples);
+        store.put("aggregator", aggregator);
+
+        AtomicBoolean terminated = new AtomicBoolean(false);
+        AtomicInteger currentSample = new AtomicInteger(0);
+        store.put("terminated", terminated);
+        store.put("currentSample", currentSample);
+        store.put("mode", ExperimentMode.MEASURE);
+
+        // Check for @FactorSource annotation - if present, use cycling factors
+        Method testMethod = store.get("testMethod", Method.class);
+        FactorSource factorSource = testMethod != null ? testMethod.getAnnotation(FactorSource.class) : null;
+
+        if (factorSource != null) {
+            return provideMeasureWithFactorsInvocationContextsFromConfig(
+                testMethod, factorSource, samples, useCaseId, store, aggregator, terminated);
+        }
+
+        // No factor source - simple sample stream
+        return Stream.iterate(1, i -> i + 1)
+            .limit(samples)
+            .takeWhile(i -> !terminated.get())
+            .map(i -> new MeasureInvocationContext(i, samples, useCaseId, new ResultCaptor()));
+    }
+
+    /**
+     * Provides invocation contexts for @MeasureExperiment with factor source using ExperimentConfig.
+     */
+    @SuppressWarnings("unchecked")
+    private Stream<TestTemplateInvocationContext> provideMeasureWithFactorsInvocationContextsFromConfig(
+            Method testMethod, FactorSource factorSource, int samples, String useCaseId,
+            ExtensionContext.Store store, ExperimentResultAggregator aggregator, AtomicBoolean terminated) {
+
+        // Delegate to existing implementation
+        return provideMeasureWithFactorsInvocationContexts(
+            testMethod, factorSource, samples, useCaseId, store, aggregator, terminated);
+    }
+
+    /**
+     * Provides invocation contexts for @ExploreExperiment using ExperimentConfig.
+     */
+    @SuppressWarnings("unchecked")
+    private Stream<TestTemplateInvocationContext> provideExploreInvocationContextsFromConfig(
+            ExtensionContext context, Method testMethod, ExperimentConfig config,
+            ExtensionContext.Store store) {
+
+        int samplesPerConfig = config.mode().getEffectiveSampleSize(config.samplesPerConfig());
+        String useCaseId = config.useCaseId();
+
+        // Find @FactorSource annotation
+        FactorSource factorSource = testMethod.getAnnotation(FactorSource.class);
+        if (factorSource == null) {
+            // Warn: EXPLORE without factors is equivalent to MEASURE
+            context.publishReportEntry("punit.warning",
+                "EXPLORE without @FactorSource is equivalent to MEASURE. " +
+                "Consider adding @FactorSource or using @MeasureExperiment.");
+
+            store.put("mode", ExperimentMode.EXPLORE);
+            ExperimentResultAggregator aggregator = new ExperimentResultAggregator(useCaseId, samplesPerConfig);
+            store.put("aggregator", aggregator);
+            store.put("terminated", new AtomicBoolean(false));
+            store.put("currentSample", new AtomicInteger(0));
+
+            return Stream.iterate(1, i -> i + 1)
+                .limit(samplesPerConfig)
+                .map(i -> new MeasureInvocationContext(i, samplesPerConfig, useCaseId, new ResultCaptor()));
+        }
+
+        // Find factor method
+        String methodName = factorSource.value();
+        Stream<FactorArguments> factorCombinations;
+        try {
+            Method sourceMethod = testMethod.getDeclaringClass().getDeclaredMethod(methodName);
+            sourceMethod.setAccessible(true);
+            factorCombinations = (Stream<FactorArguments>) sourceMethod.invoke(null);
+        } catch (Exception e) {
+            throw new ExtensionConfigurationException(
+                "Cannot invoke @FactorSource method '" + methodName + "': " + e.getMessage(), e);
+        }
+
+        // Collect all configurations first
+        List<FactorArguments> argsList = factorCombinations.toList();
+
+        // Get factor names
+        List<FactorInfo> factorInfos = extractFactorInfos(testMethod, factorSource, argsList);
+
+        // Store explore-mode metadata
+        store.put("mode", ExperimentMode.EXPLORE);
+        store.put("factorInfos", factorInfos);
+        store.put("configAggregators", new LinkedHashMap<String, ExperimentResultAggregator>());
+        store.put("terminated", new AtomicBoolean(false));
+
+        // Generate invocation contexts for all configs × samples
+        List<ExploreInvocationContext> invocations = new ArrayList<>();
+
+        for (int configIndex = 0; configIndex < argsList.size(); configIndex++) {
+            FactorArguments args = argsList.get(configIndex);
+            Object[] factorValues = args.get();
+
+            String configName = buildConfigName(factorInfos, factorValues);
+
+            ExperimentResultAggregator configAggregator =
+                new ExperimentResultAggregator(useCaseId + "/" + configName, samplesPerConfig);
+            ((Map<String, ExperimentResultAggregator>) store.get("configAggregators", Map.class))
+                .put(configName, configAggregator);
+
+            for (int sample = 1; sample <= samplesPerConfig; sample++) {
+                invocations.add(new ExploreInvocationContext(
+                    sample, samplesPerConfig, configIndex + 1, argsList.size(),
+                    useCaseId, configName, factorValues, factorInfos, new ResultCaptor()
+                ));
+            }
+        }
+
+        return invocations.stream().map(c -> (TestTemplateInvocationContext) c);
+    }
+
+    /**
+     * Provides invocation contexts for @OptimizeExperiment.
+     *
+     * <p>@OptimizeExperiment uses a lazy iteration model: samples are generated on-demand
+     * as the optimization progresses. Each iteration runs samplesPerIteration samples,
+     * then the mutator generates a new treatment factor value for the next iteration.
+     */
+    private Stream<TestTemplateInvocationContext> provideOptimizeInvocationContexts(
+            ExtensionContext context, Method testMethod, ExperimentConfig config,
+            ExtensionContext.Store store) {
+
+        store.put("mode", ExperimentMode.OPTIMIZE);
+        store.put("terminated", new AtomicBoolean(false));
+
+        // TODO: Implement @OptimizeExperiment invocation context generation
+        // This will use a custom Spliterator for lazy iteration
+        throw new UnsupportedOperationException(
+            "@OptimizeExperiment is not yet fully implemented. Phase 6 in progress.");
+    }
+
     /**
      * Applies pacing delay between samples.
      *
      * <p>Uses a global sample counter to ensure continuous pacing across all samples,
-     * including across configuration boundaries in EXPLORE mode. This prevents rate
+     * including across configuration boundaries in @ExploreExperiment. This prevents rate
      * limit violations when many configs have few samples each.
      *
      * <p>The first sample (globalSampleCounter == 1) has no delay.
@@ -251,48 +452,8 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             // Don't fail the experiment, just continue
         }
     }
-    
     /**
-     * Provides invocation contexts for MEASURE mode (single configuration, many samples).
-     *
-     * <p>Supports optional @FactorSource for cycling through representative inputs.
-     * With samples=1000 and a factor source with 10 entries, each factor is used ~100 times.
-     */
-    @SuppressWarnings("unchecked")
-    private Stream<TestTemplateInvocationContext> provideMeasureInvocationContexts(
-            Experiment annotation, String useCaseId, ExtensionContext.Store store) {
-        
-        int samples = annotation.mode().getEffectiveSampleSize(annotation.samples());
-        
-        // Create single aggregator
-        ExperimentResultAggregator aggregator = new ExperimentResultAggregator(useCaseId, samples);
-        store.put("aggregator", aggregator);
-        
-        AtomicBoolean terminated = new AtomicBoolean(false);
-        AtomicInteger currentSample = new AtomicInteger(0);
-        store.put("terminated", terminated);
-        store.put("currentSample", currentSample);
-        store.put("mode", ExperimentMode.MEASURE);
-        
-        // Check for @FactorSource annotation - if present, use cycling factors
-        Method testMethod = store.get("testMethod", Method.class);
-        FactorSource factorSource = testMethod != null ? testMethod.getAnnotation(FactorSource.class) : null;
-        
-        if (factorSource != null) {
-            // MEASURE mode with factor source - use cycling
-            return provideMeasureWithFactorsInvocationContexts(
-                testMethod, factorSource, samples, useCaseId, store, aggregator, terminated);
-        }
-        
-        // No factor source - simple sample stream
-        return Stream.iterate(1, i -> i + 1)
-            .limit(samples)
-            .takeWhile(i -> !terminated.get())
-            .map(i -> new MeasureInvocationContext(i, samples, useCaseId, new ResultCaptor()));
-    }
-    
-    /**
-     * Provides invocation contexts for MEASURE mode with factor source (cycling).
+     * Provides invocation contexts for @MeasureExperiment with factor source (cycling).
      */
     @SuppressWarnings("unchecked")
     private Stream<TestTemplateInvocationContext> provideMeasureWithFactorsInvocationContexts(
@@ -455,89 +616,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             "Cannot resolve class '" + className + "' from context " + contextClass.getName() +
             ". Try using the fully qualified class name.");
     }
-    
-    /**
-     * Provides invocation contexts for EXPLORE mode (multiple configurations from factors).
-     */
-    @SuppressWarnings("unchecked")
-    private Stream<TestTemplateInvocationContext> provideExploreInvocationContexts(
-            ExtensionContext context, Method testMethod, Experiment annotation, 
-            String useCaseId, ExtensionContext.Store store) {
-        
-        int samplesPerConfig = annotation.mode().getEffectiveSampleSize(annotation.samplesPerConfig());
-        
-        // Find @FactorSource annotation
-        FactorSource factorSource = testMethod.getAnnotation(FactorSource.class);
-        if (factorSource == null) {
-            // Warn: EXPLORE without factors is equivalent to MEASURE
-            context.publishReportEntry("punit.warning", 
-                "EXPLORE without @FactorSource is equivalent to MEASURE. " +
-                "Consider adding @FactorSource or using mode = MEASURE.");
-            
-            // Fall back to baseline-like behavior with samplesPerConfig
-            store.put("mode", ExperimentMode.EXPLORE);
-            ExperimentResultAggregator aggregator = new ExperimentResultAggregator(useCaseId, samplesPerConfig);
-            store.put("aggregator", aggregator);
-            store.put("terminated", new AtomicBoolean(false));
-            store.put("currentSample", new AtomicInteger(0));
-            
-            return Stream.iterate(1, i -> i + 1)
-                .limit(samplesPerConfig)
-                .map(i -> new MeasureInvocationContext(i, samplesPerConfig, useCaseId, new ResultCaptor()));
-        }
-        
-        // Find factor method
-        String methodName = factorSource.value();
-        Stream<FactorArguments> factorCombinations;
-        try {
-            Method sourceMethod = testMethod.getDeclaringClass().getDeclaredMethod(methodName);
-            sourceMethod.setAccessible(true);
-            factorCombinations = (Stream<FactorArguments>) sourceMethod.invoke(null);
-        } catch (Exception e) {
-            throw new ExtensionConfigurationException(
-                "Cannot invoke @FactorSource method '" + methodName + "': " + e.getMessage(), e);
-        }
-        
-        // Collect all configurations first
-        List<FactorArguments> argsList = factorCombinations.toList();
-        
-        // Get factor names: from FactorArguments, @FactorSource.factors(), or @Factor annotations
-        List<FactorInfo> factorInfos = extractFactorInfos(testMethod, factorSource, argsList);
-        
-        // Store explore-mode metadata
-        store.put("mode", ExperimentMode.EXPLORE);
-        store.put("factorInfos", factorInfos);
-        store.put("configAggregators", new LinkedHashMap<String, ExperimentResultAggregator>());
-        store.put("terminated", new AtomicBoolean(false));
-        
-        // Generate invocation contexts for all configs × samples
-        List<ExploreInvocationContext> invocations = new ArrayList<>();
-        
-        for (int configIndex = 0; configIndex < argsList.size(); configIndex++) {
-            FactorArguments args = argsList.get(configIndex);
-            Object[] factorValues = args.get();
-            
-            // Build configuration name from factor values
-            String configName = buildConfigName(factorInfos, factorValues);
-            
-            // Create aggregator for this configuration
-            ExperimentResultAggregator configAggregator = 
-                new ExperimentResultAggregator(useCaseId + "/" + configName, samplesPerConfig);
-            ((Map<String, ExperimentResultAggregator>) store.get("configAggregators", Map.class))
-                .put(configName, configAggregator);
-            
-            // Generate samples for this configuration
-            for (int sample = 1; sample <= samplesPerConfig; sample++) {
-                invocations.add(new ExploreInvocationContext(
-                    sample, samplesPerConfig, configIndex + 1, argsList.size(),
-                    useCaseId, configName, factorValues, factorInfos, new ResultCaptor()
-                ));
-            }
-        }
-        
-        return invocations.stream().map(c -> (TestTemplateInvocationContext) c);
-    }
-    
+
     /**
      * Extracts factor information for file naming.
      *
@@ -666,14 +745,14 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Intercepts MEASURE mode experiment execution.
+     * Intercepts @MeasureExperiment experiment execution.
      */
     @SuppressWarnings("unchecked")
     private void interceptMeasureMethod(
             Invocation<Void> invocation,
             ExtensionContext extensionContext,
             ExtensionContext.Store store) throws Throwable {
-        
+
         // Build context on first invocation
         AtomicBoolean contextBuilt = store.get("contextBuilt", AtomicBoolean.class);
         if (contextBuilt != null && !contextBuilt.get()) {
@@ -682,56 +761,61 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             store.put("useCaseContext", useCaseContext);
             contextBuilt.set(true);
         }
-        
+
         ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
-        Experiment annotation = store.get("annotation", Experiment.class);
+        ExperimentConfig config = store.get("experimentConfig", ExperimentConfig.class);
         AtomicBoolean terminated = store.get("terminated", AtomicBoolean.class);
         AtomicInteger currentSample = store.get("currentSample", AtomicInteger.class);
         Long startTimeMs = store.get("startTimeMs", Long.class);
-        
+
+        long timeBudgetMs = config.timeBudgetMs();
+        long tokenBudget = config.tokenBudget();
+        int samples = config.samples();
+        ExperimentMode mode = config.mode();
+
         int sample = currentSample.incrementAndGet();
-        
+
         // Apply pacing delay (continuous across all samples, skip first)
         applyPacingDelay(store);
-        
+
         // Check time budget
-        if (annotation.timeBudgetMs() > 0) {
+        if (timeBudgetMs > 0) {
             long elapsed = System.currentTimeMillis() - startTimeMs;
-            if (elapsed >= annotation.timeBudgetMs()) {
+            if (elapsed >= timeBudgetMs) {
                 terminated.set(true);
-                aggregator.setTerminated("TIME_BUDGET_EXHAUSTED", 
-                    "Time budget of " + annotation.timeBudgetMs() + "ms exceeded");
+                aggregator.setTerminated("TIME_BUDGET_EXHAUSTED",
+                    "Time budget of " + timeBudgetMs + "ms exceeded");
                 invocation.skip();
                 checkAndGenerateSpec(extensionContext, store);
                 return;
             }
         }
-        
+
         // Check token budget
-        if (annotation.tokenBudget() > 0 && aggregator.getTotalTokens() >= annotation.tokenBudget()) {
+        if (tokenBudget > 0 && aggregator.getTotalTokens() >= tokenBudget) {
             terminated.set(true);
             aggregator.setTerminated("TOKEN_BUDGET_EXHAUSTED",
-                "Token budget of " + annotation.tokenBudget() + " exceeded");
+                "Token budget of " + tokenBudget + " exceeded");
             invocation.skip();
             checkAndGenerateSpec(extensionContext, store);
             return;
         }
-        
+
         // Get captor from the current invocation context's store
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
         ResultCaptor captor = invocationStore.get("captor", ResultCaptor.class);
-        
+
         try {
             invocation.proceed();
             recordResult(captor, aggregator);
         } catch (Throwable e) {
             aggregator.recordException(e);
         }
-        
+
         // Report progress
-        int effectiveSamples = annotation.mode().getEffectiveSampleSize(annotation.samples());
+        int effectiveSamples = mode.getEffectiveSampleSize(samples);
         reportProgress(extensionContext, aggregator, sample, effectiveSamples);
-        
+
         // Check if this is the last sample
         if (sample >= effectiveSamples || terminated.get()) {
             if (!terminated.get()) {
@@ -742,7 +826,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Intercepts EXPLORE mode experiment execution.
+     * Intercepts @ExploreExperiment experiment execution.
      */
     @SuppressWarnings("unchecked")
     private void interceptExploreMethod(
@@ -750,30 +834,31 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             ReflectiveInvocationContext<Method> invocationContext,
             ExtensionContext extensionContext,
             ExtensionContext.Store store) throws Throwable {
-        
-        Experiment annotation = store.get("annotation", Experiment.class);
+
+        ExperimentConfig config = store.get("experimentConfig", ExperimentConfig.class);
         AtomicBoolean terminated = store.get("terminated", AtomicBoolean.class);
-        Map<String, ExperimentResultAggregator> configAggregators = 
+        Map<String, ExperimentResultAggregator> configAggregators =
             store.get("configAggregators", Map.class);
         List<FactorInfo> factorInfos = store.get("factorInfos", List.class);
-        
+
+        int samplesPerConfig = config.mode().getEffectiveSampleSize(config.samplesPerConfig());
+
         // Apply pacing delay (continuous across all samples, skip first)
         applyPacingDelay(store);
-        
+
         // Get explore invocation context info from extension context store
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
         ResultCaptor captor = invocationStore.get("captor", ResultCaptor.class);
         String configName = invocationStore.get("configName", String.class);
         int sampleInConfig = invocationStore.get("sampleInConfig", Integer.class);
-        int samplesPerConfig = annotation.mode().getEffectiveSampleSize(annotation.samplesPerConfig());
         Object[] factorValues = invocationStore.get("factorValues", Object[].class);
-        
+
         ExperimentResultAggregator aggregator = configAggregators.get(configName);
         if (aggregator == null) {
             throw new ExtensionConfigurationException(
                 "No aggregator found for configuration: " + configName);
         }
-        
+
         // Set factor values on the UseCaseProvider BEFORE the method executes
         Optional<UseCaseProvider> providerOpt = findUseCaseProvider(extensionContext);
         providerOpt.ifPresent(provider -> {
@@ -784,16 +869,16 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
                 provider.setCurrentFactorValues(factorValues, factorNames);
             }
         });
-        
+
         // Get use case class for projection settings
         Class<?> useCaseClass = store.get("useCaseClass", Class.class);
         ResultProjectionBuilder projectionBuilder = createProjectionBuilder(useCaseClass, providerOpt.orElse(null));
-        
+
         try {
             invocation.proceed();
             recordResult(captor, aggregator);
-            
-            // Build result projection for EXPLORE mode
+
+            // Build result projection for @ExploreExperiment
             if (captor != null && captor.hasResult()) {
                 ResultProjection projection = projectionBuilder.build(
                     sampleInConfig - 1, // 0-based index
@@ -803,8 +888,8 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             }
         } catch (Throwable e) {
             aggregator.recordException(e);
-            
-            // Build error projection for EXPLORE mode
+
+            // Build error projection for @ExploreExperiment
             ResultProjection projection = projectionBuilder.buildError(
                 sampleInConfig - 1,
                 System.currentTimeMillis() - store.get("startTimeMs", Long.class),
@@ -812,14 +897,14 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             );
             aggregator.addResultProjection(projection);
         }
-        
+
         // Report progress for this config
         extensionContext.publishReportEntry("punit.mode", "EXPLORE");
         extensionContext.publishReportEntry("punit.config", configName);
         extensionContext.publishReportEntry("punit.sample", sampleInConfig + "/" + samplesPerConfig);
-        extensionContext.publishReportEntry("punit.successRate", 
+        extensionContext.publishReportEntry("punit.successRate",
             String.format("%.2f%%", aggregator.getObservedSuccessRate() * 100));
-        
+
         // Check if this is the last sample for this config
         if (sampleInConfig >= samplesPerConfig) {
             aggregator.setCompleted();
@@ -1014,11 +1099,11 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     private void generateSpec(ExtensionContext context, ExtensionContext.Store store) {
         ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
         UseCaseContext useCaseContext = store.get("useCaseContext", UseCaseContext.class);
-        Experiment annotation = store.get("annotation", Experiment.class);
+        ExperimentConfig config = store.get("experimentConfig", ExperimentConfig.class);
         Class<?> useCaseClass = store.get("useCaseClass", Class.class);
         String useCaseId = aggregator.getUseCaseId();
-        
-        int expiresInDays = annotation.expiresInDays();
+
+        int expiresInDays = config.expiresInDays();
         
         // Emit informational note if no expiration is set
         if (expiresInDays == 0) {
@@ -1094,22 +1179,22 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Generates a spec for a single configuration in EXPLORE mode.
+     * Generates a spec for a single configuration in @ExploreExperiment.
      */
     private void generateExploreSpec(
-            ExtensionContext context, 
-            ExtensionContext.Store store, 
+            ExtensionContext context,
+            ExtensionContext.Store store,
             String configName,
             ExperimentResultAggregator aggregator) {
-        
+
         UseCaseContext useCaseContext = store.get("useCaseContext", UseCaseContext.class);
         if (useCaseContext == null) {
             useCaseContext = DefaultUseCaseContext.builder().build();
         }
-        
-        Experiment annotation = store.get("annotation", Experiment.class);
+
+        ExperimentConfig config = store.get("experimentConfig", ExperimentConfig.class);
         String useCaseId = store.get("useCaseId", String.class);
-        int expiresInDays = annotation.expiresInDays();
+        int expiresInDays = config.expiresInDays();
         
         EmpiricalBaselineGenerator generator = new EmpiricalBaselineGenerator();
         EmpiricalBaseline baseline = generator.generate(
@@ -1122,7 +1207,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         
         // Write spec to config-specific file (in explorations/)
         try {
-            Path outputPath = resolveExploreOutputPath(annotation, useCaseId, configName);
+            Path outputPath = resolveExploreOutputPath(useCaseId, configName);
             BaselineWriter writer = new BaselineWriter();
             writer.write(baseline, outputPath);
             
@@ -1139,17 +1224,17 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Default output directory for MEASURE mode specs.
+     * Default output directory for @MeasureExperiment specs.
      */
     private static final String DEFAULT_SPECS_DIR = "src/test/resources/punit/specs";
     
     /**
-     * Default output directory for EXPLORE mode specs.
+     * Default output directory for @ExploreExperiment specs.
      */
     private static final String DEFAULT_EXPLORATIONS_DIR = "src/test/resources/punit/explorations";
     
     /**
-     * Resolves the output path for MEASURE mode (single configuration).
+     * Resolves the output path for @MeasureExperiment (single configuration).
      *
      * <p>Output: {@code src/test/resources/punit/specs/{UseCaseName}-{footprint}[-{covHashes}].yaml}
      *
@@ -1186,7 +1271,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Resolves the output path for EXPLORE mode (multiple configurations).
+     * Resolves the output path for @ExploreExperiment (multiple configurations).
      *
      * <p>Structure:
      * <pre>
@@ -1196,7 +1281,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
      *     └── model-gpt-4_temp-0.7.yaml
      * </pre>
      */
-    private Path resolveExploreOutputPath(Experiment annotation, String useCaseId, String configName) 
+    private Path resolveExploreOutputPath(String useCaseId, String configName)
             throws IOException {
         
         String filename = configName + ".yaml";
@@ -1235,28 +1320,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
 
     /**
-     * Resolves the use case ID from the annotation.
-     *
-     * <p>Priority:
-     * <ol>
-     *   <li>If {@code useCase} class is specified (not Void.class), use {@link UseCaseProvider#resolveId}</li>
-     *   <li>Otherwise, use the legacy {@code useCaseId} string</li>
-     * </ol>
-     */
-    private String resolveUseCaseId(Experiment annotation) {
-        Class<?> useCaseClass = annotation.useCase();
-        
-        // Use case class reference is required
-        if (useCaseClass != null && useCaseClass != Void.class) {
-            return UseCaseProvider.resolveId(useCaseClass);
-        }
-        
-        throw new ExtensionConfigurationException(
-            "Experiment must specify useCase class: @Experiment(useCase = MyUseCase.class, ...)");
-    }
-
-    /**
-     * Invocation context for MEASURE mode (single configuration, no factors).
+     * Invocation context for @MeasureExperiment (single configuration, no factors).
      */
     private record MeasureInvocationContext(int sampleNumber, int totalSamples,
                                                String useCaseId, ResultCaptor captor) 
@@ -1274,7 +1338,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Invocation context for MEASURE mode with factor source (cycling).
+     * Invocation context for @MeasureExperiment with factor source (cycling).
      *
      * <p>Provides factor values that cycle through the factor source entries.
      * With samples=1000 and 10 factor entries, each factor is used ~100 times.
@@ -1301,7 +1365,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Invocation context for EXPLORE mode (multiple configurations).
+     * Invocation context for @ExploreExperiment (multiple configurations).
      */
     private record ExploreInvocationContext(
             int sampleInConfig, int samplesPerConfig,
@@ -1472,7 +1536,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
     }
     
     /**
-     * Parameter resolver that provides factor values for EXPLORE mode.
+     * Parameter resolver that provides factor values for @ExploreExperiment.
      */
     private static class FactorParameterResolver implements ParameterResolver {
         private final Object[] factorValues;
