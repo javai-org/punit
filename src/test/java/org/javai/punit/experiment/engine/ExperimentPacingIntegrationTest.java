@@ -12,10 +12,14 @@ import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.model.UseCaseResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineExecutionResults;
 import org.junit.platform.testkit.engine.EngineTestKit;
@@ -39,9 +43,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
-                    .selectors(DiscoverySelectors.selectMethod(
-                            PacedMeasureExperiment.class, "experimentWithPacing",
-                            ResultCaptor.class))
+                    .selectors(DiscoverySelectors.selectClass(PacedMeasureExperiment.class))
                     .execute();
 
             // Verify all samples executed
@@ -60,9 +62,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
-                    .selectors(DiscoverySelectors.selectMethod(
-                            UnpacedMeasureExperiment.class, "experimentWithoutPacing",
-                            ResultCaptor.class))
+                    .selectors(DiscoverySelectors.selectClass(UnpacedMeasureExperiment.class))
                     .execute();
 
             // Verify all samples executed
@@ -86,9 +86,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
-                    .selectors(DiscoverySelectors.selectMethod(
-                            PacedExploreExperiment.class, "experimentWithPacing",
-                            String.class, ResultCaptor.class))
+                    .selectors(DiscoverySelectors.selectClass(PacedExploreExperiment.class))
                     .execute();
 
             // 2 factor values × 3 samples per config = 6 total samples
@@ -107,9 +105,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineTestKit
                     .engine("junit-jupiter")
-                    .selectors(DiscoverySelectors.selectMethod(
-                            GlobalCounterExploreExperiment.class, "experimentWithGlobalCounter",
-                            String.class, ResultCaptor.class))
+                    .selectors(DiscoverySelectors.selectClass(GlobalCounterExploreExperiment.class))
                     .execute();
 
             // 2 configs × 2 samples = 4 samples total
@@ -132,9 +128,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineTestKit
                     .engine("junit-jupiter")
-                    .selectors(DiscoverySelectors.selectMethod(
-                            TimingExperiment.class, "experimentWithTimingCheck",
-                            ResultCaptor.class))
+                    .selectors(DiscoverySelectors.selectClass(TimingExperiment.class))
                     .execute();
 
             // Verify samples executed in order with proper delays
@@ -144,6 +138,20 @@ class ExperimentPacingIntegrationTest {
             // The minimum inter-sample time should be close to 150ms
             long avgInterSampleTime = TimingExperiment.totalInterSampleTime.get() / 2; // 2 gaps between 3 samples
             assertThat(avgInterSampleTime).isGreaterThanOrEqualTo(140); // Allow some tolerance
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SIMPLE TEST USE CASE
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Minimal use case for testing experiments.
+     */
+    @UseCase("SimpleTestUseCase")
+    public static class SimpleTestUseCase {
+        public UseCaseResult execute() {
+            return UseCaseResult.builder().value("success", true).build();
         }
     }
 
@@ -159,13 +167,21 @@ class ExperimentPacingIntegrationTest {
         static final AtomicLong startTime = new AtomicLong(0);
         static final AtomicLong totalExecutionTime = new AtomicLong(0);
 
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+        
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleTestUseCase.class, SimpleTestUseCase::new);
+        }
+
         static void reset() {
             sampleCount.set(0);
             startTime.set(0);
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.MEASURE, samples = 5, expiresInDays = 0)
+        @Experiment(mode = ExperimentMode.MEASURE, samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @Pacing(minMsPerSample = 100)
         public void experimentWithPacing(ResultCaptor captor) {
             int count = sampleCount.incrementAndGet();
@@ -186,13 +202,21 @@ class ExperimentPacingIntegrationTest {
         static final AtomicLong startTime = new AtomicLong(0);
         static final AtomicLong totalExecutionTime = new AtomicLong(0);
 
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+        
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleTestUseCase.class, SimpleTestUseCase::new);
+        }
+
         static void reset() {
             sampleCount.set(0);
             startTime.set(0);
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.MEASURE, samples = 5, expiresInDays = 0)
+        @Experiment(mode = ExperimentMode.MEASURE, samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         public void experimentWithoutPacing(ResultCaptor captor) {
             int count = sampleCount.incrementAndGet();
             if (count == 1) {
@@ -212,13 +236,21 @@ class ExperimentPacingIntegrationTest {
         static final AtomicLong startTime = new AtomicLong(0);
         static final AtomicLong totalExecutionTime = new AtomicLong(0);
 
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+        
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleTestUseCase.class, SimpleTestUseCase::new);
+        }
+
         static void reset() {
             sampleCount.set(0);
             startTime.set(0);
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 3, expiresInDays = 0)
+        @Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @FactorSource("options")
         @Pacing(minMsPerSample = 100)
         public void experimentWithPacing(
@@ -250,13 +282,21 @@ class ExperimentPacingIntegrationTest {
         static final AtomicLong startTime = new AtomicLong(0);
         static final AtomicLong totalExecutionTime = new AtomicLong(0);
 
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+        
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleTestUseCase.class, SimpleTestUseCase::new);
+        }
+
         static void reset() {
             sampleCount.set(0);
             startTime.set(0);
             totalExecutionTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 2, expiresInDays = 0)
+        @Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 2, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @FactorSource("configs")
         @Pacing(minMsPerSample = 150)
         public void experimentWithGlobalCounter(
@@ -288,13 +328,21 @@ class ExperimentPacingIntegrationTest {
         static final AtomicLong lastSampleTime = new AtomicLong(0);
         static final AtomicLong totalInterSampleTime = new AtomicLong(0);
 
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+        
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleTestUseCase.class, SimpleTestUseCase::new);
+        }
+
         static void reset() {
             sampleCount.set(0);
             lastSampleTime.set(0);
             totalInterSampleTime.set(0);
         }
 
-        @Experiment(mode = ExperimentMode.MEASURE, samples = 3, expiresInDays = 0)
+        @Experiment(mode = ExperimentMode.MEASURE, samples = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @Pacing(minMsPerSample = 150)
         public void experimentWithTimingCheck(ResultCaptor captor) {
             long now = System.currentTimeMillis();
