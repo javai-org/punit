@@ -2,13 +2,13 @@
 
 ## Current State
 
-| Metric | Value |
-|--------|-------|
-| Lines of Code | 1,510 |
+| Metric                 | Value                                                            |
+|------------------------|------------------------------------------------------------------|
+| Lines of Code          | 1,510                                                            |
 | Implemented Interfaces | `TestTemplateInvocationContextProvider`, `InvocationInterceptor` |
-| Nested Records/Classes | 8 |
-| Public Methods | 3 |
-| Private Methods | ~35 |
+| Nested Records/Classes | 8                                                                |
+| Public Methods         | 3                                                                |
+| Private Methods        | ~35                                                              |
 
 ## Problem
 
@@ -31,16 +31,16 @@ Reduce `ExperimentExtension` to ~600-700 lines by extracting cohesive responsibi
 
 ## Identified Responsibilities
 
-| # | Responsibility | Lines (est.) | Candidate Class |
-|---|----------------|--------------|-----------------|
-| 1 | Factor Resolution | ~130 | `FactorResolver` |
-| 2 | Spec Generation | ~200 | `SpecGenerator` |
-| 3 | Result Recording | ~50 | `ResultRecorder` |
-| 4 | Pacing Orchestration | ~40 | `ExperimentPacingOrchestrator` |
-| 5 | Invocation Context Classes | ~150 | Move to own files |
-| 6 | Parameter Resolvers | ~120 | Move to own files |
-| 7 | Path Resolution | ~60 | `ExperimentOutputPathResolver` |
-| 8 | Report Publishing | ~30 | `ExperimentReporter` |
+| # | Responsibility             | Lines (est.) | Candidate Class                |
+|---|----------------------------|--------------|--------------------------------|
+| 1 | Factor Resolution          | ~130         | `FactorResolver`               |
+| 2 | Spec Generation            | ~200         | `SpecGenerator`                |
+| 3 | Result Recording           | ~50          | `ResultRecorder`               |
+| 4 | Pacing Orchestration       | ~40          | `ExperimentPacingOrchestrator` |
+| 5 | Invocation Context Classes | ~150         | Move to own files              |
+| 6 | Parameter Resolvers        | ~120         | Move to own files              |
+| 7 | Path Resolution            | ~60          | `ExperimentOutputPathResolver` |
+| 8 | Report Publishing          | ~30          | `ExperimentReporter`           |
 
 ---
 
