@@ -1,0 +1,89 @@
+package org.javai.punit.experiment.optimize;
+
+import java.util.Optional;
+
+/**
+ * A scored iteration record stored in the optimization history.
+ *
+ * <p>Combines the aggregate (what was evaluated) with the score (how good it was).
+ *
+ * @param aggregate the iteration's aggregate result
+ * @param score score computed by the Scorer (0.0 if scoring failed)
+ * @param status whether this iteration succeeded or failed
+ * @param failureReason failure reason if status != SUCCESS
+ */
+public record IterationRecord(
+        IterationAggregate aggregate,
+        double score,
+        IterationStatus status,
+        Optional<String> failureReason
+) {
+    /**
+     * Creates an IterationRecord with validation.
+     */
+    public IterationRecord {
+        if (aggregate == null) {
+            throw new IllegalArgumentException("aggregate must not be null");
+        }
+        if (failureReason == null) {
+            throw new IllegalArgumentException("failureReason must not be null (use Optional.empty())");
+        }
+        if (status == IterationStatus.SUCCESS && failureReason.isPresent()) {
+            throw new IllegalArgumentException("SUCCESS status should not have a failure reason");
+        }
+        if (status != IterationStatus.SUCCESS && failureReason.isEmpty()) {
+            throw new IllegalArgumentException("Failed status must have a failure reason");
+        }
+    }
+
+    /**
+     * Get the iteration number from the aggregate.
+     *
+     * @return the 0-indexed iteration number
+     */
+    public int iterationNumber() {
+        return aggregate.iterationNumber();
+    }
+
+    /**
+     * Check if this iteration completed successfully.
+     *
+     * @return true if status is SUCCESS
+     */
+    public boolean isSuccessful() {
+        return status == IterationStatus.SUCCESS;
+    }
+
+    /**
+     * Creates a successful iteration record.
+     *
+     * @param aggregate the iteration aggregate
+     * @param score the computed score
+     * @return a new successful IterationRecord
+     */
+    public static IterationRecord success(IterationAggregate aggregate, double score) {
+        return new IterationRecord(aggregate, score, IterationStatus.SUCCESS, Optional.empty());
+    }
+
+    /**
+     * Creates a failed iteration record due to execution failure.
+     *
+     * @param aggregate the iteration aggregate (may have partial statistics)
+     * @param reason the failure reason
+     * @return a new failed IterationRecord
+     */
+    public static IterationRecord executionFailed(IterationAggregate aggregate, String reason) {
+        return new IterationRecord(aggregate, 0.0, IterationStatus.EXECUTION_FAILED, Optional.of(reason));
+    }
+
+    /**
+     * Creates a failed iteration record due to scoring failure.
+     *
+     * @param aggregate the iteration aggregate
+     * @param reason the failure reason
+     * @return a new failed IterationRecord
+     */
+    public static IterationRecord scoringFailed(IterationAggregate aggregate, String reason) {
+        return new IterationRecord(aggregate, 0.0, IterationStatus.SCORING_FAILED, Optional.of(reason));
+    }
+}
