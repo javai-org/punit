@@ -13,7 +13,7 @@ import java.util.Optional;
  * @param failureReason failure reason if status != SUCCESS
  */
 public record OptimizationRecord(
-        IterationAggregate aggregate,
+        OptimizationIterationAggregate aggregate,
         double score,
         OptimizationStatus status,
         Optional<String> failureReason
@@ -61,7 +61,7 @@ public record OptimizationRecord(
      * @param score the computed score
      * @return a new successful OptimizationRecord
      */
-    public static OptimizationRecord success(IterationAggregate aggregate, double score) {
+    public static OptimizationRecord success(OptimizationIterationAggregate aggregate, double score) {
         return new OptimizationRecord(aggregate, score, OptimizationStatus.SUCCESS, Optional.empty());
     }
 
@@ -72,7 +72,7 @@ public record OptimizationRecord(
      * @param reason the failure reason
      * @return a new failed OptimizationRecord
      */
-    public static OptimizationRecord executionFailed(IterationAggregate aggregate, String reason) {
+    public static OptimizationRecord executionFailed(OptimizationIterationAggregate aggregate, String reason) {
         return new OptimizationRecord(aggregate, 0.0, OptimizationStatus.EXECUTION_FAILED, Optional.of(reason));
     }
 
@@ -83,7 +83,7 @@ public record OptimizationRecord(
      * @param reason the failure reason
      * @return a new failed OptimizationRecord
      */
-    public static OptimizationRecord scoringFailed(IterationAggregate aggregate, String reason) {
+    public static OptimizationRecord scoringFailed(OptimizationIterationAggregate aggregate, String reason) {
         return new OptimizationRecord(aggregate, 0.0, OptimizationStatus.SCORING_FAILED, Optional.of(reason));
     }
 }

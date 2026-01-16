@@ -276,7 +276,7 @@ class OptimizationOrchestratorTest {
         OptimizationOrchestrator<String> orchestrator = new OptimizationOrchestrator<>(
                 config,
                 createExecutor(0.8),
-                OutcomeAggregator.defaultAggregator(),
+                OptimizationOutcomeAggregator.defaultAggregator(),
                 progressRecords::add
         );
 

@@ -8,14 +8,14 @@ package org.javai.punit.experiment.optimize;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * Scorer<IterationAggregate> scorer = new SuccessRateScorer();
+ * Scorer<OptimizationIterationAggregate> scorer = new SuccessRateScorer();
  * double score = scorer.score(aggregate); // Returns 0.0 to 1.0
  * }</pre>
  */
-public final class SuccessRateScorer implements Scorer<IterationAggregate> {
+public final class SuccessRateScorer implements Scorer<OptimizationIterationAggregate> {
 
     @Override
-    public double score(IterationAggregate aggregate) {
+    public double score(OptimizationIterationAggregate aggregate) {
         return aggregate.statistics().successRate();
     }
 

@@ -14,7 +14,7 @@ class ScorerTest {
 
     private static final Instant NOW = Instant.now();
 
-    private IterationAggregate createAggregate(double successRate, long totalTokens) {
+    private OptimizationIterationAggregate createAggregate(double successRate, long totalTokens) {
         FactorSuit factorSuit = FactorSuit.of("treatmentFactor", "value");
         int successCount = (int) Math.round(successRate * 100);
         int failureCount = 100 - successCount;
@@ -22,7 +22,7 @@ class ScorerTest {
                 100, successCount, failureCount,
                 successRate, totalTokens, 100.0
         );
-        return new IterationAggregate(
+        return new OptimizationIterationAggregate(
                 0, factorSuit, "treatmentFactor", stats, NOW, NOW.plusMillis(1000)
         );
     }
@@ -31,7 +31,7 @@ class ScorerTest {
 
     @Test
     void successRateScorerShouldReturnSuccessRate() throws ScoringException {
-        Scorer<IterationAggregate> scorer = new SuccessRateScorer();
+        Scorer<OptimizationIterationAggregate> scorer = new SuccessRateScorer();
 
         assertEquals(0.85, scorer.score(createAggregate(0.85, 10000)));
         assertEquals(0.95, scorer.score(createAggregate(0.95, 10000)));
@@ -41,7 +41,7 @@ class ScorerTest {
 
     @Test
     void successRateScorerShouldHaveDescription() {
-        Scorer<IterationAggregate> scorer = new SuccessRateScorer();
+        Scorer<OptimizationIterationAggregate> scorer = new SuccessRateScorer();
 
         assertNotNull(scorer.description());
         assertFalse(scorer.description().isEmpty());
@@ -51,7 +51,7 @@ class ScorerTest {
 
     @Test
     void costEfficiencyScorerShouldBalanceSuccessAndTokens() throws ScoringException {
-        Scorer<IterationAggregate> scorer = new CostEfficiencyScorer();
+        Scorer<OptimizationIterationAggregate> scorer = new CostEfficiencyScorer();
 
         // Higher success rate with same tokens = better
         double score1 = scorer.score(createAggregate(0.9, 10000));
@@ -66,14 +66,14 @@ class ScorerTest {
 
     @Test
     void costEfficiencyScorerShouldHandleZeroTokens() throws ScoringException {
-        Scorer<IterationAggregate> scorer = new CostEfficiencyScorer();
+        Scorer<OptimizationIterationAggregate> scorer = new CostEfficiencyScorer();
 
         assertEquals(0.0, scorer.score(createAggregate(0.9, 0)));
     }
 
     @Test
     void costEfficiencyScorerShouldHaveDescription() {
-        Scorer<IterationAggregate> scorer = new CostEfficiencyScorer();
+        Scorer<OptimizationIterationAggregate> scorer = new CostEfficiencyScorer();
 
         assertNotNull(scorer.description());
         assertTrue(scorer.description().contains("efficiency"));
@@ -88,7 +88,7 @@ class ScorerTest {
                 new WeightedScorer.WeightedComponent(new CostEfficiencyScorer(), 0.3)
         );
 
-        IterationAggregate aggregate = createAggregate(0.9, 10000);
+        OptimizationIterationAggregate aggregate = createAggregate(0.9, 10000);
 
         double score = scorer.score(aggregate);
 

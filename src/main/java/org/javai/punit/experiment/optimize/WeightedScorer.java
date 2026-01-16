@@ -11,13 +11,13 @@ import java.util.stream.Collectors;
  * <h2>Usage</h2>
  * <pre>{@code
  * // 70% success rate + 30% cost efficiency
- * Scorer<IterationAggregate> scorer = new WeightedScorer(
+ * Scorer<OptimizationIterationAggregate> scorer = new WeightedScorer(
  *     new WeightedScorer.WeightedComponent(new SuccessRateScorer(), 0.7),
  *     new WeightedScorer.WeightedComponent(new CostEfficiencyScorer(), 0.3)
  * );
  * }</pre>
  */
-public final class WeightedScorer implements Scorer<IterationAggregate> {
+public final class WeightedScorer implements Scorer<OptimizationIterationAggregate> {
 
     private final List<WeightedComponent> components;
 
@@ -46,7 +46,7 @@ public final class WeightedScorer implements Scorer<IterationAggregate> {
     }
 
     @Override
-    public double score(IterationAggregate aggregate) throws ScoringException {
+    public double score(OptimizationIterationAggregate aggregate) throws ScoringException {
         double totalScore = 0.0;
         double totalWeight = 0.0;
 
@@ -72,7 +72,7 @@ public final class WeightedScorer implements Scorer<IterationAggregate> {
      * @param weight the weight (0.0 to 1.0 recommended, but any positive value works)
      */
     public record WeightedComponent(
-            Scorer<IterationAggregate> scorer,
+            Scorer<OptimizationIterationAggregate> scorer,
             double weight
     ) {
         /**

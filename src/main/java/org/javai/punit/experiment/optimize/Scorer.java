@@ -20,7 +20,7 @@ package org.javai.punit.experiment.optimize;
  *   <li>Throw {@link ScoringException} on failure rather than returning magic values</li>
  * </ul>
  *
- * @param <A> The aggregate type (typically {@link IterationAggregate})
+ * @param <A> The aggregate type (typically {@link OptimizationIterationAggregate})
  */
 @FunctionalInterface
 public interface Scorer<A> {

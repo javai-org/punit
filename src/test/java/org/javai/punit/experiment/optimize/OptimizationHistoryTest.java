@@ -21,7 +21,7 @@ class OptimizationHistoryTest {
                 100, (int) (score * 100), 10000, 100.0
         );
         Instant start = Instant.now().minusSeconds(10);
-        IterationAggregate aggregate = new IterationAggregate(
+        OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
                 iterationNumber, factorSuit, "systemPrompt", stats, start, start.plusSeconds(5)
         );
         return OptimizationRecord.success(aggregate, score);

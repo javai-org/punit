@@ -5,14 +5,14 @@ import org.javai.punit.model.UseCaseOutcome;
 import java.util.List;
 
 /**
- * Default implementation of OutcomeAggregator.
+ * Default implementation of OptimizationOutcomeAggregator.
  *
  * <p>Computes standard statistics from a list of use case outcomes.
  *
  * <p>Token counts are extracted from the outcome's result values using the key "tokensUsed".
  * If not present, tokens are counted as 0.
  */
-public final class DefaultOutcomeAggregator implements OutcomeAggregator {
+public final class DefaultOptimizationOutcomeAggregator implements OptimizationOutcomeAggregator {
 
     /** The default key for token count in result values. */
     public static final String TOKEN_COUNT_KEY = "tokensUsed";

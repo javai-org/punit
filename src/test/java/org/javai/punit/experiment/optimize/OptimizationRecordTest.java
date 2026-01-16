@@ -9,15 +9,15 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link OptimizationRecord} and {@link IterationAggregate}.
+ * Tests for {@link OptimizationRecord} and {@link OptimizationIterationAggregate}.
  */
 class OptimizationRecordTest {
 
-    private IterationAggregate createAggregate(int iterationNumber) {
+    private OptimizationIterationAggregate createAggregate(int iterationNumber) {
         FactorSuit factorSuit = FactorSuit.of("factor", "value");
         OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 80, 10000, 100.0);
         Instant start = Instant.now();
-        return new IterationAggregate(
+        return new OptimizationIterationAggregate(
                 iterationNumber, factorSuit, "factor", stats, start, start.plusMillis(1000)
         );
     }
@@ -26,7 +26,7 @@ class OptimizationRecordTest {
 
     @Test
     void shouldCreateSuccessfulRecord() {
-        IterationAggregate aggregate = createAggregate(0);
+        OptimizationIterationAggregate aggregate = createAggregate(0);
 
         OptimizationRecord record = OptimizationRecord.success(aggregate, 0.85);
 
@@ -39,7 +39,7 @@ class OptimizationRecordTest {
 
     @Test
     void shouldCreateExecutionFailedRecord() {
-        IterationAggregate aggregate = createAggregate(1);
+        OptimizationIterationAggregate aggregate = createAggregate(1);
 
         OptimizationRecord record = OptimizationRecord.executionFailed(aggregate, "Connection timeout");
 
@@ -52,7 +52,7 @@ class OptimizationRecordTest {
 
     @Test
     void shouldCreateScoringFailedRecord() {
-        IterationAggregate aggregate = createAggregate(2);
+        OptimizationIterationAggregate aggregate = createAggregate(2);
 
         OptimizationRecord record = OptimizationRecord.scoringFailed(aggregate, "Invalid data");
 
@@ -65,7 +65,7 @@ class OptimizationRecordTest {
 
     @Test
     void shouldRejectSuccessWithFailureReason() {
-        IterationAggregate aggregate = createAggregate(0);
+        OptimizationIterationAggregate aggregate = createAggregate(0);
 
         assertThrows(IllegalArgumentException.class, () ->
                 new OptimizationRecord(aggregate, 0.85, OptimizationStatus.SUCCESS, Optional.of("reason"))
@@ -74,7 +74,7 @@ class OptimizationRecordTest {
 
     @Test
     void shouldRejectFailureWithoutReason() {
-        IterationAggregate aggregate = createAggregate(0);
+        OptimizationIterationAggregate aggregate = createAggregate(0);
 
         assertThrows(IllegalArgumentException.class, () ->
                 new OptimizationRecord(aggregate, 0.0, OptimizationStatus.EXECUTION_FAILED, Optional.empty())
@@ -88,7 +88,7 @@ class OptimizationRecordTest {
         );
     }
 
-    // === IterationAggregate Tests ===
+    // === OptimizationIterationAggregate Tests ===
 
     @Test
     void shouldCreateAggregate() {
@@ -97,7 +97,7 @@ class OptimizationRecordTest {
         Instant start = Instant.now();
         Instant end = start.plusMillis(5000);
 
-        IterationAggregate aggregate = new IterationAggregate(
+        OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
                 3, factorSuit, "systemPrompt", stats, start, end
         );
 
@@ -116,7 +116,7 @@ class OptimizationRecordTest {
         OptimizationStatistics stats = OptimizationStatistics.empty();
         Instant start = Instant.now();
 
-        IterationAggregate aggregate = new IterationAggregate(
+        OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
                 0, factorSuit, "systemPrompt", stats, start, start.plusMillis(100)
         );
 
@@ -130,7 +130,7 @@ class OptimizationRecordTest {
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->
-                new IterationAggregate(-1, factorSuit, "factor", stats, start, start.plusMillis(100))
+                new OptimizationIterationAggregate(-1, factorSuit, "factor", stats, start, start.plusMillis(100))
         );
     }
 
@@ -141,7 +141,7 @@ class OptimizationRecordTest {
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->
-                new IterationAggregate(0, factorSuit, "systemPrompt", stats, start, start.plusMillis(100))
+                new OptimizationIterationAggregate(0, factorSuit, "systemPrompt", stats, start, start.plusMillis(100))
         );
     }
 
@@ -152,7 +152,7 @@ class OptimizationRecordTest {
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->
-                new IterationAggregate(0, factorSuit, "factor", stats, start, start.minusMillis(100))
+                new OptimizationIterationAggregate(0, factorSuit, "factor", stats, start, start.minusMillis(100))
         );
     }
 
@@ -163,11 +163,11 @@ class OptimizationRecordTest {
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->
-                new IterationAggregate(0, factorSuit, "", stats, start, start.plusMillis(100))
+                new OptimizationIterationAggregate(0, factorSuit, "", stats, start, start.plusMillis(100))
         );
 
         assertThrows(IllegalArgumentException.class, () ->
-                new IterationAggregate(0, factorSuit, "   ", stats, start, start.plusMillis(100))
+                new OptimizationIterationAggregate(0, factorSuit, "   ", stats, start, start.plusMillis(100))
         );
     }
 }

@@ -11,7 +11,7 @@ import java.util.List;
  * into aggregated statistics suitable for scoring.
  */
 @FunctionalInterface
-public interface OutcomeAggregator {
+public interface OptimizationOutcomeAggregator {
 
     /**
      * Aggregate outcomes into statistics.
@@ -24,9 +24,9 @@ public interface OutcomeAggregator {
     /**
      * Default aggregator that computes standard statistics.
      *
-     * @return a default OutcomeAggregator implementation
+     * @return a default OptimizationOutcomeAggregator implementation
      */
-    static OutcomeAggregator defaultAggregator() {
-        return new DefaultOutcomeAggregator();
+    static OptimizationOutcomeAggregator defaultAggregator() {
+        return new DefaultOptimizationOutcomeAggregator();
     }
 }

@@ -25,7 +25,7 @@ import java.time.Instant;
  * @param startTime when this iteration started
  * @param endTime when this iteration completed
  */
-public record IterationAggregate(
+public record OptimizationIterationAggregate(
         int iterationNumber,
         FactorSuit factorSuit,
         String treatmentFactorName,
@@ -34,9 +34,9 @@ public record IterationAggregate(
         Instant endTime
 ) {
     /**
-     * Creates an IterationAggregate with validation.
+     * Creates an OptimizationIterationAggregate with validation.
      */
-    public IterationAggregate {
+    public OptimizationIterationAggregate {
         if (iterationNumber < 0) {
             throw new IllegalArgumentException("iterationNumber must be non-negative");
         }

@@ -10,14 +10,14 @@ package org.javai.punit.experiment.optimize;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * Scorer<IterationAggregate> scorer = new CostEfficiencyScorer();
+ * Scorer<OptimizationIterationAggregate> scorer = new CostEfficiencyScorer();
  * double score = scorer.score(aggregate);
  * }</pre>
  */
-public final class CostEfficiencyScorer implements Scorer<IterationAggregate> {
+public final class CostEfficiencyScorer implements Scorer<OptimizationIterationAggregate> {
 
     @Override
-    public double score(IterationAggregate aggregate) {
+    public double score(OptimizationIterationAggregate aggregate) {
         double successRate = aggregate.statistics().successRate();
         long tokens = aggregate.statistics().totalTokens();
         if (tokens == 0) {

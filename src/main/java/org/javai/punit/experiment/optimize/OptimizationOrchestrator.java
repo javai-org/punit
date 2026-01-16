@@ -31,7 +31,7 @@ public final class OptimizationOrchestrator<F> {
 
     private final OptimizationConfig<F> config;
     private final UseCaseExecutor executor;
-    private final OutcomeAggregator aggregator;
+    private final OptimizationOutcomeAggregator aggregator;
     private final Consumer<OptimizationRecord> progressCallback;
 
     /**
@@ -41,7 +41,7 @@ public final class OptimizationOrchestrator<F> {
      * @param executor the use case executor
      */
     public OptimizationOrchestrator(OptimizationConfig<F> config, UseCaseExecutor executor) {
-        this(config, executor, OutcomeAggregator.defaultAggregator(), record -> {});
+        this(config, executor, OptimizationOutcomeAggregator.defaultAggregator(), record -> {});
     }
 
     /**
@@ -54,7 +54,7 @@ public final class OptimizationOrchestrator<F> {
     public OptimizationOrchestrator(
             OptimizationConfig<F> config,
             UseCaseExecutor executor,
-            OutcomeAggregator aggregator
+            OptimizationOutcomeAggregator aggregator
     ) {
         this(config, executor, aggregator, record -> {});
     }
@@ -70,7 +70,7 @@ public final class OptimizationOrchestrator<F> {
     public OptimizationOrchestrator(
             OptimizationConfig<F> config,
             UseCaseExecutor executor,
-            OutcomeAggregator aggregator,
+            OptimizationOutcomeAggregator aggregator,
             Consumer<OptimizationRecord> progressCallback
     ) {
         this.config = config;
@@ -113,7 +113,7 @@ public final class OptimizationOrchestrator<F> {
                 outcomes = executor.execute(factorSuit, config.samplesPerIteration());
             } catch (UseCaseExecutor.ExecutionException e) {
                 // Catastrophic execution failure - terminate
-                IterationAggregate aggregate = new IterationAggregate(
+                OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
                         iteration,
                         factorSuit,
                         config.treatmentFactorName(),
@@ -133,7 +133,7 @@ public final class OptimizationOrchestrator<F> {
             // 3. Aggregate outcomes
             OptimizationStatistics statistics = aggregator.aggregate(outcomes);
 
-            IterationAggregate aggregate = new IterationAggregate(
+            OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
                     iteration,
                     factorSuit,
                     config.treatmentFactorName(),
