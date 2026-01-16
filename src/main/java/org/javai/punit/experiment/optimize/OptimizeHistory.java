@@ -28,7 +28,7 @@ import java.util.Optional;
  *
  * <p>The history is immutable once built. Use {@link Builder} for construction.
  */
-public final class OptimizationHistory {
+public final class OptimizeHistory {
 
     // === Identification ===
     private final String useCaseId;
@@ -53,9 +53,9 @@ public final class OptimizationHistory {
     private final List<OptimizationRecord> iterations;
 
     // === Termination ===
-    private final OptimizationTerminationReason terminationReason;
+    private final OptimizeTerminationReason terminationReason;
 
-    private OptimizationHistory(Builder builder) {
+    private OptimizeHistory(Builder builder) {
         this.useCaseId = builder.useCaseId;
         this.experimentId = builder.experimentId;
         this.treatmentFactorName = builder.treatmentFactorName;
@@ -121,7 +121,7 @@ public final class OptimizationHistory {
         return iterations;
     }
 
-    public OptimizationTerminationReason terminationReason() {
+    public OptimizeTerminationReason terminationReason() {
         return terminationReason;
     }
 
@@ -270,7 +270,7 @@ public final class OptimizationHistory {
     }
 
     /**
-     * Builder for OptimizationHistory.
+     * Builder for OptimizeHistory.
      *
      * <p>Supports incremental construction during the optimization loop.
      * Use {@link #buildPartial()} to query the history mid-optimization.
@@ -289,7 +289,7 @@ public final class OptimizationHistory {
         private Instant startTime;
         private Instant endTime;
         private final List<OptimizationRecord> iterations = new ArrayList<>();
-        private OptimizationTerminationReason terminationReason;
+        private OptimizeTerminationReason terminationReason;
 
         private Builder() {}
 
@@ -348,7 +348,7 @@ public final class OptimizationHistory {
             return this;
         }
 
-        public Builder terminationReason(OptimizationTerminationReason terminationReason) {
+        public Builder terminationReason(OptimizeTerminationReason terminationReason) {
             this.terminationReason = terminationReason;
             return this;
         }
@@ -388,21 +388,21 @@ public final class OptimizationHistory {
          * <p>This allows termination policies and mutators to query the
          * history during optimization without finalizing it.
          *
-         * @return an OptimizationHistory representing the current state
+         * @return an OptimizeHistory representing the current state
          */
-        public OptimizationHistory buildPartial() {
-            return new OptimizationHistory(this);
+        public OptimizeHistory buildPartial() {
+            return new OptimizeHistory(this);
         }
 
         /**
          * Build the final, complete history.
          *
-         * @return the completed OptimizationHistory
+         * @return the completed OptimizeHistory
          * @throws IllegalStateException if required fields are missing
          */
-        public OptimizationHistory build() {
+        public OptimizeHistory build() {
             validate();
-            return new OptimizationHistory(this);
+            return new OptimizeHistory(this);
         }
 
         private void validate() {

@@ -30,7 +30,7 @@ public interface FactorMutator<F> {
      * @return a new value to try in the next iteration
      * @throws MutationException if mutation fails (optimization may terminate)
      */
-    F mutate(F currentValue, OptimizationHistory history) throws MutationException;
+    F mutate(F currentValue, OptimizeHistory history) throws MutationException;
 
     /**
      * Human-readable description for the optimization history.

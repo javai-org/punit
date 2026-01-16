@@ -11,10 +11,10 @@ import java.util.Optional;
  * <h2>Usage</h2>
  * <pre>{@code
  * // Stop if no improvement for 5 consecutive iterations
- * OptimizationTerminationPolicy policy = new OptimizationNoImprovementPolicy(5);
+ * OptimizeTerminationPolicy policy = new OptimizationNoImprovementPolicy(5);
  * }</pre>
  */
-public final class OptimizationNoImprovementPolicy implements OptimizationTerminationPolicy {
+public final class OptimizationNoImprovementPolicy implements OptimizeTerminationPolicy {
 
     private final int windowSize;
 
@@ -32,7 +32,7 @@ public final class OptimizationNoImprovementPolicy implements OptimizationTermin
     }
 
     @Override
-    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
+    public Optional<OptimizeTerminationReason> shouldTerminate(OptimizeHistory history) {
         // Need at least windowSize + 1 iterations to evaluate
         if (history.iterationCount() <= windowSize) {
             return Optional.empty();
@@ -49,7 +49,7 @@ public final class OptimizationNoImprovementPolicy implements OptimizationTermin
         int iterationsSinceBest = currentIterationNumber - bestIterationNumber;
 
         if (iterationsSinceBest >= windowSize) {
-            return Optional.of(OptimizationTerminationReason.noImprovement(windowSize));
+            return Optional.of(OptimizeTerminationReason.noImprovement(windowSize));
         }
         return Optional.empty();
     }

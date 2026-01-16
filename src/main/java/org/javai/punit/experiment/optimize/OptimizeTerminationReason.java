@@ -11,14 +11,14 @@ import org.javai.punit.model.TerminationReason;
  * @param cause the category of termination (uses framework-wide enum)
  * @param message human-readable description
  */
-public record OptimizationTerminationReason(
+public record OptimizeTerminationReason(
         TerminationReason cause,
         String message
 ) {
     /**
-     * Creates an OptimizationTerminationReason with validation.
+     * Creates an OptimizeTerminationReason with validation.
      */
-    public OptimizationTerminationReason {
+    public OptimizeTerminationReason {
         if (cause == null) {
             throw new IllegalArgumentException("cause must not be null");
         }
@@ -31,10 +31,10 @@ public record OptimizationTerminationReason(
      * Creates a termination reason for reaching max iterations.
      *
      * @param maxIterations the configured maximum
-     * @return a new OptimizationTerminationReason
+     * @return a new OptimizeTerminationReason
      */
-    public static OptimizationTerminationReason maxIterations(int maxIterations) {
-        return new OptimizationTerminationReason(
+    public static OptimizeTerminationReason maxIterations(int maxIterations) {
+        return new OptimizeTerminationReason(
                 TerminationReason.MAX_ITERATIONS,
                 "Reached maximum iterations: " + maxIterations
         );
@@ -44,10 +44,10 @@ public record OptimizationTerminationReason(
      * Creates a termination reason for no improvement.
      *
      * @param windowSize the no-improvement window size
-     * @return a new OptimizationTerminationReason
+     * @return a new OptimizeTerminationReason
      */
-    public static OptimizationTerminationReason noImprovement(int windowSize) {
-        return new OptimizationTerminationReason(
+    public static OptimizeTerminationReason noImprovement(int windowSize) {
+        return new OptimizeTerminationReason(
                 TerminationReason.NO_IMPROVEMENT,
                 "No improvement in last " + windowSize + " iterations"
         );
@@ -57,10 +57,10 @@ public record OptimizationTerminationReason(
      * Creates a termination reason for time budget exhaustion.
      *
      * @param budgetMs the time budget in milliseconds
-     * @return a new OptimizationTerminationReason
+     * @return a new OptimizeTerminationReason
      */
-    public static OptimizationTerminationReason timeBudgetExhausted(long budgetMs) {
-        return new OptimizationTerminationReason(
+    public static OptimizeTerminationReason timeBudgetExhausted(long budgetMs) {
+        return new OptimizeTerminationReason(
                 TerminationReason.OPTIMIZATION_TIME_BUDGET_EXHAUSTED,
                 "Time budget exhausted: " + budgetMs + "ms"
         );
@@ -70,10 +70,10 @@ public record OptimizationTerminationReason(
      * Creates a termination reason for mutation failure.
      *
      * @param errorMessage the error from the mutator
-     * @return a new OptimizationTerminationReason
+     * @return a new OptimizeTerminationReason
      */
-    public static OptimizationTerminationReason mutationFailure(String errorMessage) {
-        return new OptimizationTerminationReason(
+    public static OptimizeTerminationReason mutationFailure(String errorMessage) {
+        return new OptimizeTerminationReason(
                 TerminationReason.MUTATION_FAILURE,
                 "Mutation failed: " + errorMessage
         );
@@ -83,10 +83,10 @@ public record OptimizationTerminationReason(
      * Creates a termination reason for scoring failure.
      *
      * @param errorMessage the error from the scorer
-     * @return a new OptimizationTerminationReason
+     * @return a new OptimizeTerminationReason
      */
-    public static OptimizationTerminationReason scoringFailure(String errorMessage) {
-        return new OptimizationTerminationReason(
+    public static OptimizeTerminationReason scoringFailure(String errorMessage) {
+        return new OptimizeTerminationReason(
                 TerminationReason.SCORING_FAILURE,
                 "Scoring failed: " + errorMessage
         );
@@ -97,12 +97,24 @@ public record OptimizationTerminationReason(
      *
      * @param threshold the threshold that was reached
      * @param achievedScore the score that was achieved
-     * @return a new OptimizationTerminationReason
+     * @return a new OptimizeTerminationReason
      */
-    public static OptimizationTerminationReason scoreThresholdReached(double threshold, double achievedScore) {
-        return new OptimizationTerminationReason(
+    public static OptimizeTerminationReason scoreThresholdReached(double threshold, double achievedScore) {
+        return new OptimizeTerminationReason(
                 TerminationReason.SCORE_THRESHOLD_REACHED,
                 String.format("Score threshold %.4f reached with score %.4f", threshold, achievedScore)
+        );
+    }
+
+    /**
+     * Creates a termination reason for normal completion (all iterations ran).
+     *
+     * @return a new OptimizeTerminationReason
+     */
+    public static OptimizeTerminationReason completed() {
+        return new OptimizeTerminationReason(
+                TerminationReason.COMPLETED,
+                "All iterations completed"
         );
     }
 }

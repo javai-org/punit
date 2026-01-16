@@ -29,7 +29,7 @@ public record OptimizationIterationAggregate(
         int iterationNumber,
         FactorSuit factorSuit,
         String treatmentFactorName,
-        OptimizationStatistics statistics,
+        OptimizeStatistics statistics,
         Instant startTime,
         Instant endTime
 ) {

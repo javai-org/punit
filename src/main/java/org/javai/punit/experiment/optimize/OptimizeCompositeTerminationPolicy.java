@@ -10,15 +10,15 @@ import java.util.stream.Collectors;
  * <h2>Usage</h2>
  * <pre>{@code
  * // Stop after 20 iterations OR if no improvement for 5 iterations
- * OptimizationTerminationPolicy policy = new OptimizationCompositeTerminationPolicy(
+ * OptimizeTerminationPolicy policy = new OptimizeCompositeTerminationPolicy(
  *     new OptimizationMaxIterationsPolicy(20),
  *     new OptimizationNoImprovementPolicy(5)
  * );
  * }</pre>
  */
-public final class OptimizationCompositeTerminationPolicy implements OptimizationTerminationPolicy {
+public final class OptimizeCompositeTerminationPolicy implements OptimizeTerminationPolicy {
 
-    private final List<OptimizationTerminationPolicy> policies;
+    private final List<OptimizeTerminationPolicy> policies;
 
     /**
      * Creates a composite policy from the given policies.
@@ -26,7 +26,7 @@ public final class OptimizationCompositeTerminationPolicy implements Optimizatio
      * @param policies the policies to combine
      * @throws IllegalArgumentException if no policies provided
      */
-    public OptimizationCompositeTerminationPolicy(OptimizationTerminationPolicy... policies) {
+    public OptimizeCompositeTerminationPolicy(OptimizeTerminationPolicy... policies) {
         if (policies == null || policies.length == 0) {
             throw new IllegalArgumentException("At least one policy is required");
         }
@@ -39,7 +39,7 @@ public final class OptimizationCompositeTerminationPolicy implements Optimizatio
      * @param policies the policies to combine
      * @throws IllegalArgumentException if list is null or empty
      */
-    public OptimizationCompositeTerminationPolicy(List<OptimizationTerminationPolicy> policies) {
+    public OptimizeCompositeTerminationPolicy(List<OptimizeTerminationPolicy> policies) {
         if (policies == null || policies.isEmpty()) {
             throw new IllegalArgumentException("At least one policy is required");
         }
@@ -47,9 +47,9 @@ public final class OptimizationCompositeTerminationPolicy implements Optimizatio
     }
 
     @Override
-    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
-        for (OptimizationTerminationPolicy policy : policies) {
-            Optional<OptimizationTerminationReason> reason = policy.shouldTerminate(history);
+    public Optional<OptimizeTerminationReason> shouldTerminate(OptimizeHistory history) {
+        for (OptimizeTerminationPolicy policy : policies) {
+            Optional<OptimizeTerminationReason> reason = policy.shouldTerminate(history);
             if (reason.isPresent()) {
                 return reason;
             }
@@ -60,7 +60,7 @@ public final class OptimizationCompositeTerminationPolicy implements Optimizatio
     @Override
     public String description() {
         return policies.stream()
-                .map(OptimizationTerminationPolicy::description)
+                .map(OptimizeTerminationPolicy::description)
                 .collect(Collectors.joining(" OR "));
     }
 }

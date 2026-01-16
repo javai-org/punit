@@ -15,7 +15,7 @@ import java.util.Optional;
 public record OptimizationRecord(
         OptimizationIterationAggregate aggregate,
         double score,
-        OptimizationStatus status,
+        OptimizeStatus status,
         Optional<String> failureReason
 ) {
     /**
@@ -28,10 +28,10 @@ public record OptimizationRecord(
         if (failureReason == null) {
             throw new IllegalArgumentException("failureReason must not be null (use Optional.empty())");
         }
-        if (status == OptimizationStatus.SUCCESS && failureReason.isPresent()) {
+        if (status == OptimizeStatus.SUCCESS && failureReason.isPresent()) {
             throw new IllegalArgumentException("SUCCESS status should not have a failure reason");
         }
-        if (status != OptimizationStatus.SUCCESS && failureReason.isEmpty()) {
+        if (status != OptimizeStatus.SUCCESS && failureReason.isEmpty()) {
             throw new IllegalArgumentException("Failed status must have a failure reason");
         }
     }
@@ -51,7 +51,7 @@ public record OptimizationRecord(
      * @return true if status is SUCCESS
      */
     public boolean isSuccessful() {
-        return status == OptimizationStatus.SUCCESS;
+        return status == OptimizeStatus.SUCCESS;
     }
 
     /**
@@ -62,7 +62,7 @@ public record OptimizationRecord(
      * @return a new successful OptimizationRecord
      */
     public static OptimizationRecord success(OptimizationIterationAggregate aggregate, double score) {
-        return new OptimizationRecord(aggregate, score, OptimizationStatus.SUCCESS, Optional.empty());
+        return new OptimizationRecord(aggregate, score, OptimizeStatus.SUCCESS, Optional.empty());
     }
 
     /**
@@ -73,7 +73,7 @@ public record OptimizationRecord(
      * @return a new failed OptimizationRecord
      */
     public static OptimizationRecord executionFailed(OptimizationIterationAggregate aggregate, String reason) {
-        return new OptimizationRecord(aggregate, 0.0, OptimizationStatus.EXECUTION_FAILED, Optional.of(reason));
+        return new OptimizationRecord(aggregate, 0.0, OptimizeStatus.EXECUTION_FAILED, Optional.of(reason));
     }
 
     /**
@@ -84,6 +84,6 @@ public record OptimizationRecord(
      * @return a new failed OptimizationRecord
      */
     public static OptimizationRecord scoringFailed(OptimizationIterationAggregate aggregate, String reason) {
-        return new OptimizationRecord(aggregate, 0.0, OptimizationStatus.SCORING_FAILED, Optional.of(reason));
+        return new OptimizationRecord(aggregate, 0.0, OptimizeStatus.SCORING_FAILED, Optional.of(reason));
     }
 }

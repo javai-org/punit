@@ -11,7 +11,7 @@
  *   <li>{@link org.javai.punit.experiment.model.FactorSuit} - Complete set of factor values</li>
  *   <li>{@link org.javai.punit.experiment.optimize.Scorer} - Evaluates iterations</li>
  *   <li>{@link org.javai.punit.experiment.optimize.FactorMutator} - Generates new factor values</li>
- *   <li>{@link org.javai.punit.experiment.optimize.OptimizationTerminationPolicy} - Decides when to stop</li>
+ *   <li>{@link org.javai.punit.experiment.optimize.OptimizeTerminationPolicy} - Decides when to stop</li>
  *   <li>{@link org.javai.punit.experiment.optimize.OptimizationOrchestrator} - Executes the loop</li>
  * </ul>
  *

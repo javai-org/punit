@@ -101,7 +101,7 @@ class OptimizationOrchestratorTest {
                 createExecutor(0.8)
         );
 
-        OptimizationHistory history = orchestrator.run();
+        OptimizeHistory history = orchestrator.run();
 
         assertEquals(5, history.iterationCount());
         assertEquals(MAX_ITERATIONS, history.terminationReason().cause());
@@ -119,7 +119,7 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator(new NoOpFactorMutator<>())  // No actual change
-                .terminationPolicy(new OptimizationCompositeTerminationPolicy(
+                .terminationPolicy(new OptimizeCompositeTerminationPolicy(
                         new OptimizationMaxIterationsPolicy(20),
                         new OptimizationNoImprovementPolicy(3)
                 ))
@@ -131,7 +131,7 @@ class OptimizationOrchestratorTest {
                 createExecutor(0.8)  // Constant success rate
         );
 
-        OptimizationHistory history = orchestrator.run();
+        OptimizeHistory history = orchestrator.run();
 
         // Should terminate due to no improvement after 4 iterations (1 initial + 3 no improvement)
         assertTrue(history.iterationCount() <= 20);
@@ -158,7 +158,7 @@ class OptimizationOrchestratorTest {
                 createImprovingExecutor(callCount)
         );
 
-        OptimizationHistory history = orchestrator.run();
+        OptimizeHistory history = orchestrator.run();
 
         assertTrue(history.bestIteration().isPresent());
         // Best should be one of the iterations with highest success rate (0.95)
@@ -188,7 +188,7 @@ class OptimizationOrchestratorTest {
                 createExecutor(0.8)
         );
 
-        OptimizationHistory history = orchestrator.run();
+        OptimizeHistory history = orchestrator.run();
 
         assertEquals(1, history.iterationCount());  // Only one attempt
         assertEquals(SCORING_FAILURE, history.terminationReason().cause());
@@ -219,7 +219,7 @@ class OptimizationOrchestratorTest {
                 createExecutor(0.8)
         );
 
-        OptimizationHistory history = orchestrator.run();
+        OptimizeHistory history = orchestrator.run();
 
         assertEquals(3, history.iterationCount());  // 3 successful iterations before failure
         assertEquals(MUTATION_FAILURE, history.terminationReason().cause());
@@ -252,7 +252,7 @@ class OptimizationOrchestratorTest {
                 failingExecutor
         );
 
-        OptimizationHistory history = orchestrator.run();
+        OptimizeHistory history = orchestrator.run();
 
         assertEquals(3, history.iterationCount());
         assertEquals(SCORING_FAILURE, history.terminationReason().cause());
@@ -337,7 +337,7 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator(new NoOpFactorMutator<>())
-                .terminationPolicy(new OptimizationCompositeTerminationPolicy(
+                .terminationPolicy(new OptimizeCompositeTerminationPolicy(
                         new OptimizationMaxIterationsPolicy(3),
                         new OptimizationNoImprovementPolicy(2)
                 ))
@@ -349,7 +349,7 @@ class OptimizationOrchestratorTest {
                 createExecutor(0.8)
         );
 
-        OptimizationHistory history = orchestrator.run();
+        OptimizeHistory history = orchestrator.run();
 
         assertTrue(history.scorerDescription().contains("Success rate"));
         assertTrue(history.mutatorDescription().contains("No-op"));

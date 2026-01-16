@@ -11,7 +11,7 @@ package org.javai.punit.experiment.optimize;
 public final class NoOpFactorMutator<F> implements FactorMutator<F> {
 
     @Override
-    public F mutate(F currentValue, OptimizationHistory history) {
+    public F mutate(F currentValue, OptimizeHistory history) {
         return currentValue;
     }
 

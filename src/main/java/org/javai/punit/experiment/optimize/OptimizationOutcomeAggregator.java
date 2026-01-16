@@ -19,7 +19,7 @@ public interface OptimizationOutcomeAggregator {
      * @param outcomes the list of outcomes to aggregate
      * @return aggregated statistics
      */
-    OptimizationStatistics aggregate(List<UseCaseOutcome> outcomes);
+    OptimizeStatistics aggregate(List<UseCaseOutcome> outcomes);
 
     /**
      * Default aggregator that computes standard statistics.

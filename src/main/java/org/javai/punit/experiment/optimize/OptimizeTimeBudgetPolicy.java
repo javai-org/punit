@@ -9,10 +9,10 @@ import java.util.Optional;
  * <h2>Usage</h2>
  * <pre>{@code
  * // Stop after 10 minutes
- * OptimizationTerminationPolicy policy = new OptimizationTimeBudgetPolicy(Duration.ofMinutes(10));
+ * OptimizeTerminationPolicy policy = new OptimizeTimeBudgetPolicy(Duration.ofMinutes(10));
  * }</pre>
  */
-public final class OptimizationTimeBudgetPolicy implements OptimizationTerminationPolicy {
+public final class OptimizeTimeBudgetPolicy implements OptimizeTerminationPolicy {
 
     private final Duration maxDuration;
 
@@ -22,7 +22,7 @@ public final class OptimizationTimeBudgetPolicy implements OptimizationTerminati
      * @param maxDuration the maximum duration
      * @throws IllegalArgumentException if maxDuration is null or non-positive
      */
-    public OptimizationTimeBudgetPolicy(Duration maxDuration) {
+    public OptimizeTimeBudgetPolicy(Duration maxDuration) {
         if (maxDuration == null) {
             throw new IllegalArgumentException("maxDuration must not be null");
         }
@@ -36,17 +36,17 @@ public final class OptimizationTimeBudgetPolicy implements OptimizationTerminati
      * Creates a policy that terminates after maxDurationMs milliseconds.
      *
      * @param maxDurationMs the maximum duration in milliseconds
-     * @return a new OptimizationTimeBudgetPolicy
+     * @return a new OptimizeTimeBudgetPolicy
      */
-    public static OptimizationTimeBudgetPolicy ofMillis(long maxDurationMs) {
-        return new OptimizationTimeBudgetPolicy(Duration.ofMillis(maxDurationMs));
+    public static OptimizeTimeBudgetPolicy ofMillis(long maxDurationMs) {
+        return new OptimizeTimeBudgetPolicy(Duration.ofMillis(maxDurationMs));
     }
 
     @Override
-    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
+    public Optional<OptimizeTerminationReason> shouldTerminate(OptimizeHistory history) {
         Duration elapsed = history.totalDuration();
         if (elapsed.compareTo(maxDuration) >= 0) {
-            return Optional.of(OptimizationTerminationReason.timeBudgetExhausted(maxDuration.toMillis()));
+            return Optional.of(OptimizeTerminationReason.timeBudgetExhausted(maxDuration.toMillis()));
         }
         return Optional.empty();
     }

@@ -18,9 +18,9 @@ public final class DefaultOptimizationOutcomeAggregator implements OptimizationO
     public static final String TOKEN_COUNT_KEY = "tokensUsed";
 
     @Override
-    public OptimizationStatistics aggregate(List<UseCaseOutcome> outcomes) {
+    public OptimizeStatistics aggregate(List<UseCaseOutcome> outcomes) {
         if (outcomes == null || outcomes.isEmpty()) {
-            return OptimizationStatistics.empty();
+            return OptimizeStatistics.empty();
         }
 
         int sampleCount = outcomes.size();
@@ -40,6 +40,6 @@ public final class DefaultOptimizationOutcomeAggregator implements OptimizationO
 
         double meanLatencyMs = sampleCount > 0 ? (double) totalLatencyMs / sampleCount : 0.0;
 
-        return OptimizationStatistics.fromCounts(sampleCount, successCount, totalTokens, meanLatencyMs);
+        return OptimizeStatistics.fromCounts(sampleCount, successCount, totalTokens, meanLatencyMs);
     }
 }

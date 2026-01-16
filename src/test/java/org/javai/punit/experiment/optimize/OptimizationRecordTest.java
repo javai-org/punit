@@ -15,7 +15,7 @@ class OptimizationRecordTest {
 
     private OptimizationIterationAggregate createAggregate(int iterationNumber) {
         FactorSuit factorSuit = FactorSuit.of("factor", "value");
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 80, 10000, 100.0);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 80, 10000, 100.0);
         Instant start = Instant.now();
         return new OptimizationIterationAggregate(
                 iterationNumber, factorSuit, "factor", stats, start, start.plusMillis(1000)
@@ -31,7 +31,7 @@ class OptimizationRecordTest {
         OptimizationRecord record = OptimizationRecord.success(aggregate, 0.85);
 
         assertTrue(record.isSuccessful());
-        assertEquals(OptimizationStatus.SUCCESS, record.status());
+        assertEquals(OptimizeStatus.SUCCESS, record.status());
         assertEquals(0.85, record.score());
         assertEquals(0, record.iterationNumber());
         assertTrue(record.failureReason().isEmpty());
@@ -44,7 +44,7 @@ class OptimizationRecordTest {
         OptimizationRecord record = OptimizationRecord.executionFailed(aggregate, "Connection timeout");
 
         assertFalse(record.isSuccessful());
-        assertEquals(OptimizationStatus.EXECUTION_FAILED, record.status());
+        assertEquals(OptimizeStatus.EXECUTION_FAILED, record.status());
         assertEquals(0.0, record.score());
         assertTrue(record.failureReason().isPresent());
         assertEquals("Connection timeout", record.failureReason().get());
@@ -57,7 +57,7 @@ class OptimizationRecordTest {
         OptimizationRecord record = OptimizationRecord.scoringFailed(aggregate, "Invalid data");
 
         assertFalse(record.isSuccessful());
-        assertEquals(OptimizationStatus.SCORING_FAILED, record.status());
+        assertEquals(OptimizeStatus.SCORING_FAILED, record.status());
         assertEquals(0.0, record.score());
         assertTrue(record.failureReason().isPresent());
         assertEquals("Invalid data", record.failureReason().get());
@@ -68,7 +68,7 @@ class OptimizationRecordTest {
         OptimizationIterationAggregate aggregate = createAggregate(0);
 
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationRecord(aggregate, 0.85, OptimizationStatus.SUCCESS, Optional.of("reason"))
+                new OptimizationRecord(aggregate, 0.85, OptimizeStatus.SUCCESS, Optional.of("reason"))
         );
     }
 
@@ -77,7 +77,7 @@ class OptimizationRecordTest {
         OptimizationIterationAggregate aggregate = createAggregate(0);
 
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationRecord(aggregate, 0.0, OptimizationStatus.EXECUTION_FAILED, Optional.empty())
+                new OptimizationRecord(aggregate, 0.0, OptimizeStatus.EXECUTION_FAILED, Optional.empty())
         );
     }
 
@@ -93,7 +93,7 @@ class OptimizationRecordTest {
     @Test
     void shouldCreateAggregate() {
         FactorSuit factorSuit = FactorSuit.of("systemPrompt", "You are helpful");
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 90, 15000, 150.0);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 90, 15000, 150.0);
         Instant start = Instant.now();
         Instant end = start.plusMillis(5000);
 
@@ -113,7 +113,7 @@ class OptimizationRecordTest {
     @Test
     void shouldGetTreatmentFactorValue() {
         FactorSuit factorSuit = FactorSuit.of("systemPrompt", "You are helpful", "model", "gpt-4");
-        OptimizationStatistics stats = OptimizationStatistics.empty();
+        OptimizeStatistics stats = OptimizeStatistics.empty();
         Instant start = Instant.now();
 
         OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
@@ -126,7 +126,7 @@ class OptimizationRecordTest {
     @Test
     void shouldRejectNegativeIterationNumber() {
         FactorSuit factorSuit = FactorSuit.of("factor", "value");
-        OptimizationStatistics stats = OptimizationStatistics.empty();
+        OptimizeStatistics stats = OptimizeStatistics.empty();
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -137,7 +137,7 @@ class OptimizationRecordTest {
     @Test
     void shouldRejectMissingTreatmentFactor() {
         FactorSuit factorSuit = FactorSuit.of("model", "gpt-4");  // No "systemPrompt"
-        OptimizationStatistics stats = OptimizationStatistics.empty();
+        OptimizeStatistics stats = OptimizeStatistics.empty();
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -148,7 +148,7 @@ class OptimizationRecordTest {
     @Test
     void shouldRejectEndTimeBeforeStartTime() {
         FactorSuit factorSuit = FactorSuit.of("factor", "value");
-        OptimizationStatistics stats = OptimizationStatistics.empty();
+        OptimizeStatistics stats = OptimizeStatistics.empty();
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -159,7 +159,7 @@ class OptimizationRecordTest {
     @Test
     void shouldRejectBlankTreatmentFactorName() {
         FactorSuit factorSuit = FactorSuit.of("factor", "value");
-        OptimizationStatistics stats = OptimizationStatistics.empty();
+        OptimizeStatistics stats = OptimizeStatistics.empty();
         Instant start = Instant.now();
 
         assertThrows(IllegalArgumentException.class, () ->

@@ -18,7 +18,7 @@ class ScorerTest {
         FactorSuit factorSuit = FactorSuit.of("treatmentFactor", "value");
         int successCount = (int) Math.round(successRate * 100);
         int failureCount = 100 - successCount;
-        OptimizationStatistics stats = new OptimizationStatistics(
+        OptimizeStatistics stats = new OptimizeStatistics(
                 100, successCount, failureCount,
                 successRate, totalTokens, 100.0
         );

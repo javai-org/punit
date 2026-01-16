@@ -6,13 +6,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link OptimizationStatistics}.
+ * Tests for {@link OptimizeStatistics}.
  */
-class OptimizationStatisticsTest {
+class OptimizeStatisticsTest {
 
     @Test
     void shouldCreateFromExplicitValues() {
-        OptimizationStatistics stats = new OptimizationStatistics(
+        OptimizeStatistics stats = new OptimizeStatistics(
                 100, 85, 15, 0.85, 50000L, 120.5
         );
 
@@ -26,7 +26,7 @@ class OptimizationStatisticsTest {
 
     @Test
     void shouldCreateFromCounts() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(
                 100, 85, 50000L, 120.5
         );
 
@@ -40,7 +40,7 @@ class OptimizationStatisticsTest {
 
     @Test
     void shouldCreateEmpty() {
-        OptimizationStatistics stats = OptimizationStatistics.empty();
+        OptimizeStatistics stats = OptimizeStatistics.empty();
 
         assertEquals(0, stats.sampleCount());
         assertEquals(0, stats.successCount());
@@ -52,7 +52,7 @@ class OptimizationStatisticsTest {
 
     @Test
     void shouldHandleZeroSamplesInFromCounts() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(0, 0, 0L, 0.0);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(0, 0, 0L, 0.0);
 
         assertEquals(0, stats.sampleCount());
         assertEquals(0.0, stats.successRate());
@@ -61,46 +61,46 @@ class OptimizationStatisticsTest {
     @Test
     void shouldRejectNegativeSampleCount() {
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationStatistics(-1, 0, 0, 0.0, 0L, 0.0)
+                new OptimizeStatistics(-1, 0, 0, 0.0, 0L, 0.0)
         );
     }
 
     @Test
     void shouldRejectNegativeSuccessCount() {
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationStatistics(10, -1, 11, 0.0, 0L, 0.0)
+                new OptimizeStatistics(10, -1, 11, 0.0, 0L, 0.0)
         );
     }
 
     @Test
     void shouldRejectMismatchedCounts() {
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationStatistics(10, 5, 6, 0.5, 0L, 0.0)  // 5 + 6 != 10
+                new OptimizeStatistics(10, 5, 6, 0.5, 0L, 0.0)  // 5 + 6 != 10
         );
     }
 
     @Test
     void shouldRejectInvalidSuccessRate() {
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationStatistics(10, 5, 5, 1.5, 0L, 0.0)  // > 1.0
+                new OptimizeStatistics(10, 5, 5, 1.5, 0L, 0.0)  // > 1.0
         );
 
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationStatistics(10, 5, 5, -0.1, 0L, 0.0)  // < 0.0
+                new OptimizeStatistics(10, 5, 5, -0.1, 0L, 0.0)  // < 0.0
         );
     }
 
     @Test
     void shouldRejectNegativeTokens() {
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationStatistics(10, 5, 5, 0.5, -1L, 0.0)
+                new OptimizeStatistics(10, 5, 5, 0.5, -1L, 0.0)
         );
     }
 
     @Test
     void shouldRejectNegativeLatency() {
         assertThrows(IllegalArgumentException.class, () ->
-                new OptimizationStatistics(10, 5, 5, 0.5, 0L, -1.0)
+                new OptimizeStatistics(10, 5, 5, 0.5, 0L, -1.0)
         );
     }
 
@@ -108,56 +108,56 @@ class OptimizationStatisticsTest {
 
     @Test
     void shouldImplementSuccesses() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 85, 50000L, 120.5);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 85, 50000L, 120.5);
 
         assertEquals(85, stats.successes());
     }
 
     @Test
     void shouldImplementFailures() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 85, 50000L, 120.5);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 85, 50000L, 120.5);
 
         assertEquals(15, stats.failures());
     }
 
     @Test
     void shouldImplementSamplesExecuted() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 85, 50000L, 120.5);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 85, 50000L, 120.5);
 
         assertEquals(100, stats.samplesExecuted());
     }
 
     @Test
     void shouldImplementAvgLatencyMs() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 85, 50000L, 120.5);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 85, 50000L, 120.5);
 
         assertEquals(121L, stats.avgLatencyMs());  // Rounded from 120.5
     }
 
     @Test
     void shouldImplementAvgTokensPerSample() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 85, 50000L, 120.5);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 85, 50000L, 120.5);
 
         assertEquals(500L, stats.avgTokensPerSample());  // 50000 / 100
     }
 
     @Test
     void shouldImplementAvgTokensPerSampleWithZeroSamples() {
-        OptimizationStatistics stats = OptimizationStatistics.empty();
+        OptimizeStatistics stats = OptimizeStatistics.empty();
 
         assertEquals(0L, stats.avgTokensPerSample());
     }
 
     @Test
     void shouldImplementFailureDistribution() {
-        OptimizationStatistics stats = OptimizationStatistics.fromCounts(100, 85, 50000L, 120.5);
+        OptimizeStatistics stats = OptimizeStatistics.fromCounts(100, 85, 50000L, 120.5);
 
         assertTrue(stats.failureDistribution().isEmpty());
     }
 
     @Test
     void shouldBeUsableAsEmpiricalSummary() {
-        EmpiricalSummary summary = OptimizationStatistics.fromCounts(100, 80, 20000L, 50.0);
+        EmpiricalSummary summary = OptimizeStatistics.fromCounts(100, 80, 20000L, 50.0);
 
         assertEquals(80, summary.successes());
         assertEquals(20, summary.failures());

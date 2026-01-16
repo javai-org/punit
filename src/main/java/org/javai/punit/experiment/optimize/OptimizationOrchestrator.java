@@ -23,7 +23,7 @@ import java.util.function.Consumer;
  * </ol>
  *
  * <p>The orchestrator coordinates these steps but delegates the actual
- * work to the {@link Scorer}, {@link FactorMutator}, and {@link OptimizationTerminationPolicy}.
+ * work to the {@link Scorer}, {@link FactorMutator}, and {@link OptimizeTerminationPolicy}.
  *
  * @param <F> the type of the treatment factor
  */
@@ -84,8 +84,8 @@ public final class OptimizationOrchestrator<F> {
      *
      * @return complete optimization history including best factor value
      */
-    public OptimizationHistory run() {
-        OptimizationHistory.Builder historyBuilder = OptimizationHistory.builder()
+    public OptimizeHistory run() {
+        OptimizeHistory.Builder historyBuilder = OptimizeHistory.builder()
                 .useCaseId(config.useCaseId())
                 .experimentId(config.experimentId())
                 .treatmentFactorName(config.treatmentFactorName())
@@ -117,7 +117,7 @@ public final class OptimizationOrchestrator<F> {
                         iteration,
                         factorSuit,
                         config.treatmentFactorName(),
-                        OptimizationStatistics.empty(),
+                        OptimizeStatistics.empty(),
                         iterStart,
                         Instant.now()
                 );
@@ -126,12 +126,12 @@ public final class OptimizationOrchestrator<F> {
                 progressCallback.accept(failed);
                 return historyBuilder
                         .endTime(Instant.now())
-                        .terminationReason(OptimizationTerminationReason.scoringFailure(e.getMessage()))
+                        .terminationReason(OptimizeTerminationReason.scoringFailure(e.getMessage()))
                         .build();
             }
 
             // 3. Aggregate outcomes
-            OptimizationStatistics statistics = aggregator.aggregate(outcomes);
+            OptimizeStatistics statistics = aggregator.aggregate(outcomes);
 
             OptimizationIterationAggregate aggregate = new OptimizationIterationAggregate(
                     iteration,
@@ -152,7 +152,7 @@ public final class OptimizationOrchestrator<F> {
                 progressCallback.accept(failed);
                 return historyBuilder
                         .endTime(Instant.now())
-                        .terminationReason(OptimizationTerminationReason.scoringFailure(e.getMessage()))
+                        .terminationReason(OptimizeTerminationReason.scoringFailure(e.getMessage()))
                         .build();
             }
 
@@ -162,8 +162,8 @@ public final class OptimizationOrchestrator<F> {
             progressCallback.accept(record);
 
             // 6. Check termination
-            OptimizationHistory currentHistory = historyBuilder.buildPartial();
-            Optional<OptimizationTerminationReason> termination =
+            OptimizeHistory currentHistory = historyBuilder.buildPartial();
+            Optional<OptimizeTerminationReason> termination =
                     config.terminationPolicy().shouldTerminate(currentHistory);
 
             if (termination.isPresent()) {
@@ -180,7 +180,7 @@ public final class OptimizationOrchestrator<F> {
             } catch (MutationException e) {
                 return historyBuilder
                         .endTime(Instant.now())
-                        .terminationReason(OptimizationTerminationReason.mutationFailure(e.getMessage()))
+                        .terminationReason(OptimizeTerminationReason.mutationFailure(e.getMessage()))
                         .build();
             }
 

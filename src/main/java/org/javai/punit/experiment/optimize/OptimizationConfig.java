@@ -23,7 +23,7 @@ public final class OptimizationConfig<F> {
     private final OptimizationObjective objective;
     private final Scorer<OptimizationIterationAggregate> scorer;
     private final FactorMutator<F> mutator;
-    private final OptimizationTerminationPolicy terminationPolicy;
+    private final OptimizeTerminationPolicy terminationPolicy;
     private final int samplesPerIteration;
 
     private OptimizationConfig(Builder<F> builder) {
@@ -76,7 +76,7 @@ public final class OptimizationConfig<F> {
         return mutator;
     }
 
-    public OptimizationTerminationPolicy terminationPolicy() {
+    public OptimizeTerminationPolicy terminationPolicy() {
         return terminationPolicy;
     }
 
@@ -110,7 +110,7 @@ public final class OptimizationConfig<F> {
         private OptimizationObjective objective = OptimizationObjective.MAXIMIZE;
         private Scorer<OptimizationIterationAggregate> scorer;
         private FactorMutator<F> mutator;
-        private OptimizationTerminationPolicy terminationPolicy;
+        private OptimizeTerminationPolicy terminationPolicy;
         private int samplesPerIteration = 20;
 
         private Builder() {}
@@ -165,7 +165,7 @@ public final class OptimizationConfig<F> {
             return this;
         }
 
-        public Builder<F> terminationPolicy(OptimizationTerminationPolicy terminationPolicy) {
+        public Builder<F> terminationPolicy(OptimizeTerminationPolicy terminationPolicy) {
             this.terminationPolicy = terminationPolicy;
             return this;
         }
