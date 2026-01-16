@@ -11,7 +11,8 @@
       "Bash(gh pr create:*)",
       "Bash(./mvnw test:*)",
       "Bash(find:*)",
-      "Bash(mvn test:*)"
+      "Bash(mvn test:*)",
+      "Bash(./gradlew compileExperimentJava:*)"
     ]
   }
 }

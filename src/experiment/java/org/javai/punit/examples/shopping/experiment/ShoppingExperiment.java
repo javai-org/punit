@@ -2,16 +2,17 @@ package org.javai.punit.examples.shopping.experiment;
 
 import java.util.Random;
 import java.util.stream.Stream;
-import org.javai.punit.api.Pacing;
+import org.javai.punit.api.ExploreExperiment;
+import org.javai.punit.api.Factor;
+import org.javai.punit.api.FactorArguments;
+import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.MeasureExperiment;
+import org.javai.punit.api.OptimizeExperiment;
+import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.TreatmentValue;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
-import org.javai.punit.api.ExploreExperiment;
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.MeasureExperiment;
-import org.javai.punit.api.FactorArguments;
-import org.javai.punit.api.FactorSource;
-import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.model.UseCaseOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -140,6 +141,70 @@ public class ShoppingExperiment {
         UseCaseOutcome outcome = useCase.searchProducts(query);
         captor.record(outcome);  // Records both result and criteria
     }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // OPTIMIZE MODE EXPERIMENT - Iterative prompt refinement
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * OPTIMIZE experiment: Find the best system prompt through iterative refinement.
+     *
+     * <h2>How It Works</h2>
+     * <p>This experiment demonstrates OPTIMIZE mode by iteratively improving a
+     * system prompt to maximize the success rate of the shopping assistant.
+     *
+     * <ol>
+     *   <li>Start with the initial prompt from {@code ShoppingUseCase.getSystemPrompt()}</li>
+     *   <li>Run 5 samples per iteration to measure success rate</li>
+     *   <li>Score each iteration by success rate (via {@code ShoppingUseCaseOutcomeScorer})</li>
+     *   <li>Mutate the prompt to add instructions addressing common failures
+     *       (via {@code ShoppingUseCasePromptMutator})</li>
+     *   <li>Repeat until max iterations (10) or no improvement for 3 iterations</li>
+     * </ol>
+     *
+     * <h2>The "LLM" Simulation</h2>
+     * <p>The {@code MockShoppingAssistant} simulates an LLM that responds to
+     * system prompt instructions. Keywords like "valid JSON" or "exact field names"
+     * reduce the corresponding failure rates, creating a learnable signal.
+     *
+     * <h2>Output</h2>
+     * <pre>
+     * src/test/resources/punit/optimizations/ShoppingUseCase/
+     * └── optimise-system-prompt_YYYYMMDD_HHMMSS.yaml
+     * </pre>
+     *
+     * @param useCase the shopping use case (injected)
+     * @param systemPrompt the current system prompt (treatment factor, mutated each iteration)
+     * @param captor the result captor
+     */
+    @OptimizeExperiment(
+            useCase = ShoppingUseCase.class,
+            experimentId = "optimise-system-prompt",
+            treatmentFactor = "systemPrompt",
+            scorer = ShoppingUseCaseOutcomeScorer.class,
+            mutator = ShoppingUseCasePromptMutator.class,
+            maxIterations = 10,
+            noImprovementWindow = 3,
+            samplesPerIteration = 5
+    )
+    void optimizeSystemPrompt(
+            ShoppingUseCase useCase,
+            @TreatmentValue String systemPrompt,
+            ResultCaptor captor
+    ) {
+        // Apply the current system prompt
+        useCase.setSystemPrompt(systemPrompt);
+
+        // Use a fixed query for consistency across iterations
+        // This isolates the effect of the system prompt from input variance
+        String query = "wireless headphones";
+
+        UseCaseOutcome outcome = useCase.searchProducts(query);
+        captor.record(outcome);
+    }
+
+
 
     /**
      * Factor source for EXPLORE experiments: Explicit configurations to explore.

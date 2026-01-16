@@ -43,5 +43,18 @@ public interface ShoppingAssistant {
      * @return the LLM response containing product recommendations
      */
     LlmResponse searchProducts(String query, int maxResults);
+
+    /**
+     * Sets the system prompt that guides the assistant's behavior.
+     *
+     * <p>In a real LLM implementation, this would be prepended to each request.
+     * For mock implementations, this can be used to adjust simulated behavior
+     * (e.g., varying failure rates based on prompt content).
+     *
+     * @param systemPrompt the system prompt text
+     */
+    default void setSystemPrompt(String systemPrompt) {
+        // Default implementation does nothing
+    }
 }
 

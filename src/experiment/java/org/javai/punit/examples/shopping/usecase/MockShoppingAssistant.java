@@ -27,6 +27,7 @@ public class MockShoppingAssistant implements ShoppingAssistant {
 
     private final Random random;
     private MockConfiguration config;
+    private String systemPrompt = "";
 
     /**
      * Creates a mock with default configuration (simulates ~90% reliability).
@@ -45,6 +46,28 @@ public class MockShoppingAssistant implements ShoppingAssistant {
      */
     public void setConfiguration(MockConfiguration config) {
         this.config = config;
+    }
+
+    /**
+     * Sets the system prompt that influences mock behavior.
+     *
+     * <p>The mock analyzes the prompt for keywords that indicate desired behavior,
+     * and adjusts failure rates accordingly. This simulates how a real LLM would
+     * follow instructions in a system prompt.
+     *
+     * <p>Recognized patterns (case-insensitive):
+     * <ul>
+     *   <li>"valid JSON" / "proper JSON" → reduces malformed JSON rate</li>
+     *   <li>"products, query, totalResults" / "exact field names" → reduces hallucinated fields</li>
+     *   <li>"numeric" / "number" for prices → reduces invalid values</li>
+     *   <li>"required fields" / "must include" → reduces missing fields</li>
+     * </ul>
+     *
+     * @param systemPrompt the system prompt text
+     */
+    @Override
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt != null ? systemPrompt : "";
     }
 
     /**
@@ -106,7 +129,7 @@ public class MockShoppingAssistant implements ShoppingAssistant {
     }
 
     /**
-     * Selects a failure mode based on configured rates.
+     * Selects a failure mode based on configured rates, adjusted by system prompt.
      *
      * <p>The failure distribution for {@code experimentRealistic()} is:
      * <ul>
@@ -116,32 +139,134 @@ public class MockShoppingAssistant implements ShoppingAssistant {
      *   <li>0.5% - Missing fields</li>
      *   <li>95.0% - Valid response</li>
      * </ul>
+     *
+     * <p>When the system prompt contains relevant instructions, failure rates
+     * are reduced by up to 80%, simulating how a real LLM follows instructions.
      */
     private FailureMode selectFailureMode() {
         double roll = random.nextDouble();
         double cumulative = 0.0;
 
-        cumulative += config.malformedJsonRate();
+        // Calculate prompt-adjusted rates
+        double malformedRate = adjustedMalformedJsonRate();
+        double hallucinatedRate = adjustedHallucinatedFieldsRate();
+        double invalidRate = adjustedInvalidValuesRate();
+        double missingRate = adjustedMissingFieldsRate();
+
+        cumulative += malformedRate;
         if (roll < cumulative) {
             return FailureMode.MALFORMED_JSON;
         }
 
-        cumulative += config.hallucinatedFieldsRate();
+        cumulative += hallucinatedRate;
         if (roll < cumulative) {
             return FailureMode.HALLUCINATED_FIELDS;
         }
 
-        cumulative += config.invalidValuesRate();
+        cumulative += invalidRate;
         if (roll < cumulative) {
             return FailureMode.INVALID_VALUES;
         }
 
-        cumulative += config.missingFieldRate();
+        cumulative += missingRate;
         if (roll < cumulative) {
             return FailureMode.MISSING_FIELDS;
         }
 
         return FailureMode.NONE;
+    }
+
+    /**
+     * Calculates the adjusted malformed JSON rate based on system prompt.
+     *
+     * <p>Keywords that reduce this rate:
+     * <ul>
+     *   <li>"valid JSON" - 50% reduction</li>
+     *   <li>"proper JSON format" - 50% reduction</li>
+     *   <li>"well-formed JSON" - 50% reduction</li>
+     *   <li>"syntactically correct" - 30% reduction</li>
+     * </ul>
+     */
+    private double adjustedMalformedJsonRate() {
+        double rate = config.malformedJsonRate();
+        String lowerPrompt = systemPrompt.toLowerCase();
+
+        if (lowerPrompt.contains("valid json")) rate *= 0.5;
+        if (lowerPrompt.contains("proper json")) rate *= 0.5;
+        if (lowerPrompt.contains("well-formed")) rate *= 0.5;
+        if (lowerPrompt.contains("syntactically correct")) rate *= 0.7;
+
+        return Math.max(rate, 0.001); // Never reduce to zero
+    }
+
+    /**
+     * Calculates the adjusted hallucinated fields rate based on system prompt.
+     *
+     * <p>Keywords that reduce this rate:
+     * <ul>
+     *   <li>"products, query, totalResults" - 60% reduction</li>
+     *   <li>"exact field names" - 50% reduction</li>
+     *   <li>"use these fields" - 40% reduction</li>
+     * </ul>
+     */
+    private double adjustedHallucinatedFieldsRate() {
+        double rate = config.hallucinatedFieldsRate();
+        String lowerPrompt = systemPrompt.toLowerCase();
+
+        if (lowerPrompt.contains("products") && lowerPrompt.contains("query")
+                && lowerPrompt.contains("totalresults")) {
+            rate *= 0.4;
+        }
+        if (lowerPrompt.contains("exact field")) rate *= 0.5;
+        if (lowerPrompt.contains("use these fields")) rate *= 0.6;
+        if (lowerPrompt.contains("field names:")) rate *= 0.5;
+
+        return Math.max(rate, 0.001);
+    }
+
+    /**
+     * Calculates the adjusted invalid values rate based on system prompt.
+     *
+     * <p>Keywords that reduce this rate:
+     * <ul>
+     *   <li>"numeric price" / "price as number" - 50% reduction</li>
+     *   <li>"correct types" - 50% reduction</li>
+     *   <li>"string for name" - 30% reduction</li>
+     * </ul>
+     */
+    private double adjustedInvalidValuesRate() {
+        double rate = config.invalidValuesRate();
+        String lowerPrompt = systemPrompt.toLowerCase();
+
+        if (lowerPrompt.contains("numeric") && lowerPrompt.contains("price")) rate *= 0.5;
+        if (lowerPrompt.contains("price as number")) rate *= 0.5;
+        if (lowerPrompt.contains("correct type")) rate *= 0.5;
+        if (lowerPrompt.contains("string for name")) rate *= 0.7;
+        if (lowerPrompt.contains("number for price")) rate *= 0.5;
+
+        return Math.max(rate, 0.001);
+    }
+
+    /**
+     * Calculates the adjusted missing fields rate based on system prompt.
+     *
+     * <p>Keywords that reduce this rate:
+     * <ul>
+     *   <li>"required fields" - 50% reduction</li>
+     *   <li>"must include" - 50% reduction</li>
+     *   <li>"always include" - 50% reduction</li>
+     * </ul>
+     */
+    private double adjustedMissingFieldsRate() {
+        double rate = config.missingFieldRate();
+        String lowerPrompt = systemPrompt.toLowerCase();
+
+        if (lowerPrompt.contains("required field")) rate *= 0.5;
+        if (lowerPrompt.contains("must include")) rate *= 0.5;
+        if (lowerPrompt.contains("always include")) rate *= 0.5;
+        if (lowerPrompt.contains("never omit")) rate *= 0.4;
+
+        return Math.max(rate, 0.001);
     }
 
     // ==================== Failure Mode Generators ====================

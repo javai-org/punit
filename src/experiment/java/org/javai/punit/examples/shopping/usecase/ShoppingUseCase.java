@@ -9,6 +9,7 @@ import org.javai.punit.api.CovariateSource;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
+import org.javai.punit.api.TreatmentValueSource;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseContract;
 import org.javai.punit.model.UseCaseCriteria;
@@ -63,6 +64,9 @@ public class ShoppingUseCase implements UseCaseContract {
     private ShoppingAssistant assistant;
     private String model = "default";
     private double temperature = 0.0;
+    private String systemPrompt = """
+            You are a helpful shopping assistant. 
+            """;
 
     /**
      * Creates a use case with the given assistant and default configuration.
@@ -148,7 +152,29 @@ public class ShoppingUseCase implements UseCaseContract {
         this.temperature = temperature;
         reconfigureAssistant();
     }
-    
+
+
+    @FactorSetter("systemPrompt")
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
+        this.assistant.setSystemPrompt(systemPrompt);
+    }
+
+    /**
+     * Returns the initial system prompt for optimization experiments.
+     *
+     * <p>This method provides the starting value for the {@code systemPrompt}
+     * treatment factor in {@code @OptimizeExperiment}. The optimizer will
+     * mutate this value across iterations to find a better prompt.
+     *
+     * @return the initial system prompt
+     */
+    @TreatmentValueSource("systemPrompt")
+    public String getSystemPrompt() {
+        return systemPrompt;
+    }
+
+
     /**
      * Reconfigures the mock assistant based on current model/temperature.
      *
@@ -547,4 +573,5 @@ public class ShoppingUseCase implements UseCaseContract {
             .values("tablet stylus")
             .stream().toList();
     }
+
 }
