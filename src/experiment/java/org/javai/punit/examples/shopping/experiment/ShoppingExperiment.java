@@ -207,7 +207,7 @@ public class ShoppingExperiment {
         experimentId = "shopping-search-realistic-v1"
     )
     @FactorSource("ShoppingUseCase#standardProductQueries")
-    @Pacing(maxRequestsPerMinute = 30)
+    //@Pacing(maxRequestsPerMinute = 30)
     void measureRealisticSearchBaseline(
             ShoppingUseCase useCase,
             @Factor("query") String query,
