@@ -92,6 +92,7 @@ public class ProbabilisticTestExtension implements
 	private static final FinalConfigurationLogger configurationLogger = new FinalConfigurationLogger(reporter);
 	private static final SampleFailureFormatter sampleFailureFormatter = new SampleFailureFormatter();
 	private static final BudgetOrchestrator budgetOrchestrator = new BudgetOrchestrator();
+	private static final SampleExecutor sampleExecutor = new SampleExecutor();
 
 	private static final String AGGREGATOR_KEY = "aggregator";
 	private static final String CONFIG_KEY = "config";
@@ -434,29 +435,17 @@ public class ProbabilisticTestExtension implements
 		// Apply pacing delay if configured (skip for first sample)
 		applyPacingDelay(extensionContext, config);
 
-		// Track sample failure for IDE display purposes
-		Throwable sampleFailure = null;
-
 		// Execute the sample
-		try {
-			invocation.proceed();
-			aggregator.recordSuccess();
-		} catch (AssertionError e) {
-			aggregator.recordFailure(e);
-			sampleFailure = e;
-		} catch (Throwable t) {
-			if (config.onException() == ExceptionHandling.ABORT_TEST) {
-				// Immediate abort
-				aggregator.recordFailure(t);
-				aggregator.setTerminated(TerminationReason.COMPLETED, "Test aborted due to exception");
-				terminated.set(true);
-				finalizeProbabilisticTest(extensionContext, aggregator, config, budgetMonitor,
-						classBudgetMonitor, suiteBudgetMonitor);
-				throw t;
-			}
-			// FAIL_SAMPLE: record and continue
-			aggregator.recordFailure(t);
-			sampleFailure = t;
+		SampleExecutor.SampleResult sampleResult = sampleExecutor.execute(
+				invocation, aggregator, config.onException());
+
+		// Handle abort if exception occurred with ABORT_TEST policy
+		if (sampleResult.shouldAbort()) {
+			sampleExecutor.prepareForAbort(aggregator);
+			terminated.set(true);
+			finalizeProbabilisticTest(extensionContext, aggregator, config, budgetMonitor,
+					classBudgetMonitor, suiteBudgetMonitor);
+			throw sampleResult.abortException();
 		}
 
 		// Post-sample processing: record tokens and propagate to all scopes
@@ -503,9 +492,9 @@ public class ProbabilisticTestExtension implements
 		//
 		// The exception message includes a verdict hint so users don't panic before
 		// checking the PUnit statistical verdict in the console summary.
-		if (sampleFailure != null && !terminated.get()) {
+		if (sampleResult.hasSampleFailure() && !terminated.get()) {
 			String formattedFailure = sampleFailureFormatter.formatSampleFailure(
-					sampleFailure,
+					sampleResult.failure(),
 					aggregator.getSuccesses(),
 					aggregator.getSamplesExecuted(),
 					config.samples(),
