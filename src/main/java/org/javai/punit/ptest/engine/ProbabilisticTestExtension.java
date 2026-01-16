@@ -115,6 +115,7 @@ public class ProbabilisticTestExtension implements
 	private final UseCaseCovariateExtractor covariateExtractor;
 	private final PacingResolver pacingResolver;
 	private final PacingReporter pacingReporter;
+	private final BaselineSelectionOrchestrator baselineOrchestrator;
 
 	/**
 	 * Default constructor using standard configuration resolver.
@@ -164,6 +165,9 @@ public class ProbabilisticTestExtension implements
 		this.covariateProfileResolver = covariateProfileResolver;
 		this.footprintComputer = footprintComputer;
 		this.covariateExtractor = covariateExtractor;
+		this.baselineOrchestrator = new BaselineSelectionOrchestrator(
+				configResolver, baselineRepository, baselineSelector, covariateProfileResolver,
+				footprintComputer, covariateExtractor, reporter);
 	}
 
 	// ========== TestTemplateInvocationContextProvider ==========
@@ -978,52 +982,14 @@ public class ProbabilisticTestExtension implements
 			ExtensionContext.Store store,
 			ExtensionContext context) {
 
-		if (specId == null) {
-			return;
+		BaselineSelectionOrchestrator.PreparationResult result = 
+				baselineOrchestrator.prepareSelection(annotation, specId);
+
+		if (result.hasSpec()) {
+			store.put(SPEC_KEY, result.spec());
+		} else if (result.hasPending()) {
+			store.put(PENDING_SELECTION_KEY, result.pending());
 		}
-
-		// If minPassRate is explicitly set in the annotation, skip covariate-aware selection.
-		// The user is using inline threshold mode, not spec-driven mode.
-		double annotationMinPassRate = annotation.minPassRate();
-		if (!Double.isNaN(annotationMinPassRate)) {
-			// Inline threshold mode - just load the spec for metadata (if needed)
-			configResolver.loadSpec(specId).ifPresent(spec -> store.put(SPEC_KEY, spec));
-			return;
-		}
-
-		// Get the use case class from annotation
-		Class<?> useCaseClass = annotation.useCase();
-		if (useCaseClass == null || useCaseClass == Void.class) {
-			// No use case - fall back to simple loading
-			configResolver.loadSpec(specId).ifPresent(spec -> store.put(SPEC_KEY, spec));
-			return;
-		}
-
-		// Extract covariate declaration
-		CovariateDeclaration declaration = covariateExtractor.extractDeclaration(useCaseClass);
-
-		if (declaration.isEmpty()) {
-			// No covariates declared - fall back to simple loading
-			configResolver.loadSpec(specId).ifPresent(spec -> store.put(SPEC_KEY, spec));
-			return;
-		}
-
-		// Compute the test's footprint
-		// For probabilistic tests, we don't have factor source at this point, so we compute
-		// footprint based solely on covariate declaration (empty factors)
-		String footprint = footprintComputer.computeFootprint(specId, declaration);
-
-		// Find baseline candidates with matching footprint
-		List<BaselineCandidate> candidates = baselineRepository.findCandidates(specId, footprint);
-
-		// Store pending selection for lazy resolution (even if empty)
-		store.put(PENDING_SELECTION_KEY, new PendingBaselineSelection(
-				specId,
-				useCaseClass,
-				declaration,
-				footprint,
-				candidates
-		));
 	}
 
 	private static final String BASELINE_RESOLVED_KEY = "baselineResolved";
@@ -1042,7 +1008,8 @@ public class ProbabilisticTestExtension implements
 			return;
 		}
 
-		PendingBaselineSelection pending = store.get(PENDING_SELECTION_KEY, PendingBaselineSelection.class);
+		BaselineSelectionOrchestrator.PendingSelection pending = 
+				store.get(PENDING_SELECTION_KEY, BaselineSelectionOrchestrator.PendingSelection.class);
 		if (pending == null) {
 			// No pending selection - validate without baseline
 			validateTestConfiguration(context, null);
@@ -1054,7 +1021,16 @@ public class ProbabilisticTestExtension implements
 		}
 
 		store.getOrComputeIfAbsent(SELECTION_RESULT_KEY, key -> {
-			SelectionResult result = performBaselineSelection(context, pending);
+			// Resolve use case instance for covariate resolution
+			Optional<UseCaseProvider> providerOpt = baselineOrchestrator.findUseCaseProvider(
+					context.getTestInstance().orElse(null),
+					context.getTestClass().orElse(null));
+			Object useCaseInstance = providerOpt
+					.map(p -> baselineOrchestrator.resolveUseCaseInstance(p, pending.useCaseClass()))
+					.orElse(null);
+
+			// Perform baseline selection
+			SelectionResult result = baselineOrchestrator.performSelection(pending, useCaseInstance);
 			ExecutionSpecification baseline = result.selected().spec();
 
 			// Store the selected spec and selection result
@@ -1067,7 +1043,7 @@ public class ProbabilisticTestExtension implements
 			deriveMinPassRateFromBaseline(store, baseline);
 
 			// Log baseline selection result first (so user sees what baseline was used)
-			logBaselineSelectionResult(result, pending.specId());
+			baselineOrchestrator.logSelectionResult(result, pending.specId());
 
 			// Then log configuration (now that minPassRate is known)
 			logFinalConfiguration(context);
@@ -1162,150 +1138,6 @@ public class ProbabilisticTestExtension implements
 			throw new ExtensionConfigurationException(errors);
 		}
 	}
-
-	private SelectionResult performBaselineSelection(ExtensionContext context, PendingBaselineSelection pending) {
-		if (pending.candidates().isEmpty()) {
-			List<String> availableFootprints = baselineRepository.findAvailableFootprints(pending.specId());
-			throw new NoCompatibleBaselineException(pending.specId(), pending.footprint(), availableFootprints);
-		}
-
-		// Resolve use case instance for @CovariateSource resolution
-		Object useCaseInstance = null;
-		Optional<UseCaseProvider> providerOpt = findUseCaseProvider(context);
-		if (providerOpt.isPresent() && providerOpt.get().isRegistered(pending.useCaseClass())) {
-			try {
-				useCaseInstance = providerOpt.get().getInstance(pending.useCaseClass());
-			} catch (IllegalStateException e) {
-				// Factory not registered - covariate resolution will use fallback (sys props / env vars)
-			}
-		}
-
-		// Resolve the test's current covariate profile
-		DefaultCovariateResolutionContext resolutionContext = DefaultCovariateResolutionContext.builder()
-			.useCaseInstance(useCaseInstance)
-			.build();
-		CovariateProfile testProfile = covariateProfileResolver.resolve(pending.declaration(), resolutionContext);
-
-		// Select the best-matching baseline (category-aware)
-		SelectionResult result = baselineSelector.select(pending.candidates(), testProfile, pending.declaration());
-
-		if (!result.hasSelection()) {
-			List<String> availableFootprints = baselineRepository.findAvailableFootprints(pending.specId());
-			throw new NoCompatibleBaselineException(pending.specId(), pending.footprint(), availableFootprints);
-		}
-
-		return result;
-	}
-
-	/**
-	 * Logs the baseline selection result with appropriate title based on match quality.
-	 *
-	 * <p>Titles used:
-	 * <ul>
-	 *   <li>{@code BASELINE: MATCH FOUND} - All covariates match exactly</li>
-	 *   <li>{@code BASELINE: APPROXIMATE MATCH FOUND} - Some covariates differ</li>
-	 * </ul>
-	 */
-	private void logBaselineSelectionResult(SelectionResult result, String specId) {
-		boolean isApproximate = result.hasNonConformance() || result.ambiguous();
-		String title = "BASELINE FOUND FOR USE CASE: " + specId;
-
-		StringBuilder sb = new StringBuilder();
-		sb.append(PUnitReporter.labelValue("Baseline file:", result.selected().filename()));
-
-		// Add non-conformance details if present
-		var nonConforming = result.nonConformingDetails();
-		if (!nonConforming.isEmpty()) {
-			sb.append("\n\nPlease note, the following covariates do not match the baseline:\n");
-			for (var detail : nonConforming) {
-				sb.append("  - ").append(detail.covariateKey());
-				sb.append(": baseline=").append(detail.baselineValue().toCanonicalString());
-				sb.append(", test=").append(detail.testValue().toCanonicalString());
-				sb.append("\n");
-			}
-			sb.append("\nStatistical comparison may be less reliable.\n");
-			sb.append("Consider running a new MEASURE experiment under current conditions.");
-		}
-
-		// Add ambiguity note if applicable
-		if (result.ambiguous()) {
-			if (!nonConforming.isEmpty()) {
-				sb.append("\n");
-			} else {
-				sb.append("\n\n");
-			}
-			sb.append("Note: Multiple equally-suitable baselines existed. Selection may be non-deterministic.");
-		}
-
-		if (isApproximate) {
-			reporter.reportWarn(title, sb.toString());
-		} else {
-			reporter.reportInfo(title, sb.toString());
-		}
-	}
-
-	/**
-	 * Finds the UseCaseProvider, checking instance fields first, then static fields.
-	 */
-	private Optional<UseCaseProvider> findUseCaseProvider(ExtensionContext context) {
-		// Prefer instance fields (test instance exists during lazy selection)
-		Optional<Object> testInstanceOpt = context.getTestInstance();
-		if (testInstanceOpt.isPresent()) {
-			Object testInstance = testInstanceOpt.get();
-			for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
-				if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
-					field.setAccessible(true);
-					try {
-						UseCaseProvider provider = (UseCaseProvider) field.get(testInstance);
-						if (provider != null) {
-							return Optional.of(provider);
-						}
-					} catch (IllegalAccessException e) {
-						// Continue searching
-					}
-				}
-			}
-		}
-
-		// Fall back to static fields on the test class
-		Optional<Class<?>> testClassOpt = context.getTestClass();
-		if (testClassOpt.isPresent()) {
-			Class<?> testClass = testClassOpt.get();
-			for (java.lang.reflect.Field field : testClass.getDeclaredFields()) {
-				if (UseCaseProvider.class.isAssignableFrom(field.getType())
-						&& java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
-					field.setAccessible(true);
-					try {
-						UseCaseProvider provider = (UseCaseProvider) field.get(null);
-						if (provider != null) {
-							return Optional.of(provider);
-						}
-					} catch (IllegalAccessException e) {
-						// Continue searching
-					}
-				}
-			}
-		}
-
-		return Optional.empty();
-	}
-
-	private record PendingBaselineSelection(
-			String specId,
-			Class<?> useCaseClass,
-			CovariateDeclaration declaration,
-			String footprint,
-			List<BaselineCandidate> candidates
-	) {
-		private PendingBaselineSelection {
-			Objects.requireNonNull(specId, "specId must not be null");
-			Objects.requireNonNull(useCaseClass, "useCaseClass must not be null");
-			Objects.requireNonNull(declaration, "declaration must not be null");
-			Objects.requireNonNull(footprint, "footprint must not be null");
-			Objects.requireNonNull(candidates, "candidates must not be null");
-		}
-	}
-
 
 	/**
 	 * Applies pacing delay before sample execution if pacing is configured.
