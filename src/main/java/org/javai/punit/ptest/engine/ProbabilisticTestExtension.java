@@ -977,43 +977,4 @@ public class ProbabilisticTestExtension implements
 	}
 
 	// ========== Inner Classes ==========
-
-	/**
-	 * Invocation context for a single sample execution.
-	 * Provides ParameterResolver for TokenChargeRecorder injection.
-	 */
-	private record ProbabilisticTestInvocationContext(
-			int sampleIndex,
-			int totalSamples,
-			DefaultTokenChargeRecorder tokenRecorder) implements TestTemplateInvocationContext {
-
-		@Override
-		public String getDisplayName(int invocationIndex) {
-			return String.format("Sample %d/%d", sampleIndex, totalSamples);
-		}
-
-		@Override
-		public List<Extension> getAdditionalExtensions() {
-			if (tokenRecorder != null) {
-				return List.of(new TokenChargeRecorderParameterResolver(tokenRecorder));
-			}
-			return Collections.emptyList();
-		}
-	}
-
-	/**
-	 * ParameterResolver for injecting TokenChargeRecorder into test methods.
-	 */
-	private record TokenChargeRecorderParameterResolver(TokenChargeRecorder recorder) implements ParameterResolver {
-
-		@Override
-		public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-			return TokenChargeRecorder.class.isAssignableFrom(parameterContext.getParameter().getType());
-		}
-
-		@Override
-		public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-			return recorder;
-		}
-	}
 }
