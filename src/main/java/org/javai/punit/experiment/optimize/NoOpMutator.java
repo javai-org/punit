@@ -8,7 +8,7 @@ package org.javai.punit.experiment.optimize;
  *
  * @param <F> the type of the factor
  */
-public final class NoOpMutator<F> implements Mutator<F> {
+public final class NoOpMutator<F> implements FactorMutator<F> {
 
     @Override
     public F mutate(F currentValue, OptimizationHistory history) {

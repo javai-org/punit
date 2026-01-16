@@ -13,17 +13,17 @@ import java.util.Optional;
  *   <li>Score threshold achieved</li>
  * </ul>
  *
- * <p>Policies are composable via {@code CompositeTerminationPolicy}.
+ * <p>Policies are composable via {@code OptimizationCompositeTerminationPolicy}.
  *
  * <h2>Implementation Guidelines</h2>
  * <ul>
  *   <li>Return {@link Optional#empty()} to continue optimization</li>
- *   <li>Return a {@link TerminationReason} to stop</li>
+ *   <li>Return a {@link OptimizationTerminationReason} to stop</li>
  *   <li>Use only the history for decisions (no side effects)</li>
  * </ul>
  */
 @FunctionalInterface
-public interface TerminationPolicy {
+public interface OptimizationTerminationPolicy {
 
     /**
      * Check if optimization should terminate.
@@ -31,7 +31,7 @@ public interface TerminationPolicy {
      * @param history current optimization history
      * @return termination reason if should stop, empty to continue
      */
-    Optional<TerminationReason> shouldTerminate(OptimizationHistory history);
+    Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history);
 
     /**
      * Human-readable description for the optimization history.

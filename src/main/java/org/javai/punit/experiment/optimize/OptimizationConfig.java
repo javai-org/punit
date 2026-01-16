@@ -22,8 +22,8 @@ public final class OptimizationConfig<F> {
     private final FactorSuit fixedFactors;
     private final OptimizationObjective objective;
     private final Scorer<IterationAggregate> scorer;
-    private final Mutator<F> mutator;
-    private final TerminationPolicy terminationPolicy;
+    private final FactorMutator<F> mutator;
+    private final OptimizationTerminationPolicy terminationPolicy;
     private final int samplesPerIteration;
 
     private OptimizationConfig(Builder<F> builder) {
@@ -72,11 +72,11 @@ public final class OptimizationConfig<F> {
         return scorer;
     }
 
-    public Mutator<F> mutator() {
+    public FactorMutator<F> mutator() {
         return mutator;
     }
 
-    public TerminationPolicy terminationPolicy() {
+    public OptimizationTerminationPolicy terminationPolicy() {
         return terminationPolicy;
     }
 
@@ -109,8 +109,8 @@ public final class OptimizationConfig<F> {
         private FactorSuit fixedFactors = FactorSuit.empty();
         private OptimizationObjective objective = OptimizationObjective.MAXIMIZE;
         private Scorer<IterationAggregate> scorer;
-        private Mutator<F> mutator;
-        private TerminationPolicy terminationPolicy;
+        private FactorMutator<F> mutator;
+        private OptimizationTerminationPolicy terminationPolicy;
         private int samplesPerIteration = 20;
 
         private Builder() {}
@@ -160,12 +160,12 @@ public final class OptimizationConfig<F> {
             return this;
         }
 
-        public Builder<F> mutator(Mutator<F> mutator) {
+        public Builder<F> mutator(FactorMutator<F> mutator) {
             this.mutator = mutator;
             return this;
         }
 
-        public Builder<F> terminationPolicy(TerminationPolicy terminationPolicy) {
+        public Builder<F> terminationPolicy(OptimizationTerminationPolicy terminationPolicy) {
             this.terminationPolicy = terminationPolicy;
             return this;
         }

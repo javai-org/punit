@@ -92,7 +92,7 @@ class OptimizationOrchestratorTest {
                     mutationCount.incrementAndGet();
                     return current + " (improved)";
                 })
-                .terminationPolicy(new MaxIterationsPolicy(5))
+                .terminationPolicy(new OptimizationMaxIterationsPolicy(5))
                 .samplesPerIteration(10)
                 .build();
 
@@ -119,9 +119,9 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator(new NoOpMutator<>())  // No actual change
-                .terminationPolicy(new CompositeTerminationPolicy(
-                        new MaxIterationsPolicy(20),
-                        new NoImprovementPolicy(3)
+                .terminationPolicy(new OptimizationCompositeTerminationPolicy(
+                        new OptimizationMaxIterationsPolicy(20),
+                        new OptimizationNoImprovementPolicy(3)
                 ))
                 .samplesPerIteration(10)
                 .build();
@@ -149,7 +149,7 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator((current, history) -> "v" + (history.iterationCount()))
-                .terminationPolicy(new MaxIterationsPolicy(5))
+                .terminationPolicy(new OptimizationMaxIterationsPolicy(5))
                 .samplesPerIteration(20)
                 .build();
 
@@ -179,7 +179,7 @@ class OptimizationOrchestratorTest {
                     throw new ScoringException("Scoring failed");
                 })
                 .mutator(new NoOpMutator<>())
-                .terminationPolicy(new MaxIterationsPolicy(10))
+                .terminationPolicy(new OptimizationMaxIterationsPolicy(10))
                 .samplesPerIteration(10)
                 .build();
 
@@ -210,7 +210,7 @@ class OptimizationOrchestratorTest {
                     }
                     return current + "+";
                 })
-                .terminationPolicy(new MaxIterationsPolicy(10))
+                .terminationPolicy(new OptimizationMaxIterationsPolicy(10))
                 .samplesPerIteration(10)
                 .build();
 
@@ -236,7 +236,7 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator(new NoOpMutator<>())
-                .terminationPolicy(new MaxIterationsPolicy(10))
+                .terminationPolicy(new OptimizationMaxIterationsPolicy(10))
                 .samplesPerIteration(10)
                 .build();
 
@@ -260,7 +260,7 @@ class OptimizationOrchestratorTest {
 
     @Test
     void shouldInvokeProgressCallback() {
-        List<IterationRecord> progressRecords = new ArrayList<>();
+        List<OptimizationRecord> progressRecords = new ArrayList<>();
 
         OptimizationConfig<String> config = OptimizationConfig.<String>builder()
                 .useCaseId("test")
@@ -269,7 +269,7 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator(new NoOpMutator<>())
-                .terminationPolicy(new MaxIterationsPolicy(3))
+                .terminationPolicy(new OptimizationMaxIterationsPolicy(3))
                 .samplesPerIteration(10)
                 .build();
 
@@ -300,7 +300,7 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator((current, history) -> current + "+")
-                .terminationPolicy(new MaxIterationsPolicy(3))
+                .terminationPolicy(new OptimizationMaxIterationsPolicy(3))
                 .samplesPerIteration(10)
                 .build();
 
@@ -337,9 +337,9 @@ class OptimizationOrchestratorTest {
                 .objective(OptimizationObjective.MAXIMIZE)
                 .scorer(new SuccessRateScorer())
                 .mutator(new NoOpMutator<>())
-                .terminationPolicy(new CompositeTerminationPolicy(
-                        new MaxIterationsPolicy(3),
-                        new NoImprovementPolicy(2)
+                .terminationPolicy(new OptimizationCompositeTerminationPolicy(
+                        new OptimizationMaxIterationsPolicy(3),
+                        new OptimizationNoImprovementPolicy(2)
                 ))
                 .samplesPerIteration(10)
                 .build();

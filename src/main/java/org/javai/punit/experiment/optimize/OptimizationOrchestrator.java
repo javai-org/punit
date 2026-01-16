@@ -23,7 +23,7 @@ import java.util.function.Consumer;
  * </ol>
  *
  * <p>The orchestrator coordinates these steps but delegates the actual
- * work to the {@link Scorer}, {@link Mutator}, and {@link TerminationPolicy}.
+ * work to the {@link Scorer}, {@link FactorMutator}, and {@link OptimizationTerminationPolicy}.
  *
  * @param <F> the type of the treatment factor
  */
@@ -32,7 +32,7 @@ public final class OptimizationOrchestrator<F> {
     private final OptimizationConfig<F> config;
     private final UseCaseExecutor executor;
     private final OutcomeAggregator aggregator;
-    private final Consumer<IterationRecord> progressCallback;
+    private final Consumer<OptimizationRecord> progressCallback;
 
     /**
      * Creates an orchestrator with the given configuration.
@@ -71,7 +71,7 @@ public final class OptimizationOrchestrator<F> {
             OptimizationConfig<F> config,
             UseCaseExecutor executor,
             OutcomeAggregator aggregator,
-            Consumer<IterationRecord> progressCallback
+            Consumer<OptimizationRecord> progressCallback
     ) {
         this.config = config;
         this.executor = executor;
@@ -121,12 +121,12 @@ public final class OptimizationOrchestrator<F> {
                         iterStart,
                         Instant.now()
                 );
-                IterationRecord failed = IterationRecord.executionFailed(aggregate, e.getMessage());
+                OptimizationRecord failed = OptimizationRecord.executionFailed(aggregate, e.getMessage());
                 historyBuilder.addIteration(failed);
                 progressCallback.accept(failed);
                 return historyBuilder
                         .endTime(Instant.now())
-                        .terminationReason(TerminationReason.scoringFailure(e.getMessage()))
+                        .terminationReason(OptimizationTerminationReason.scoringFailure(e.getMessage()))
                         .build();
             }
 
@@ -147,23 +147,23 @@ public final class OptimizationOrchestrator<F> {
             try {
                 score = config.scorer().score(aggregate);
             } catch (ScoringException e) {
-                IterationRecord failed = IterationRecord.scoringFailed(aggregate, e.getMessage());
+                OptimizationRecord failed = OptimizationRecord.scoringFailed(aggregate, e.getMessage());
                 historyBuilder.addIteration(failed);
                 progressCallback.accept(failed);
                 return historyBuilder
                         .endTime(Instant.now())
-                        .terminationReason(TerminationReason.scoringFailure(e.getMessage()))
+                        .terminationReason(OptimizationTerminationReason.scoringFailure(e.getMessage()))
                         .build();
             }
 
             // 5. Record in history
-            IterationRecord record = IterationRecord.success(aggregate, score);
+            OptimizationRecord record = OptimizationRecord.success(aggregate, score);
             historyBuilder.addIteration(record);
             progressCallback.accept(record);
 
             // 6. Check termination
             OptimizationHistory currentHistory = historyBuilder.buildPartial();
-            Optional<TerminationReason> termination =
+            Optional<OptimizationTerminationReason> termination =
                     config.terminationPolicy().shouldTerminate(currentHistory);
 
             if (termination.isPresent()) {
@@ -180,7 +180,7 @@ public final class OptimizationOrchestrator<F> {
             } catch (MutationException e) {
                 return historyBuilder
                         .endTime(Instant.now())
-                        .terminationReason(TerminationReason.mutationFailure(e.getMessage()))
+                        .terminationReason(OptimizationTerminationReason.mutationFailure(e.getMessage()))
                         .build();
             }
 

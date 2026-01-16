@@ -3,7 +3,7 @@ package org.javai.punit.experiment.optimize;
 /**
  * Status of an optimization iteration.
  */
-public enum IterationStatus {
+public enum OptimizationStatus {
 
     /**
      * Iteration completed successfully: use case executed, outcomes aggregated, and scored.

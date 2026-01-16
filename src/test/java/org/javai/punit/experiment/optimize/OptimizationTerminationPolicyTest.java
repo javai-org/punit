@@ -12,9 +12,9 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link TerminationPolicy} implementations.
+ * Tests for {@link OptimizationTerminationPolicy} implementations.
  */
-class TerminationPolicyTest {
+class OptimizationTerminationPolicyTest {
 
     // === Helper Methods ===
 
@@ -43,21 +43,21 @@ class TerminationPolicyTest {
                 .buildPartial();
     }
 
-    private IterationRecord createIteration(int iterationNumber, double score) {
+    private OptimizationRecord createIteration(int iterationNumber, double score) {
         FactorSuit factorSuit = FactorSuit.of("factor", "value" + iterationNumber);
         AggregateStatistics stats = AggregateStatistics.fromCounts(100, 80, 10000, 100.0);
         Instant start = Instant.now().minusSeconds(10);
         IterationAggregate aggregate = new IterationAggregate(
                 iterationNumber, factorSuit, "factor", stats, start, start.plusSeconds(5)
         );
-        return IterationRecord.success(aggregate, score);
+        return OptimizationRecord.success(aggregate, score);
     }
 
-    // === MaxIterationsPolicy Tests ===
+    // === OptimizationMaxIterationsPolicy Tests ===
 
     @Test
     void maxIterationsPolicyShouldTerminateAtMax() {
-        TerminationPolicy policy = new MaxIterationsPolicy(10);
+        OptimizationTerminationPolicy policy = new OptimizationMaxIterationsPolicy(10);
 
         // Should not terminate before max
         OptimizationHistory history9 = createHistory(9, 0);
@@ -65,7 +65,7 @@ class TerminationPolicyTest {
 
         // Should terminate at max
         OptimizationHistory history10 = createHistory(10, 0);
-        Optional<TerminationReason> reason = policy.shouldTerminate(history10);
+        Optional<OptimizationTerminationReason> reason = policy.shouldTerminate(history10);
         assertTrue(reason.isPresent());
         assertEquals(MAX_ITERATIONS, reason.get().cause());
     }
@@ -73,39 +73,39 @@ class TerminationPolicyTest {
     @Test
     void maxIterationsPolicyShouldRejectZeroOrNegative() {
         assertThrows(IllegalArgumentException.class, () ->
-                new MaxIterationsPolicy(0)
+                new OptimizationMaxIterationsPolicy(0)
         );
         assertThrows(IllegalArgumentException.class, () ->
-                new MaxIterationsPolicy(-1)
+                new OptimizationMaxIterationsPolicy(-1)
         );
     }
 
     @Test
     void maxIterationsPolicyShouldHaveDescription() {
-        TerminationPolicy policy = new MaxIterationsPolicy(20);
+        OptimizationTerminationPolicy policy = new OptimizationMaxIterationsPolicy(20);
 
         assertTrue(policy.description().contains("20"));
     }
 
-    // === NoImprovementPolicy Tests ===
+    // === OptimizationNoImprovementPolicy Tests ===
 
     @Test
     void noImprovementPolicyShouldTerminateWhenNoImprovement() {
-        TerminationPolicy policy = new NoImprovementPolicy(3);
+        OptimizationTerminationPolicy policy = new OptimizationNoImprovementPolicy(3);
 
         // Best at iteration 2, currently at iteration 6 (4 iterations since best)
         // Iterations: 0, 1, 2(best), 3, 4, 5, 6
         // iterationsSinceBest = 6 - 2 = 4, windowSize = 3, 4 >= 3 -> terminate
         OptimizationHistory history = createHistory(7, 2);
 
-        Optional<TerminationReason> reason = policy.shouldTerminate(history);
+        Optional<OptimizationTerminationReason> reason = policy.shouldTerminate(history);
         assertTrue(reason.isPresent());
         assertEquals(NO_IMPROVEMENT, reason.get().cause());
     }
 
     @Test
     void noImprovementPolicyShouldNotTerminateWithRecentImprovement() {
-        TerminationPolicy policy = new NoImprovementPolicy(3);
+        OptimizationTerminationPolicy policy = new OptimizationNoImprovementPolicy(3);
 
         // Best at iteration 5, currently at iteration 6
         // iterationsSinceBest = 6 - 5 = 1, windowSize = 3, 1 < 3 -> don't terminate
@@ -116,7 +116,7 @@ class TerminationPolicyTest {
 
     @Test
     void noImprovementPolicyShouldNotTerminateWithInsufficientHistory() {
-        TerminationPolicy policy = new NoImprovementPolicy(5);
+        OptimizationTerminationPolicy policy = new OptimizationNoImprovementPolicy(5);
 
         // Only 3 iterations, window is 5
         OptimizationHistory history = createHistory(3, 0);
@@ -127,26 +127,26 @@ class TerminationPolicyTest {
     @Test
     void noImprovementPolicyShouldRejectInvalidWindowSize() {
         assertThrows(IllegalArgumentException.class, () ->
-                new NoImprovementPolicy(0)
+                new OptimizationNoImprovementPolicy(0)
         );
     }
 
-    // === TimeBudgetPolicy Tests ===
+    // === OptimizationTimeBudgetPolicy Tests ===
 
     @Test
     void timeBudgetPolicyShouldTerminateWhenExceeded() {
-        TerminationPolicy policy = new TimeBudgetPolicy(Duration.ofMinutes(5));
+        OptimizationTerminationPolicy policy = new OptimizationTimeBudgetPolicy(Duration.ofMinutes(5));
 
         OptimizationHistory history = createHistoryWithDuration(Duration.ofMinutes(6));
 
-        Optional<TerminationReason> reason = policy.shouldTerminate(history);
+        Optional<OptimizationTerminationReason> reason = policy.shouldTerminate(history);
         assertTrue(reason.isPresent());
         assertEquals(OPTIMIZATION_TIME_BUDGET_EXHAUSTED, reason.get().cause());
     }
 
     @Test
     void timeBudgetPolicyShouldNotTerminateWithinBudget() {
-        TerminationPolicy policy = new TimeBudgetPolicy(Duration.ofMinutes(5));
+        OptimizationTerminationPolicy policy = new OptimizationTimeBudgetPolicy(Duration.ofMinutes(5));
 
         OptimizationHistory history = createHistoryWithDuration(Duration.ofMinutes(3));
 
@@ -156,45 +156,45 @@ class TerminationPolicyTest {
     @Test
     void timeBudgetPolicyShouldRejectInvalidDuration() {
         assertThrows(IllegalArgumentException.class, () ->
-                new TimeBudgetPolicy(null)
+                new OptimizationTimeBudgetPolicy(null)
         );
         assertThrows(IllegalArgumentException.class, () ->
-                new TimeBudgetPolicy(Duration.ZERO)
+                new OptimizationTimeBudgetPolicy(Duration.ZERO)
         );
         assertThrows(IllegalArgumentException.class, () ->
-                new TimeBudgetPolicy(Duration.ofMinutes(-1))
+                new OptimizationTimeBudgetPolicy(Duration.ofMinutes(-1))
         );
     }
 
     @Test
     void timeBudgetPolicyShouldCreateFromMillis() {
-        TerminationPolicy policy = TimeBudgetPolicy.ofMillis(300000);
+        OptimizationTerminationPolicy policy = OptimizationTimeBudgetPolicy.ofMillis(300000);
 
         assertTrue(policy.description().contains("5m"));
     }
 
-    // === CompositeTerminationPolicy Tests ===
+    // === OptimizationCompositeTerminationPolicy Tests ===
 
     @Test
     void compositePolicyShouldTerminateWhenAnyPolicyTriggers() {
-        TerminationPolicy policy = new CompositeTerminationPolicy(
-                new MaxIterationsPolicy(100),  // Won't trigger
-                new NoImprovementPolicy(2)      // Will trigger
+        OptimizationTerminationPolicy policy = new OptimizationCompositeTerminationPolicy(
+                new OptimizationMaxIterationsPolicy(100),  // Won't trigger
+                new OptimizationNoImprovementPolicy(2)      // Will trigger
         );
 
         // Best at iteration 0, 3 iterations since
         OptimizationHistory history = createHistory(4, 0);
 
-        Optional<TerminationReason> reason = policy.shouldTerminate(history);
+        Optional<OptimizationTerminationReason> reason = policy.shouldTerminate(history);
         assertTrue(reason.isPresent());
         assertEquals(NO_IMPROVEMENT, reason.get().cause());
     }
 
     @Test
     void compositePolicyShouldNotTerminateWhenNoPolicyTriggers() {
-        TerminationPolicy policy = new CompositeTerminationPolicy(
-                new MaxIterationsPolicy(100),
-                new NoImprovementPolicy(10)
+        OptimizationTerminationPolicy policy = new OptimizationCompositeTerminationPolicy(
+                new OptimizationMaxIterationsPolicy(100),
+                new OptimizationNoImprovementPolicy(10)
         );
 
         OptimizationHistory history = createHistory(5, 4);
@@ -205,15 +205,15 @@ class TerminationPolicyTest {
     @Test
     void compositePolicyShouldRejectEmptyPolicies() {
         assertThrows(IllegalArgumentException.class, () ->
-                new CompositeTerminationPolicy()
+                new OptimizationCompositeTerminationPolicy()
         );
     }
 
     @Test
     void compositePolicyShouldHaveCombinedDescription() {
-        TerminationPolicy policy = new CompositeTerminationPolicy(
-                new MaxIterationsPolicy(20),
-                new NoImprovementPolicy(5)
+        OptimizationTerminationPolicy policy = new OptimizationCompositeTerminationPolicy(
+                new OptimizationMaxIterationsPolicy(20),
+                new OptimizationNoImprovementPolicy(5)
         );
 
         String desc = policy.description();

@@ -50,10 +50,10 @@ public final class OptimizationHistory {
     private final Instant endTime;
 
     // === Iterations ===
-    private final List<IterationRecord> iterations;
+    private final List<OptimizationRecord> iterations;
 
     // === Termination ===
-    private final TerminationReason terminationReason;
+    private final OptimizationTerminationReason terminationReason;
 
     private OptimizationHistory(Builder builder) {
         this.useCaseId = builder.useCaseId;
@@ -117,11 +117,11 @@ public final class OptimizationHistory {
         return endTime;
     }
 
-    public List<IterationRecord> iterations() {
+    public List<OptimizationRecord> iterations() {
         return iterations;
     }
 
-    public TerminationReason terminationReason() {
+    public OptimizationTerminationReason terminationReason() {
         return terminationReason;
     }
 
@@ -154,7 +154,7 @@ public final class OptimizationHistory {
      * @param n the number of iterations to return
      * @return the last N iterations (or all if fewer than N exist)
      */
-    public List<IterationRecord> lastNIterations(int n) {
+    public List<OptimizationRecord> lastNIterations(int n) {
         int start = Math.max(0, iterations.size() - n);
         return iterations.subList(start, iterations.size());
     }
@@ -164,9 +164,9 @@ public final class OptimizationHistory {
      *
      * @return list of successful iterations
      */
-    public List<IterationRecord> successfulIterations() {
+    public List<OptimizationRecord> successfulIterations() {
         return iterations.stream()
-                .filter(IterationRecord::isSuccessful)
+                .filter(OptimizationRecord::isSuccessful)
                 .toList();
     }
 
@@ -175,13 +175,13 @@ public final class OptimizationHistory {
      *
      * @return the best iteration, or empty if no successful iterations
      */
-    public Optional<IterationRecord> bestIteration() {
-        List<IterationRecord> successful = successfulIterations();
+    public Optional<OptimizationRecord> bestIteration() {
+        List<OptimizationRecord> successful = successfulIterations();
         if (successful.isEmpty()) {
             return Optional.empty();
         }
 
-        Comparator<IterationRecord> comparator = Comparator.comparingDouble(IterationRecord::score);
+        Comparator<OptimizationRecord> comparator = Comparator.comparingDouble(OptimizationRecord::score);
         if (objective == OptimizationObjective.MAXIMIZE) {
             comparator = comparator.reversed();
         }
@@ -207,7 +207,7 @@ public final class OptimizationHistory {
      * @return the best score, or empty if no successful iterations
      */
     public Optional<Double> bestScore() {
-        return bestIteration().map(IterationRecord::score);
+        return bestIteration().map(OptimizationRecord::score);
     }
 
     /**
@@ -217,9 +217,9 @@ public final class OptimizationHistory {
      */
     public Optional<Double> initialScore() {
         return iterations.stream()
-                .filter(IterationRecord::isSuccessful)
+                .filter(OptimizationRecord::isSuccessful)
                 .findFirst()
-                .map(IterationRecord::score);
+                .map(OptimizationRecord::score);
     }
 
     /**
@@ -288,8 +288,8 @@ public final class OptimizationHistory {
         private String terminationPolicyDescription = "";
         private Instant startTime;
         private Instant endTime;
-        private final List<IterationRecord> iterations = new ArrayList<>();
-        private TerminationReason terminationReason;
+        private final List<OptimizationRecord> iterations = new ArrayList<>();
+        private OptimizationTerminationReason terminationReason;
 
         private Builder() {}
 
@@ -348,7 +348,7 @@ public final class OptimizationHistory {
             return this;
         }
 
-        public Builder terminationReason(TerminationReason terminationReason) {
+        public Builder terminationReason(OptimizationTerminationReason terminationReason) {
             this.terminationReason = terminationReason;
             return this;
         }
@@ -359,7 +359,7 @@ public final class OptimizationHistory {
          * @param record the iteration to add
          * @return this builder
          */
-        public Builder addIteration(IterationRecord record) {
+        public Builder addIteration(OptimizationRecord record) {
             this.iterations.add(record);
             return this;
         }
@@ -378,7 +378,7 @@ public final class OptimizationHistory {
          *
          * @return unmodifiable list of iterations
          */
-        public List<IterationRecord> iterations() {
+        public List<OptimizationRecord> iterations() {
             return Collections.unmodifiableList(iterations);
         }
 

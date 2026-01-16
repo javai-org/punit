@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class OptimizationHistoryTest {
 
-    private IterationRecord createIteration(int iterationNumber, double score) {
+    private OptimizationRecord createIteration(int iterationNumber, double score) {
         FactorSuit factorSuit = FactorSuit.of("systemPrompt", "value" + iterationNumber);
         AggregateStatistics stats = AggregateStatistics.fromCounts(
                 100, (int) (score * 100), 10000, 100.0
@@ -24,7 +24,7 @@ class OptimizationHistoryTest {
         IterationAggregate aggregate = new IterationAggregate(
                 iterationNumber, factorSuit, "systemPrompt", stats, start, start.plusSeconds(5)
         );
-        return IterationRecord.success(aggregate, score);
+        return OptimizationRecord.success(aggregate, score);
     }
 
     @Test
@@ -74,7 +74,7 @@ class OptimizationHistoryTest {
 
         OptimizationHistory history = builder.buildPartial();
 
-        Optional<IterationRecord> best = history.bestIteration();
+        Optional<OptimizationRecord> best = history.bestIteration();
         assertTrue(best.isPresent());
         assertEquals(1, best.get().iterationNumber());
         assertEquals(0.95, best.get().score());
@@ -94,7 +94,7 @@ class OptimizationHistoryTest {
 
         OptimizationHistory history = builder.buildPartial();
 
-        Optional<IterationRecord> best = history.bestIteration();
+        Optional<OptimizationRecord> best = history.bestIteration();
         assertTrue(best.isPresent());
         assertEquals(1, best.get().iterationNumber());
         assertEquals(0.50, best.get().score());
@@ -255,7 +255,7 @@ class OptimizationHistoryTest {
                 .terminationPolicyDescription("Max 20 iterations")
                 .startTime(start)
                 .endTime(end)
-                .terminationReason(TerminationReason.maxIterations(20))
+                .terminationReason(OptimizationTerminationReason.maxIterations(20))
                 .build();
 
         assertEquals("shopping", history.useCaseId());

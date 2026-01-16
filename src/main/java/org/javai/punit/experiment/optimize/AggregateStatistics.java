@@ -119,7 +119,7 @@ public record AggregateStatistics(
     @Override
     public Map<String, Integer> failureDistribution() {
         // Failure categorization not tracked at this level.
-        // Returns empty map; detailed failure analysis available via IterationRecord.
+        // Returns empty map; detailed failure analysis available via OptimizationRecord.
         return Map.of();
     }
 }

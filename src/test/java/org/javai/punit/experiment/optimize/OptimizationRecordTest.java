@@ -9,9 +9,9 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link IterationRecord} and {@link IterationAggregate}.
+ * Tests for {@link OptimizationRecord} and {@link IterationAggregate}.
  */
-class IterationRecordTest {
+class OptimizationRecordTest {
 
     private IterationAggregate createAggregate(int iterationNumber) {
         FactorSuit factorSuit = FactorSuit.of("factor", "value");
@@ -22,16 +22,16 @@ class IterationRecordTest {
         );
     }
 
-    // === IterationRecord Tests ===
+    // === OptimizationRecord Tests ===
 
     @Test
     void shouldCreateSuccessfulRecord() {
         IterationAggregate aggregate = createAggregate(0);
 
-        IterationRecord record = IterationRecord.success(aggregate, 0.85);
+        OptimizationRecord record = OptimizationRecord.success(aggregate, 0.85);
 
         assertTrue(record.isSuccessful());
-        assertEquals(IterationStatus.SUCCESS, record.status());
+        assertEquals(OptimizationStatus.SUCCESS, record.status());
         assertEquals(0.85, record.score());
         assertEquals(0, record.iterationNumber());
         assertTrue(record.failureReason().isEmpty());
@@ -41,10 +41,10 @@ class IterationRecordTest {
     void shouldCreateExecutionFailedRecord() {
         IterationAggregate aggregate = createAggregate(1);
 
-        IterationRecord record = IterationRecord.executionFailed(aggregate, "Connection timeout");
+        OptimizationRecord record = OptimizationRecord.executionFailed(aggregate, "Connection timeout");
 
         assertFalse(record.isSuccessful());
-        assertEquals(IterationStatus.EXECUTION_FAILED, record.status());
+        assertEquals(OptimizationStatus.EXECUTION_FAILED, record.status());
         assertEquals(0.0, record.score());
         assertTrue(record.failureReason().isPresent());
         assertEquals("Connection timeout", record.failureReason().get());
@@ -54,10 +54,10 @@ class IterationRecordTest {
     void shouldCreateScoringFailedRecord() {
         IterationAggregate aggregate = createAggregate(2);
 
-        IterationRecord record = IterationRecord.scoringFailed(aggregate, "Invalid data");
+        OptimizationRecord record = OptimizationRecord.scoringFailed(aggregate, "Invalid data");
 
         assertFalse(record.isSuccessful());
-        assertEquals(IterationStatus.SCORING_FAILED, record.status());
+        assertEquals(OptimizationStatus.SCORING_FAILED, record.status());
         assertEquals(0.0, record.score());
         assertTrue(record.failureReason().isPresent());
         assertEquals("Invalid data", record.failureReason().get());
@@ -68,7 +68,7 @@ class IterationRecordTest {
         IterationAggregate aggregate = createAggregate(0);
 
         assertThrows(IllegalArgumentException.class, () ->
-                new IterationRecord(aggregate, 0.85, IterationStatus.SUCCESS, Optional.of("reason"))
+                new OptimizationRecord(aggregate, 0.85, OptimizationStatus.SUCCESS, Optional.of("reason"))
         );
     }
 
@@ -77,14 +77,14 @@ class IterationRecordTest {
         IterationAggregate aggregate = createAggregate(0);
 
         assertThrows(IllegalArgumentException.class, () ->
-                new IterationRecord(aggregate, 0.0, IterationStatus.EXECUTION_FAILED, Optional.empty())
+                new OptimizationRecord(aggregate, 0.0, OptimizationStatus.EXECUTION_FAILED, Optional.empty())
         );
     }
 
     @Test
     void shouldRejectNullAggregate() {
         assertThrows(IllegalArgumentException.class, () ->
-                IterationRecord.success(null, 0.85)
+                OptimizationRecord.success(null, 0.85)
         );
     }
 

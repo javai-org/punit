@@ -4,7 +4,7 @@ package org.javai.punit.experiment.optimize;
  * Thrown when scoring fails.
  *
  * <p>When a scorer throws this exception, the iteration is marked as failed
- * with {@link IterationStatus#SCORING_FAILED} and the optimization may terminate
+ * with {@link OptimizationStatus#SCORING_FAILED} and the optimization may terminate
  * depending on the termination policy.
  */
 public class ScoringException extends Exception {

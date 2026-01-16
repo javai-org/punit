@@ -20,7 +20,7 @@ package org.javai.punit.experiment.optimize;
  * @param <F> The type of the factor being optimized (String, Image, etc.)
  */
 @FunctionalInterface
-public interface Mutator<F> {
+public interface FactorMutator<F> {
 
     /**
      * Generate a new value for the treatment factor.

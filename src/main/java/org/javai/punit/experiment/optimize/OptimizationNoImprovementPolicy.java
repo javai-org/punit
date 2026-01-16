@@ -11,10 +11,10 @@ import java.util.Optional;
  * <h2>Usage</h2>
  * <pre>{@code
  * // Stop if no improvement for 5 consecutive iterations
- * TerminationPolicy policy = new NoImprovementPolicy(5);
+ * OptimizationTerminationPolicy policy = new OptimizationNoImprovementPolicy(5);
  * }</pre>
  */
-public final class NoImprovementPolicy implements TerminationPolicy {
+public final class OptimizationNoImprovementPolicy implements OptimizationTerminationPolicy {
 
     private final int windowSize;
 
@@ -24,7 +24,7 @@ public final class NoImprovementPolicy implements TerminationPolicy {
      * @param windowSize the number of iterations without improvement before terminating
      * @throws IllegalArgumentException if windowSize is less than 1
      */
-    public NoImprovementPolicy(int windowSize) {
+    public OptimizationNoImprovementPolicy(int windowSize) {
         if (windowSize < 1) {
             throw new IllegalArgumentException("windowSize must be at least 1");
         }
@@ -32,13 +32,13 @@ public final class NoImprovementPolicy implements TerminationPolicy {
     }
 
     @Override
-    public Optional<TerminationReason> shouldTerminate(OptimizationHistory history) {
+    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
         // Need at least windowSize + 1 iterations to evaluate
         if (history.iterationCount() <= windowSize) {
             return Optional.empty();
         }
 
-        Optional<IterationRecord> bestOpt = history.bestIteration();
+        Optional<OptimizationRecord> bestOpt = history.bestIteration();
         if (bestOpt.isEmpty()) {
             // No successful iterations yet, don't terminate
             return Optional.empty();
@@ -49,7 +49,7 @@ public final class NoImprovementPolicy implements TerminationPolicy {
         int iterationsSinceBest = currentIterationNumber - bestIterationNumber;
 
         if (iterationsSinceBest >= windowSize) {
-            return Optional.of(TerminationReason.noImprovement(windowSize));
+            return Optional.of(OptimizationTerminationReason.noImprovement(windowSize));
         }
         return Optional.empty();
     }

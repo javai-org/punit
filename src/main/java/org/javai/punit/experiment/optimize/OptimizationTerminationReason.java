@@ -1,22 +1,24 @@
 package org.javai.punit.experiment.optimize;
 
+import org.javai.punit.model.TerminationReason;
+
 /**
  * Reason for optimization termination, included in final history.
  *
- * <p>This record wraps a {@link org.javai.punit.model.TerminationReason} cause
+ * <p>This record wraps a {@link TerminationReason} cause
  * with a detailed message for auditability.
  *
  * @param cause the category of termination (uses framework-wide enum)
  * @param message human-readable description
  */
-public record TerminationReason(
-        org.javai.punit.model.TerminationReason cause,
+public record OptimizationTerminationReason(
+        TerminationReason cause,
         String message
 ) {
     /**
-     * Creates a TerminationReason with validation.
+     * Creates an OptimizationTerminationReason with validation.
      */
-    public TerminationReason {
+    public OptimizationTerminationReason {
         if (cause == null) {
             throw new IllegalArgumentException("cause must not be null");
         }
@@ -29,11 +31,11 @@ public record TerminationReason(
      * Creates a termination reason for reaching max iterations.
      *
      * @param maxIterations the configured maximum
-     * @return a new TerminationReason
+     * @return a new OptimizationTerminationReason
      */
-    public static TerminationReason maxIterations(int maxIterations) {
-        return new TerminationReason(
-                org.javai.punit.model.TerminationReason.MAX_ITERATIONS,
+    public static OptimizationTerminationReason maxIterations(int maxIterations) {
+        return new OptimizationTerminationReason(
+                TerminationReason.MAX_ITERATIONS,
                 "Reached maximum iterations: " + maxIterations
         );
     }
@@ -42,11 +44,11 @@ public record TerminationReason(
      * Creates a termination reason for no improvement.
      *
      * @param windowSize the no-improvement window size
-     * @return a new TerminationReason
+     * @return a new OptimizationTerminationReason
      */
-    public static TerminationReason noImprovement(int windowSize) {
-        return new TerminationReason(
-                org.javai.punit.model.TerminationReason.NO_IMPROVEMENT,
+    public static OptimizationTerminationReason noImprovement(int windowSize) {
+        return new OptimizationTerminationReason(
+                TerminationReason.NO_IMPROVEMENT,
                 "No improvement in last " + windowSize + " iterations"
         );
     }
@@ -55,11 +57,11 @@ public record TerminationReason(
      * Creates a termination reason for time budget exhaustion.
      *
      * @param budgetMs the time budget in milliseconds
-     * @return a new TerminationReason
+     * @return a new OptimizationTerminationReason
      */
-    public static TerminationReason timeBudgetExhausted(long budgetMs) {
-        return new TerminationReason(
-                org.javai.punit.model.TerminationReason.OPTIMIZATION_TIME_BUDGET_EXHAUSTED,
+    public static OptimizationTerminationReason timeBudgetExhausted(long budgetMs) {
+        return new OptimizationTerminationReason(
+                TerminationReason.OPTIMIZATION_TIME_BUDGET_EXHAUSTED,
                 "Time budget exhausted: " + budgetMs + "ms"
         );
     }
@@ -68,11 +70,11 @@ public record TerminationReason(
      * Creates a termination reason for mutation failure.
      *
      * @param errorMessage the error from the mutator
-     * @return a new TerminationReason
+     * @return a new OptimizationTerminationReason
      */
-    public static TerminationReason mutationFailure(String errorMessage) {
-        return new TerminationReason(
-                org.javai.punit.model.TerminationReason.MUTATION_FAILURE,
+    public static OptimizationTerminationReason mutationFailure(String errorMessage) {
+        return new OptimizationTerminationReason(
+                TerminationReason.MUTATION_FAILURE,
                 "Mutation failed: " + errorMessage
         );
     }
@@ -81,11 +83,11 @@ public record TerminationReason(
      * Creates a termination reason for scoring failure.
      *
      * @param errorMessage the error from the scorer
-     * @return a new TerminationReason
+     * @return a new OptimizationTerminationReason
      */
-    public static TerminationReason scoringFailure(String errorMessage) {
-        return new TerminationReason(
-                org.javai.punit.model.TerminationReason.SCORING_FAILURE,
+    public static OptimizationTerminationReason scoringFailure(String errorMessage) {
+        return new OptimizationTerminationReason(
+                TerminationReason.SCORING_FAILURE,
                 "Scoring failed: " + errorMessage
         );
     }
@@ -95,11 +97,11 @@ public record TerminationReason(
      *
      * @param threshold the threshold that was reached
      * @param achievedScore the score that was achieved
-     * @return a new TerminationReason
+     * @return a new OptimizationTerminationReason
      */
-    public static TerminationReason scoreThresholdReached(double threshold, double achievedScore) {
-        return new TerminationReason(
-                org.javai.punit.model.TerminationReason.SCORE_THRESHOLD_REACHED,
+    public static OptimizationTerminationReason scoreThresholdReached(double threshold, double achievedScore) {
+        return new OptimizationTerminationReason(
+                TerminationReason.SCORE_THRESHOLD_REACHED,
                 String.format("Score threshold %.4f reached with score %.4f", threshold, achievedScore)
         );
     }

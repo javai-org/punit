@@ -7,10 +7,10 @@ import java.util.Optional;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * TerminationPolicy policy = new MaxIterationsPolicy(20);
+ * OptimizationTerminationPolicy policy = new OptimizationMaxIterationsPolicy(20);
  * }</pre>
  */
-public final class MaxIterationsPolicy implements TerminationPolicy {
+public final class OptimizationMaxIterationsPolicy implements OptimizationTerminationPolicy {
 
     private final int maxIterations;
 
@@ -20,7 +20,7 @@ public final class MaxIterationsPolicy implements TerminationPolicy {
      * @param maxIterations the maximum number of iterations
      * @throws IllegalArgumentException if maxIterations is less than 1
      */
-    public MaxIterationsPolicy(int maxIterations) {
+    public OptimizationMaxIterationsPolicy(int maxIterations) {
         if (maxIterations < 1) {
             throw new IllegalArgumentException("maxIterations must be at least 1");
         }
@@ -28,9 +28,9 @@ public final class MaxIterationsPolicy implements TerminationPolicy {
     }
 
     @Override
-    public Optional<TerminationReason> shouldTerminate(OptimizationHistory history) {
+    public Optional<OptimizationTerminationReason> shouldTerminate(OptimizationHistory history) {
         if (history.iterationCount() >= maxIterations) {
-            return Optional.of(TerminationReason.maxIterations(maxIterations));
+            return Optional.of(OptimizationTerminationReason.maxIterations(maxIterations));
         }
         return Optional.empty();
     }
