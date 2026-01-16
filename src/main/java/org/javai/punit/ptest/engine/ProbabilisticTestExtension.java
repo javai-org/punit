@@ -31,10 +31,6 @@ import org.javai.punit.engine.covariate.DefaultCovariateResolutionContext;
 import org.javai.punit.engine.covariate.FootprintComputer;
 import org.javai.punit.engine.covariate.NoCompatibleBaselineException;
 import org.javai.punit.engine.covariate.UseCaseCovariateExtractor;
-import org.javai.punit.engine.expiration.ExpirationEvaluator;
-import org.javai.punit.engine.expiration.ExpirationReportPublisher;
-import org.javai.punit.engine.expiration.ExpirationWarningRenderer;
-import org.javai.punit.engine.expiration.WarningLevel;
 import org.javai.punit.experiment.engine.FactorSourceAdapter;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
@@ -44,10 +40,7 @@ import org.javai.punit.ptest.engine.FactorConsistencyValidator.ValidationResult;
 import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.transparent.BaselineData;
-import org.javai.punit.statistics.transparent.ConsoleExplanationRenderer;
-import org.javai.punit.statistics.transparent.StatisticalExplanation;
 import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder;
-import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder.CovariateMisalignment;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -93,6 +86,7 @@ public class ProbabilisticTestExtension implements
 	private static final SampleFailureFormatter sampleFailureFormatter = new SampleFailureFormatter();
 	private static final BudgetOrchestrator budgetOrchestrator = new BudgetOrchestrator();
 	private static final SampleExecutor sampleExecutor = new SampleExecutor();
+	private static final ResultPublisher resultPublisher = new ResultPublisher(reporter);
 
 	private static final String AGGREGATOR_KEY = "aggregator";
 	private static final String CONFIG_KEY = "config";
@@ -587,273 +581,65 @@ public class ProbabilisticTestExtension implements
 								SharedBudgetMonitor suiteBudget,
 								boolean passed) {
 
-		Optional<TerminationReason> reason = aggregator.getTerminationReason();
-		String terminationReasonStr = reason.map(Enum::name).orElse(TerminationReason.COMPLETED.name());
-
-		// Print summary message to console for visibility
-		printConsoleSummary(context, aggregator, config, passed, reason);
-
-		Map<String, String> entries = new LinkedHashMap<>();
-		entries.put("punit.samples", String.valueOf(config.samples()));
-		entries.put("punit.samplesExecuted", String.valueOf(aggregator.getSamplesExecuted()));
-		entries.put("punit.successes", String.valueOf(aggregator.getSuccesses()));
-		entries.put("punit.failures", String.valueOf(aggregator.getFailures()));
-		entries.put("punit.minPassRate", String.format("%.4f", config.minPassRate()));
-		entries.put("punit.observedPassRate", String.format("%.4f", aggregator.getObservedPassRate()));
-		entries.put("punit.verdict", passed ? "PASS" : "FAIL");
-		entries.put("punit.terminationReason", terminationReasonStr);
-		entries.put("punit.elapsedMs", String.valueOf(aggregator.getElapsedMs()));
-
-		// Include multiplier info if one was applied
-		if (config.hasMultiplier()) {
-			entries.put("punit.samplesMultiplier", String.format("%.2f", config.appliedMultiplier()));
-		}
-
-		// Include method-level budget info
-		if (config.hasTimeBudget()) {
-			entries.put("punit.method.timeBudgetMs", String.valueOf(config.timeBudgetMs()));
-		}
-		if (config.hasTokenBudget()) {
-			entries.put("punit.method.tokenBudget", String.valueOf(config.tokenBudget()));
-		}
-		entries.put("punit.method.tokensConsumed", String.valueOf(methodBudget.getTokensConsumed()));
-
-		if (config.tokenMode() != CostBudgetMonitor.TokenMode.NONE) {
-			entries.put("punit.tokenMode", config.tokenMode().name());
-		}
-
-		// Include class-level budget info
-		if (classBudget != null) {
-			if (classBudget.hasTimeBudget()) {
-				entries.put("punit.class.timeBudgetMs", String.valueOf(classBudget.getTimeBudgetMs()));
-				entries.put("punit.class.elapsedMs", String.valueOf(classBudget.getElapsedMs()));
-			}
-			if (classBudget.hasTokenBudget()) {
-				entries.put("punit.class.tokenBudget", String.valueOf(classBudget.getTokenBudget()));
-			}
-			entries.put("punit.class.tokensConsumed", String.valueOf(classBudget.getTokensConsumed()));
-		}
-
-		// Include suite-level budget info
-		if (suiteBudget != null) {
-			if (suiteBudget.hasTimeBudget()) {
-				entries.put("punit.suite.timeBudgetMs", String.valueOf(suiteBudget.getTimeBudgetMs()));
-				entries.put("punit.suite.elapsedMs", String.valueOf(suiteBudget.getElapsedMs()));
-			}
-			if (suiteBudget.hasTokenBudget()) {
-				entries.put("punit.suite.tokenBudget", String.valueOf(suiteBudget.getTokenBudget()));
-			}
-			entries.put("punit.suite.tokensConsumed", String.valueOf(suiteBudget.getTokensConsumed()));
-		}
-
-		// Include expiration status
-		ExecutionSpecification spec = getSpec(context);
-		if (spec != null) {
-			ExpirationStatus expirationStatus = ExpirationEvaluator.evaluate(spec);
-			entries.putAll(ExpirationReportPublisher.buildProperties(spec, expirationStatus));
-		}
-
-		context.publishReportEntry(entries);
-	}
-
-	/**
-	 * Prints a summary message to the console for visibility.
-	 * This ensures the statistical verdict is visible in test output.
-	 */
-	private void printConsoleSummary(
-			ExtensionContext context,
-			SampleResultAggregator aggregator,
-			TestConfiguration config,
-			boolean passed,
-			@SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<TerminationReason> reason) {
-
 		String testName = context.getParent()
 				.map(ExtensionContext::getDisplayName)
 				.orElse(context.getDisplayName());
 
-		// If transparent stats mode is enabled, render the full statistical explanation
-		if (config.hasTransparentStats()) {
-			printTransparentStatsSummary(context, testName, aggregator, config, passed);
-			return;
-		}
-
-		// Check if termination was due to budget exhaustion (regardless of FAIL vs EVALUATE_PARTIAL behavior)
-		boolean isBudgetExhausted = reason.map(TerminationReason::isBudgetExhaustion).orElse(false);
-
-		String title = passed ? "VERDICT: PASS" : "VERDICT: FAIL";
-		StringBuilder sb = new StringBuilder();
-		sb.append(testName).append("\n");
-		if (passed) {
-			sb.append(String.format("Observed pass rate: %.1f%% (%d/%d) >= min pass rate: %.1f%%",
-					aggregator.getObservedPassRate() * 100,
-					aggregator.getSuccesses(),
-					aggregator.getSamplesExecuted(),
-					config.minPassRate() * 100));
-		} else if (isBudgetExhausted) {
-			sb.append(String.format("Samples executed: %d of %d (budget exhausted before completion)%n",
-					aggregator.getSamplesExecuted(),
-					config.samples()));
-			sb.append(String.format("Pass rate at termination: %.1f%% (%d/%d), required: %.1f%%",
-					aggregator.getObservedPassRate() * 100,
-					aggregator.getSuccesses(),
-					aggregator.getSamplesExecuted(),
-					config.minPassRate() * 100));
-		} else {
-			sb.append(String.format("Observed pass rate: %.1f%% (%d/%d) < min pass rate: %.1f%%",
-					aggregator.getObservedPassRate() * 100,
-					aggregator.getSuccesses(),
-					aggregator.getSamplesExecuted(),
-					config.minPassRate() * 100));
-		}
-
-		// Append provenance if configured
-		appendProvenance(sb, config);
-
-		reason.filter(r -> r != TerminationReason.COMPLETED)
-				.ifPresent(r -> {
-					sb.append(String.format("%nTermination: %s", r.getDescription()));
-					String details = aggregator.getTerminationDetails();
-					if (details != null && !details.isEmpty()) {
-						sb.append(String.format("%nDetails: %s", details));
-					}
-					// For IMPOSSIBILITY, show what was needed
-					if (r == TerminationReason.IMPOSSIBILITY) {
-						int required = (int) Math.ceil(config.samples() * config.minPassRate());
-						int remaining = config.samples() - aggregator.getSamplesExecuted();
-						int maxPossible = aggregator.getSuccesses() + remaining;
-						sb.append(String.format("%nAnalysis: Needed %d successes, maximum possible is %d",
-								required, maxPossible));
-					}
-				});
-
-		sb.append(String.format("%nElapsed: %dms", aggregator.getElapsedMs()));
-		// Log verdict summary
-		reporter.reportInfo(title, sb.toString());
-
-		// Print expiration warning if applicable
-		printExpirationWarning(context, config.hasTransparentStats());
-	}
-
-	/**
-	 * Prints an expiration warning if the baseline is expired or expiring.
-	 *
-	 * <p>Warning visibility is controlled by {@link WarningLevel}:
-	 * <ul>
-	 *   <li>Expired: Always shown</li>
-	 *   <li>Expiring imminently: Shown at normal verbosity</li>
-	 *   <li>Expiring soon: Shown only at verbose (transparentStats) level</li>
-	 * </ul>
-	 */
-	private void printExpirationWarning(ExtensionContext context, boolean verbose) {
 		ExecutionSpecification spec = getSpec(context);
-		if (spec == null) {
-			return;
-		}
-
-		ExpirationStatus status = ExpirationEvaluator.evaluate(spec);
-		if (!status.requiresWarning()) {
-			return;
-		}
-
-		WarningLevel level = WarningLevel.forStatus(status);
-		if (level == null || !level.shouldShow(verbose)) {
-			return;
-		}
-
-		var warning = ExpirationWarningRenderer.renderWarning(spec, status);
-		if (!warning.isEmpty()) {
-			reporter.reportWarn(warning.title(), warning.body());
-		}
-	}
-
-	/**
-	 * Appends provenance information to the verdict output if configured.
-	 *
-	 * <p>Provenance lines are added in order: thresholdOrigin, then contractRef.
-	 * Lines are only added if the respective value is set (not UNSPECIFIED/empty).
-	 */
-	private void appendProvenance(StringBuilder sb, TestConfiguration config) {
-		if (config.hasThresholdOrigin()) {
-			sb.append(String.format("  Threshold origin: %s%n", config.thresholdOrigin().name()));
-		}
-		if (config.hasContractRef()) {
-			sb.append(String.format("  Contract ref: %s%n", config.contractRef()));
-		}
-	}
-
-	/**
-	 * Prints a comprehensive statistical explanation for transparent stats mode.
-	 *
-	 * <p>This method generates and renders a detailed statistical analysis of the
-	 * test verdict, suitable for auditors, stakeholders, and educational purposes.
-	 */
-	private void printTransparentStatsSummary(
-			ExtensionContext context,
-			String testName,
-			SampleResultAggregator aggregator,
-			TestConfiguration config,
-			boolean passed) {
-
-		StatisticalExplanationBuilder builder = new StatisticalExplanationBuilder();
-		
-		// Check for covariate misalignments
-		List<CovariateMisalignment> misalignments = extractMisalignments(context);
-		
-		// Build the explanation based on whether we have a selected baseline
-		StatisticalExplanation explanation;
-		String thresholdOriginName = config.thresholdOrigin() != null ? config.thresholdOrigin().name() : "UNSPECIFIED";
-		
-		// Check if we have a selected baseline spec (not just empirical data)
-		ExecutionSpecification selectedSpec = getSpec(context);
-		boolean hasSelectedBaseline = selectedSpec != null;
+		List<StatisticalExplanationBuilder.CovariateMisalignment> misalignments = extractMisalignments(context);
+		boolean hasSelectedBaseline = spec != null;
 		BaselineData baseline = hasSelectedBaseline ? loadBaselineDataFromContext(context) : BaselineData.empty();
-		
-		if (hasSelectedBaseline) {
-			// Spec-driven mode: threshold derived from baseline
-			explanation = builder.build(
-					testName,
-					aggregator.getSamplesExecuted(),
-					aggregator.getSuccesses(),
-					baseline,
-					config.minPassRate(),
-					passed,
-					config.confidence() != null ? config.confidence() : 0.95,
-					thresholdOriginName,
-					config.contractRef(),
-					misalignments
-			);
-		} else {
-			// Inline threshold mode (no baseline spec)
-			explanation = builder.buildWithInlineThreshold(
-					testName,
-					aggregator.getSamplesExecuted(),
-					aggregator.getSuccesses(),
-					config.minPassRate(),
-					passed,
-					thresholdOriginName,
-					config.contractRef()
-			);
-		}
+		SelectionResult selectionResult = getSelectionResult(context);
+		String baselineFilename = selectionResult != null ? selectionResult.selected().filename() : null;
 
-		// Render and print
-		ConsoleExplanationRenderer renderer = new ConsoleExplanationRenderer(config.transparentStats());
-		var rendered = renderer.renderForReporter(explanation);
-		reporter.reportInfo(rendered.title(), rendered.body());
+		ResultPublisher.PublishContext publishCtx = new ResultPublisher.PublishContext(
+				testName,
+				config.samples(),
+				aggregator.getSamplesExecuted(),
+				aggregator.getSuccesses(),
+				aggregator.getFailures(),
+				config.minPassRate(),
+				aggregator.getObservedPassRate(),
+				passed,
+				aggregator.getTerminationReason(),
+				aggregator.getTerminationDetails(),
+				aggregator.getElapsedMs(),
+				config.hasMultiplier(),
+				config.appliedMultiplier(),
+				config.timeBudgetMs(),
+				config.tokenBudget(),
+				methodBudget.getTokensConsumed(),
+				config.tokenMode(),
+				classBudget,
+				suiteBudget,
+				spec,
+				config.transparentStats(),
+				config.thresholdOrigin(),
+				config.contractRef(),
+				config.confidence(),
+				baseline,
+				misalignments,
+				baselineFilename
+		);
 
-		// Print expiration warning (verbose=true for transparent stats mode)
-		printExpirationWarning(context, true);
+		// Print console summary
+		resultPublisher.printConsoleSummary(publishCtx);
+
+		// Build and publish report entries
+		Map<String, String> entries = resultPublisher.buildReportEntries(publishCtx);
+		context.publishReportEntry(entries);
 	}
-	
+
 	/**
 	 * Extracts covariate misalignments from the selection result, if present.
 	 */
-	private List<CovariateMisalignment> extractMisalignments(ExtensionContext context) {
+	private List<StatisticalExplanationBuilder.CovariateMisalignment> extractMisalignments(ExtensionContext context) {
 		SelectionResult result = getSelectionResult(context);
 		if (result == null || !result.hasNonConformance()) {
 			return List.of();
 		}
 		return result.nonConformingDetails().stream()
-				.map(d -> new CovariateMisalignment(
+				.map(d -> new StatisticalExplanationBuilder.CovariateMisalignment(
 						d.covariateKey(),
 						d.baselineValue().toCanonicalString(),
 						d.testValue().toCanonicalString()))
