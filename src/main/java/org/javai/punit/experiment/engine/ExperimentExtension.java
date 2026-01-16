@@ -17,17 +17,21 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-import org.javai.punit.api.FactorValues;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.api.DiffableContentProvider;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.FactorValues;
+import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ResultCaptor;
-import org.javai.punit.api.UseCaseContext;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.api.DiffableContentProvider;
+import org.javai.punit.api.UseCaseContext;
+import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.ptest.engine.PacingConfiguration;
+import org.javai.punit.ptest.engine.PacingReporter;
+import org.javai.punit.ptest.engine.PacingResolver;
 import org.javai.punit.engine.covariate.BaselineFileNamer;
 import org.javai.punit.engine.covariate.CovariateProfileResolver;
 import org.javai.punit.engine.covariate.DefaultCovariateResolutionContext;
@@ -116,6 +120,20 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         store.put("startTimeMs", System.currentTimeMillis());
         store.put("contextBuilt", new AtomicBoolean(false));
         
+        // Resolve pacing configuration from @Pacing annotation
+        int totalSamples = computeTotalSamples(annotation, testMethod);
+        PacingConfiguration pacing = resolvePacing(testMethod, totalSamples, annotation);
+        store.put("pacing", pacing);
+        store.put("globalSampleCounter", new AtomicInteger(0));
+        
+        // Report pacing configuration if enabled
+        if (pacing.hasPacing()) {
+            String testName = testMethod.getDeclaringClass().getSimpleName() + "." + testMethod.getName();
+            PacingReporter pacingReporter = new PacingReporter();
+            pacingReporter.printPreFlightReport(testName, totalSamples, pacing, Instant.now());
+            pacingReporter.printFeasibilityWarning(pacing, annotation.timeBudgetMs(), totalSamples);
+        }
+        
         // Dispatch based on experiment mode
         if (annotation.mode() == ExperimentMode.EXPLORE) {
             return provideExploreInvocationContexts(context, testMethod, annotation, useCaseId, store);
@@ -148,6 +166,89 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
                 "  - Use 'samples' for MEASURE mode (total sample count)\n" +
                 "  - Use 'samplesPerConfig' for EXPLORE mode (samples per factor configuration)\n" +
                 "Remove one of these attributes to resolve the conflict.");
+        }
+    }
+    
+    /**
+     * Computes the total number of samples for pacing purposes.
+     *
+     * <p>For MEASURE mode, this is simply the samples count.
+     * For EXPLORE mode, this is samplesPerConfig × number of configurations.
+     * Since we don't know the config count at this point, we use samplesPerConfig
+     * as a conservative estimate (pacing will be continuous across all samples anyway).
+     */
+    private int computeTotalSamples(Experiment annotation, Method testMethod) {
+        if (annotation.mode() == ExperimentMode.EXPLORE) {
+            // For EXPLORE, we use samplesPerConfig as the per-config count
+            // The actual total will be higher (configs × samplesPerConfig)
+            // but pacing is continuous so this is just for reporting
+            int samplesPerConfig = annotation.mode().getEffectiveSampleSize(annotation.samplesPerConfig());
+            
+            // Try to estimate total by counting factor source entries
+            FactorSource factorSource = testMethod.getAnnotation(FactorSource.class);
+            if (factorSource != null) {
+                // We can't easily count without invoking the method, so return a placeholder
+                // The actual sample count will be tracked by globalSampleCounter
+                return samplesPerConfig; // Conservative: at least this many
+            }
+            return samplesPerConfig;
+        } else {
+            return annotation.mode().getEffectiveSampleSize(annotation.samples());
+        }
+    }
+    
+    /**
+     * Resolves pacing configuration from the @Pacing annotation on the test method.
+     *
+     * @param testMethod the experiment method
+     * @param samples the number of samples (for pacing calculation)
+     * @param annotation the experiment annotation (for time budget warning)
+     * @return the resolved pacing configuration
+     */
+    private PacingConfiguration resolvePacing(Method testMethod, int samples, Experiment annotation) {
+        PacingResolver resolver = new PacingResolver();
+        return resolver.resolve(testMethod, samples);
+    }
+    
+    /**
+     * Applies pacing delay between samples.
+     *
+     * <p>Uses a global sample counter to ensure continuous pacing across all samples,
+     * including across configuration boundaries in EXPLORE mode. This prevents rate
+     * limit violations when many configs have few samples each.
+     *
+     * <p>The first sample (globalSampleCounter == 1) has no delay.
+     *
+     * @param store the extension context store containing pacing configuration
+     */
+    private void applyPacingDelay(ExtensionContext.Store store) {
+        PacingConfiguration pacing = store.get("pacing", PacingConfiguration.class);
+        if (pacing == null || !pacing.hasPacing()) {
+            return;
+        }
+        
+        AtomicInteger globalSampleCounter = store.get("globalSampleCounter", AtomicInteger.class);
+        if (globalSampleCounter == null) {
+            return;
+        }
+        
+        int globalSample = globalSampleCounter.incrementAndGet();
+        
+        // Skip delay for first sample
+        if (globalSample <= 1) {
+            return;
+        }
+        
+        long delayMs = pacing.effectiveMinDelayMs();
+        if (delayMs <= 0) {
+            return;
+        }
+        
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // Don't fail the experiment, just continue
         }
     }
     
@@ -590,6 +691,9 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         
         int sample = currentSample.incrementAndGet();
         
+        // Apply pacing delay (continuous across all samples, skip first)
+        applyPacingDelay(store);
+        
         // Check time budget
         if (annotation.timeBudgetMs() > 0) {
             long elapsed = System.currentTimeMillis() - startTimeMs;
@@ -652,6 +756,9 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         Map<String, ExperimentResultAggregator> configAggregators = 
             store.get("configAggregators", Map.class);
         List<FactorInfo> factorInfos = store.get("factorInfos", List.class);
+        
+        // Apply pacing delay (continuous across all samples, skip first)
+        applyPacingDelay(store);
         
         // Get explore invocation context info from extension context store
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);

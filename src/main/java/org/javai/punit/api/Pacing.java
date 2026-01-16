@@ -55,7 +55,40 @@ import java.lang.annotation.Target;
  * void testWithMultipleConstraints() { ... }
  * }</pre>
  *
+ * <h2>Experiments</h2>
+ * <p>Pacing is equally applicable to {@link Experiment} methods. Experiments
+ * are often long-running with many samples, making rate limit management
+ * essential.
+ *
+ * <h3>MEASURE mode experiment with pacing:</h3>
+ * <pre>{@code
+ * @Experiment(mode = ExperimentMode.MEASURE, samples = 500)
+ * @Pacing(maxRequestsPerMinute = 60)
+ * void measureWithPacing(ResultCaptor<String> captor) { ... }
+ * }</pre>
+ *
+ * <h3>EXPLORE mode with continuous pacing:</h3>
+ * <p>In EXPLORE mode, pacing is applied <b>continuously</b> across all
+ * factor combinations—not reset at each configuration boundary. This ensures
+ * experiments with many configurations but few samples per config don't
+ * overwhelm rate limits.
+ *
+ * <pre>{@code
+ * @Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 5)
+ * @Pacing(maxRequestsPerMinute = 30)
+ * void exploreWithPacing(
+ *     @Factor({"gpt-4", "gpt-3.5"}) String model,
+ *     ResultCaptor<String> captor
+ * ) { ... }
+ * }</pre>
+ *
+ * <h3>Time budget and pacing interaction:</h3>
+ * <p>If the total pacing delay would exceed the configured time budget,
+ * a warning is logged at experiment start. The experiment proceeds but
+ * may be terminated by the time budget before all samples complete.
+ *
  * @see ProbabilisticTest
+ * @see Experiment
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

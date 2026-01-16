@@ -2,6 +2,7 @@ package org.javai.punit.examples.shopping.experiment;
 
 import java.util.Random;
 import java.util.stream.Stream;
+import org.javai.punit.api.Pacing;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.shopping.usecase.MockShoppingAssistant;
 import org.javai.punit.examples.shopping.usecase.ShoppingUseCase;
@@ -206,6 +207,7 @@ public class ShoppingExperiment {
         experimentId = "shopping-search-realistic-v1"
     )
     @FactorSource("ShoppingUseCase#standardProductQueries")
+    //@Pacing(maxRequestsPerMinute = 30)
     void measureRealisticSearchBaseline(
             ShoppingUseCase useCase,
             @Factor("query") String query,
