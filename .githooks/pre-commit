@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# Pre-commit hook: Ensure example test classes have @Disabled annotation
+#
+# Example tests in src/test/java/org/javai/punit/examples/ are designed to fail
+# (for learning purposes). They must have @Disabled to prevent CI failures.
+#
+# This hook catches the common mistake of commenting out @Disabled during
+# local development and forgetting to restore it before commit.
+#
+# SETUP: Run once after cloning the repository:
+#   git config core.hooksPath .githooks
+#
+
+EXAMPLES_DIR="src/test/java/org/javai/punit/examples"
+
+# Find staged Java files in the examples directory (excluding package-info.java)
+STAGED_EXAMPLE_FILES=$(git diff --cached --name-only --diff-filter=ACM | \
+    grep "^${EXAMPLES_DIR}/.*\.java$" | \
+    grep -v "package-info.java")
+
+if [ -z "$STAGED_EXAMPLE_FILES" ]; then
+    # No example files staged, nothing to check
+    exit 0
+fi
+
+FAILED_FILES=""
+
+for file in $STAGED_EXAMPLE_FILES; do
+    # Check if file exists (it should, since it's staged)
+    if [ ! -f "$file" ]; then
+        continue
+    fi
+
+    # Check for @Disabled annotation (not commented out)
+    # Look for @Disabled at the start of a line (after optional whitespace)
+    if ! grep -qE '^\s*@Disabled' "$file"; then
+        FAILED_FILES="$FAILED_FILES\n  - $file"
+    fi
+done
+
+if [ -n "$FAILED_FILES" ]; then
+    echo ""
+    echo "ERROR: Example test classes must have @Disabled annotation"
+    echo ""
+    echo "The following files are missing @Disabled:"
+    echo -e "$FAILED_FILES"
+    echo ""
+    echo "Example tests are designed to fail (for learning purposes)."
+    echo "Add @Disabled to the class to prevent CI failures:"
+    echo ""
+    echo '  @Disabled("Example - run individually to explore PUnit features")'
+    echo "  class YourExampleTest {"
+    echo ""
+    echo "To bypass this check (not recommended): git commit --no-verify"
+    echo ""
+    exit 1
+fi
+
+exit 0

@@ -1,5 +1,6 @@
 package org.javai.punit.architecture;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -222,6 +223,46 @@ class ArchitectureTest {
                     );
 
             rule.check(classes);
+        }
+    }
+
+    @Nested
+    @DisplayName("Example Test Rules")
+    class ExampleTestRules {
+
+        /**
+         * Example tests in the examples package are designed to fail (for learning purposes).
+         * They must always have @Disabled to prevent CI failures.
+         *
+         * <p>This rule catches the common mistake of commenting out @Disabled during
+         * local development and forgetting to restore it before commit.
+         */
+        @Test
+        @DisplayName("All example test classes must be @Disabled")
+        void exampleTestClassesMustBeDisabled() {
+            // Import test classes (examples package is in test sources)
+            JavaClasses exampleClasses = new ClassFileImporter()
+                    .withImportOption(ImportOption.Predefined.ONLY_INCLUDE_TESTS)
+                    .importPackages("org.javai.punit.examples");
+
+            // Check classes ending with "Test"
+            ArchRule testRule = classes()
+                    .that().resideInAPackage("org.javai.punit.examples")
+                    .and().areTopLevelClasses()
+                    .and().haveSimpleNameEndingWith("Test")
+                    .should().beAnnotatedWith(org.junit.jupiter.api.Disabled.class)
+                    .because("example tests are designed to fail and must be @Disabled to prevent CI failures");
+
+            // Check classes ending with "Example" (e.g., ShoppingAssistantSlaExample)
+            ArchRule exampleRule = classes()
+                    .that().resideInAPackage("org.javai.punit.examples")
+                    .and().areTopLevelClasses()
+                    .and().haveSimpleNameEndingWith("Example")
+                    .should().beAnnotatedWith(org.junit.jupiter.api.Disabled.class)
+                    .because("example tests are designed to fail and must be @Disabled to prevent CI failures");
+
+            testRule.check(exampleClasses);
+            exampleRule.check(exampleClasses);
         }
     }
 }
