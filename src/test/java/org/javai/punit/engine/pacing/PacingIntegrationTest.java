@@ -1,4 +1,4 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.engine.pacing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.atomic.AtomicInteger;

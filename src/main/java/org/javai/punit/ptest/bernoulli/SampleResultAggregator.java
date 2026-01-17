@@ -1,11 +1,10 @@
-package org.javai.punit.ptest.engine;
-
-import java.util.Optional;
-import org.javai.punit.model.TerminationReason;
+package org.javai.punit.ptest.bernoulli;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import org.javai.punit.model.TerminationReason;
 
 /**
  * Accumulates results from individual sample executions of a probabilistic test.

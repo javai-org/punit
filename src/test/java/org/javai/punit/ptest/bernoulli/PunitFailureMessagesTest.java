@@ -1,9 +1,8 @@
-package org.javai.punit.ptest.engine;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.DisplayName;
+package org.javai.punit.ptest.bernoulli;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link PunitFailureMessages} to ensure failure messages contain

@@ -14,7 +14,10 @@
       "Bash(mvn test:*)",
       "Bash(./gradlew compileExperimentJava:*)",
       "Bash(git mv:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

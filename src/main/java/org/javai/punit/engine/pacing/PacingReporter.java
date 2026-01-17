@@ -1,7 +1,6 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.engine.pacing;
 
 import java.time.Instant;
-
 import org.javai.punit.reporting.PUnitReporter;
 
 /**

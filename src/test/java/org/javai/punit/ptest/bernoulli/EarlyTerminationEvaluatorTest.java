@@ -1,11 +1,9 @@
-package org.javai.punit.ptest.engine;
-
-import org.javai.punit.model.TerminationReason;
-import org.junit.jupiter.api.Test;
-
-import java.util.Optional;
+package org.javai.punit.ptest.bernoulli;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Optional;
+import org.javai.punit.model.TerminationReason;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link EarlyTerminationEvaluator}.

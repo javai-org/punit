@@ -1,8 +1,7 @@
-package org.javai.punit.ptest.engine;
-
-import org.javai.punit.model.TerminationReason;
+package org.javai.punit.ptest.bernoulli;
 
 import java.util.Optional;
+import org.javai.punit.model.TerminationReason;
 
 /**
  * Evaluates whether a probabilistic test should terminate early.

@@ -1,11 +1,9 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.engine.pacing;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;

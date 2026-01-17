@@ -3,8 +3,8 @@ package org.javai.punit.ptest.strategy;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.engine.pacing.PacingConfiguration;
 import org.javai.punit.ptest.engine.CostBudgetMonitor;
-import org.javai.punit.ptest.engine.PacingConfiguration;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 
 /**

@@ -1,58 +1,40 @@
 package org.javai.punit.ptest.engine;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.api.ExceptionHandling;
-import org.javai.punit.api.FactorSource;
-import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.TokenChargeRecorder;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.spec.baseline.BaselineRepository;
-import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
-import org.javai.punit.spec.baseline.BaselineSelectionTypes.SelectionResult;
-import org.javai.punit.spec.baseline.BaselineSelector;
-import org.javai.punit.spec.baseline.FootprintComputer;
-import org.javai.punit.spec.baseline.NoCompatibleBaselineException;
-import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
-import org.javai.punit.spec.baseline.covariate.DefaultCovariateResolutionContext;
-import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
-import org.javai.punit.experiment.engine.FactorSourceAdapter;
-import org.javai.punit.model.CovariateDeclaration;
-import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.engine.pacing.PacingConfiguration;
+import org.javai.punit.engine.pacing.PacingReporter;
+import org.javai.punit.engine.pacing.PacingResolver;
 import org.javai.punit.ptest.bernoulli.BernoulliTrialsConfig;
 import org.javai.punit.ptest.bernoulli.BernoulliTrialsStrategy;
+import org.javai.punit.ptest.bernoulli.EarlyTerminationEvaluator;
+import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
 import org.javai.punit.ptest.strategy.InterceptResult;
 import org.javai.punit.ptest.strategy.ProbabilisticTestStrategy;
 import org.javai.punit.ptest.strategy.SampleExecutionContext;
-import org.javai.punit.model.ExpirationStatus;
-import org.javai.punit.model.TerminationReason;
-import org.javai.punit.ptest.engine.FactorConsistencyValidator.ValidationResult;
 import org.javai.punit.reporting.PUnitReporter;
+import org.javai.punit.spec.baseline.BaselineRepository;
+import org.javai.punit.spec.baseline.BaselineSelectionTypes.SelectionResult;
+import org.javai.punit.spec.baseline.BaselineSelector;
+import org.javai.punit.spec.baseline.FootprintComputer;
+import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
+import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder;
-import org.javai.punit.statistics.transparent.TransparentStatsConfig;
-import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
-import org.junit.jupiter.api.extension.ParameterContext;
-import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
@@ -89,8 +71,6 @@ public class ProbabilisticTestExtension implements
 	private static final ProbabilisticTestValidator testValidator = new ProbabilisticTestValidator();
 	private static final FinalConfigurationLogger configurationLogger = new FinalConfigurationLogger(reporter);
 	private static final SampleFailureFormatter sampleFailureFormatter = new SampleFailureFormatter();
-	private static final BudgetOrchestrator budgetOrchestrator = new BudgetOrchestrator();
-	private static final SampleExecutor sampleExecutor = new SampleExecutor();
 	private static final ResultPublisher resultPublisher = new ResultPublisher(reporter);
 
 	private static final String AGGREGATOR_KEY = "aggregator";
@@ -194,206 +174,94 @@ public class ProbabilisticTestExtension implements
 		Method testMethod = context.getRequiredTestMethod();
 		ProbabilisticTest annotation = testMethod.getAnnotation(ProbabilisticTest.class);
 
-		// Resolve configuration with precedence: system prop > env var > annotation
-		ConfigurationResolver.ResolvedConfiguration resolved;
-		try {
-			resolved = configResolver.resolve(annotation, testMethod.getName());
-		} catch (ProbabilisticTestConfigurationException | IllegalArgumentException e) {
-			throw new ExtensionConfigurationException(e.getMessage(), e);
-		}
-
-		// Note: Configuration logging moved to ensureBaselineSelected() so that
-		// derived minPassRate from baseline is available for accurate reporting.
-
-		// Detect token charging mode
-		boolean hasTokenRecorderParam = hasTokenChargeRecorderParameter(testMethod);
-		CostBudgetMonitor.TokenMode tokenMode = determineTokenMode(resolved, hasTokenRecorderParam);
+		// Delegate configuration parsing to strategy
+		BernoulliTrialsConfig strategyConfig = (BernoulliTrialsConfig) strategy.parseConfig(
+				annotation, testMethod, configResolver);
 
 		// Create method-level budget monitor
 		CostBudgetMonitor budgetMonitor = new CostBudgetMonitor(
-				resolved.timeBudgetMs(),
-				resolved.tokenBudget(),
-				resolved.tokenCharge(),
-				tokenMode,
-				resolved.onBudgetExhausted()
+				strategyConfig.timeBudgetMs(),
+				strategyConfig.tokenBudget(),
+				strategyConfig.tokenCharge(),
+				strategyConfig.tokenMode(),
+				strategyConfig.onBudgetExhausted()
 		);
 
 		// Create token recorder if dynamic mode
-		DefaultTokenChargeRecorder tokenRecorder = tokenMode == CostBudgetMonitor.TokenMode.DYNAMIC
-				? new DefaultTokenChargeRecorder(resolved.tokenBudget())
+		DefaultTokenChargeRecorder tokenRecorder = strategyConfig.tokenMode() == CostBudgetMonitor.TokenMode.DYNAMIC
+				? new DefaultTokenChargeRecorder(strategyConfig.tokenBudget())
 				: null;
-
-		// Resolve pacing configuration
-		PacingConfiguration pacing = pacingResolver.resolve(testMethod, resolved.samples());
 
 		// Store configuration and create components
 		ExtensionContext.Store store = context.getStore(NAMESPACE);
-		TestConfiguration config = createTestConfiguration(resolved, tokenMode, pacing, annotation.transparentStats());
-		SampleResultAggregator aggregator = new SampleResultAggregator(resolved.samples(), resolved.maxExampleFailures());
-		EarlyTerminationEvaluator evaluator = new EarlyTerminationEvaluator(resolved.samples(), resolved.minPassRate());
+		SampleResultAggregator aggregator = new SampleResultAggregator(
+				strategyConfig.samples(), strategyConfig.maxExampleFailures());
+		EarlyTerminationEvaluator evaluator = new EarlyTerminationEvaluator(
+				strategyConfig.samples(), strategyConfig.minPassRate());
 		AtomicBoolean terminated = new AtomicBoolean(false);
 		AtomicInteger sampleCounter = new AtomicInteger(0);
 
+		// Store strategy config and create TestConfiguration for backward compatibility
+		store.put(STRATEGY_CONFIG_KEY, strategyConfig);
+		TestConfiguration config = createTestConfigurationFromStrategy(strategyConfig);
 		store.put(CONFIG_KEY, config);
 		store.put(AGGREGATOR_KEY, aggregator);
 		store.put(EVALUATOR_KEY, evaluator);
 		store.put(BUDGET_MONITOR_KEY, budgetMonitor);
 		store.put(TERMINATED_KEY, terminated);
-		store.put(PACING_KEY, pacing);
+		store.put(PACING_KEY, strategyConfig.pacing());
 		store.put(SAMPLE_COUNTER_KEY, sampleCounter);
 		if (tokenRecorder != null) {
 			store.put(TOKEN_RECORDER_KEY, tokenRecorder);
 		}
 
 		// Prepare baseline selection data (selection is resolved lazily during first sample)
-		prepareBaselineSelection(annotation, resolved.specId(), store, context);
+		prepareBaselineSelection(annotation, strategyConfig.specId(), store, context);
 
 		// Print pre-flight report if pacing is configured
-		if (pacing.hasPacing()) {
+		if (strategyConfig.hasPacing()) {
 			Instant startTime = Instant.now();
 			store.put(LAST_SAMPLE_TIME_KEY, startTime);
-			pacingReporter.printPreFlightReport(testMethod.getName(), resolved.samples(), pacing, startTime);
-			pacingReporter.printFeasibilityWarning(pacing, resolved.timeBudgetMs(), resolved.samples());
+			pacingReporter.printPreFlightReport(testMethod.getName(), strategyConfig.samples(),
+					strategyConfig.pacing(), startTime);
+			pacingReporter.printFeasibilityWarning(strategyConfig.pacing(),
+					strategyConfig.timeBudgetMs(), strategyConfig.samples());
 		}
 
 		// Validate factor source consistency if applicable
-		validateFactorConsistency(testMethod, annotation, resolved.samples());
-
-		// Generate stream of invocation contexts with early termination support
-		return createSampleStream(resolved.samples(), terminated, tokenRecorder);
-	}
-
-	private boolean hasTokenChargeRecorderParameter(Method method) {
-		for (Parameter param : method.getParameters()) {
-			if (TokenChargeRecorder.class.isAssignableFrom(param.getType())) {
-				return true;
-			}
+		if (strategy instanceof BernoulliTrialsStrategy bernoulliStrategy) {
+			bernoulliStrategy.validateFactorConsistency(testMethod, annotation,
+					strategyConfig.samples(), configResolver);
 		}
-		return false;
+
+		// Delegate sample stream generation to strategy
+		return strategy.provideInvocationContexts(strategyConfig, context, store);
 	}
 
-	private CostBudgetMonitor.TokenMode determineTokenMode(
-			ConfigurationResolver.ResolvedConfiguration config,
-			boolean hasTokenRecorderParam) {
-
-		if (hasTokenRecorderParam) {
-			return CostBudgetMonitor.TokenMode.DYNAMIC;
-		} else if (config.tokenCharge() > 0) {
-			return CostBudgetMonitor.TokenMode.STATIC;
-		} else {
-			return CostBudgetMonitor.TokenMode.NONE;
-		}
-	}
-
-	private TestConfiguration createTestConfiguration(
-			ConfigurationResolver.ResolvedConfiguration resolved,
-			CostBudgetMonitor.TokenMode tokenMode,
-			PacingConfiguration pacing,
-			boolean annotationTransparentStats) {
-
-		// Resolve transparent stats config with annotation override
-		TransparentStatsConfig transparentStats = TransparentStatsConfig.resolve(
-				annotationTransparentStats ? Boolean.TRUE : null);
-
+	/**
+	 * Creates a TestConfiguration from a BernoulliTrialsConfig for backward compatibility.
+	 */
+	private TestConfiguration createTestConfigurationFromStrategy(BernoulliTrialsConfig strategyConfig) {
 		return new TestConfiguration(
-				resolved.samples(),
-				resolved.minPassRate(),
-				resolved.appliedMultiplier(),
-				resolved.timeBudgetMs(),
-				resolved.tokenCharge(),
-				resolved.tokenBudget(),
-				tokenMode,
-				resolved.onBudgetExhausted(),
-				resolved.onException(),
-				resolved.maxExampleFailures(),
-				// Statistical context - populated from resolved configuration if available
-				resolved.confidence(),
-				resolved.baselineRate(),
-				resolved.baselineSamples(),
-				resolved.specId(),
-				// Pacing configuration
-				pacing,
-				// Transparent stats configuration
-				transparentStats,
-				// Provenance metadata
-				resolved.thresholdOrigin(),
-				resolved.contractRef()
+				strategyConfig.samples(),
+				strategyConfig.minPassRate(),
+				strategyConfig.appliedMultiplier(),
+				strategyConfig.timeBudgetMs(),
+				strategyConfig.tokenCharge(),
+				strategyConfig.tokenBudget(),
+				strategyConfig.tokenMode(),
+				strategyConfig.onBudgetExhausted(),
+				strategyConfig.onException(),
+				strategyConfig.maxExampleFailures(),
+				strategyConfig.confidence(),
+				strategyConfig.baselineRate(),
+				strategyConfig.baselineSamples(),
+				strategyConfig.specId(),
+				strategyConfig.pacing(),
+				strategyConfig.transparentStats(),
+				strategyConfig.thresholdOrigin(),
+				strategyConfig.contractRef()
 		);
-	}
-
-	/**
-	 * Validates factor source consistency between the test and its baseline spec.
-	 *
-	 * <p>This check ensures statistical integrity by verifying that the test uses
-	 * the same factor source as the experiment that generated the baseline. If a
-	 * mismatch is detected, a warning is logged.
-	 *
-	 * @param testMethod the test method
-	 * @param annotation the @ProbabilisticTest annotation
-	 * @param testSamples the number of samples the test will use
-	 */
-	private void validateFactorConsistency(Method testMethod, ProbabilisticTest annotation, int testSamples) {
-		// Check if the test method has a @FactorSource annotation
-		FactorSource factorSourceAnnotation = testMethod.getAnnotation(FactorSource.class);
-		if (factorSourceAnnotation == null) {
-			// No factor source - nothing to validate
-			return;
-		}
-
-		// Resolve the factor source
-		HashableFactorSource testFactorSource;
-		try {
-			testFactorSource = FactorSourceAdapter.fromAnnotation(
-					factorSourceAnnotation, testMethod.getDeclaringClass());
-		} catch (Exception e) {
-			// Could not resolve factor source - log warning and continue
-			logger.warn("Warning: Could not resolve factor source for consistency check: {}", e.getMessage());
-			return;
-		}
-
-		// Load the spec
-		Optional<String> specIdOpt = configResolver.resolveSpecIdFromAnnotation(annotation);
-		if (specIdOpt.isEmpty()) {
-			// No spec reference - nothing to validate against
-			return;
-		}
-
-		Optional<ExecutionSpecification> optionalSpec = configResolver.loadSpec(specIdOpt.get());
-		if (optionalSpec.isEmpty()) {
-			// Spec not found - nothing to validate against
-			return;
-		}
-		ExecutionSpecification spec = optionalSpec.get();
-
-		// Validate factor consistency
-		ValidationResult result = FactorConsistencyValidator.validateWithSampleCount(
-				testFactorSource, spec, testSamples);
-
-		// Log the result
-		if (result.shouldWarn()) {
-			logger.warn(result.formatForLog());
-		} else if (result.isMatch()) {
-			// Optionally log successful validation (can be verbose, so using debug-level equivalent)
-		}
-		// NOT_APPLICABLE results are silently ignored
-	}
-
-	/**
-	 * Creates a stream of sample invocation contexts that terminates early
-	 * when the test is terminated.
-	 *
-	 * <p>Uses {@code takeWhile} to stop generating samples once termination
-	 * is triggered. This keeps the test output clean - terminated samples
-	 * simply don't appear rather than cluttering the output with SKIPPED entries.
-	 */
-	private Stream<TestTemplateInvocationContext> createSampleStream(
-			int samples, AtomicBoolean terminated, DefaultTokenChargeRecorder tokenRecorder) {
-
-		return Stream.iterate(1, i -> i + 1)
-				.limit(samples)
-				.takeWhile(i -> !terminated.get())
-				.map(sampleIndex -> new ProbabilisticTestInvocationContext(
-						sampleIndex, samples, tokenRecorder));
 	}
 
 	// ========== InvocationInterceptor ==========
@@ -407,7 +275,8 @@ public class ProbabilisticTestExtension implements
 		// This must happen BEFORE getting config, as it may derive minPassRate from baseline.
 		ensureBaselineSelected(extensionContext);
 
-		// Now get components - config may have been updated with derived minPassRate
+		// Get components from store
+		BernoulliTrialsConfig strategyConfig = getStrategyConfig(extensionContext);
 		SampleResultAggregator aggregator = getAggregator(extensionContext);
 		TestConfiguration config = getConfiguration(extensionContext);
 		EarlyTerminationEvaluator evaluator = getEvaluator(extensionContext);
@@ -426,116 +295,50 @@ public class ProbabilisticTestExtension implements
 			return;
 		}
 
-		// Pre-sample budget checks (suite → class → method precedence)
-		BudgetOrchestrator.BudgetCheckResult preSampleCheck = budgetOrchestrator.checkBeforeSample(
-				suiteBudgetMonitor, classBudgetMonitor, budgetMonitor);
-		if (preSampleCheck.shouldTerminate()) {
-			TerminationReason reason = preSampleCheck.terminationReason().get();
-			BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
-					reason, suiteBudgetMonitor, classBudgetMonitor, config.onBudgetExhausted());
-			handleBudgetExhaustion(extensionContext, aggregator, config, budgetMonitor,
-					classBudgetMonitor, suiteBudgetMonitor, reason, behavior, terminated);
-			invocation.skip();
-			return;
-		}
-
-		// Reset token recorder for new sample
-		if (tokenRecorder != null) {
-			tokenRecorder.resetForNextSample();
-		}
-
 		// Apply pacing delay if configured (skip for first sample)
 		applyPacingDelay(extensionContext, config);
 
-		// Execute the sample
-		SampleExecutor.SampleResult sampleResult = sampleExecutor.execute(
-				invocation, aggregator, config.onException());
+		// Build execution context and delegate to strategy
+		SampleExecutionContext executionContext = new SampleExecutionContext(
+				strategyConfig, aggregator, evaluator, budgetMonitor,
+				classBudgetMonitor, suiteBudgetMonitor, tokenRecorder,
+				terminated, extensionContext);
 
-		// Handle abort if exception occurred with ABORT_TEST policy
-		if (sampleResult.shouldAbort()) {
-			sampleExecutor.prepareForAbort(aggregator);
-			terminated.set(true);
+		InterceptResult result = strategy.intercept(invocation, executionContext);
+
+		// Handle the result
+		if (result.shouldAbort()) {
+			// Abort - finalize and throw
 			finalizeProbabilisticTest(extensionContext, aggregator, config, budgetMonitor,
 					classBudgetMonitor, suiteBudgetMonitor);
-			throw sampleResult.abortException();
-		}
-
-		// Post-sample processing: record tokens and propagate to all scopes
-		budgetOrchestrator.recordAndPropagateTokens(tokenRecorder, budgetMonitor,
-				config.tokenMode(), config.tokenCharge(), classBudgetMonitor, suiteBudgetMonitor);
-
-		// Post-sample budget checks (dynamic mode)
-		BudgetOrchestrator.BudgetCheckResult postSampleCheck = budgetOrchestrator.checkAfterSample(
-				suiteBudgetMonitor, classBudgetMonitor, budgetMonitor);
-		if (postSampleCheck.shouldTerminate()) {
-			TerminationReason reason = postSampleCheck.terminationReason().get();
-			BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
-					reason, suiteBudgetMonitor, classBudgetMonitor, config.onBudgetExhausted());
-			handleBudgetExhaustion(extensionContext, aggregator, config, budgetMonitor,
-					classBudgetMonitor, suiteBudgetMonitor, reason, behavior, terminated);
-			return;
-		}
-
-		// Check for early termination (impossibility or success guaranteed)
-		Optional<TerminationReason> earlyTerminationReason = evaluator.shouldTerminate(
-				aggregator.getSuccesses(), aggregator.getSamplesExecuted());
-
-		if (earlyTerminationReason.isPresent()) {
-			TerminationReason reason = earlyTerminationReason.get();
-			String details = evaluator.buildExplanation(reason,
-					aggregator.getSuccesses(), aggregator.getSamplesExecuted());
-
-			aggregator.setTerminated(reason, details);
-			terminated.set(true);
+			throw result.abortException();
+		} else if (result.shouldTerminate()) {
+			// Terminate - finalize the test
+			// finalizeProbabilisticTest throws if test failed, so we won't reach after this unless test passed.
+			// When test passes (e.g., SUCCESS_GUARANTEED), we don't rethrow sample failures because
+			// the overall verdict is PASS - individual sample failures don't matter.
 			finalizeProbabilisticTest(extensionContext, aggregator, config, budgetMonitor,
 					classBudgetMonitor, suiteBudgetMonitor);
-			// finalizeProbabilisticTest throws if test failed, so we won't reach here unless test passed
-		} else if (aggregator.getSamplesExecuted() >= config.samples()) {
-			// All samples completed normally
-			aggregator.setCompleted();
-			finalizeProbabilisticTest(extensionContext, aggregator, config, budgetMonitor,
-					classBudgetMonitor, suiteBudgetMonitor);
-			// finalizeProbabilisticTest throws if test failed, so we won't reach here unless test passed
-		}
-
-		// Re-throw sample failures so they appear as ❌ in the IDE.
-		// When the user clicks on a failed sample, they'll see the failure reason.
-		// We extract just the message (not the full exception) for cleaner output.
-		//
-		// The exception message includes a verdict hint so users don't panic before
-		// checking the PUnit statistical verdict in the console summary.
-		if (sampleResult.hasSampleFailure() && !terminated.get()) {
-			String formattedFailure = sampleFailureFormatter.formatSampleFailure(
-					sampleResult.failure(),
-					aggregator.getSuccesses(),
-					aggregator.getSamplesExecuted(),
-					config.samples(),
-					config.minPassRate()
-			);
-			throw new AssertionError(formattedFailure);
+		} else {
+			// Continue - rethrow sample failures so they appear as ❌ in the IDE
+			if (result.hasSampleFailure()) {
+				rethrowSampleFailure(result.sampleFailure(), aggregator, config);
+			}
 		}
 	}
 
-	private void handleBudgetExhaustion(ExtensionContext context,
-										SampleResultAggregator aggregator,
-										TestConfiguration config,
-										CostBudgetMonitor methodBudget,
-										SharedBudgetMonitor classBudget,
-										SharedBudgetMonitor suiteBudget,
-										TerminationReason reason,
-										BudgetExhaustedBehavior behavior,
-										AtomicBoolean terminated) {
-
-		String details = budgetOrchestrator.buildExhaustionMessage(reason, methodBudget, classBudget, suiteBudget);
-		aggregator.setTerminated(reason, details);
-		terminated.set(true);
-
-		// If FAIL behavior, force a failure regardless of pass rate
-		if (behavior == BudgetExhaustedBehavior.FAIL) {
-			aggregator.setForcedFailure(true);
-		}
-
-		finalizeProbabilisticTest(context, aggregator, config, methodBudget, classBudget, suiteBudget);
+	/**
+	 * Re-throws sample failures so they appear as ❌ in the IDE.
+	 */
+	private void rethrowSampleFailure(Throwable failure, SampleResultAggregator aggregator, TestConfiguration config) {
+		String formattedFailure = sampleFailureFormatter.formatSampleFailure(
+				failure,
+				aggregator.getSuccesses(),
+				aggregator.getSamplesExecuted(),
+				config.samples(),
+				config.minPassRate()
+		);
+		throw new AssertionError(formattedFailure);
 	}
 
 	private void finalizeProbabilisticTest(ExtensionContext context,
@@ -545,36 +348,17 @@ public class ProbabilisticTestExtension implements
 										   SharedBudgetMonitor classBudget,
 										   SharedBudgetMonitor suiteBudget) {
 
-		FinalVerdictDecider decider = new FinalVerdictDecider();
-		boolean passed = !aggregator.isForcedFailure() && decider.isPassing(aggregator, config.minPassRate());
+		// Delegate verdict computation to strategy
+		BernoulliTrialsConfig strategyConfig = getStrategyConfig(context);
+		boolean passed = strategy.computeVerdict(aggregator, strategyConfig);
 
 		// Publish structured results via TestReporter
 		publishResults(context, aggregator, config, methodBudget, classBudget, suiteBudget, passed);
 
 		// Throw assertion error if test failed
 		if (!passed) {
-			String message;
-
-			if (aggregator.isForcedFailure()) {
-				// Budget exhaustion failure - don't show misleading pass rate comparison
-				message = budgetOrchestrator.buildExhaustionFailureMessage(
-						aggregator.getTerminationReason().orElse(null),
-						aggregator.getTerminationDetails(),
-						aggregator.getSamplesExecuted(),
-						config.samples(),
-						aggregator.getObservedPassRate(),
-						aggregator.getSuccesses(),
-						config.minPassRate(),
-						aggregator.getElapsedMs());
-			} else {
-				// Genuine pass rate failure - show full statistical context
-				PunitFailureMessages.StatisticalContext statisticalContext = config.buildStatisticalContext(
-						aggregator.getObservedPassRate(),
-						aggregator.getSuccesses(),
-						aggregator.getSamplesExecuted()
-				);
-				message = decider.buildFailureMessage(aggregator, statisticalContext);
-			}
+			// Delegate failure message building to strategy
+			String message = strategy.buildFailureMessage(aggregator, strategyConfig);
 
 			AssertionError error = new AssertionError(message);
 
@@ -699,6 +483,10 @@ public class ProbabilisticTestExtension implements
 
 	private EarlyTerminationEvaluator getEvaluator(ExtensionContext context) {
 		return getFromStoreOrParent(context, EVALUATOR_KEY, EarlyTerminationEvaluator.class);
+	}
+
+	private BernoulliTrialsConfig getStrategyConfig(ExtensionContext context) {
+		return getFromStoreOrParent(context, STRATEGY_CONFIG_KEY, BernoulliTrialsConfig.class);
 	}
 
 	private CostBudgetMonitor getBudgetMonitor(ExtensionContext context) {

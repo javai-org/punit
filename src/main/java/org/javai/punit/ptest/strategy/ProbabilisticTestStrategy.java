@@ -2,10 +2,9 @@ package org.javai.punit.ptest.strategy;
 
 import java.lang.reflect.Method;
 import java.util.stream.Stream;
-
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
-import org.javai.punit.ptest.engine.SampleResultAggregator;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor.Invocation;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;

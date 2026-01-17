@@ -1,9 +1,8 @@
-package org.javai.punit.ptest.engine;
-
-import org.javai.punit.model.TerminationReason;
-import org.junit.jupiter.api.Test;
+package org.javai.punit.ptest.bernoulli;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.javai.punit.model.TerminationReason;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link SampleResultAggregator}.

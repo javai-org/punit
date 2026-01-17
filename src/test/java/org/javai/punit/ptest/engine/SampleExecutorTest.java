@@ -1,10 +1,9 @@
 package org.javai.punit.ptest.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
 import org.javai.punit.ptest.engine.SampleExecutor.SampleResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
