@@ -1,21 +1,21 @@
 package org.javai.punit.ptest.bernoulli;
 
 /**
- * Centralized utility for constructing PUnit failure messages with statistical qualifications.
+ * Failure message construction for Bernoulli trials-based probabilistic tests.
  *
- * <p>All PUnit test failures must include key statistical context to ensure:
+ * <p>This utility constructs failure messages with full statistical context specific
+ * to Bernoulli trials testing, ensuring:
  * <ul>
  *   <li><b>Auditability</b> — Every failure is self-documenting</li>
  *   <li><b>Reproducibility</b> — All parameters needed to understand the decision are present</li>
  *   <li><b>No hidden state</b> — The failure message alone explains the verdict</li>
  * </ul>
  *
- * <p>Failure messages follow a standardized format that includes confidence level,
- * alpha, observed rate, threshold, and baseline context.
+ * <p>Failure messages include pass rate comparisons, confidence levels, and baseline context.
  */
-public final class PunitFailureMessages {
+public final class BernoulliFailureMessages {
 
-    private PunitFailureMessages() {
+    private BernoulliFailureMessages() {
         // Utility class - no instantiation
     }
 

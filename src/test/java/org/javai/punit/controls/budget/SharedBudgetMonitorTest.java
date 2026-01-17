@@ -1,12 +1,10 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.controls.budget;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.model.TerminationReason;
 import org.junit.jupiter.api.Test;
-
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for {@link SharedBudgetMonitor}.

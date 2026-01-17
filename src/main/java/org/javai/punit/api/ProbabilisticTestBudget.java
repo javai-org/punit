@@ -1,12 +1,11 @@
 package org.javai.punit.api;
 
-import org.javai.punit.ptest.engine.ProbabilisticTestBudgetExtension;
-import org.junit.jupiter.api.extension.ExtendWith;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.javai.punit.controls.budget.ProbabilisticTestBudgetExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Defines a shared budget for all {@link ProbabilisticTest} methods within a test class.

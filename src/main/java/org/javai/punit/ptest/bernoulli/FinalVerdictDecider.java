@@ -52,14 +52,14 @@ public class FinalVerdictDecider {
 	 * @return a formatted failure message with statistical qualifications
 	 */
 	public String buildFailureMessage(SampleResultAggregator aggregator,
-									  PunitFailureMessages.StatisticalContext context) {
+									  BernoulliFailureMessages.StatisticalContext context) {
 		StringBuilder sb = new StringBuilder();
 
 		// Primary failure message with statistical qualifications
 		if (context.isSpecDriven()) {
-			sb.append(PunitFailureMessages.probabilisticTestFailure(context));
+			sb.append(BernoulliFailureMessages.probabilisticTestFailure(context));
 		} else {
-			sb.append(PunitFailureMessages.probabilisticTestFailureLegacy(
+			sb.append(BernoulliFailureMessages.probabilisticTestFailureLegacy(
 					context.observedRate(),
 					context.successes(),
 					context.samples(),

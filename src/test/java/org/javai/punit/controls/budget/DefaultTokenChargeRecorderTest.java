@@ -1,4 +1,4 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.controls.budget;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

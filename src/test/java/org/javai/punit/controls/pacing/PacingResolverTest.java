@@ -1,4 +1,4 @@
-package org.javai.punit.engine.pacing;
+package org.javai.punit.controls.pacing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

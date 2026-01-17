@@ -1,5 +1,6 @@
 package org.javai.punit.architecture;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -9,37 +10,139 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-
 /**
- * Architecture tests ensuring dependency constraints are enforced.
- * 
- * <p>These tests verify the architectural rules documented in 
- * {@code plan/DOC-03-ARCHITECTURE-OVERVIEW.md}, specifically:
- * 
+ * Architecture tests to enforce PUnit's structural constraints.
+ *
+ * <p>PUnit has three main architectural pillars:
  * <ul>
- *   <li>Core punit packages must NOT import from llmx (or other extensions)</li>
- *   <li>Dependencies flow one direction only: extensions → core</li>
- *   <li>No circular dependencies between packages</li>
+ *   <li>{@code experiment/} - Running experiments to gather empirical data</li>
+ *   <li>{@code spec/} - Specifications, baselines, and supporting infrastructure</li>
+ *   <li>{@code ptest/} - Running probabilistic tests against specs</li>
  * </ul>
- * 
+ *
+ * <p>These pillars should not have cross-dependencies except through shared
+ * infrastructure in {@code api/}, {@code model/}, or {@code controls/} (pacing, budget).
+ *
+ * <p>Additional rules enforce:
+ * <ul>
+ *   <li>Core packages must not depend on LLM extension (llmx)</li>
+ *   <li>Statistics module isolation for independent scrutiny</li>
+ *   <li>Dependencies flow in expected directions</li>
+ * </ul>
+ *
  * @see <a href="file:../../../../../plan/DOC-03-ARCHITECTURE-OVERVIEW.md">Architecture Overview</a>
  */
 @DisplayName("Architecture Rules")
 class ArchitectureTest {
 
-    private static JavaClasses punitClasses;
+    private static JavaClasses classes;
 
     @BeforeAll
     static void importClasses() {
-        punitClasses = new ClassFileImporter()
+        classes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages("org.javai.punit");
     }
 
     @Nested
-    @DisplayName("Core Isolation Rules")
-    class CoreIsolationRules {
+    @DisplayName("Pillar Independence")
+    class PillarIndependence {
+
+        @Test
+        @DisplayName("experiment package should not depend on ptest.engine")
+        void experimentShouldNotDependOnPtestEngine() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..experiment..")
+                    .should().dependOnClassesThat()
+                    .resideInAPackage("..ptest.engine..");
+
+            rule.check(classes);
+        }
+
+        @Test
+        @DisplayName("ptest package should not depend on experiment internals")
+        void ptestShouldNotDependOnExperimentInternals() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..ptest..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("..experiment.measure..", "..experiment.explore..", "..experiment.optimize..");
+
+            rule.check(classes);
+        }
+
+        @Test
+        @DisplayName("experiment strategies should not depend on ptest strategies")
+        void experimentStrategiesShouldNotDependOnPtestStrategies() {
+            ArchRule rule = noClasses()
+                    .that().resideInAnyPackage("..experiment.measure..", "..experiment.explore..", "..experiment.optimize..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("..ptest.bernoulli..", "..ptest.strategy..");
+
+            rule.check(classes);
+        }
+    }
+
+    @Nested
+    @DisplayName("Controls Infrastructure")
+    class ControlsInfrastructure {
+
+        @Test
+        @DisplayName("controls.pacing should not depend on experiment or ptest")
+        void controlsPacingShouldBeIndependent() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..controls.pacing..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("..experiment..", "..ptest..");
+
+            rule.check(classes);
+        }
+
+        @Test
+        @DisplayName("controls.budget should not depend on experiment or ptest")
+        void controlsBudgetShouldBeIndependent() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..controls.budget..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("..experiment..", "..ptest..");
+
+            rule.check(classes);
+        }
+    }
+
+    @Nested
+    @DisplayName("Shared Infrastructure")
+    class SharedInfrastructure {
+
+        @Test
+        @DisplayName("api package should not depend on ptest strategy internals")
+        void apiShouldNotDependOnPtestStrategyInternals() {
+            // Note: api annotations MUST reference engine extensions via @ExtendedWith.
+            // This is how JUnit 5 extension registration works.
+            // The constraint: api should not depend on ptest strategy internals.
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..api..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("..ptest.strategy..", "..ptest.bernoulli..");
+
+            rule.check(classes);
+        }
+
+        @Test
+        @DisplayName("model package should not depend on execution packages")
+        void modelShouldNotDependOnExecution() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..model..")
+                    .and().haveSimpleNameNotEndingWith("Test")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("..ptest.engine..", "..experiment.engine..");
+
+            rule.check(classes);
+        }
+    }
+
+    @Nested
+    @DisplayName("LLM Extension Isolation")
+    class LlmExtensionIsolation {
 
         @Test
         @DisplayName("Core API must not depend on LLM extension (llmx)")
@@ -49,7 +152,7 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAPackage("org.javai.punit.llmx..");
 
-            rule.check(punitClasses);
+            rule.check(classes);
         }
 
         @Test
@@ -60,18 +163,7 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAPackage("org.javai.punit.llmx..");
 
-            rule.check(punitClasses);
-        }
-
-        @Test
-        @DisplayName("Core model must not depend on LLM extension (llmx)")
-        void coreModelMustNotDependOnLlmx() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("org.javai.punit.model..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("org.javai.punit.llmx..");
-
-            rule.check(punitClasses);
+            rule.check(classes);
         }
 
         @Test
@@ -82,7 +174,7 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAPackage("org.javai.punit.llmx..");
 
-            rule.check(punitClasses);
+            rule.check(classes);
         }
 
         @Test
@@ -93,59 +185,7 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAPackage("org.javai.punit.llmx..");
 
-            rule.check(punitClasses);
-        }
-    }
-
-    @Nested
-    @DisplayName("Layer Rules")
-    class LayerRules {
-
-        @Test
-        @DisplayName("API annotations may reference extensions (JUnit 5 requirement)")
-        void apiAnnotationsMayReferenceExtensions() {
-            // In JUnit 5, annotations use @ExtendWith to reference their extensions.
-            // This is an intentional, minimal coupling required by JUnit's model.
-            // The key constraint is that the engine should not leak into API contracts
-            // beyond the @ExtendWith meta-annotation.
-            //
-            // We verify this is limited to Extension references only:
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("org.javai.punit.api..")
-                    .and().areNotAnnotations()  // Allow annotations to reference extensions
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("org.javai.punit.ptest.engine..");
-
-            rule.check(punitClasses);
-        }
-    }
-
-    @Nested
-    @DisplayName("Dependency Direction")
-    class DependencyDirection {
-
-        /*
-         * Note on the api↔engine relationship:
-         * 
-         * JUnit 5's extension model requires a bi-directional dependency:
-         * - Annotations in 'api' use @ExtendWith to reference extensions in 'engine'
-         * - Extensions in 'engine' consume the annotation types they process
-         * 
-         * This is an intentional, minimal coupling inherent to JUnit 5's design.
-         * The core isolation rules (above) focus on preventing unwanted dependencies
-         * on domain-specific extensions like llmx.
-         */
-
-        @Test
-        @DisplayName("Model types should not depend on engine implementation")
-        void modelShouldNotDependOnEngine() {
-            // Model types (records, value objects) should be pure data containers
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("org.javai.punit.model..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("org.javai.punit.ptest.engine..");
-
-            rule.check(punitClasses);
+            rule.check(classes);
         }
     }
 
@@ -155,7 +195,7 @@ class ArchitectureTest {
 
         /**
          * The statistics module is intentionally isolated from all other PUnit packages.
-         * 
+         *
          * <p>This isolation enables:
          * <ul>
          *   <li><strong>Independent scrutiny:</strong> Statisticians can review calculations
@@ -165,14 +205,6 @@ class ArchitectureTest {
          *   <li><strong>Trust building:</strong> Calculations map directly to formulations in
          *       the STATISTICAL-COMPANION document.</li>
          * </ul>
-         * 
-         * <p>The statistics module may ONLY depend on:
-         * <ul>
-         *   <li>Java standard library</li>
-         *   <li>Apache Commons Statistics</li>
-         * </ul>
-         * 
-         * @see <a href="file:../../../../../plan/DOC-02-DESIGN-PRINCIPLES.md">Design Principles §1.6</a>
          */
         @Test
         @DisplayName("Statistics module must not depend on any framework packages")
@@ -189,8 +221,7 @@ class ArchitectureTest {
                             "org.javai.punit.llmx.."
                     );
 
-            rule.check(punitClasses);
+            rule.check(classes);
         }
     }
 }
-

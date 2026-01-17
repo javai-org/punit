@@ -113,7 +113,7 @@ class FinalVerdictDeciderTest {
             aggregator.recordFailure(new AssertionError("test failure"));
         }
         
-        PunitFailureMessages.StatisticalContext context = new PunitFailureMessages.StatisticalContext(
+        BernoulliFailureMessages.StatisticalContext context = new BernoulliFailureMessages.StatisticalContext(
                 0.95,      // confidence
                 0.87,      // observedRate
                 87,        // successes

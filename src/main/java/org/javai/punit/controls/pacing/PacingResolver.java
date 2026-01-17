@@ -1,4 +1,4 @@
-package org.javai.punit.engine.pacing;
+package org.javai.punit.controls.pacing;
 
 import java.lang.reflect.Method;
 import org.javai.punit.api.Pacing;

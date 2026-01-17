@@ -1,4 +1,4 @@
-package org.javai.punit.engine.pacing;
+package org.javai.punit.controls.pacing;
 
 import java.time.Instant;
 import org.javai.punit.reporting.PUnitReporter;

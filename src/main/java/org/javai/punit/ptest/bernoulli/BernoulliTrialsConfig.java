@@ -3,8 +3,8 @@ package org.javai.punit.ptest.bernoulli;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.engine.pacing.PacingConfiguration;
-import org.javai.punit.ptest.engine.CostBudgetMonitor;
+import org.javai.punit.controls.budget.CostBudgetMonitor;
+import org.javai.punit.controls.pacing.PacingConfiguration;
 import org.javai.punit.ptest.strategy.ProbabilisticTestConfig;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 
@@ -129,10 +129,10 @@ public record BernoulliTrialsConfig(
     /**
      * Builds the statistical context for failure messages.
      */
-    public PunitFailureMessages.StatisticalContext buildStatisticalContext(
+    public BernoulliFailureMessages.StatisticalContext buildStatisticalContext(
             double observedRate, int successes, int samplesExecuted) {
         if (hasStatisticalContext()) {
-            return new PunitFailureMessages.StatisticalContext(
+            return new BernoulliFailureMessages.StatisticalContext(
                     confidence,
                     observedRate,
                     successes,
@@ -143,7 +143,7 @@ public record BernoulliTrialsConfig(
                     specId
             );
         } else {
-            return PunitFailureMessages.StatisticalContext.forLegacyMode(
+            return BernoulliFailureMessages.StatisticalContext.forLegacyMode(
                     observedRate,
                     successes,
                     samplesExecuted,

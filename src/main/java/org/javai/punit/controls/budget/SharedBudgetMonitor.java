@@ -1,10 +1,9 @@
-package org.javai.punit.ptest.engine;
-
-import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.model.TerminationReason;
+package org.javai.punit.controls.budget;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import org.javai.punit.api.BudgetExhaustedBehavior;
+import org.javai.punit.model.TerminationReason;
 
 /**
  * Thread-safe budget monitor for shared budgets at class or suite level.

@@ -1,8 +1,7 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.controls.budget;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.javai.punit.api.BudgetExhaustedBehavior;
 
 /**

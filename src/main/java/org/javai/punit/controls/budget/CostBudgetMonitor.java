@@ -1,9 +1,8 @@
-package org.javai.punit.ptest.engine;
-
-import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.model.TerminationReason;
+package org.javai.punit.controls.budget;
 
 import java.util.Optional;
+import org.javai.punit.api.BudgetExhaustedBehavior;
+import org.javai.punit.model.TerminationReason;
 
 /**
  * Monitors time and token budgets for a probabilistic test method.

@@ -12,14 +12,14 @@ import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TokenChargeRecorder;
-import org.javai.punit.engine.pacing.PacingConfiguration;
-import org.javai.punit.engine.pacing.PacingResolver;
+import org.javai.punit.controls.budget.BudgetOrchestrator;
+import org.javai.punit.controls.budget.CostBudgetMonitor;
+import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
+import org.javai.punit.controls.pacing.PacingConfiguration;
+import org.javai.punit.controls.pacing.PacingResolver;
 import org.javai.punit.experiment.engine.FactorSourceAdapter;
 import org.javai.punit.model.TerminationReason;
-import org.javai.punit.ptest.engine.BudgetOrchestrator;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
-import org.javai.punit.ptest.engine.CostBudgetMonitor;
-import org.javai.punit.ptest.engine.DefaultTokenChargeRecorder;
 import org.javai.punit.ptest.engine.FactorConsistencyValidator;
 import org.javai.punit.ptest.engine.ProbabilisticTestConfigurationException;
 import org.javai.punit.ptest.engine.ProbabilisticTestInvocationContext;
@@ -317,7 +317,7 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
                     aggregator.getElapsedMs());
         }
 
-        PunitFailureMessages.StatisticalContext statisticalContext = bernoulliConfig.buildStatisticalContext(
+        BernoulliFailureMessages.StatisticalContext statisticalContext = bernoulliConfig.buildStatisticalContext(
                 aggregator.getObservedPassRate(),
                 aggregator.getSuccesses(),
                 aggregator.getSamplesExecuted()

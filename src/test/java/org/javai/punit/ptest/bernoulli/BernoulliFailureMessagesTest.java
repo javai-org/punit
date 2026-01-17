@@ -5,16 +5,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link PunitFailureMessages} to ensure failure messages contain
+ * Tests for {@link BernoulliFailureMessages} to ensure failure messages contain
  * all required statistical qualifications.
  */
-class PunitFailureMessagesTest {
+class BernoulliFailureMessagesTest {
 
     @Test
     @DisplayName("Probabilistic test failure message includes all statistical qualifications")
     void probabilisticTestFailure_includesAllStatisticalQualifications() {
         // Given
-        PunitFailureMessages.StatisticalContext context = new PunitFailureMessages.StatisticalContext(
+        BernoulliFailureMessages.StatisticalContext context = new BernoulliFailureMessages.StatisticalContext(
                 0.95,      // confidence
                 0.87,      // observedRate
                 87,        // successes
@@ -26,7 +26,7 @@ class PunitFailureMessagesTest {
         );
 
         // When
-        String message = PunitFailureMessages.probabilisticTestFailure(context);
+        String message = BernoulliFailureMessages.probabilisticTestFailure(context);
 
         // Then
         assertThat(message)
@@ -45,7 +45,7 @@ class PunitFailureMessagesTest {
     @DisplayName("Probabilistic test failure message format matches expected pattern")
     void probabilisticTestFailure_matchesExpectedFormat() {
         // Given
-        PunitFailureMessages.StatisticalContext context = new PunitFailureMessages.StatisticalContext(
+        BernoulliFailureMessages.StatisticalContext context = new BernoulliFailureMessages.StatisticalContext(
                 0.95,
                 0.87,
                 87,
@@ -57,7 +57,7 @@ class PunitFailureMessagesTest {
         );
 
         // When
-        String message = PunitFailureMessages.probabilisticTestFailure(context);
+        String message = BernoulliFailureMessages.probabilisticTestFailure(context);
 
         // Then - verify exact format
         assertThat(message).isEqualTo(
@@ -71,7 +71,7 @@ class PunitFailureMessagesTest {
     @DisplayName("Legacy failure message works without statistical context")
     void probabilisticTestFailureLegacy_worksWithoutStatisticalContext() {
         // When
-        String message = PunitFailureMessages.probabilisticTestFailureLegacy(
+        String message = BernoulliFailureMessages.probabilisticTestFailureLegacy(
                 0.87,  // observedRate
                 87,    // successes
                 100,   // samples
@@ -92,7 +92,7 @@ class PunitFailureMessagesTest {
     @DisplayName("Latency regression failure message includes all required fields")
     void latencyRegressionFailure_includesAllRequiredFields() {
         // Given
-        PunitFailureMessages.LatencyStatisticalContext context = new PunitFailureMessages.LatencyStatisticalContext(
+        BernoulliFailureMessages.LatencyStatisticalContext context = new BernoulliFailureMessages.LatencyStatisticalContext(
                 0.95,      // confidence
                 0.121,     // observedExceedanceRate
                 12,        // exceedances
@@ -106,7 +106,7 @@ class PunitFailureMessagesTest {
         );
 
         // When
-        String message = PunitFailureMessages.latencyRegressionFailure(context);
+        String message = BernoulliFailureMessages.latencyRegressionFailure(context);
 
         // Then
         assertThat(message)
@@ -127,7 +127,7 @@ class PunitFailureMessagesTest {
     @DisplayName("Latency timeout failure message includes all required fields")
     void latencyTimeoutFailure_includesAllRequiredFields() {
         // When
-        String message = PunitFailureMessages.latencyTimeoutFailure(
+        String message = BernoulliFailureMessages.latencyTimeoutFailure(
                 5,      // timeoutCount
                 5,      // maxAllowedTimeouts
                 47,     // samplesAttempted
@@ -149,8 +149,8 @@ class PunitFailureMessagesTest {
     @DisplayName("StatisticalContext forLegacyMode creates context with placeholder values")
     void statisticalContext_forLegacyMode_createsPlaceholderContext() {
         // When
-        PunitFailureMessages.StatisticalContext context =
-                PunitFailureMessages.StatisticalContext.forLegacyMode(0.87, 87, 100, 0.90);
+        BernoulliFailureMessages.StatisticalContext context =
+                BernoulliFailureMessages.StatisticalContext.forLegacyMode(0.87, 87, 100, 0.90);
 
         // Then
         assertThat(context.isSpecDriven()).isFalse();
@@ -168,7 +168,7 @@ class PunitFailureMessagesTest {
     @DisplayName("StatisticalContext isSpecDriven returns true for spec-driven context")
     void statisticalContext_isSpecDriven_returnsTrueForSpecDrivenContext() {
         // Given
-        PunitFailureMessages.StatisticalContext context = new PunitFailureMessages.StatisticalContext(
+        BernoulliFailureMessages.StatisticalContext context = new BernoulliFailureMessages.StatisticalContext(
                 0.95, 0.87, 87, 100, 0.916, 0.951, 1000, "test:v1"
         );
 
@@ -180,12 +180,12 @@ class PunitFailureMessagesTest {
     @DisplayName("High confidence level shows small alpha")
     void probabilisticTestFailure_highConfidence_showsSmallAlpha() {
         // Given - 99% confidence
-        PunitFailureMessages.StatisticalContext context = new PunitFailureMessages.StatisticalContext(
+        BernoulliFailureMessages.StatisticalContext context = new BernoulliFailureMessages.StatisticalContext(
                 0.99, 0.87, 87, 100, 0.916, 0.951, 1000, "test:v1"
         );
 
         // When
-        String message = PunitFailureMessages.probabilisticTestFailure(context);
+        String message = BernoulliFailureMessages.probabilisticTestFailure(context);
 
         // Then
         assertThat(message)
@@ -197,12 +197,12 @@ class PunitFailureMessagesTest {
     @DisplayName("Edge case: 100% observed rate still shows failure correctly")
     void probabilisticTestFailure_edgeCase_hundredPercentObserved() {
         // Given - observed 100% but threshold somehow not met (edge case)
-        PunitFailureMessages.StatisticalContext context = new PunitFailureMessages.StatisticalContext(
+        BernoulliFailureMessages.StatisticalContext context = new BernoulliFailureMessages.StatisticalContext(
                 0.95, 1.0, 100, 100, 1.0, 1.0, 1000, "test:v1"
         );
 
         // When
-        String message = PunitFailureMessages.probabilisticTestFailure(context);
+        String message = BernoulliFailureMessages.probabilisticTestFailure(context);
 
         // Then
         assertThat(message)

@@ -1,7 +1,6 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.controls.budget;
 
 import java.util.Optional;
-
 import org.javai.punit.api.ProbabilisticTestBudget;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
