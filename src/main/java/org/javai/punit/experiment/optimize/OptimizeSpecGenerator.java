@@ -42,6 +42,14 @@ public class OptimizeSpecGenerator {
     private static final String SCHEMA_VERSION = "punit-optimize-1";
 
     /**
+     * Formats a score (0.0-1.0) as a percentage with 1 decimal place.
+     * Example: 0.88 → "88.0%"
+     */
+    private static String formatAsPercent(double score) {
+        return String.format("%.1f%%", score * 100);
+    }
+
+    /**
      * Generates the optimization history YAML file.
      *
      * @param context the extension context for publishing reports
@@ -160,7 +168,7 @@ public class OptimizeSpecGenerator {
             OptimizationRecord best = bestOpt.get();
             sb.append("\nbestIteration:\n");
             sb.append("  iterationNumber: ").append(best.aggregate().iterationNumber()).append("\n");
-            sb.append("  score: ").append(String.format("%.6f", best.score())).append("\n");
+            sb.append("  score: ").append(formatAsPercent(best.score())).append("\n");
 
             // Emphasize the best treatment value
             Object bestValue = best.aggregate().controlFactorValue();
@@ -178,7 +186,7 @@ public class OptimizeSpecGenerator {
             OptimizeStatistics stats = best.aggregate().statistics();
             sb.append("  statistics:\n");
             sb.append("    sampleCount: ").append(stats.sampleCount()).append("\n");
-            sb.append("    successRate: ").append(String.format("%.4f", stats.successRate())).append("\n");
+            sb.append("    successRate: ").append(formatAsPercent(stats.successRate())).append("\n");
             sb.append("    totalTokens: ").append(stats.totalTokens()).append("\n");
         }
 
@@ -188,12 +196,11 @@ public class OptimizeSpecGenerator {
         sb.append("  totalTokens: ").append(history.totalTokens()).append("\n");
 
         history.initialScore().ifPresent(score ->
-                sb.append("  initialScore: ").append(String.format("%.6f", score)).append("\n"));
+                sb.append("  initialScore: ").append(formatAsPercent(score)).append("\n"));
         history.bestScore().ifPresent(score ->
-                sb.append("  bestScore: ").append(String.format("%.6f", score)).append("\n"));
+                sb.append("  bestScore: ").append(formatAsPercent(score)).append("\n"));
 
-        sb.append("  scoreImprovement: ").append(String.format("%.6f", history.scoreImprovement())).append("\n");
-        sb.append("  scoreImprovementPercent: ").append(String.format("%.2f", history.scoreImprovementPercent())).append("\n");
+        sb.append("  scoreImprovement: ").append(formatAsPercent(history.scoreImprovement())).append("\n");
 
         // Termination reason
         if (history.terminationReason() != null) {
@@ -216,7 +223,7 @@ public class OptimizeSpecGenerator {
 
         sb.append("  - iterationNumber: ").append(agg.iterationNumber()).append("\n");
         sb.append("    status: ").append(record.status().name()).append("\n");
-        sb.append("    score: ").append(String.format("%.6f", record.score())).append("\n");
+        sb.append("    score: ").append(formatAsPercent(record.score())).append("\n");
 
         // Control factor value for this iteration
         Object controlFactorValue = agg.controlFactorValue();
@@ -236,7 +243,7 @@ public class OptimizeSpecGenerator {
         OptimizeStatistics stats = agg.statistics();
         sb.append("    statistics:\n");
         sb.append("      sampleCount: ").append(stats.sampleCount()).append("\n");
-        sb.append("      successRate: ").append(String.format("%.4f", stats.successRate())).append("\n");
+        sb.append("      successRate: ").append(formatAsPercent(stats.successRate())).append("\n");
         sb.append("      successCount: ").append(stats.successCount()).append("\n");
         sb.append("      failureCount: ").append(stats.failureCount()).append("\n");
         sb.append("      totalTokens: ").append(stats.totalTokens()).append("\n");
@@ -311,13 +318,12 @@ public class OptimizeSpecGenerator {
                 String.valueOf(history.iterationCount()));
 
         history.bestScore().ifPresent(score ->
-                context.publishReportEntry("punit.bestScore", String.format("%.4f", score)));
+                context.publishReportEntry("punit.bestScore", formatAsPercent(score)));
 
         history.initialScore().ifPresent(score ->
-                context.publishReportEntry("punit.initialScore", String.format("%.4f", score)));
+                context.publishReportEntry("punit.initialScore", formatAsPercent(score)));
 
-        context.publishReportEntry("punit.scoreImprovement",
-                String.format("%.4f (%.2f%%)", history.scoreImprovement(), history.scoreImprovementPercent()));
+        context.publishReportEntry("punit.scoreImprovement", formatAsPercent(history.scoreImprovement()));
 
         if (history.terminationReason() != null) {
             context.publishReportEntry("punit.terminationReason",
