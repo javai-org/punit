@@ -37,7 +37,7 @@ public record OptimizeInvocationContext(
     public List<Extension> getAdditionalExtensions() {
         return List.of(
                 new OptimizeCaptorParameterResolver(this),
-                new TreatmentValueParameterResolver(treatmentValue, treatmentFactorName)
+                new ControlFactorParameterResolver(treatmentValue, treatmentFactorName)
         );
     }
 }

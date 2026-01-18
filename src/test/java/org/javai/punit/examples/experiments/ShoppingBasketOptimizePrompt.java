@@ -1,10 +1,8 @@
 package org.javai.punit.examples.experiments;
 
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.ResultCaptor;
-import org.javai.punit.api.TreatmentValue;
+import org.javai.punit.api.ControlFactor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.javai.punit.experiment.optimize.OptimizationObjective;
@@ -28,8 +26,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * <h2>What This Demonstrates</h2>
  * <ul>
  *   <li>{@code @OptimizeExperiment} annotation with text treatment factor</li>
- *   <li>{@code @TreatmentValue} for receiving the current prompt value</li>
- *   <li>{@code @TreatmentValueSource} on use case for initial value</li>
+ *   <li>{@code @ControlFactor} for receiving the current prompt value</li>
+ *   <li>{@code @FactorGetter} on use case for initial value</li>
  *   <li>Custom {@link ShoppingBasketPromptMutator} for prompt generation</li>
  *   <li>{@link SuccessRateScorer} for iteration scoring</li>
  * </ul>
@@ -46,7 +44,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * @see ShoppingBasketPromptMutator
  * @see SuccessRateScorer
  */
-@Disabled("Example experiment - run manually with ./gradlew test --tests ShoppingBasketOptimizePrompt")
+@Disabled("Example experiment - run manually with ./gradlew exp -Prun=ShoppingBasketOptimizePrompt")
 public class ShoppingBasketOptimizePrompt {
 
     @RegisterExtension
@@ -87,44 +85,15 @@ public class ShoppingBasketOptimizePrompt {
     )
     void optimizeSystemPrompt(
             ShoppingBasketUseCase useCase,
-            @TreatmentValue("systemPrompt") String systemPrompt,
+            @ControlFactor("systemPrompt") String systemPrompt,
             ResultCaptor captor
     ) {
         // The systemPrompt is automatically injected and set via @FactorSetter
+        assert useCase.getSystemPrompt().equals(systemPrompt);
         // Run the use case with a fixed instruction
         captor.record(useCase.translateInstruction("Add 2 apples and remove the bread"));
     }
 
-    /**
-     * Optimizes prompt with varied instructions per iteration.
-     *
-     * <p>Uses multiple instructions per iteration to get a more robust
-     * measure of prompt quality across different input styles.
-     *
-     * @param useCase the use case instance
-     * @param systemPrompt the current system prompt
-     * @param instruction the instruction to process (cycled)
-     * @param captor records outcomes
-     */
-    @TestTemplate
-    @OptimizeExperiment(
-            useCase = ShoppingBasketUseCase.class,
-            treatmentFactor = "systemPrompt",
-            scorer = SuccessRateScorer.class,
-            mutator = ShoppingBasketPromptMutator.class,
-            objective = OptimizationObjective.MAXIMIZE,
-            samplesPerIteration = 30,
-            maxIterations = 15,
-            noImprovementWindow = 4,
-            experimentId = "prompt-optimization-varied-v1"
-    )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
-    void optimizeSystemPromptVaried(
-            ShoppingBasketUseCase useCase,
-            @TreatmentValue("systemPrompt") String systemPrompt,
-            @Factor("instruction") String instruction,
-            ResultCaptor captor
-    ) {
-        captor.record(useCase.translateInstruction(instruction));
-    }
+    // NOTE: @OptimizeExperiment does not currently support @FactorSource parameters.
+    // A future enhancement could add this capability to vary inputs across iterations.
 }

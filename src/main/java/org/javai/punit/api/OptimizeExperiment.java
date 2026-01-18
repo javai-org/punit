@@ -48,7 +48,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * )
  * void optimizeSystemPrompt(
  *     ShoppingUseCase useCase,
- *     @TreatmentValue String initialPrompt,  // Injected from use case
+ *     @ControlFactor String currentPrompt,  // Injected from use case
  *     ResultCaptor captor
  * ) {
  *     UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
@@ -73,7 +73,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *
  * @see MeasureExperiment
  * @see ExploreExperiment
- * @see TreatmentValue
+ * @see ControlFactor
  * @see FactorGetter
  * @see Scorer
  * @see FactorMutator

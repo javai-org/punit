@@ -280,7 +280,14 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
     }
 
     private Optional<UseCaseProvider> findUseCaseProvider(ExtensionContext context) {
-        Object testInstance = context.getRequiredTestInstance();
+        // Use getTestInstance() instead of getRequiredTestInstance() because
+        // during provideInvocationContexts(), the test instance may not exist yet
+        Optional<Object> testInstanceOpt = context.getTestInstance();
+        if (testInstanceOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Object testInstance = testInstanceOpt.get();
         for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
             if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
                 field.setAccessible(true);

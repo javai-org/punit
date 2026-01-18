@@ -6,11 +6,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a parameter to receive the initial treatment factor value in an
+ * Marks a parameter to receive the current control factor value in an
  * {@link OptimizeExperiment}.
  *
  * <p>The value is resolved from the use case instance via a method annotated
- * with {@link FactorGetter}, then injected into this parameter.
+ * with {@link FactorGetter}, then injected into this parameter. During optimization,
+ * the value is mutated between iterations.
  *
  * <h2>Example</h2>
  * <pre>{@code
@@ -22,7 +23,7 @@ import java.lang.annotation.Target;
  * )
  * void optimizePrompt(
  *     ShoppingUseCase useCase,
- *     @TreatmentValue String initialPrompt,  // Injected from use case
+ *     @ControlFactor String currentPrompt,  // Injected from use case
  *     ResultCaptor captor
  * ) {
  *     captor.record(useCase.searchProducts("headphones"));
@@ -34,8 +35,8 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * void optimizeMultiple(
  *     ShoppingUseCase useCase,
- *     @TreatmentValue("systemPrompt") String initialPrompt,
- *     @TreatmentValue("temperature") double initialTemp,
+ *     @ControlFactor("systemPrompt") String prompt,
+ *     @ControlFactor("temperature") double temp,
  *     ResultCaptor captor
  * ) { ... }
  * }</pre>
@@ -45,16 +46,16 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface TreatmentValue {
+public @interface ControlFactor {
 
     /**
-     * The treatment factor name.
+     * The control factor name.
      *
-     * <p>Optional when there is only one treatment factor (the common case).
+     * <p>Optional when there is only one control factor (the common case).
      * Required when optimizing multiple factors to disambiguate which
      * factor this parameter receives.
      *
-     * @return the factor name, or empty string for the default treatment factor
+     * @return the factor name, or empty string for the default control factor
      */
     String value() default "";
 }
