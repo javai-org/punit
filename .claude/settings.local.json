@@ -21,7 +21,9 @@
       "Bash(git rm:*)",
       "Bash(gh pr list:*)",
       "Bash(.git/hooks/pre-commit)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(./gradlew compileTestJava:*)",
+      "Bash(./gradlew build:*)"
     ]
   }
 }
