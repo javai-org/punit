@@ -9,9 +9,10 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.javai.punit.api.ExperimentMode;
+import org.javai.punit.api.FactorAnnotations;
+import org.javai.punit.api.FactorGetter;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.ResultCaptor;
-import org.javai.punit.api.TreatmentValueSource;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
@@ -214,29 +215,29 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
     }
 
     private Object getInitialTreatmentValue(Object useCaseInstance, Class<?> useCaseClass, String treatmentFactor) {
-        // Find method annotated with @TreatmentValueSource matching the treatment factor
-        for (Method method : useCaseClass.getMethods()) {
-            TreatmentValueSource annotation = method.getAnnotation(TreatmentValueSource.class);
-            if (annotation != null && annotation.value().equals(treatmentFactor)) {
-                if (method.getParameterCount() != 0) {
-                    throw new ExtensionConfigurationException(
-                            "@TreatmentValueSource method must have no parameters: " + method.getName());
-                }
-                try {
-                    return method.invoke(useCaseInstance);
-                } catch (Exception e) {
-                    throw new ExtensionConfigurationException(
-                            "Failed to get initial treatment value from @TreatmentValueSource method: " +
-                                    method.getName(), e);
-                }
-            }
+        // Find method annotated with @FactorGetter matching the treatment factor
+        Optional<Method> getterOpt = FactorAnnotations.findFactorGetter(useCaseClass, treatmentFactor);
+
+        if (getterOpt.isEmpty()) {
+            throw new ExtensionConfigurationException(
+                    "No @FactorGetter for \"" + treatmentFactor + "\" found on use case class: " +
+                            useCaseClass.getName() + ". Add a method like: " +
+                            "@FactorGetter public T get" + capitalize(treatmentFactor) + "() { ... }");
         }
 
-        throw new ExtensionConfigurationException(
-                "No @TreatmentValueSource(\"" + treatmentFactor + "\") method found on use case class: " +
-                        useCaseClass.getName() + ". Add a method like: " +
-                        "@TreatmentValueSource(\"" + treatmentFactor + "\") public T get" +
-                        capitalize(treatmentFactor) + "() { ... }");
+        Method method = getterOpt.get();
+        if (method.getParameterCount() != 0) {
+            throw new ExtensionConfigurationException(
+                    "@FactorGetter method must have no parameters: " + method.getName());
+        }
+
+        try {
+            return method.invoke(useCaseInstance);
+        } catch (Exception e) {
+            throw new ExtensionConfigurationException(
+                    "Failed to get initial treatment value from @FactorGetter method: " +
+                            method.getName(), e);
+        }
     }
 
     @SuppressWarnings("unchecked")

@@ -7,9 +7,10 @@ import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.CovariateSource;
 import org.javai.punit.api.FactorArguments;
+import org.javai.punit.api.FactorGetter;
+import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
-import org.javai.punit.api.TreatmentValueSource;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseContract;
 import org.javai.punit.model.UseCaseCriteria;
@@ -98,6 +99,7 @@ public class ShoppingUseCase implements UseCaseContract {
      * value for the "llm_model" covariate during baseline creation and test execution.
      * This ensures that baselines are matched to tests using the same LLM model.
      */
+    @FactorGetter
     @CovariateSource("llm_model")
     public String getModel() {
         return model;
@@ -109,14 +111,8 @@ public class ShoppingUseCase implements UseCaseContract {
      * <p>This method is annotated with {@code @CovariateSource} to provide the
      * value for the "temperature" covariate during baseline creation and test execution.
      */
-    @CovariateSource("temperature")
-    public String getTemperatureAsString() {
-        return String.valueOf(temperature);
-    }
-
-    /**
-     * Returns the temperature setting for this use case configuration.
-     */
+    @FactorGetter
+    @CovariateSource
     public double getTemperature() {
         return temperature;
     }
@@ -133,7 +129,7 @@ public class ShoppingUseCase implements UseCaseContract {
      *
      * @param model the model name (e.g., "gpt-4", "gpt-3.5-turbo")
      */
-    @FactorSetter("model")
+    @FactorSetter
     public void setModel(String model) {
         this.model = model;
         reconfigureAssistant();
@@ -154,22 +150,22 @@ public class ShoppingUseCase implements UseCaseContract {
     }
 
 
-    @FactorSetter("systemPrompt")
+    @FactorSetter
     public void setSystemPrompt(String systemPrompt) {
         this.systemPrompt = systemPrompt;
         this.assistant.setSystemPrompt(systemPrompt);
     }
 
     /**
-     * Returns the initial system prompt for optimization experiments.
+     * Returns the system prompt for this use case.
      *
-     * <p>This method provides the starting value for the {@code systemPrompt}
-     * treatment factor in {@code @OptimizeExperiment}. The optimizer will
-     * mutate this value across iterations to find a better prompt.
+     * <p>In optimization experiments, this provides the initial value for the
+     * {@code systemPrompt} treatment factor. The optimizer will mutate this
+     * value across iterations to find a better prompt.
      *
-     * @return the initial system prompt
+     * @return the system prompt
      */
-    @TreatmentValueSource("systemPrompt")
+    @FactorGetter
     public String getSystemPrompt() {
         return systemPrompt;
     }
@@ -485,6 +481,7 @@ public class ShoppingUseCase implements UseCaseContract {
      *
      * @return a single factor argument used for all samples
      */
+    @FactorProvider
     public static List<FactorArguments> singleQuery() {
         return FactorArguments.configurations()
             .names("query")
@@ -519,6 +516,7 @@ public class ShoppingUseCase implements UseCaseContract {
      *
      * @return factor arguments representing production-like queries
      */
+    @FactorProvider
     public static List<FactorArguments> standardProductQueries() {
         return FactorArguments.configurations()
             .names("query")
@@ -543,6 +541,7 @@ public class ShoppingUseCase implements UseCaseContract {
      *
      * @return extended factor arguments for broader coverage
      */
+    @FactorProvider
     public static List<FactorArguments> extendedProductQueries() {
         return FactorArguments.configurations()
             .names("query")

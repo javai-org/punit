@@ -13,7 +13,15 @@ import java.lang.annotation.Target;
  * covariate values at runtime. This is the preferred way to supply values
  * for CONFIGURATION covariates that depend on injected dependencies.
  *
- * <h2>Resolution Hierarchy</h2>
+ * <h2>Covariate Key Resolution</h2>
+ * <p>The covariate key is determined by:
+ * <ol>
+ *   <li>The annotation's {@code value} parameter, if provided</li>
+ *   <li>Otherwise, derived from the method name by removing the "get" prefix
+ *       and lowercasing the first character (e.g., {@code getTemperature} → "temperature")</li>
+ * </ol>
+ *
+ * <h2>Value Resolution Hierarchy</h2>
  * <p>Covariate values are resolved in this order:
  * <ol>
  *   <li>{@code @CovariateSource} method (if present and returns non-null)</li>
@@ -28,25 +36,19 @@ import java.lang.annotation.Target;
  *     value = "ProductSearch",
  *     categorizedCovariates = {
  *         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
- *         @Covariate(key = "region", category = CovariateCategory.INFRASTRUCTURE)
+ *         @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)
  *     }
  * )
- * @Component  // Spring bean
  * public class ProductSearchUseCase {
  *
- *     private final LlmClient llmClient;
- *
- *     @Value("${app.region}")
- *     private String region;
- *
- *     @CovariateSource("llm_model")
- *     public String getLlmModel() {
- *         return llmClient.getModelName();  // Reads from injected config
+ *     @CovariateSource("llm_model")  // explicit key
+ *     public String getModel() {
+ *         return llmClient.getModelName();
  *     }
  *
- *     @CovariateSource("region")
- *     public String getRegion() {
- *         return region;  // Reads from Spring config
+ *     @CovariateSource  // key derived as "temperature"
+ *     public double getTemperature() {
+ *         return temperature;
  *     }
  * }
  * }</pre>
@@ -55,6 +57,7 @@ import java.lang.annotation.Target;
  * <p>The annotated method may return:
  * <ul>
  *   <li>{@code String} — wrapped as {@code CovariateValue.StringValue}</li>
+ *   <li>Any other type — converted via {@code toString()}</li>
  *   <li>{@code CovariateValue} — used directly (for complex types)</li>
  * </ul>
  *
@@ -78,11 +81,11 @@ public @interface CovariateSource {
     /**
      * The covariate key this method provides a value for.
      *
-     * <p>Must match a key declared in {@link UseCase#covariates()} or
-     * {@link UseCase#categorizedCovariates()}.
+     * <p>If empty (the default), the key is derived from the method name
+     * by removing the "get" prefix and lowercasing the first character.
      *
-     * @return the covariate key
+     * @return the covariate key, or empty to derive from method name
      */
-    String value();
+    String value() default "";
 }
 

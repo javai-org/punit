@@ -1,12 +1,15 @@
 package org.javai.punit.examples2.usecases;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.CovariateSource;
 import org.javai.punit.api.FactorArguments;
+import org.javai.punit.api.FactorGetter;
+import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
-import org.javai.punit.api.TreatmentValueSource;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseContract;
 import org.javai.punit.examples2.infrastructure.llm.ChatLlm;
@@ -18,11 +21,8 @@ import org.javai.punit.model.UseCaseResult;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Use case for translating natural language shopping instructions to JSON operations.
@@ -77,14 +77,7 @@ import java.util.regex.Pattern;
 public class ShoppingBasketUseCase implements UseCaseContract {
 
     private static final Set<String> VALID_ACTIONS = Set.of("add", "remove", "clear");
-
-    // Pattern to match operations array
-    private static final Pattern OPERATIONS_ARRAY_PATTERN =
-            Pattern.compile("\"operations\"\\s*:\\s*\\[([^\\]]*)]", Pattern.DOTALL);
-
-    // Pattern to match individual operations
-    private static final Pattern OPERATION_PATTERN =
-            Pattern.compile("\\{[^}]*\"action\"\\s*:\\s*\"?([^\"\\},]+)\"?[^}]*\"item\"\\s*:\\s*\"([^\"]+)\"[^}]*\"quantity\"\\s*:\\s*(\\d+|-?\\d+|\"[^\"]*\"|null)[^}]*}|\\{[^}]*\"action\"\\s*:\\s*\"?([^\"\\},]+)\"?[^}]*}|\\{[^}]*\"item\"\\s*:\\s*\"([^\"]+)\"[^}]*}|\\{[^}]*\"quantity\"\\s*:\\s*(\\d+)[^}]*}");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final ChatLlm llm;
     private String model = "mock-llm";
@@ -122,50 +115,43 @@ public class ShoppingBasketUseCase implements UseCaseContract {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // COVARIATE SOURCES
+    // FACTOR GETTERS AND COVARIATE SOURCES
     // ═══════════════════════════════════════════════════════════════════════════
 
+    @FactorGetter
     @CovariateSource("llm_model")
     public String getModel() {
         return model;
     }
 
-    @CovariateSource("temperature")
-    public String getTemperatureAsString() {
-        return String.valueOf(temperature);
-    }
-
+    @FactorGetter
+    @CovariateSource
     public double getTemperature() {
         return temperature;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // FACTOR SETTERS - For auto-wired factor injection
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    @FactorSetter("model")
-    public void setModel(String model) {
-        this.model = model;
-    }
-
-    @FactorSetter("temperature")
-    public void setTemperature(double temperature) {
-        this.temperature = temperature;
-    }
-
-    @FactorSetter("systemPrompt")
-    public void setSystemPrompt(String systemPrompt) {
-        this.systemPrompt = systemPrompt;
-    }
-
-    @TreatmentValueSource("systemPrompt")
+    @FactorGetter
     public String getSystemPrompt() {
         return systemPrompt;
     }
 
-    @TreatmentValueSource("temperature")
-    public Double getTreatmentTemperature() {
-        return temperature;
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FACTOR SETTERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @FactorSetter("llm_model")
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    @FactorSetter
+    public void setTemperature(double temperature) {
+        this.temperature = temperature;
+    }
+
+    @FactorSetter
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -232,7 +218,7 @@ public class ShoppingBasketUseCase implements UseCaseContract {
 
         Duration executionTime = Duration.between(start, Instant.now());
 
-        // Validate the response using simple parsing
+        // Validate the response using Jackson
         ValidationResult validation = validateResponse(response);
 
         UseCaseResult result = UseCaseResult.builder()
@@ -267,10 +253,7 @@ public class ShoppingBasketUseCase implements UseCaseContract {
     }
 
     /**
-     * Validates a JSON response using simple string/regex parsing.
-     * <p>
-     * Note: This is a simplified validator for the example. In production,
-     * you would use a proper JSON parser like Jackson or Gson.
+     * Validates a JSON response using Jackson.
      */
     private ValidationResult validateResponse(String response) {
         ValidationResult result = new ValidationResult();
@@ -280,133 +263,56 @@ public class ShoppingBasketUseCase implements UseCaseContract {
             return result;
         }
 
-        // Basic JSON structure validation
-        String trimmed = response.trim();
-        if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-            result.parseError = "Response does not start with { or end with }";
-            return result;
-        }
-
-        // Check balanced braces and brackets
-        if (!hasBalancedBraces(trimmed)) {
-            result.parseError = "Unbalanced braces or brackets";
+        // Parse JSON
+        JsonNode root;
+        try {
+            root = OBJECT_MAPPER.readTree(response);
+        } catch (Exception e) {
+            result.parseError = "Invalid JSON: " + e.getMessage();
             return result;
         }
 
         result.isValidJson = true;
 
         // Check for operations array
-        Matcher operationsMatcher = OPERATIONS_ARRAY_PATTERN.matcher(response);
-        if (!operationsMatcher.find()) {
+        JsonNode operations = root.get("operations");
+        if (operations == null || !operations.isArray()) {
             result.hasOperationsArray = false;
             return result;
         }
 
         result.hasOperationsArray = true;
-        String operationsContent = operationsMatcher.group(1);
-
-        // Parse operations
-        List<ParsedOperation> operations = parseOperations(operationsContent);
-
-        if (operations.isEmpty() && !operationsContent.trim().isEmpty()) {
-            // There's content but we couldn't parse it
-            result.allOperationsValid = false;
-            return result;
-        }
 
         // Validate each operation
         result.allOperationsValid = true;
         result.allActionsValid = true;
         result.allQuantitiesPositive = true;
 
-        for (ParsedOperation op : operations) {
-            if (op.action == null || op.item == null || op.quantity == null) {
+        for (JsonNode op : operations) {
+            JsonNode actionNode = op.get("action");
+            JsonNode itemNode = op.get("item");
+            JsonNode quantityNode = op.get("quantity");
+
+            // Check required fields
+            if (actionNode == null || itemNode == null || quantityNode == null) {
                 result.allOperationsValid = false;
             }
-            if (op.action != null && !VALID_ACTIONS.contains(op.action.toLowerCase())) {
-                result.allActionsValid = false;
+
+            // Validate action
+            if (actionNode != null) {
+                String action = actionNode.asText();
+                if (!VALID_ACTIONS.contains(action.toLowerCase())) {
+                    result.allActionsValid = false;
+                }
             }
-            if (op.quantity == null || op.quantity <= 0) {
+
+            // Validate quantity
+            if (quantityNode == null || !quantityNode.isInt() || quantityNode.asInt() <= 0) {
                 result.allQuantitiesPositive = false;
             }
         }
 
         return result;
-    }
-
-    private boolean hasBalancedBraces(String s) {
-        int braces = 0;
-        int brackets = 0;
-        boolean inString = false;
-        char prev = 0;
-
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-
-            if (c == '"' && prev != '\\') {
-                inString = !inString;
-            } else if (!inString) {
-                switch (c) {
-                    case '{' -> braces++;
-                    case '}' -> braces--;
-                    case '[' -> brackets++;
-                    case ']' -> brackets--;
-                }
-                if (braces < 0 || brackets < 0) {
-                    return false;
-                }
-            }
-            prev = c;
-        }
-
-        return braces == 0 && brackets == 0;
-    }
-
-    private List<ParsedOperation> parseOperations(String content) {
-        List<ParsedOperation> operations = new ArrayList<>();
-
-        // Find all objects in the array
-        Pattern objectPattern = Pattern.compile("\\{([^{}]*)}", Pattern.DOTALL);
-        Matcher matcher = objectPattern.matcher(content);
-
-        while (matcher.find()) {
-            String objectContent = matcher.group(1);
-            ParsedOperation op = parseOperation(objectContent);
-            operations.add(op);
-        }
-
-        return operations;
-    }
-
-    private ParsedOperation parseOperation(String content) {
-        ParsedOperation op = new ParsedOperation();
-
-        // Extract action
-        Pattern actionPattern = Pattern.compile("\"action\"\\s*:\\s*\"([^\"]+)\"");
-        Matcher actionMatcher = actionPattern.matcher(content);
-        if (actionMatcher.find()) {
-            op.action = actionMatcher.group(1);
-        }
-
-        // Extract item
-        Pattern itemPattern = Pattern.compile("\"item\"\\s*:\\s*\"([^\"]+)\"");
-        Matcher itemMatcher = itemPattern.matcher(content);
-        if (itemMatcher.find()) {
-            op.item = itemMatcher.group(1);
-        }
-
-        // Extract quantity
-        Pattern quantityPattern = Pattern.compile("\"quantity\"\\s*:\\s*(\\d+)");
-        Matcher quantityMatcher = quantityPattern.matcher(content);
-        if (quantityMatcher.find()) {
-            try {
-                op.quantity = Integer.parseInt(quantityMatcher.group(1));
-            } catch (NumberFormatException e) {
-                op.quantity = null;
-            }
-        }
-
-        return op;
     }
 
     private static class ValidationResult {
@@ -418,74 +324,79 @@ public class ShoppingBasketUseCase implements UseCaseContract {
         String parseError = null;
     }
 
-    private static class ParsedOperation {
-        String action;
-        String item;
-        Integer quantity;
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════
-    // FACTOR SOURCES - Co-located with use case for consistency
+    // FACTOR PROVIDERS - Realistic input values
+    //
+    // These methods provide representative input values that the system should
+    // handle reliably. Using them is optional, but they serve as useful examples
+    // of the kinds of inputs production traffic will include.
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Single instruction factor source for controlled MEASURE experiments.
+     * A simple, single-item instruction.
      *
-     * <p>All samples use the same instruction, isolating LLM behavioral variance
-     * from input variance.
+     * <p>Represents the most straightforward user request: adding a specific
+     * quantity of one item. The system should handle this reliably.
      *
-     * @return a single factor argument used for all samples
+     * @return a single simple instruction
      */
-    public static List<FactorArguments> singleInstruction() {
+    @FactorProvider
+    public static List<FactorArguments> simpleBasketInstruction() {
         return FactorArguments.configurations()
                 .names("instruction")
-                .values("Add 2 apples and remove the bread")
+                .values("Add 2 apples")
                 .stream().toList();
     }
 
     /**
-     * Standard instructions for MEASURE experiments.
+     * A complex, multi-operation instruction.
      *
-     * <p>Covers common shopping basket operations with varying complexity.
+     * <p>Represents a more challenging user request: multiple operations
+     * (add and remove) with specific quantities in a single instruction.
+     * The system should parse and execute all operations correctly.
      *
-     * @return factor arguments representing typical instructions
+     * @return a single complex instruction
      */
-    public static List<FactorArguments> standardInstructions() {
+    @FactorProvider
+    public static List<FactorArguments> complexBasketInstruction() {
         return FactorArguments.configurations()
                 .names("instruction")
+                .values("Add 3 oranges and 2 bananas, then remove the milk")
+                .stream().toList();
+    }
+
+    /**
+     * A variety of instructions representing realistic production traffic.
+     *
+     * <p>Includes the range of inputs the system should handle reliably:
+     * <ul>
+     *   <li>Simple single-item operations ("Add 2 apples")</li>
+     *   <li>Multi-item operations ("Add 3 oranges and 2 bananas")</li>
+     *   <li>Clear operations ("Clear the basket")</li>
+     *   <li>Natural language variations ("I'd like to remove all the vegetables")</li>
+     *   <li>Colloquial quantities ("Add a dozen eggs")</li>
+     * </ul>
+     *
+     * @return factor arguments representing varied basket instructions
+     */
+    @FactorProvider
+    public static List<FactorArguments> multipleBasketInstructions() {
+        return FactorArguments.configurations()
+                .names("instruction")
+                // Simple single-item operations
                 .values("Add 2 apples")
                 .values("Remove the milk")
-                .values("Add 3 oranges and 2 bananas")
-                .values("Clear the basket")
                 .values("Add 1 loaf of bread")
-                .values("Remove 2 eggs from the basket")
-                .values("Add 5 tomatoes and remove the cheese")
-                .values("Clear everything")
-                .values("Add a dozen eggs")
-                .values("Remove all the vegetables")
-                .stream().toList();
-    }
-
-    /**
-     * Instructions for EXPLORE experiments comparing different phrasings.
-     *
-     * @return factor arguments with varied instruction styles
-     */
-    public static List<FactorArguments> exploreInstructions() {
-        return FactorArguments.configurations()
-                .names("instruction")
-                // Simple commands
-                .values("Add 2 apples")
-                .values("Please add two apples to my basket")
-                .values("I'd like 2 apples")
-                // Multiple items
+                // Multi-item operations
                 .values("Add 3 oranges and 2 bananas")
-                .values("I need oranges (3) and bananas (2)")
-                .values("Get me three oranges plus two bananas")
-                // Complex requests
                 .values("Add 5 tomatoes and remove the cheese")
-                .values("Put in 5 tomatoes but take out any cheese")
-                .values("I want tomatoes, five of them, and no cheese please")
+                // Clear operations
+                .values("Clear the basket")
+                .values("Clear everything")
+                // Natural language variations
+                .values("Remove 2 eggs from the basket")
+                .values("Add a dozen eggs")
+                .values("I'd like to remove all the vegetables")
                 .stream().toList();
     }
 }

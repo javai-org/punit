@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.javai.punit.api.CovariateSource;
+import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
@@ -77,20 +78,21 @@ public final class CovariateProfileResolver {
 
     private Map<String, Method> discoverCovariateSourceMethods(CovariateResolutionContext context) {
         Map<String, Method> methods = new HashMap<>();
-        
+
         Optional<Object> instanceOpt = context.getUseCaseInstance();
         if (instanceOpt.isEmpty()) {
             return methods;
         }
-        
+
         Object instance = instanceOpt.get();
         for (Method method : instance.getClass().getMethods()) {
             CovariateSource annotation = method.getAnnotation(CovariateSource.class);
             if (annotation != null) {
-                methods.put(annotation.value(), method);
+                String key = FactorAnnotations.resolveCovariateSourceKey(method, annotation);
+                methods.put(key, method);
             }
         }
-        
+
         return methods;
     }
 

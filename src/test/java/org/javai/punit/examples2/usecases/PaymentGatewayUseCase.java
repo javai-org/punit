@@ -1,10 +1,7 @@
 package org.javai.punit.examples2.usecases;
 
-import org.javai.punit.api.Covariate;
-import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.api.CovariateSource;
 import org.javai.punit.api.FactorArguments;
-import org.javai.punit.api.StandardCovariate;
+import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseContract;
 import org.javai.punit.examples2.infrastructure.payment.MockPaymentGateway;
@@ -35,22 +32,9 @@ import java.util.List;
  * through measurement), here we <b>know</b> the acceptable failure rate upfront from
  * the contract. Tests verify that the gateway meets its contractual obligations.
  *
- * <h2>Covariates</h2>
- * <p>This use case tracks covariates that may affect gateway performance:
- * <ul>
- *   <li>{@code WEEKDAY_VERSUS_WEEKEND} - Temporal context (TEMPORAL)</li>
- *   <li>{@code gateway_region} - Payment provider region (OPERATIONAL)</li>
- * </ul>
- *
  * @see org.javai.punit.examples2.tests.PaymentGatewaySlaTest
  */
-@UseCase(
-        description = "Process payment transactions through a payment gateway",
-        covariates = {StandardCovariate.WEEKDAY_VERSUS_WEEKEND},
-        categorizedCovariates = {
-                @Covariate(key = "gateway_region", category = CovariateCategory.OPERATIONAL)
-        }
-)
+@UseCase(description = "Process payment transactions through a payment gateway")
 public class PaymentGatewayUseCase implements UseCaseContract {
 
     private final PaymentGateway gateway;
@@ -72,11 +56,6 @@ public class PaymentGatewayUseCase implements UseCaseContract {
         this.gateway = gateway;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // COVARIATE SOURCES
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    @CovariateSource("gateway_region")
     public String getRegion() {
         return region;
     }
@@ -133,6 +112,7 @@ public class PaymentGatewayUseCase implements UseCaseContract {
      *
      * @return factor arguments with various payment amounts
      */
+    @FactorProvider
     public static List<FactorArguments> standardAmounts() {
         return FactorArguments.configurations()
                 .names("cardToken", "amountCents")
@@ -150,6 +130,7 @@ public class PaymentGatewayUseCase implements UseCaseContract {
      *
      * @return a single factor argument
      */
+    @FactorProvider
     public static List<FactorArguments> singlePayment() {
         return FactorArguments.configurations()
                 .names("cardToken", "amountCents")

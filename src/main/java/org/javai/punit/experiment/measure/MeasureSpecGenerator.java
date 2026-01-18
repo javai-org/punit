@@ -27,6 +27,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * Generates empirical spec files for @MeasureExperiment.
  *
  * <p>Output: {@code src/test/resources/punit/specs/{UseCaseName}-{footprint}[-{covHashes}].yaml}
+ *
+ * <p>Each use case should have ONE measure experiment that establishes the production
+ * baseline. The probabilistic test then uses the same factor source, ensuring the
+ * test cycles through the same values as the baseline measurement.
  */
 public class MeasureSpecGenerator {
 

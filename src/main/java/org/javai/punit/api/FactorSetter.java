@@ -11,6 +11,14 @@ import java.lang.annotation.Target;
  * <p>When a use case is registered with {@code UseCaseProvider.registerAutoWired()},
  * the provider automatically invokes annotated setters with factor values.
  *
+ * <h2>Factor Name Resolution</h2>
+ * <p>The factor name is determined by:
+ * <ol>
+ *   <li>The annotation's {@code value} parameter, if provided</li>
+ *   <li>Otherwise, derived from the method name by removing the "set" prefix
+ *       and lowercasing the first character (e.g., {@code setTemperature} → "temperature")</li>
+ * </ol>
+ *
  * <h2>Example</h2>
  * <pre>{@code
  * @UseCase
@@ -18,36 +26,32 @@ import java.lang.annotation.Target;
  *     private String model;
  *     private double temperature;
  *
- *     @FactorSetter("model")
+ *     @FactorSetter  // factor name derived as "model"
  *     public void setModel(String model) {
  *         this.model = model;
  *     }
  *
- *     @FactorSetter("temp")
+ *     @FactorSetter("temp")  // explicit factor name "temp"
  *     public void setTemperature(double temperature) {
  *         this.temperature = temperature;
  *     }
  * }
  * }</pre>
  *
- * <p>With auto-wiring:
- * <pre>{@code
- * provider.registerAutoWired(ShoppingUseCase.class, ShoppingUseCase::new);
- * }</pre>
- *
+ * @see FactorGetter
  * @see UseCaseProvider#registerAutoWired
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FactorSetter {
-    
+
     /**
      * The name of the factor to inject.
      *
-     * <p>Must match a factor name defined in the experiment's
-     * {@link org.javai.punit.api.FactorArguments}.
+     * <p>If empty (the default), the factor name is derived from the method name
+     * by removing the "set" prefix and lowercasing the first character.
      *
-     * @return the factor name
+     * @return the factor name, or empty to derive from method name
      */
-    String value();
+    String value() default "";
 }

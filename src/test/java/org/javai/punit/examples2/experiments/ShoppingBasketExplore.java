@@ -11,121 +11,153 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 
 /**
- * EXPLORE experiment for comparing different instruction phrasings.
+ * EXPLORE experiments for finding the best model and temperature configuration.
  *
- * <p>This experiment tests various instruction styles to understand how
- * different phrasings affect the LLM's ability to produce valid JSON operations.
+ * <p>Before establishing a production baseline, you need to decide which LLM model
+ * and temperature setting to use. These experiments help you compare options using
+ * a simple instruction - just enough to see which configuration works best.
  *
- * <h2>What This Demonstrates</h2>
- * <ul>
- *   <li>{@code @ExploreExperiment} annotation for configuration comparison</li>
- *   <li>{@code @Factor} annotation for marking parameters as factors</li>
- *   <li>{@code @FactorSource} for defining factor combinations</li>
- *   <li>Fixed temperature (0.1) for controlled comparison</li>
- * </ul>
+ * <h2>Why Use a Simple Instruction?</h2>
+ * <p>During exploration, you want to isolate the effect of model/temperature changes.
+ * Using a simple instruction like "Add 2 apples" keeps the focus on configuration
+ * comparison rather than instruction complexity. Once you've chosen a configuration,
+ * you can measure its behavior across varied instructions.
  *
- * <h2>Output</h2>
- * <p>Generates exploration files in:
- * {@code src/test/resources/punit/explorations/ShoppingBasketUseCase/}
+ * <h2>Typical Workflow</h2>
+ * <ol>
+ *   <li><b>Explore</b> - Run these experiments to compare models and temperatures</li>
+ *   <li><b>Choose</b> - Select the best configuration based on results</li>
+ *   <li><b>Measure</b> - Run {@link ShoppingBasketMeasure} to establish baseline</li>
+ *   <li><b>Test</b> - Use the baseline in probabilistic regression tests</li>
+ * </ol>
  *
  * <h2>Running</h2>
  * <pre>{@code
- * ./gradlew test --tests "ShoppingBasketExplore"
+ * ./gradlew exp -Prun=ShoppingBasketExplore
+ * ./gradlew exp -Prun=ShoppingBasketExplore.compareModels
  * }</pre>
- *
- * <h2>Experiment Types: Conceptual Distinction</h2>
- * <p>EXPLORE experiments are <b>research artifacts</b>:
- * <ul>
- *   <li>Used to discover effective configurations</li>
- *   <li>Run during development/experimentation phase</li>
- *   <li>Help answer "what settings work best?"</li>
- * </ul>
- *
- * <p>Typical workflow:
- * <ol>
- *   <li>Phase 1: Quick exploration (samplesPerConfig=1)</li>
- *   <li>Phase 2: Moderate depth (samplesPerConfig=10)</li>
- *   <li>Winner selection → MEASURE experiment</li>
- * </ol>
  *
  * @see ShoppingBasketUseCase
  * @see ShoppingBasketMeasure
  */
-@Disabled("Example experiment - run manually with ./gradlew test --tests ShoppingBasketExplore")
+@Disabled("Example experiment - run with ./gradlew exp -Prun=ShoppingBasketExplore")
 public class ShoppingBasketExplore {
 
+    // Simple instruction used for all exploration - keeps focus on configuration comparison
+    private static final String SIMPLE_INSTRUCTION = "Add 2 apples";
+
     /**
-     * Compares different instruction phrasings at fixed low temperature.
+     * Compares different LLM models with a fixed simple instruction.
      *
-     * <p>Using temperature 0.1 ensures high determinism, making differences
-     * in instruction phrasing the primary variable being tested.
+     * <p>This experiment answers: "Which model handles this task most reliably?"
+     * By keeping the instruction simple and temperature fixed (0.3), the only
+     * variable is the model itself.
      *
-     * @param useCase the use case instance (temperature is set to 0.1)
-     * @param instruction the instruction to test
+     * <p>In a real application, you would replace the mock model names with actual
+     * model identifiers like "gpt-4o", "claude-3-5-sonnet", etc.
+     *
+     * @param useCase the use case instance
+     * @param model the model identifier to test
      * @param captor records outcomes for comparison
      */
     @TestTemplate
     @ExploreExperiment(
             useCase = ShoppingBasketUseCase.class,
-            samplesPerConfig = 10,
-            experimentId = "instruction-comparison-v1"
+            samplesPerConfig = 20,
+            experimentId = "model-comparison-v1"
     )
-    @FactorSource(value = "exploreInstructions", factors = {"instruction"})
-    void compareInstructions(
+    @FactorSource(value = "modelConfigurations", factors = {"model"})
+    void compareModels(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction,
+            @Factor("model") String model,
             ResultCaptor captor
     ) {
-        // Use low temperature for controlled comparison
-        useCase.setTemperature(0.1);
-        captor.record(useCase.translateInstruction(instruction));
+        useCase.setModel(model);
+        useCase.setTemperature(0.3);  // Fixed temperature for fair comparison
+        captor.record(useCase.translateInstruction(SIMPLE_INSTRUCTION));
     }
 
     /**
-     * Compares different temperature settings for the same instructions.
+     * Compares models across different temperature settings.
      *
-     * <p>This explores how temperature affects reliability across different
-     * instruction styles.
+     * <p>This two-factor exploration reveals how each model responds to temperature
+     * changes. Some models may be more stable across temperatures than others.
+     * The instruction remains simple to isolate the model×temperature interaction.
+     *
+     * <p>Use this to answer questions like:
+     * <ul>
+     *   <li>Does model X work better at low or high temperature?</li>
+     *   <li>Which model is most stable across temperature changes?</li>
+     *   <li>Is there a clear winner for our use case?</li>
+     * </ul>
      *
      * @param useCase the use case instance
-     * @param instruction the instruction
+     * @param model the model identifier
      * @param temperature the temperature setting
      * @param captor records outcomes
      */
     @TestTemplate
     @ExploreExperiment(
             useCase = ShoppingBasketUseCase.class,
-            samplesPerConfig = 10,
-            experimentId = "temperature-comparison-v1"
+            samplesPerConfig = 20,
+            experimentId = "model-temperature-matrix-v1"
     )
-    @FactorSource(value = "temperatureConfigurations", factors = {"instruction", "temperature"})
-    void compareTemperatures(
+    @FactorSource(value = "modelTemperatureMatrix", factors = {"model", "temperature"})
+    void compareModelsAcrossTemperatures(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction,
+            @Factor("model") String model,
             @Factor("temperature") Double temperature,
             ResultCaptor captor
     ) {
+        useCase.setModel(model);
         useCase.setTemperature(temperature);
-        captor.record(useCase.translateInstruction(instruction));
+        captor.record(useCase.translateInstruction(SIMPLE_INSTRUCTION));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FACTOR PROVIDERS - Configuration options to explore
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Models to compare.
+     *
+     * <p>In a real application, replace these with actual model identifiers.
+     */
+    public static Stream<FactorArguments> modelConfigurations() {
+        return FactorArguments.configurations()
+                .names("model")
+                .values("gpt-4o-mini")
+                .values("gpt-4o")
+                .values("claude-3-5-haiku")
+                .values("claude-3-5-sonnet")
+                .stream();
     }
 
     /**
-     * Factor source providing temperature configurations to test.
+     * Model × temperature combinations to explore.
      *
-     * @return configurations with instruction + temperature combinations
+     * <p>Creates a matrix to understand how each model behaves at different
+     * temperature settings.
      */
-    public static Stream<FactorArguments> temperatureConfigurations() {
+    public static Stream<FactorArguments> modelTemperatureMatrix() {
         return FactorArguments.configurations()
-                .names("instruction", "temperature")
-                // Low temperature (deterministic)
-                .values("Add 2 apples", 0.0)
-                .values("Add 3 oranges and 2 bananas", 0.0)
-                // Medium temperature (balanced)
-                .values("Add 2 apples", 0.3)
-                .values("Add 3 oranges and 2 bananas", 0.3)
-                // Higher temperature (more creative)
-                .values("Add 2 apples", 0.7)
-                .values("Add 3 oranges and 2 bananas", 0.7)
+                .names("model", "temperature")
+                // GPT-4o-mini across temperatures
+                .values("gpt-4o-mini", 0.0)
+                .values("gpt-4o-mini", 0.5)
+                .values("gpt-4o-mini", 1.0)
+                // GPT-4o across temperatures
+                .values("gpt-4o", 0.0)
+                .values("gpt-4o", 0.5)
+                .values("gpt-4o", 1.0)
+                // Claude Haiku across temperatures
+                .values("claude-3-5-haiku", 0.0)
+                .values("claude-3-5-haiku", 0.5)
+                .values("claude-3-5-haiku", 1.0)
+                // Claude Sonnet across temperatures
+                .values("claude-3-5-sonnet", 0.0)
+                .values("claude-3-5-sonnet", 0.5)
+                .values("claude-3-5-sonnet", 1.0)
                 .stream();
     }
 }

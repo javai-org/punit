@@ -57,11 +57,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * }</pre>
  *
  * <p>The initial value is obtained from the use case via a method annotated
- * with {@link TreatmentValueSource}:
+ * with {@link FactorGetter}:
  * <pre>{@code
  * @UseCase
  * public class ShoppingUseCase {
- *     @TreatmentValueSource("systemPrompt")
+ *     @FactorGetter
  *     public String getSystemPrompt() { return this.systemPrompt; }
  * }
  * }</pre>
@@ -74,7 +74,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * @see MeasureExperiment
  * @see ExploreExperiment
  * @see TreatmentValue
- * @see TreatmentValueSource
+ * @see FactorGetter
  * @see Scorer
  * @see FactorMutator
  */

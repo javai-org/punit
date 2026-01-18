@@ -52,7 +52,7 @@ import org.junit.jupiter.api.TestTemplate;
  * public String getModel() { return model; }
  *
  * @CovariateSource("temperature")
- * public String getTemperatureAsString() { return String.valueOf(temperature); }
+ * public double getTemperature() { return temperature; }
  * }</pre>
  *
  * <h2>Running</h2>

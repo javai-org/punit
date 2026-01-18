@@ -82,6 +82,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.6")
     testImplementation("org.apache.logging.log4j:log4j-core:2.23.1")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     
     // Experiment dependencies - experiments use JUnit's TestTemplate mechanism

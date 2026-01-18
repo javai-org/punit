@@ -312,13 +312,13 @@ public class UseCaseProvider implements ParameterResolver {
         for (Method method : useCaseClass.getMethods()) {
             FactorSetter annotation = method.getAnnotation(FactorSetter.class);
             if (annotation != null) {
-                String factorName = annotation.value();
+                String factorName = FactorAnnotations.resolveSetterFactorName(method, annotation);
                 if (!factors.has(factorName)) {
                     throw new IllegalStateException(
-                        "Use case " + useCaseClass.getSimpleName() + " has @FactorSetter(\"" + 
-                        factorName + "\") but no such factor exists. Available: " + factors.names());
+                        "Use case " + useCaseClass.getSimpleName() + " has @FactorSetter for \"" +
+                        factorName + "\" but no such factor exists. Available: " + factors.names());
                 }
-                
+
                 Object value = factors.get(factorName);
                 try {
                     // Convert value to parameter type if needed
@@ -327,7 +327,7 @@ public class UseCaseProvider implements ParameterResolver {
                     method.invoke(instance, convertedValue);
                 } catch (Exception e) {
                     throw new IllegalStateException(
-                        "Failed to inject @FactorSetter(\"" + factorName + "\") into " + 
+                        "Failed to inject @FactorSetter for \"" + factorName + "\" into " +
                         useCaseClass.getSimpleName() + "." + method.getName() + "(): " + e.getMessage(), e);
                 }
             }

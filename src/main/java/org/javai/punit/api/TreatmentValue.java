@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * {@link OptimizeExperiment}.
  *
  * <p>The value is resolved from the use case instance via a method annotated
- * with {@link TreatmentValueSource}, then injected into this parameter.
+ * with {@link FactorGetter}, then injected into this parameter.
  *
  * <h2>Example</h2>
  * <pre>{@code
@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
  * ) { ... }
  * }</pre>
  *
- * @see TreatmentValueSource
+ * @see FactorGetter
  * @see OptimizeExperiment
  */
 @Target(ElementType.PARAMETER)
