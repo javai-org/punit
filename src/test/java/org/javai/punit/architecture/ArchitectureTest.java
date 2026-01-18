@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Additional rules enforce:
  * <ul>
- *   <li>Core packages must not depend on LLM extension (llmx)</li>
  *   <li>Statistics module isolation for independent scrutiny</li>
  *   <li>Dependencies flow in expected directions</li>
  * </ul>
@@ -142,55 +141,6 @@ class ArchitectureTest {
     }
 
     @Nested
-    @DisplayName("LLM Extension Isolation")
-    class LlmExtensionIsolation {
-
-        @Test
-        @DisplayName("Core API must not depend on LLM extension (llmx)")
-        void coreApiMustNotDependOnLlmx() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("org.javai.punit.api..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("org.javai.punit.llmx..");
-
-            rule.check(classes);
-        }
-
-        @Test
-        @DisplayName("Core engine must not depend on LLM extension (llmx)")
-        void coreEngineMustNotDependOnLlmx() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("org.javai.punit.ptest.engine..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("org.javai.punit.llmx..");
-
-            rule.check(classes);
-        }
-
-        @Test
-        @DisplayName("Experiment module must not depend on LLM extension (llmx)")
-        void experimentMustNotDependOnLlmx() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("org.javai.punit.experiment..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("org.javai.punit.llmx..");
-
-            rule.check(classes);
-        }
-
-        @Test
-        @DisplayName("Specification module must not depend on LLM extension (llmx)")
-        void specMustNotDependOnLlmx() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("org.javai.punit.spec..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("org.javai.punit.llmx..");
-
-            rule.check(classes);
-        }
-    }
-
-    @Nested
     @DisplayName("Statistics Module Isolation")
     class StatisticsModuleIsolation {
 
@@ -218,8 +168,7 @@ class ArchitectureTest {
                             "org.javai.punit.ptest.engine..",
                             "org.javai.punit.experiment..",
                             "org.javai.punit.spec..",
-                            "org.javai.punit.model..",
-                            "org.javai.punit.llmx.."
+                            "org.javai.punit.model.."
                     );
 
             rule.check(classes);

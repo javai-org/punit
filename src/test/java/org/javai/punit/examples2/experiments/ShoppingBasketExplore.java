@@ -1,7 +1,9 @@
 package org.javai.punit.examples2.experiments;
 
+import java.util.stream.Stream;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
+import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.examples2.usecases.ShoppingBasketUseCase;
@@ -112,8 +114,8 @@ public class ShoppingBasketExplore {
      *
      * @return configurations with instruction + temperature combinations
      */
-    public static java.util.stream.Stream<org.javai.punit.api.FactorArguments> temperatureConfigurations() {
-        return org.javai.punit.api.FactorArguments.configurations()
+    public static Stream<FactorArguments> temperatureConfigurations() {
+        return FactorArguments.configurations()
                 .names("instruction", "temperature")
                 // Low temperature (deterministic)
                 .values("Add 2 apples", 0.0)

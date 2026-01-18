@@ -6,8 +6,7 @@ import org.javai.punit.experiment.model.IterationFeedback;
 /**
  * SPI for level refinement strategies in adaptive experiments.
  *
- * <p>Implementations are typically backend-specific. For example, the llmx
- * extension provides LLM-based prompt refinement strategies.
+ * <p>Implementations are typically backend-specific.
  *
  * @param <T> the type of the level being refined
  */
