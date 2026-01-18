@@ -224,8 +224,9 @@ public final class OptimizeState {
             return false;
         }
 
-        // Record in history
-        OptimizationRecord record = OptimizationRecord.success(aggregate, score);
+        // Record in history (applying minimum acceptance threshold)
+        double threshold = scorer.minimumAcceptanceThreshold();
+        OptimizationRecord record = OptimizationRecord.successOrBelowThreshold(aggregate, score, threshold);
         historyBuilder.addIteration(record);
 
         // Check termination

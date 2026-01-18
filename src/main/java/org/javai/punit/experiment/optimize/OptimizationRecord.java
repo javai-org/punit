@@ -86,4 +86,37 @@ public record OptimizationRecord(
     public static OptimizationRecord scoringFailed(OptimizationIterationAggregate aggregate, String reason) {
         return new OptimizationRecord(aggregate, 0.0, OptimizeStatus.SCORING_FAILED, Optional.of(reason));
     }
+
+    /**
+     * Creates an iteration record for a score below the acceptance threshold.
+     *
+     * <p>The iteration executed and scored correctly, but the score is below
+     * the minimum acceptable level defined by the scorer.
+     *
+     * @param aggregate the iteration aggregate
+     * @param score the computed score (below threshold)
+     * @param threshold the minimum acceptance threshold
+     * @return a new below-threshold OptimizationRecord
+     */
+    public static OptimizationRecord belowThreshold(
+            OptimizationIterationAggregate aggregate, double score, double threshold) {
+        String reason = String.format("Score %.2f is below minimum threshold %.2f", score, threshold);
+        return new OptimizationRecord(aggregate, score, OptimizeStatus.BELOW_THRESHOLD, Optional.of(reason));
+    }
+
+    /**
+     * Creates the appropriate record based on score and threshold.
+     *
+     * @param aggregate the iteration aggregate
+     * @param score the computed score
+     * @param threshold the minimum acceptance threshold
+     * @return SUCCESS if score >= threshold, BELOW_THRESHOLD otherwise
+     */
+    public static OptimizationRecord successOrBelowThreshold(
+            OptimizationIterationAggregate aggregate, double score, double threshold) {
+        if (score >= threshold) {
+            return success(aggregate, score);
+        }
+        return belowThreshold(aggregate, score, threshold);
+    }
 }

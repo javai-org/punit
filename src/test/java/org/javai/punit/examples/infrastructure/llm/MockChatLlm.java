@@ -106,21 +106,12 @@ public final class MockChatLlm implements ChatLlm {
 
     @Override
     public ChatResponse chatWithMetadata(String systemMessage, String userMessage, double temperature) {
-        // Calculate base failure rate from temperature
-        // temp 0.0 -> 1% failure, temp 0.5 -> 10% failure, temp 1.0 -> 30% failure
-        double baseFailureRate = 0.01 + (temperature * 0.29);
+        // Analyze what the prompt specifies - this determines response quality
+        PromptRequirements requirements = analyzePromptRequirements(systemMessage);
 
-        // System prompt quality reduces failure rate
-        double promptBonus = analyzeSystemPrompt(systemMessage);
-        double effectiveFailureRate = baseFailureRate * (1.0 - promptBonus);
-
-        // Generate response
-        String response;
-        if (random.nextDouble() < effectiveFailureRate) {
-            response = generateFailedResponse(userMessage);
-        } else {
-            response = generateValidResponse(userMessage);
-        }
+        // Generate response based on what the prompt asks for
+        // If the prompt is vague, the response will have issues that fail validation
+        String response = generateResponse(userMessage, requirements, temperature);
 
         // Calculate token usage
         int promptTokens = estimateTokens(systemMessage) + estimateTokens(userMessage);
@@ -161,172 +152,132 @@ public final class MockChatLlm implements ChatLlm {
     }
 
     /**
-     * Analyzes the system prompt for quality indicators.
+     * Analyzes what the system prompt explicitly requires.
      *
-     * <p>A well-crafted system prompt reduces failure rates by up to 70%.
-     *
-     * @param systemPrompt the system prompt to analyze
-     * @return a bonus factor between 0.0 and 0.7
+     * <p>Returns a structured record of what the prompt specifies,
+     * which determines what kind of response the mock LLM produces.
      */
-    private double analyzeSystemPrompt(String systemPrompt) {
+    private PromptRequirements analyzePromptRequirements(String systemPrompt) {
         if (systemPrompt == null || systemPrompt.isBlank()) {
-            return 0.0;
+            return new PromptRequirements(false, false, false, false, false);
         }
 
-        double bonus = 0.0;
         String lower = systemPrompt.toLowerCase();
 
-        // JSON format instructions
-        if (lower.contains("valid json") || lower.contains("json format")) {
-            bonus += 0.15;
-        }
-        if (lower.contains("operations") && lower.contains("array")) {
-            bonus += 0.15;
-        }
+        // Does the prompt require JSON-only output?
+        boolean requiresJsonOnly = lower.contains("only") && lower.contains("json") ||
+                                   lower.contains("no explanation") || lower.contains("no markdown");
 
-        // Field name instructions
-        if (lower.contains("action") && lower.contains("item") && lower.contains("quantity")) {
-            bonus += 0.15;
-        }
+        // Does the prompt specify the "operations" array structure?
+        boolean specifiesSchema = lower.contains("operations") &&
+                                  (lower.contains("{") || lower.contains("structure") || lower.contains("format"));
 
-        // Type instructions
-        if (lower.contains("integer") || lower.contains("positive number")) {
-            bonus += 0.10;
-        }
+        // Does the prompt name the required fields?
+        boolean specifiesFields = lower.contains("action") &&
+                                  lower.contains("item") &&
+                                  lower.contains("quantity");
 
-        // Valid action values
-        if (lower.contains("add") && lower.contains("remove") && lower.contains("clear")) {
-            bonus += 0.10;
-        }
+        // Does the prompt enumerate valid actions?
+        boolean specifiesActions = (lower.contains("\"add\"") && lower.contains("\"remove\"")) ||
+                                   (lower.contains("add") && lower.contains("remove") && lower.contains("clear") &&
+                                    (lower.contains("must be") || lower.contains("one of")));
 
-        // Example included
-        if (lower.contains("example") || lower.contains("{\"operations\"")) {
-            bonus += 0.05;
-        }
+        // Does the prompt specify quantity constraints?
+        boolean specifiesConstraints = lower.contains("positive") ||
+                                       lower.contains("integer") ||
+                                       lower.contains("≥") ||
+                                       lower.contains(">= 1");
 
-        return Math.min(bonus, 0.70);
+        return new PromptRequirements(
+                requiresJsonOnly, specifiesSchema, specifiesFields, specifiesActions, specifiesConstraints);
     }
 
     /**
-     * Generates a valid JSON response for the user message.
+     * Generates a response based on what the prompt specifies.
+     *
+     * <p>If the prompt is vague, the response will have issues that fail validation.
+     * If the prompt is comprehensive, the response will be correct.
      */
-    private String generateValidResponse(String userMessage) {
-        // Parse the user message to extract operations
-        StringBuilder json = new StringBuilder();
-        json.append("{\"operations\": [");
+    private String generateResponse(String userMessage, PromptRequirements req, double temperature) {
+        // Temperature adds randomness - higher temp means more likely to deviate even with good prompt
+        double deviationChance = temperature * 0.3;
 
-        String lower = userMessage.toLowerCase();
-        boolean first = true;
+        StringBuilder response = new StringBuilder();
 
-        // Look for "add X <item>" patterns
-        if (lower.contains("add")) {
-            if (!first) json.append(", ");
-            first = false;
-
-            int quantity = extractQuantity(userMessage, "add");
-            String item = extractItem(userMessage, "add");
-            json.append(String.format("{\"action\": \"add\", \"item\": \"%s\", \"quantity\": %d}",
-                    item, quantity));
+        // If prompt doesn't require JSON-only, might add prose
+        if (!req.requiresJsonOnly && random.nextDouble() < 0.7) {
+            response.append("I'd be happy to help! Here's the JSON:\n\n");
         }
 
-        // Look for "remove X <item>" patterns
-        if (lower.contains("remove")) {
-            if (!first) json.append(", ");
-            first = false;
+        // Determine the root field name
+        String rootField = req.specifiesSchema ? "operations" : randomRootField();
 
-            int quantity = extractQuantity(userMessage, "remove");
-            String item = extractItem(userMessage, "remove");
-            json.append(String.format("{\"action\": \"remove\", \"item\": \"%s\", \"quantity\": %d}",
-                    item, quantity));
+        // Determine field names
+        String actionField = req.specifiesFields ? "action" : randomFieldName("action");
+        String itemField = req.specifiesFields ? "item" : randomFieldName("item");
+        String quantityField = req.specifiesFields ? "quantity" : randomFieldName("quantity");
+
+        // Determine action value
+        String actionValue = req.specifiesActions ? "add" : randomAction();
+
+        // Determine quantity value
+        Object quantityValue = req.specifiesConstraints ? extractQuantity(userMessage, "add") : randomQuantity();
+
+        // Build the JSON
+        String item = extractItem(userMessage, "add");
+        if (item.equals("item")) item = "apples";  // Default for demo
+
+        response.append(String.format("{\"%s\": [{", rootField));
+        response.append(String.format("\"%s\": \"%s\", ", actionField, actionValue));
+        response.append(String.format("\"%s\": \"%s\", ", itemField, item));
+        response.append(String.format("\"%s\": %s", quantityField, quantityValue));
+        response.append("}]}");
+
+        // Small chance of malformed JSON at high temperature
+        if (random.nextDouble() < deviationChance) {
+            return corruptJson(response.toString());
         }
 
-        // Look for "clear" patterns
-        if (lower.contains("clear")) {
-            if (!first) json.append(", ");
-            String item = lower.contains("clear the") ? extractItemAfter(userMessage, "clear the") : "basket";
-            json.append(String.format("{\"action\": \"clear\", \"item\": \"%s\", \"quantity\": 1}", item));
-        }
-
-        // If no operations detected, create a sensible default
-        if (first) {
-            json.append("{\"action\": \"add\", \"item\": \"item\", \"quantity\": 1}");
-        }
-
-        json.append("]}");
-        return json.toString();
+        return response.toString();
     }
 
-    /**
-     * Generates a failed response with a random failure mode.
-     */
-    private String generateFailedResponse(String userMessage) {
-        FailureMode mode = selectFailureMode();
-        return switch (mode) {
-            case MALFORMED_JSON -> generateMalformedJson(userMessage);
-            case HALLUCINATED_FIELDS -> generateHallucinatedFields(userMessage);
-            case INVALID_VALUES -> generateInvalidValues(userMessage);
-            case MISSING_FIELDS -> generateMissingFields(userMessage);
+    private String randomRootField() {
+        String[] options = {"operations", "items", "commands", "actions", "tasks"};
+        return options[random.nextInt(options.length)];
+    }
+
+    private String randomFieldName(String correct) {
+        if (random.nextDouble() < 0.5) return correct;
+        return switch (correct) {
+            case "action" -> new String[]{"type", "command", "op", "verb"}[random.nextInt(4)];
+            case "item" -> new String[]{"product", "name", "object", "thing"}[random.nextInt(4)];
+            case "quantity" -> new String[]{"count", "amount", "num", "qty"}[random.nextInt(4)];
+            default -> correct;
         };
     }
 
-    private FailureMode selectFailureMode() {
-        double roll = random.nextDouble();
-        if (roll < 0.35) return FailureMode.MALFORMED_JSON;
-        if (roll < 0.60) return FailureMode.HALLUCINATED_FIELDS;
-        if (roll < 0.85) return FailureMode.INVALID_VALUES;
-        return FailureMode.MISSING_FIELDS;
+    private String randomAction() {
+        String[] options = {"add", "remove", "purchase", "buy", "insert", "delete"};
+        return options[random.nextInt(options.length)];
     }
 
-    private String generateMalformedJson(String userMessage) {
-        int variant = random.nextInt(5);
-        return switch (variant) {
-            case 0 -> "{\"operations\": [";  // Unclosed
-            case 1 -> "{ operations: [] }";  // Missing quotes on key
-            case 2 -> "{\"operations\": [,]}";  // Trailing comma
-            case 3 -> "{\"operations\": [{\"action\": \"add\"}";  // Partial
-            default -> "I'd be happy to help with your shopping basket!";  // Not JSON
+    private Object randomQuantity() {
+        int choice = random.nextInt(5);
+        return switch (choice) {
+            case 0 -> -1;           // Negative
+            case 1 -> 0;            // Zero
+            case 2 -> "two";        // String instead of int
+            case 3 -> 2;            // Valid
+            default -> 1;           // Valid
         };
     }
 
-    private String generateHallucinatedFields(String userMessage) {
-        // Valid JSON structure but wrong field names
-        String[] operationVariants = {"items", "commands", "actions", "tasks", "requests"};
-        String[] actionVariants = {"type", "command", "op", "verb", "operation_type"};
-        String[] itemVariants = {"product", "name", "object", "thing", "target"};
-        String[] quantityVariants = {"count", "amount", "num", "number", "qty"};
-
-        String opField = operationVariants[random.nextInt(operationVariants.length)];
-        String actionField = actionVariants[random.nextInt(actionVariants.length)];
-        String itemField = itemVariants[random.nextInt(itemVariants.length)];
-        String qtyField = quantityVariants[random.nextInt(quantityVariants.length)];
-
-        return String.format("{\"%s\": [{\"%s\": \"add\", \"%s\": \"apples\", \"%s\": 2}]}",
-                opField, actionField, itemField, qtyField);
-    }
-
-    private String generateInvalidValues(String userMessage) {
-        int variant = random.nextInt(4);
-        return switch (variant) {
-            case 0 -> // String instead of int for quantity
-                    "{\"operations\": [{\"action\": \"add\", \"item\": \"apples\", \"quantity\": \"two\"}]}";
-            case 1 -> // Negative quantity
-                    "{\"operations\": [{\"action\": \"add\", \"item\": \"apples\", \"quantity\": -5}]}";
-            case 2 -> // Invalid action
-                    "{\"operations\": [{\"action\": \"purchase\", \"item\": \"apples\", \"quantity\": 2}]}";
-            default -> // Null values
-                    "{\"operations\": [{\"action\": null, \"item\": \"apples\", \"quantity\": 2}]}";
-        };
-    }
-
-    private String generateMissingFields(String userMessage) {
-        int variant = random.nextInt(3);
-        return switch (variant) {
-            case 0 -> // Missing action
-                    "{\"operations\": [{\"item\": \"apples\", \"quantity\": 2}]}";
-            case 1 -> // Missing item
-                    "{\"operations\": [{\"action\": \"add\", \"quantity\": 2}]}";
-            default -> // Missing quantity
-                    "{\"operations\": [{\"action\": \"add\", \"item\": \"apples\"}]}";
+    private String corruptJson(String json) {
+        int corruption = random.nextInt(3);
+        return switch (corruption) {
+            case 0 -> json.substring(0, json.length() - 2);  // Truncate
+            case 1 -> json.replace(":", " ");                // Remove colons
+            default -> json.replace("\"", "'");              // Wrong quotes
         };
     }
 
@@ -394,12 +345,22 @@ public final class MockChatLlm implements ChatLlm {
     }
 
     /**
-     * Failure modes for the mock LLM.
+     * Structured requirements extracted from the system prompt.
+     *
+     * <p>Each field indicates whether the prompt explicitly specifies
+     * a particular aspect of the expected response format.
+     *
+     * @param requiresJsonOnly    prompt requires JSON without prose/explanation
+     * @param specifiesSchema     prompt specifies the "operations" array structure
+     * @param specifiesFields     prompt names the required fields (action, item, quantity)
+     * @param specifiesActions    prompt enumerates valid actions (add, remove, clear)
+     * @param specifiesConstraints prompt specifies quantity constraints (positive integer)
      */
-    public enum FailureMode {
-        MALFORMED_JSON,
-        HALLUCINATED_FIELDS,
-        INVALID_VALUES,
-        MISSING_FIELDS
-    }
+    private record PromptRequirements(
+            boolean requiresJsonOnly,
+            boolean specifiesSchema,
+            boolean specifiesFields,
+            boolean specifiesActions,
+            boolean specifiesConstraints
+    ) {}
 }

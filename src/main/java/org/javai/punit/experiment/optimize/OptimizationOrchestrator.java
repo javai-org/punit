@@ -155,8 +155,9 @@ public final class OptimizationOrchestrator<F> {
                         .build();
             }
 
-            // 5. Record in history
-            OptimizationRecord record = OptimizationRecord.success(aggregate, score);
+            // 5. Record in history (applying minimum acceptance threshold)
+            double threshold = config.scorer().minimumAcceptanceThreshold();
+            OptimizationRecord record = OptimizationRecord.successOrBelowThreshold(aggregate, score, threshold);
             historyBuilder.addIteration(record);
             progressCallback.accept(record);
 

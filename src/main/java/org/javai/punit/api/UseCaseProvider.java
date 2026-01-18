@@ -273,7 +273,7 @@ public class UseCaseProvider implements ParameterResolver {
         Supplier<?> autoWiredFactory = autoWiredFactories.get(useCaseClass);
         if (autoWiredFactory != null && currentFactorValues != null) {
             instance = (T) autoWiredFactory.get();
-            injectFactorValues(instance, useCaseClass, currentFactorValues);
+            injectFactorValues(instance, useCaseClass, currentFactorValues, true);  // strict mode
             lastCreatedInstances.put(useCaseClass, instance);
             return instance;
         }
@@ -287,10 +287,10 @@ public class UseCaseProvider implements ParameterResolver {
                     "Register one in @BeforeEach: provider.register(" + useCaseClass.getSimpleName() +
                     ".class, () -> new " + useCaseClass.getSimpleName() + "(...))");
         }
-        
+
         if (factory == null) {
             throw new IllegalStateException(
-                    "Factor-aware factory registered for " + useCaseClass.getName() + 
+                    "Factor-aware factory registered for " + useCaseClass.getName() +
                     " but no factor values set. " +
                     "Either use EXPLORE mode or register a regular factory.");
         }
@@ -300,23 +300,39 @@ public class UseCaseProvider implements ParameterResolver {
         } else {
             instance = (T) factory.get();
         }
-        
+
+        // Inject factors if available (e.g., from OPTIMIZE mode)
+        // Use lenient mode: skip setters for factors that aren't provided
+        if (currentFactorValues != null) {
+            injectFactorValues(instance, useCaseClass, currentFactorValues, false);
+        }
+
         lastCreatedInstances.put(useCaseClass, instance);
         return instance;
     }
     
     /**
      * Injects factor values into methods annotated with @FactorSetter.
+     *
+     * @param instance the use case instance
+     * @param useCaseClass the use case class
+     * @param factors the factor values to inject
+     * @param strict if true, throws when a setter references a missing factor;
+     *               if false, skips setters for missing factors
      */
-    private void injectFactorValues(Object instance, Class<?> useCaseClass, FactorValues factors) {
+    private void injectFactorValues(Object instance, Class<?> useCaseClass, FactorValues factors, boolean strict) {
         for (Method method : useCaseClass.getMethods()) {
             FactorSetter annotation = method.getAnnotation(FactorSetter.class);
             if (annotation != null) {
                 String factorName = FactorAnnotations.resolveSetterFactorName(method, annotation);
+
                 if (!factors.has(factorName)) {
-                    throw new IllegalStateException(
-                        "Use case " + useCaseClass.getSimpleName() + " has @FactorSetter for \"" +
-                        factorName + "\" but no such factor exists. Available: " + factors.names());
+                    if (strict) {
+                        throw new IllegalStateException(
+                            "Use case " + useCaseClass.getSimpleName() + " has @FactorSetter for \"" +
+                            factorName + "\" but no such factor exists. Available: " + factors.names());
+                    }
+                    continue;  // Skip in lenient mode
                 }
 
                 Object value = factors.get(factorName);

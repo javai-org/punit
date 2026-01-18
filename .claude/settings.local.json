@@ -34,7 +34,8 @@
       "Bash(fi)",
       "Bash(done)",
       "Bash(git -C /Users/mikemannion/workspace/punit log --oneline --all --grep=\"hook\")",
-      "Bash(git -C /Users/mikemannion/workspace/punit config:*)"
+      "Bash(git -C /Users/mikemannion/workspace/punit config:*)",
+      "Bash(cat:*)"
     ]
   }
 }

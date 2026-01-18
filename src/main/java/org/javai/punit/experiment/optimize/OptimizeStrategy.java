@@ -16,7 +16,9 @@ import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.model.FactorSuit;
+import org.javai.punit.model.UseCaseCriteria;
 import org.javai.punit.model.UseCaseOutcome;
+import org.javai.punit.model.UseCaseResult;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -164,10 +166,10 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
 
             // Record the outcome
             if (captor != null && captor.hasResult()) {
-                Object result = captor.getResult();
-                if (result instanceof UseCaseOutcome outcome) {
-                    state.recordOutcome(outcome);
-                }
+                UseCaseResult result = captor.getResult();
+                UseCaseCriteria criteria = captor.getCriteria();
+                UseCaseOutcome outcome = new UseCaseOutcome(result, criteria);
+                state.recordOutcome(outcome);
             }
         } catch (Throwable e) {
             // Record as failed outcome

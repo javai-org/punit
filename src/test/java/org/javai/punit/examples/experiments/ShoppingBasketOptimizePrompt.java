@@ -2,6 +2,7 @@ package org.javai.punit.examples.experiments;
 
 import org.javai.punit.api.ControlFactor;
 import org.javai.punit.api.OptimizeExperiment;
+import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
@@ -120,17 +121,19 @@ public class ShoppingBasketOptimizePrompt {
             scorer = SuccessRateScorer.class,
             mutator = ShoppingBasketPromptMutator.class,
             objective = OptimizationObjective.MAXIMIZE,
-            samplesPerIteration = 20,
+            samplesPerIteration = 5,
             maxIterations = 10,
             noImprovementWindow = 3,
             experimentId = "prompt-optimization-v1"
     )
+    @Pacing(maxRequestsPerSecond = 5)
     void optimizeSystemPrompt(
             ShoppingBasketUseCase useCase,
             @ControlFactor("systemPrompt") String systemPrompt,
             ResultCaptor captor
     ) {
-        // The systemPrompt is automatically injected and set via @FactorSetter
+        // The systemPrompt is automatically injected and set via @FactorSetter, but just to prove it is:
+        assert systemPrompt.equals(useCase.getSystemPrompt()) : "System prompt automatically set by PUnit";
         captor.record(useCase.translateInstruction("Add 2 apples and remove the bread"));
     }
 }
