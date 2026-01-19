@@ -715,7 +715,7 @@ public class ShoppingBasketTest {
 
 ### Regression Testing with Specs
 
-Once you understand the parameter triangle, you can let **specs** provide the **threshold** (equivalent to `minPassRate`). The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives the threshold from this baseline. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
+Once you understand the parameter triangle, you can let **specs** provide **`minPassRate`**. The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives `minPassRate` from this baseline. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
 
 **A spec is more than a number.** It's a complete record of:
 
@@ -739,8 +739,6 @@ covariates:
 extendedStatistics:
   confidenceInterval: { lower: 0.919, upper: 0.949 }
 ```
-
-**Intelligent baseline selection:** When a probabilistic test runs, PUnit examines the current execution context (covariates) and selects the most appropriate baseline. A test running on a weekend with `claude-3-5-sonnet` won't be compared against a baseline measured on a weekday with `gpt-4o`.
 
 **When to use regression testing:**
 
@@ -807,7 +805,7 @@ Covariates are environmental factors that may affect system behavior.
 
 **Why they matter:** An LLM's behavior may differ between weekdays and weekends (different load patterns), or between models. Testing against the wrong baseline produces misleading results.
 
-When covariates don't match, PUnit qualifies the verdict with a warning:
+**Intelligent baseline selection:** When a probabilistic test runs, PUnit examines the current execution context (covariates) and selects the most appropriate baseline. If one or more covariates don't match, PUnit qualifies the verdict with a warning:
 
 ```
 ═══════════════════════════════════════════════════════════════
@@ -874,10 +872,10 @@ PUnit PASSED: testInstructionTranslation
 
 The statistical verdict informs how to respond:
 
-| Verdict | What it means | Recommended response |
-|---------|---------------|---------------------|
+| Verdict    | What it means                             | Recommended response                  |
+|------------|-------------------------------------------|---------------------------------------|
 | **PASSED** | Observed rate is consistent with baseline | Low priority; likely no action needed |
-| **FAILED** | Observed rate is below expected threshold | Investigate; possible regression |
+| **FAILED** | Observed rate is below expected threshold | Investigate; possible regression      |
 
 - **PASSED**: The system is behaving as expected based on historical data. Operators should probably not invest significant time investigating.
 - **FAILED**: The system may have regressed. A deeper investigation is worth considering—check recent changes, environmental factors, or upstream dependencies.
@@ -890,15 +888,15 @@ The report provides the evidence; operators provide the judgment.
 
 ### Budget Control
 
-Traditional tests run once per execution. By contrast, experiments and probabilistic tests necessitate multiple executions. This has the potential to rack up costs in terms of time and resources. PUnit addresses this first-class concern by providing safeguards against excessive resource consumption.
+Traditional tests run once per execution. By contrast, experiments and probabilistic tests require multiple executions. This has the potential to rack up costs in terms of time and resources. PUnit addresses this first-class concern by providing safeguards against excessive resource consumption.
 
 Budgets can be specified at different levels:
 
-| Level | Scope | How to Set |
-|-------|-------|------------|
+| Level      | Scope              | How to Set                               |
+|------------|--------------------|------------------------------------------|
 | **Method** | Single test method | `@ProbabilisticTest(timeBudgetMs = ...)` |
-| **Class** | All tests in class | `@CostBudget` on class |
-| **Suite** | All tests in run | *Planned for future release* |
+| **Class**  | All tests in class | `@CostBudget` on class                   |
+| **Suite**  | All tests in run   | *Planned for future release*             |
 
 When budgets are set at multiple levels, PUnit enforces all of them—the first exhausted budget triggers termination.
 
@@ -928,7 +926,8 @@ void tokenConstrainedTest(TokenChargeRecorder recorder) {
 }
 ```
 
-**Budget Exhaustion Behavior:**
+
+
 
 ```java
 @ProbabilisticTest(
