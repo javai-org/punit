@@ -14,12 +14,14 @@
 | **Factor**                         | One independently varied dimension in EXPLORE mode (e.g., `model`, `temperature`).          |
 | **FactorSource**                   | JUnit-style source of factor combinations (e.g., `@MethodSource`, `@CsvFactorSource`).      |
 | **Footprint**                      | A stable hash identifying the combination of use case identity, functional parameters, and covariate declarations. Two baselines with the same footprint are candidates for covariate-based selection. |
-| **BASELINE Mode**                  | Default experiment mode: precise estimation of one configuration with many samples.         |
+| **@MeasureExperiment**             | Annotation for MEASURE mode: precise estimation of one configuration with many samples to establish a baseline. |
+| **@ExploreExperiment**             | Annotation for EXPLORE mode: comparing multiple configurations with fewer samples each.     |
+| **@OptimizeExperiment**            | Annotation for OPTIMIZE mode: tuning a single factor to find the optimal value.             |
 | **Baseline Selection**             | The process of choosing the most appropriate baseline for a probabilistic test based on footprint match and covariate conformance. When multiple baselines exist, the one with the best covariate match is selected. |
-| **EXPLORE Mode**                   | Experiment mode for comparing multiple configurations with fewer samples each.              |
 | **Empirical Baseline**             | Machine-generated record of observed behavior.                                              |
 | **Execution Specification**        | Human-approved contract derived from baselines.                                             |
-| **Conformance Test**               | A probabilistic test that validates behavior against a specification.                       |
+| **Compliance Testing**             | Verifying a system meets a mandated threshold (SLA, SLO, policy).                           |
+| **Regression Testing**             | Detecting when performance drops below an empirically established baseline.                 |
 | **Covariate**                      | A contextual factor that drives variance in system behavior. Covariates are declared on a use case to indicate which environmental or configuration variables should be tracked for baseline matching and statistical comparison. Unlike functional inputs (Factors), covariates represent conditions that affect outcomes but are often outside direct control. |
 | **Covariate Category**             | Classification of a covariate by its nature: TEMPORAL (time-based), CONFIGURATION (deliberate choices), EXTERNAL_DEPENDENCY (third-party services), INFRASTRUCTURE (execution environment), DATA_STATE (data context), or INFORMATIONAL (traceability only). |
 | **Covariate Conformance**          | The degree to which a test's covariate values match those of the baseline. Full conformance means all covariates match; non-conformance indicates the test ran under different conditions than the baseline was established. |
@@ -39,12 +41,19 @@
 | **RegressionThreshold**            | Statistically-derived minimum pass rate for regression tests.                               |
 | **One-Sided Lower Bound**          | Statistical threshold below which true success rate is unlikely to fall.                    |
 | **Wilson Score Bound**             | Robust confidence bound for binomial proportions.                                           |
-| **Sample-Size-First Approach**     | User specifies samples; framework computes threshold.                                       |
-| **Confidence-First Approach**      | User specifies confidence; framework computes required samples.                             |
-| **Threshold-First Approach**       | User specifies threshold; framework computes implied confidence.                            |
+| **Parameter Triangle**             | The three interdependent parameters in probabilistic testing: samples, confidence, and minPassRate. You control two; statistics determines the third. |
+| **samples**                        | Number of test executions; controls cost and time. Part of the parameter triangle.          |
+| **confidence**                     | Probability of a correct verdict; equals 1 minus the false positive rate. Part of the parameter triangle. |
+| **minPassRate**                    | The threshold pass rate the system must meet to pass the test. Part of the parameter triangle. |
+| **thresholdConfidence**            | Confidence level used for deriving minPassRate from observed results in Sample-Size-First approach. |
+| **minDetectableEffect**            | Smallest drop from baseline worth detecting; required for Confidence-First approach to compute sample size. |
+| **power**                          | Probability of catching a real degradation; equals 1 minus the false negative rate.         |
+| **Sample-Size-First Approach**     | User specifies samples + confidence; framework computes achievable threshold.               |
+| **Confidence-First Approach**      | User specifies confidence + power + minDetectableEffect; framework computes required samples. |
+| **Threshold-First Approach**       | User specifies samples + threshold; framework computes implied confidence.                  |
 | **False Positive (Type I Error)**  | A test failure when the system has not degraded.                                            |
 | **False Negative (Type II Error)** | A test pass when the system has degraded.                                                   |
-| **Effect Size**                    | The minimum degradation the test is designed to detect.                                     |
-| **Statistical Power**              | The probability of correctly detecting a real degradation (1-β).                            |
+| **Effect Size**                    | The minimum degradation the test is designed to detect (same as minDetectableEffect).       |
+| **Statistical Power**              | The probability of correctly detecting a real degradation (1-β); same as power parameter.   |
 | **punit-statistics Module**        | Isolated module for all statistical calculations.                                           |
 
