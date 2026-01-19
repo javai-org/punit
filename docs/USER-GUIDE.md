@@ -117,6 +117,8 @@ This guide uses examples from `org.javai.punit.examples`. All examples are `@Dis
 
 **Running experiments:**
 
+First, comment out the @Disabled in the experiment class. Then...
+
 ```bash
 ./gradlew exp -Prun=ShoppingBasketMeasure
 ./gradlew exp -Prun=ShoppingBasketExplore.compareModels
@@ -124,6 +126,8 @@ This guide uses examples from `org.javai.punit.examples`. All examples are `@Dis
 ```
 
 **Running tests:**
+
+First, comment out the @Disabled in the test class. Then...
 
 ```bash
 ./gradlew test --tests "ShoppingBasketTest"
@@ -161,6 +165,8 @@ public class ShoppingBasketUseCase implements UseCaseContract {
 ```
 
 The criteria define what "success" means. Each invocation either satisfies all criteria (success) or fails one (failure). PUnit counts successes across many invocations to determine reliability.
+
+Note a key difference between an experiment and a test: An experiment *observes* how a use case's result compares to the contract, while a test *checks* that the results meets the contract (and signals a fail if it does not). 
 
 ### Domain Overview
 
@@ -532,8 +538,7 @@ src/test/resources/punit/optimizations/ShoppingBasketUseCase/
 - You need a statistically reliable baseline for regression testing
 - You're preparing to commit a spec to version control
 
-MEASURE runs many samples (1000+ recommended) to establish precise statistics.
-
+A MEASURE experiment typically runs many samples (1000+ recommended) to establish precise statistics.
 **Example:**
 
 ```java
@@ -563,6 +568,7 @@ Sample 2    → "Remove the milk"
 ...
 Sample 10   → "Clear the basket"
 Sample 11   → "Add 2 apples"  (cycles back)
+Sample 12   → "Remove the milk"
 ...
 Sample 1000 → (100th cycle completes)
 ```
@@ -570,6 +576,8 @@ Sample 1000 → (100th cycle completes)
 With 1000 samples and 10 instructions, each instruction is tested exactly 100 times.
 
 **Baseline Expiration:**
+
+Systerm usage and environmental changes mean that baseline data can become dated. Do guard against this, PUnit allows you to specify an expiration date for the generated baseline. 
 
 ```java
 @MeasureExperiment(
@@ -593,6 +601,11 @@ git commit -m "Add baseline for ShoppingBasket (93.5% @ N=1000)"
 ```
 
 *Source: `org.javai.punit.examples.experiments.ShoppingBasketMeasure`*
+
+An expired baseline can and will still be used by the probabilistic test, but the vertict will include a warning that the baseline may have drifted and the test's result should therefore be treated with caution.
+
+TODO: Add sample output showing warning of pending expiration.
+
 
 ---
 
