@@ -654,6 +654,8 @@ void sampleSizeFirst(ShoppingBasketUseCase useCase, @Factor("instruction") Strin
 - **You specify**: Confidence level + Power + Minimum detectable effect
 - **PUnit computes**: The required sample size (how many samples are needed to achieve this detection capability)
 
+The `minDetectableEffect` parameter is essential here. Without it, the question "how many samples do I need?" has no finite answer—detecting arbitrarily small degradations requires arbitrarily many samples. By specifying the smallest drop worth detecting, you bound the problem and get a concrete sample size.
+
 ```java
 @ProbabilisticTest(
     useCase = ShoppingBasketUseCase.class,
