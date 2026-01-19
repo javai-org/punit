@@ -61,7 +61,7 @@ For operational context and workflow guidance, see the companion document: [Oper
 
 PUnit accommodates two distinct testing scenarios. Both are equally valid; they differ only in where the threshold comes from.
 
-### Scenario A: An SLA-Driven Setup Involving a Payment Processing API 
+### Scenario A: Compliance Testing with a Payment Processing API 
 
 **Application**: A third-party payment processing API with a contractual uptime guarantee.
 
@@ -74,7 +74,7 @@ PUnit accommodates two distinct testing scenarios. Both are equally valid; they 
 - No baseline experiment required
 - Statistical question: "Does the system meet its contractual obligation?"
 
-### Scenario B: Spec-Driven Setup involving an LLM-Based Customer Service
+### Scenario B: Regression Testing with an LLM-Based Customer Service
 
 **Application**: A customer service system that uses a Large Language Model (LLM) to generate structured JSON responses from natural language queries.
 
@@ -92,16 +92,16 @@ PUnit accommodates two distinct testing scenarios. Both are equally valid; they 
 
 ---
 
-## Two Testing Paradigms
+## Two Testing Scenarios
 
-PUnit supports two distinct paradigms for probabilistic testing. They share the same statistical foundations but differ in where the threshold comes from and how results are interpreted.
+PUnit supports two distinct testing scenarios. They share the same statistical foundations but differ in where the threshold comes from and how results are interpreted.
 
-| Paradigm        | Threshold Source                   | Statistical Question                                  |
-|-----------------|------------------------------------|-------------------------------------------------------|
-| **SLA-Driven**  | Contract, SLA, SLO, policy         | "Does the system meet the contractual requirement?"   |
-| **Spec-Driven** | Empirical estimate from experiment | "Has the system degraded from its measured baseline?" |
+| Scenario               | Threshold Source                   | Statistical Question                                  |
+|------------------------|------------------------------------|-------------------------------------------------------|
+| **Compliance Testing** | Contract, SLA, SLO, policy         | "Does the system meet the mandated requirement?"      |
+| **Regression Testing** | Empirical estimate from experiment | "Has the system degraded from its measured baseline?" |
 
-### SLA-Driven Paradigm
+### Compliance Testing
 
 The threshold is a **normative claim**—a business or contractual requirement:
 
@@ -112,7 +112,7 @@ The threshold is a **normative claim**—a business or contractual requirement:
 
 **When to use**: Third-party APIs with SLAs, internal services with SLOs, compliance requirements, contractual obligations.
 
-### Spec-Driven Paradigm
+### Regression Testing
 
 The threshold is an **empirical estimate** derived from measurement:
 
@@ -345,7 +345,7 @@ Even if the true *p* equals the experimental rate, observed rates will vary. At 
 
 ### 3.2 One-Sided Hypothesis Testing Framework
 
-Both SLA-driven and spec-driven testing use a **one-sided hypothesis test**:
+Both compliance and regression testing use a **one-sided hypothesis test**:
 
 $$
 H_0: p \geq p_{\text{threshold}} \quad \text{(acceptable)}
@@ -359,8 +359,8 @@ The difference lies in how $p_{\text{threshold}}$ is determined and interpreted:
 
 | Paradigm        | Threshold                           | $H_0$ Interpretation         | $H_1$ Interpretation    |
 |-----------------|-------------------------------------|------------------------------|-------------------------|
-| **SLA-Driven**  | $p_{\text{SLA}}$ (given)            | System meets requirement     | System violates SLA     |
-| **Spec-Driven** | Derived from $\hat{p}_{\text{exp}}$ | No degradation from baseline | Regression has occurred |
+| **Compliance**  | $p_{\text{SLA}}$ (given)            | System meets requirement     | System violates SLA     |
+| **Regression** | Derived from $\hat{p}_{\text{exp}}$ | No degradation from baseline | Regression has occurred |
 
 We seek a decision rule that:
 - Controls the Type I error rate (false positive) at level $\alpha$
@@ -411,9 +411,9 @@ For experimental rate $\hat{p}_{\text{exp}} = 0.951$ from $n_{\text{exp}} = 1000
 
 **Observation**: Smaller test samples require lower bounds (and hence lower thresholds) to maintain the same false positive rate.
 
-### 3.6 Testing Against a Given Threshold (SLA-Driven)
+### 3.6 Testing Against a Given Threshold (Compliance)
 
-For SLA-driven testing, the threshold is **given**, not derived:
+For compliance testing, the threshold is **given**, not derived:
 
 $$
 p_{\text{threshold}} = p_{\text{SLA}}
@@ -429,7 +429,7 @@ There is no experimental baseline—the threshold comes directly from a contract
 
 #### Why This Changes the Statistics
 
-In spec-driven testing, we derive a *lowered* threshold from $\hat{p}_{\text{exp}}$ to account for sampling variance. In SLA-driven testing, the threshold is fixed—but this creates a different challenge:
+In regression testing, we derive a *lowered* threshold from $\hat{p}_{\text{exp}}$ to account for sampling variance. In compliance testing, the threshold is fixed—but this creates a different challenge:
 
 **The False Positive Problem**: If a test uses $p_{\text{threshold}} = p_{\text{SLA}} = 0.995$ and the true system rate is exactly 0.995, then approximately 50% of tests will fail purely due to sampling variance. This is not a bug—it's statistics.
 
@@ -708,7 +708,7 @@ Without this parameter, the question "how many samples to verify $p \geq 0.999$?
 
 **When `minDetectableEffect` is required**:
 
-In the **Confidence-First approach**, developers must specify `minDetectableEffect` for PUnit to compute the required sample size. This applies to both SLA-driven and spec-driven testing:
+In the **Confidence-First approach**, developers must specify `minDetectableEffect` for PUnit to compute the required sample size. This applies to both compliance and regression testing:
 
 ```java
 @ProbabilisticTest(
@@ -729,8 +729,8 @@ The three operational approaches apply to **both** paradigms. The key difference
 
 | Paradigm        | Threshold Source                | Symbol Used            |
 |-----------------|---------------------------------|------------------------|
-| **SLA-Driven**  | Given by contract/policy        | $p_{\text{SLA}}$       |
-| **Spec-Driven** | Derived from experimental basis | $\hat{p}_{\text{exp}}$ |
+| **Compliance**  | Given by contract/policy        | $p_{\text{SLA}}$       |
+| **Regression** | Derived from experimental basis | $\hat{p}_{\text{exp}}$ |
 
 Below, we present each approach with formulations for both paradigms.
 
@@ -738,7 +738,7 @@ Below, we present each approach with formulations for both paradigms.
 
 Fix the sample count based on budget constraints; compute the implied threshold or confidence.
 
-#### Spec-Driven Formulation
+#### Regression Formulation
 
 **Given**: $n_{\text{test}}$, $\alpha$, experimental basis $(\hat{p}_{\text{exp}}, n_{\text{exp}})$
 
@@ -750,7 +750,7 @@ $$
 
 **Trade-off**: Fixed cost; confidence is controlled; threshold (sensitivity) is determined.
 
-#### SLA-Driven Formulation
+#### Compliance Formulation
 
 **Given**: $n_{\text{test}}$, $p_{\text{SLA}}$
 
@@ -770,7 +770,7 @@ The achieved confidence is $1 - \Phi(-z)$ where $\Phi$ is the standard normal CD
 
 Fix the confidence and power requirements; compute the required sample size.
 
-#### Spec-Driven Formulation
+#### Regression Formulation
 
 **Given**: $\alpha$, desired power $(1-\beta)$, minimum detectable effect $\delta$, experimental basis $(\hat{p}_{\text{exp}}, n_{\text{exp}})$
 
@@ -782,7 +782,7 @@ $$
 
 **Trade-off**: Fixed confidence and detection capability; cost (sample size) is determined.
 
-#### SLA-Driven Formulation
+#### Compliance Formulation
 
 **Given**: $\alpha$, desired power $(1-\beta)$, minimum detectable effect $\delta$, SLA threshold $p_{\text{SLA}}$
 
@@ -808,7 +808,7 @@ $$
 
 Use an explicit threshold directly; compute the implied confidence.
 
-#### Spec-Driven Formulation
+#### Regression Formulation
 
 **Given**: $n_{\text{test}}$, $p_{\text{threshold}}$ (often = $\hat{p}_{\text{exp}}$), experimental basis
 
@@ -834,7 +834,7 @@ $$
 
 **Interpretation**: A 50% false positive rate—half of all test runs will fail even with no degradation.
 
-#### SLA-Driven Formulation
+#### Compliance Formulation
 
 **Given**: $n_{\text{test}}$, $p_{\text{SLA}}$
 
@@ -871,7 +871,7 @@ When transparent statistics mode is enabled (`transparentStats = true`), PUnit o
 | **BASELINE REFERENCE**    | Source, empirical basis or SLA threshold, derivation method | Traces threshold to its origin                 |
 | **STATISTICAL INFERENCE** | Standard error, confidence interval, z-score, p-value       | Full calculation transparency                  |
 | **VERDICT**               | Result (PASS/FAIL), plain English interpretation, caveats   | Human-readable conclusion                      |
-| **THRESHOLD PROVENANCE**  | Threshold origin, contract reference (if specified)         | Auditability for SLA-driven tests              |
+| **THRESHOLD PROVENANCE**  | Threshold origin, contract reference (if specified)         | Auditability for compliance tests              |
 
 #### Key Metrics in the Report
 
@@ -912,7 +912,7 @@ VERDICT
                        a true degradation at the 95% confidence level.
 ```
 
-See Section 10 for complete example outputs including both SLA-driven and spec-driven paradigms.
+See Section 10 for complete example outputs including both compliance and regression paradigms.
 
 ### 7.2 Confidence Statement
 
@@ -1319,10 +1319,10 @@ The **Threshold Reference** section adapts based on the testing paradigm:
 
 | Paradigm        | Content Displayed                                                          |
 |-----------------|----------------------------------------------------------------------------|
-| **SLA-Driven**  | Threshold origin (SLA/SLO/POLICY), contract reference, normative threshold |
-| **Spec-Driven** | Spec file, empirical basis (samples, rate), threshold derivation method    |
+| **Compliance**  | Threshold origin (SLA/SLO/POLICY), contract reference, normative threshold |
+| **Regression** | Spec file, empirical basis (samples, rate), threshold derivation method    |
 
-### 10.3 Example Output: Spec-Driven Paradigm
+### 10.3 Example Output: Regression Paradigm
 
 ```
 ══════════════════════════════════════════════════════════════════════════════
@@ -1367,7 +1367,7 @@ VERDICT
 ══════════════════════════════════════════════════════════════════════════════
 ```
 
-### 10.4 Example Output: SLA-Driven Paradigm
+### 10.4 Example Output: Compliance Paradigm
 
 ```
 ══════════════════════════════════════════════════════════════════════════════
@@ -1418,7 +1418,7 @@ VERDICT
 ══════════════════════════════════════════════════════════════════════════════
 ```
 
-**Key differences in SLA-driven output**:
+**Key differences in compliance output**:
 - Hypothesis framing uses "meets SLA requirement" / "violates SLA"
 - Threshold Reference shows provenance (`Threshold origin`, `Contract ref`) instead of empirical basis
 - Verdict interpretation is framed in terms of contractual compliance
@@ -1507,7 +1507,7 @@ PUnit addresses each of these failures with specific features.
 |-------------------------------------|-----------------------------------|------------------------------------------------|
 | **Principled sample sizes**         | Arbitrary numbers (10, 100, 1000) | Power analysis, confidence-first approach      |
 | **Controlled error rates**          | Unknown false positive rates      | Threshold derivation with specified α          |
-| **Empirically-grounded thresholds** | Hardcoded guesses                 | MEASURE experiments, spec-driven testing       |
+| **Empirically-grounded thresholds** | Hardcoded guesses                 | MEASURE experiments, regression testing       |
 | **Assumption validity**             | Silent violations                 | Covariate tracking, expiration warnings        |
 | **Reproducibility**                 | Undocumented conditions           | Baseline provenance, machine-readable metadata |
 | **Transparency**                    | Black-box verdicts                | Transparent statistics mode                    |
