@@ -713,7 +713,7 @@ public class ShoppingBasketTest {
 
 ### Regression Testing with Specs
 
-Once you understand the parameter triangle, you can let **specs** provide one of the parameters. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
+Once you understand the parameter triangle, you can let **specs** provide the **threshold**. The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives the threshold from this baseline. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
 
 **A spec is more than a number.** It's a complete record of:
 
