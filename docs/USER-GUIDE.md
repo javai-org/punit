@@ -640,12 +640,14 @@ Three operational modes for `@ProbabilisticTest` that work without baselines. Ea
 @ProbabilisticTest(
     useCase = ShoppingBasketUseCase.class,
     samples = 100,
-    thresholdConfidence = 0.95  // probability that the computed threshold is valid
+    thresholdConfidence = 0.95  // confidence level for deriving threshold (not the threshold itself)
 )
 void sampleSizeFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
     useCase.translateInstruction(instruction).assertAll();
 }
 ```
+
+PUnit computes and reports the threshold (equivalent to `minPassRate`) based on the observed success rate and the specified confidence.
 
 **2. Confidence-First**
 
@@ -679,7 +681,7 @@ void confidenceFirst(ShoppingBasketUseCase useCase, @Factor("instruction") Strin
 @ProbabilisticTest(
     useCase = ShoppingBasketUseCase.class,
     samples = 100,
-    minPassRate = 0.90  // the pass rate the system must meet or exceed
+    minPassRate = 0.90  // THE THRESHOLD: the pass rate the system must meet
 )
 void thresholdFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
     useCase.translateInstruction(instruction).assertAll();
@@ -713,7 +715,7 @@ public class ShoppingBasketTest {
 
 ### Regression Testing with Specs
 
-Once you understand the parameter triangle, you can let **specs** provide the **threshold**. The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives the threshold from this baseline. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
+Once you understand the parameter triangle, you can let **specs** provide the **threshold** (equivalent to `minPassRate`). The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives the threshold from this baseline. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
 
 **A spec is more than a number.** It's a complete record of:
 
