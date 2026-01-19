@@ -1201,16 +1201,22 @@ bestIteration:
 
 ### C: Glossary
 
-| Term                   | Definition                                                                 |
-|------------------------|----------------------------------------------------------------------------|
-| **Baseline**           | Empirically measured success rate used as reference for regression testing |
-| **Compliance testing** | Verifying a system meets a mandated threshold (SLA, SLO, policy)           |
-| **Covariate**          | Environmental factor that may affect system behavior                       |
-| **Factor**             | Input or configuration that varies across test executions                  |
-| **Regression testing** | Detecting when performance drops below an established baseline             |
-| **Sample**             | A single execution of the system under test                                |
-| **Spec**               | YAML file containing baseline measurements and metadata                    |
-| **Use case**           | A behavioral contract defining an operation and its success criteria       |
+| Term                       | Definition                                                                                      |
+|----------------------------|-------------------------------------------------------------------------------------------------|
+| **Baseline**               | Empirically measured success rate used as reference for regression testing                      |
+| **Compliance testing**     | Verifying a system meets a mandated threshold (SLA, SLO, policy)                                |
+| **confidence**             | Probability of a correct verdict; equals 1 minus the false positive rate. Part of the parameter triangle. |
+| **Covariate**              | Environmental factor that may affect system behavior                                            |
+| **Factor**                 | Input or configuration that varies across test executions                                       |
+| **minDetectableEffect**    | Smallest drop from baseline worth detecting; required for Confidence-First approach to compute sample size |
+| **minPassRate**            | The threshold pass rate the system must meet to pass the test. Part of the parameter triangle.  |
+| **power**                  | Probability of catching a real degradation; equals 1 minus the false negative rate             |
+| **Regression testing**     | Detecting when performance drops below an established baseline                                  |
+| **Sample**                 | A single execution of the system under test                                                     |
+| **samples**                | Number of test executions; controls cost and time. Part of the parameter triangle.              |
+| **Spec**                   | YAML file containing baseline measurements and metadata                                         |
+| **thresholdConfidence**    | Confidence level used for deriving `minPassRate` from observed results in Sample-Size-First approach |
+| **Use case**               | A behavioral contract defining an operation and its success criteria                            |
 
 ---
 
