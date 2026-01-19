@@ -575,18 +575,6 @@ Sample 1000 → (100th cycle completes)
 
 With 1000 samples and 10 instructions, each instruction is tested exactly 100 times.
 
-**Baseline Expiration:**
-
-Systerm usage and environmental changes mean that baseline data can become dated. Do guard against this, PUnit allows you to specify an expiration date for the generated baseline. 
-
-```java
-@MeasureExperiment(
-    useCase = ShoppingBasketUseCase.class,
-    samples = 1000,
-    expiresInDays = 30  // Baseline valid for 30 days
-)
-```
-
 **Output:**
 
 ```
@@ -595,16 +583,14 @@ src/test/resources/punit/specs/ShoppingBasketUseCase.yaml
 
 **Committing Baselines:**
 
+The developer is encouraged to commit baselines to the repository. By default they are placed in the **test** folder (of the standard gradle folder layout). This is because a probabilistic regression test uses the baseline as input. The test cannot be performed without it, and if it is not present in the CI environment the test will alert operators to this by failing. 
+
 ```bash
 git add src/test/resources/punit/specs/
 git commit -m "Add baseline for ShoppingBasket (93.5% @ N=1000)"
 ```
 
 *Source: `org.javai.punit.examples.experiments.ShoppingBasketMeasure`*
-
-An expired baseline can and will still be used by the probabilistic test, but the vertict will include a warning that the baseline may have drifted and the test's result should therefore be treated with caution.
-
-TODO: Add sample output showing warning of pending expiration.
 
 
 ---
@@ -764,6 +750,22 @@ PUnit loads the matching spec and derives the threshold from the baseline's empi
 
 *Source: `org.javai.punit.examples.tests.ShoppingBasketTest`*
 
+### Baseline Expiration ###
+
+System usage and environmental changes mean that baseline data can become dated. Do guard against this, PUnit allows you to specify an expiration date for the generated baseline. 
+
+```java
+@MeasureExperiment(
+    useCase = ShoppingBasketUseCase.class,
+    samples = 1000,
+    expiresInDays = 30  // Baseline valid for 30 days
+)
+```
+
+An expired baseline can and will still be used by the probabilistic test, but the vertict will include a warning that the baseline may have drifted and the test's result should therefore be treated with caution.
+
+TODO: Add example output showing verdict qualified with expired baseline.
+
 ### Covariate-Aware Baseline Selection
 
 Covariates are environmental factors that may affect system behavior.
@@ -775,6 +777,8 @@ Covariates are environmental factors that may affect system behavior.
 - **Configuration**: Model, temperature, prompt variant
 
 **Why they matter:** An LLM's behavior may differ between weekdays and weekends (different load patterns), or between models. Testing against the wrong baseline produces misleading results.
+
+TODO: Add example output showing verdict qualified with covariate deviation.
 
 **How PUnit selects baselines:**
 
@@ -797,7 +801,7 @@ public class ShoppingBasketUseCase implements UseCaseContract { }
 
 ### Understanding Test Results
 
-**Why PUnit fails tests in JUnit (even when PASSED)**
+**Why PUnit fails tests in JUnit (even when PUnit's verdict is PASSED)**
 
 A key design decision: PUnit marks all probabilistic tests as **failed** in JUnit terms, regardless of the statistical verdict. This is intentional.
 
@@ -808,6 +812,8 @@ Why? Because probabilistic test results must not be ignored. Unlike deterministi
 - Operators make informed decisions rather than blindly proceeding
 
 **Reading the statistical report**
+
+TODO we need to place this earlier in the document ... probably at the first place where we show a test run.
 
 Every probabilistic test produces a verdict with statistical context:
 
@@ -840,7 +846,9 @@ The report provides the evidence; operators provide the judgment.
 
 ### Budget Control
 
-Control resource consumption with time and token budgets.
+Traditional tests run once per execution. By contrast, experiments and probabilistic tests necessitate multiple executions. This has the potential to rack up costs in terms of time and resources. PUnit addresses this first-class concern by providing safeguards against excessive resource consumption.
+
+TODO: Make a statement about how budgets can be specified at different levels: Class or method. A future update of PUnit will allow the user to set a global budget.
 
 **Time Budgets:**
 
@@ -886,6 +894,8 @@ void evaluateWhatWeHave(TokenChargeRecorder recorder) {
 *Source: `org.javai.punit.examples.tests.ShoppingBasketBudgetTest`*
 
 ### Pacing Constraints
+
+Hitting APIs with tens, hundreds or thousands of calls must be done in a controlled manner. Many 3rd-party APIs limit calls per minute/hour.
 
 When testing rate-limited APIs, use `@Pacing` to stay within limits:
 
@@ -944,7 +954,7 @@ A brief look at the statistical engine that powers PUnit.
 
 ### Bernoulli Trials
 
-At its heart, PUnit models each sample as a **Bernoulli trial**—an experiment with exactly two outcomes: success or failure. When you run a probabilistic test:
+At its heart, PUnit models each sample as a **Bernoulli trial**—an experiment with exactly two outcomes: success or failure., with failure being defined as conformance to the use case's contract. When you run a probabilistic test:
 
 1. Each sample execution is a Bernoulli trial with unknown success probability *p*
 2. The baseline spec provides an estimate of *p* from prior measurement
@@ -1020,6 +1030,8 @@ PUnit configuration follows this resolution order: System property → Environme
 | `punit.explorations.outputDir` | `PUNIT_EXPLORATIONS_OUTPUT_DIR` | Exploration output directory |
 
 ### B: Spec File Format
+
+TODO distinguish between three experiment output types: explore, optimize, measure.
 
 Specs are YAML files with the following structure:
 
