@@ -634,13 +634,13 @@ Three operational modes for `@ProbabilisticTest` that work without baselines. Ea
 *"I have budget for 100 samples. What threshold can I verify with 95% confidence?"*
 
 - **You specify**: Sample size + Confidence level
-- **PUnit computes**: The achievable threshold (the strictest pass rate you can verify with these constraints)
+- **PUnit computes**: The achievable threshold (the strictest pass rate you can reliably verify with these constraints)
 
 ```java
 @ProbabilisticTest(
     useCase = ShoppingBasketUseCase.class,
     samples = 100,
-    thresholdConfidence = 0.95
+    thresholdConfidence = 0.95  // probability that the computed threshold is valid
 )
 void sampleSizeFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
     useCase.translateInstruction(instruction).assertAll();
@@ -657,9 +657,9 @@ void sampleSizeFirst(ShoppingBasketUseCase useCase, @Factor("instruction") Strin
 ```java
 @ProbabilisticTest(
     useCase = ShoppingBasketUseCase.class,
-    confidence = 0.95,
-    minDetectableEffect = 0.05,
-    power = 0.80
+    confidence = 0.95,           // probability of correct verdict (1 - false positive rate)
+    minDetectableEffect = 0.05,  // smallest drop from baseline worth detecting (5%)
+    power = 0.80                 // probability of catching a real degradation (1 - false negative rate)
 )
 void confidenceFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
     useCase.translateInstruction(instruction).assertAll();
@@ -677,7 +677,7 @@ void confidenceFirst(ShoppingBasketUseCase useCase, @Factor("instruction") Strin
 @ProbabilisticTest(
     useCase = ShoppingBasketUseCase.class,
     samples = 100,
-    minPassRate = 0.90
+    minPassRate = 0.90  // the pass rate the system must meet or exceed
 )
 void thresholdFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
     useCase.translateInstruction(instruction).assertAll();
