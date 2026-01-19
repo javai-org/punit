@@ -762,9 +762,21 @@ System usage and environmental changes mean that baseline data can become dated.
 )
 ```
 
-An expired baseline can and will still be used by the probabilistic test, but the vertict will include a warning that the baseline may have drifted and the test's result should therefore be treated with caution.
+An expired baseline can and will still be used by the probabilistic test, but the verdict will include a warning that the baseline may have drifted and the test's result should therefore be treated with caution.
 
-TODO: Add example output showing verdict qualified with expired baseline.
+```
+═══════════════════════════════════════════════════════════════
+PUnit PASSED: testInstructionTranslation
+  Observed: 94.0% (94/100) >= Threshold: 91.9%
+  Baseline: 93.5% @ N=1000 (spec: ShoppingBasketUseCase.yaml)
+  Confidence: 95%
+
+  ⚠️  BASELINE EXPIRED
+  The baseline was generated on 2025-11-15 and expired on 2025-12-15.
+  System behavior may have drifted. Consider re-running MEASURE to
+  establish a fresh baseline.
+═══════════════════════════════════════════════════════════════
+```
 
 ### Covariate-Aware Baseline Selection
 
@@ -778,7 +790,24 @@ Covariates are environmental factors that may affect system behavior.
 
 **Why they matter:** An LLM's behavior may differ between weekdays and weekends (different load patterns), or between models. Testing against the wrong baseline produces misleading results.
 
-TODO: Add example output showing verdict qualified with covariate deviation.
+When covariates don't match, PUnit qualifies the verdict with a warning:
+
+```
+═══════════════════════════════════════════════════════════════
+PUnit PASSED: testInstructionTranslation
+  Observed: 91.0% (91/100) >= Threshold: 91.9%
+  Baseline: 93.5% @ N=1000 (spec: ShoppingBasketUseCase.yaml)
+  Confidence: 95%
+
+  ⚠️  COVARIATE NON-CONFORMANCE
+  The test is running under different conditions than the baseline:
+    • weekday_vs_weekend: baseline=WEEKDAY, current=WEEKEND
+    • time_of_day: baseline=MORNING, current=EVENING
+
+  Statistical inference may be less reliable. Consider whether
+  these differences affect the validity of the comparison.
+═══════════════════════════════════════════════════════════════
+```
 
 **How PUnit selects baselines:**
 
@@ -813,8 +842,6 @@ Why? Because probabilistic test results must not be ignored. Unlike deterministi
 
 **Reading the statistical report**
 
-TODO we need to place this earlier in the document ... probably at the first place where we show a test run.
-
 Every probabilistic test produces a verdict with statistical context:
 
 ```
@@ -848,7 +875,15 @@ The report provides the evidence; operators provide the judgment.
 
 Traditional tests run once per execution. By contrast, experiments and probabilistic tests necessitate multiple executions. This has the potential to rack up costs in terms of time and resources. PUnit addresses this first-class concern by providing safeguards against excessive resource consumption.
 
-TODO: Make a statement about how budgets can be specified at different levels: Class or method. A future update of PUnit will allow the user to set a global budget.
+Budgets can be specified at different levels:
+
+| Level | Scope | How to Set |
+|-------|-------|------------|
+| **Method** | Single test method | `@ProbabilisticTest(timeBudgetMs = ...)` |
+| **Class** | All tests in class | `@CostBudget` on class |
+| **Suite** | All tests in run | *Planned for future release* |
+
+When budgets are set at multiple levels, PUnit enforces all of them—the first exhausted budget triggers termination.
 
 **Time Budgets:**
 
@@ -1029,11 +1064,15 @@ PUnit configuration follows this resolution order: System property → Environme
 | `punit.specs.outputDir` | `PUNIT_SPECS_OUTPUT_DIR` | Spec output directory |
 | `punit.explorations.outputDir` | `PUNIT_EXPLORATIONS_OUTPUT_DIR` | Exploration output directory |
 
-### B: Spec File Format
+### B: Experiment Output Formats
 
-TODO distinguish between three experiment output types: explore, optimize, measure.
+Each experiment type produces YAML files in different directories with different structures:
 
-Specs are YAML files with the following structure:
+#### MEASURE Output
+
+Location: `src/test/resources/punit/specs/{UseCaseId}.yaml`
+
+MEASURE produces baseline specs used by probabilistic tests:
 
 ```yaml
 schemaVersion: punit-spec-2
@@ -1058,6 +1097,71 @@ extendedStatistics:
     upper: 0.949
 
 contentFingerprint: sha256:abc123...
+```
+
+#### EXPLORE Output
+
+Location: `src/test/resources/punit/explorations/{UseCaseId}/{configName}.yaml`
+
+EXPLORE produces one file per configuration tested, enabling comparison:
+
+```yaml
+schemaVersion: punit-exploration-1
+useCaseId: ShoppingBasketUseCase
+configurationId: model-gpt-4o_temp-0.3
+generatedAt: 2026-01-15T09:15:00Z
+
+configuration:
+  model: gpt-4o
+  temperature: 0.3
+
+results:
+  samples: 20
+  successes: 19
+  successRate: 0.95
+
+covariates:
+  weekday_vs_weekend: WEEKDAY
+```
+
+#### OPTIMIZE Output
+
+Location: `src/test/resources/punit/optimizations/{UseCaseId}/{experimentId}_{timestamp}.yaml`
+
+OPTIMIZE produces a history of iterations showing the optimization trajectory:
+
+```yaml
+schemaVersion: punit-optimization-1
+useCaseId: ShoppingBasketUseCase
+experimentId: temperature-optimization-v1
+generatedAt: 2026-01-15T11:45:00Z
+
+controlFactor: temperature
+objective: MAXIMIZE
+terminationReason: NO_IMPROVEMENT_WINDOW
+
+iterations:
+  - iteration: 1
+    controlValue: 1.0
+    samples: 20
+    successes: 15
+    score: 0.75
+  - iteration: 2
+    controlValue: 0.7
+    samples: 20
+    successes: 17
+    score: 0.85
+  - iteration: 3
+    controlValue: 0.4
+    samples: 20
+    successes: 19
+    score: 0.95
+  # ... more iterations
+
+bestIteration:
+  iteration: 5
+  controlValue: 0.3
+  score: 0.97
 ```
 
 ### C: Glossary
