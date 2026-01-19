@@ -1169,8 +1169,7 @@ This is **temporal non-stationarity**: the success probability $p$ changes over 
 **PUnit's solution**: Developers declare a **validity period** for baselines:
 
 ```java
-@Experiment(
-    mode = ExperimentMode.MEASURE,
+@MeasureExperiment(
     useCase = ShoppingUseCase.class,
     expiresInDays = 30
 )
