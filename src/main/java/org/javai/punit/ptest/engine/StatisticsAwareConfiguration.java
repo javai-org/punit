@@ -183,32 +183,14 @@ public record StatisticsAwareConfiguration(
                 approach.minPassRate()
         );
 
-        // Warn if statistically unsound
+        // Create warning if statistically unsound (caller decides how to report it)
+        ConfigurationWarning warning = null;
         if (!derivedThreshold.isStatisticallySound()) {
-            System.err.printf("""
-                
-                ⚠️  WARNING: Statistically Unsound Configuration
-                ────────────────────────────────────────────────────────────────────────────
-                Test: %s
-                Threshold: %.1f%% (from minPassRate)
-                Baseline rate: %.1f%%
-                Implied confidence: %.1f%%
-                
-                The threshold equals or exceeds the baseline rate. This results in a very
-                high false positive rate (%.1f%% of test runs will fail even when the
-                system is working correctly).
-                
-                Consider:
-                  • Using Sample-Size-First approach (let framework derive threshold)
-                  • Lowering the threshold below the baseline rate
-                ────────────────────────────────────────────────────────────────────────────
-                
-                """,
+            warning = ConfigurationWarning.statisticallyUnsound(
                     spec.getUseCaseId(),
-                    approach.minPassRate() * 100,
-                    spec.getObservedRate() * 100,
-                    derivedThreshold.context().confidence() * 100,
-                    (1 - derivedThreshold.context().confidence()) * 100);
+                    approach.minPassRate(),
+                    spec.getObservedRate(),
+                    derivedThreshold.context().confidence());
         }
 
         return new ResolvedStatisticalConfiguration(
@@ -221,7 +203,8 @@ public record StatisticsAwareConfiguration(
                 annotation.onException(),
                 annotation.maxExampleFailures(),
                 derivedThreshold,
-                spec.getSuccessCriteria()
+                spec.getSuccessCriteria(),
+                warning
         );
     }
 
@@ -264,8 +247,35 @@ public record StatisticsAwareConfiguration(
             ExceptionHandling onException,
             int maxExampleFailures,
             DerivedThreshold derivedThreshold,
-            SuccessCriteria successCriteria
+            SuccessCriteria successCriteria,
+            ConfigurationWarning warning
     ) {
+        /**
+         * Constructor without warning (for backwards compatibility).
+         */
+        public ResolvedStatisticalConfiguration(
+                int samples,
+                double minPassRate,
+                long timeBudgetMs,
+                int tokenCharge,
+                long tokenBudget,
+                BudgetExhaustedBehavior onBudgetExhausted,
+                ExceptionHandling onException,
+                int maxExampleFailures,
+                DerivedThreshold derivedThreshold,
+                SuccessCriteria successCriteria) {
+            this(samples, minPassRate, timeBudgetMs, tokenCharge, tokenBudget,
+                 onBudgetExhausted, onException, maxExampleFailures,
+                 derivedThreshold, successCriteria, null);
+        }
+
+        /**
+         * Returns true if this configuration has a warning.
+         */
+        public boolean hasWarning() {
+            return warning != null;
+        }
+
         /**
          * Returns true if this is a spec-driven test with statistical threshold.
          */

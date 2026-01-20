@@ -18,8 +18,9 @@ import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
-import org.javai.punit.experiment.measure.MeasureInvocationContext;
+import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
+import org.javai.punit.experiment.measure.MeasureInvocationContext;
 import org.javai.punit.experiment.engine.ResultProjectionBuilder;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorResolver;
@@ -226,11 +227,10 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         }
 
         // Report progress for this config
-        extensionContext.publishReportEntry("punit.mode", "EXPLORE");
-        extensionContext.publishReportEntry("punit.config", configName);
-        extensionContext.publishReportEntry("punit.sample", sampleInConfig + "/" + samplesPerConfig);
-        extensionContext.publishReportEntry("punit.successRate",
-                String.format("%.2f%%", aggregator.getObservedSuccessRate() * 100));
+        ExperimentProgressReporter.reportProgressWithConfig(
+                extensionContext, "EXPLORE", configName,
+                sampleInConfig, samplesPerConfig,
+                aggregator.getObservedSuccessRate());
 
         // Check if this is the last sample for this config
         if (sampleInConfig >= samplesPerConfig) {

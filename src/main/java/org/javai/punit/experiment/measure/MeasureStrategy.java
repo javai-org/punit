@@ -15,6 +15,7 @@ import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
+import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorResolver;
@@ -208,10 +209,9 @@ public class MeasureStrategy implements ExperimentModeStrategy {
 
     private void reportProgress(ExtensionContext context, ExperimentResultAggregator aggregator,
                                 int currentSample, int totalSamples) {
-        context.publishReportEntry("punit.mode", "MEASURE");
-        context.publishReportEntry("punit.sample", currentSample + "/" + totalSamples);
-        context.publishReportEntry("punit.successRate",
-                String.format("%.2f%%", aggregator.getObservedSuccessRate() * 100));
+        ExperimentProgressReporter.reportProgress(
+                context, "MEASURE", currentSample, totalSamples,
+                aggregator.getObservedSuccessRate());
     }
 
     private void generateSpecIfNeeded(ExtensionContext context, ExtensionContext.Store store) {
