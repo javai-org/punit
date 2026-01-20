@@ -81,39 +81,7 @@ class FinalConfigurationLogger {
         if (config == null) {
             return;
         }
-
-        StringBuilder sb = new StringBuilder();
-
-        if (config.isNormativeThreshold()) {
-            // Threshold is explicitly specified from a normative source
-            sb.append(PUnitReporter.labelValueLn("Mode:", config.thresholdOrigin().name() + "-DRIVEN"));
-            if (config.hasSpecId()) {
-                sb.append(PUnitReporter.labelValueLn("Use Case:", config.specId()));
-            }
-            sb.append(PUnitReporter.labelValueLn("Threshold:",
-                    String.format("%.1f%% (%s)", config.minPassRate() * 100, config.thresholdOrigin().name())));
-            if (config.hasContractRef()) {
-                sb.append(PUnitReporter.labelValueLn("Contract:", config.contractRef()));
-            }
-        } else if (config.hasSpecId()) {
-            // Threshold derived from baseline spec
-            sb.append(PUnitReporter.labelValueLn("Mode:", "SPEC-DRIVEN"));
-            sb.append(PUnitReporter.labelValueLn("Spec:", config.specId()));
-            sb.append(PUnitReporter.labelValueLn("Threshold:",
-                    String.format("%.1f%% (derived from baseline)", config.minPassRate() * 100)));
-        } else {
-            // Explicit threshold without spec
-            sb.append(PUnitReporter.labelValueLn("Mode:", "EXPLICIT THRESHOLD"));
-            String thresholdNote = "";
-            if (config.hasThresholdOrigin()) {
-                thresholdNote = " (" + config.thresholdOrigin().name() + ")";
-            }
-            sb.append(PUnitReporter.labelValueLn("Threshold:",
-                    String.format("%.1f%%%s", config.minPassRate() * 100, thresholdNote)));
-        }
-        sb.append(PUnitReporter.labelValue("Samples:", String.valueOf(config.samples())));
-
-        reporter.reportInfo("TEST CONFIGURATION FOR: " + testName, sb.toString());
+        reporter.reportInfo("TEST CONFIGURATION FOR: " + testName, format(config));
     }
 
     /**
