@@ -1,0 +1,300 @@
+package org.javai.punit.contract;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
+/**
+ * A service contract defines the preconditions and postconditions for a service.
+ *
+ * <p>A contract consists of:
+ * <ul>
+ *   <li>Preconditions — what the service requires from its caller (checked eagerly)</li>
+ *   <li>Derivations — transformations of the result with associated postconditions</li>
+ * </ul>
+ *
+ * <h2>Design by Contract</h2>
+ * <p>The contract belongs to the <b>service</b> being invoked, but since Java lacks
+ * Eiffel's built-in contract support, the use case formalizes it. The contract is
+ * declared as a {@code static final} field—a pure specification with no free variables.
+ *
+ * <h2>Usage</h2>
+ * <pre>{@code
+ * private record ServiceInput(String prompt, String instruction, double temperature) {}
+ *
+ * private static final ServiceContract<ServiceInput, String> CONTRACT = ServiceContract
+ *     .<ServiceInput, String>define()
+ *
+ *     .require("Prompt not null", in -> in.prompt() != null)
+ *     .require("Instruction not blank", in -> !in.instruction().isBlank())
+ *
+ *     .deriving("Valid JSON", MyUseCase::parseJson)
+ *         .ensure("Has operations array", json -> json.has("operations"))
+ *         .ensure("All operations valid", json -> allOpsValid(json))
+ *
+ *     .build();
+ * }</pre>
+ *
+ * @param <I> the input type (preconditions evaluate against this)
+ * @param <R> the result type (derivations transform this)
+ * @see Precondition
+ * @see Derivation
+ * @see Postcondition
+ */
+public final class ServiceContract<I, R> {
+
+    private final List<Precondition<I>> preconditions;
+    private final List<Derivation<R, ?>> derivations;
+
+    private ServiceContract(List<Precondition<I>> preconditions, List<Derivation<R, ?>> derivations) {
+        this.preconditions = Collections.unmodifiableList(new ArrayList<>(preconditions));
+        this.derivations = Collections.unmodifiableList(new ArrayList<>(derivations));
+    }
+
+    /**
+     * Returns the preconditions for this contract.
+     *
+     * @return unmodifiable list of preconditions
+     */
+    public List<Precondition<I>> preconditions() {
+        return preconditions;
+    }
+
+    /**
+     * Returns the derivations for this contract.
+     *
+     * @return unmodifiable list of derivations
+     */
+    public List<Derivation<R, ?>> derivations() {
+        return derivations;
+    }
+
+    /**
+     * Checks all preconditions against an input value.
+     *
+     * @param input the input to check
+     * @throws UseCasePreconditionException if any precondition fails
+     */
+    public void checkPreconditions(I input) {
+        for (Precondition<I> precondition : preconditions) {
+            precondition.check(input);
+        }
+    }
+
+    /**
+     * Evaluates all postconditions against a result.
+     *
+     * @param result the result to evaluate
+     * @return list of all postcondition results
+     */
+    public List<PostconditionResult> evaluatePostconditions(R result) {
+        List<PostconditionResult> results = new ArrayList<>();
+        for (Derivation<R, ?> derivation : derivations) {
+            results.addAll(derivation.evaluate(result));
+        }
+        return results;
+    }
+
+    /**
+     * Returns the total number of postconditions in this contract.
+     *
+     * <p>This counts both derivation descriptions (for fallible derivations)
+     * and ensure clauses within each derivation.
+     *
+     * @return total postcondition count
+     */
+    public int postconditionCount() {
+        int count = 0;
+        for (Derivation<R, ?> derivation : derivations) {
+            if (derivation.isFallible()) {
+                count++; // The derivation itself is a postcondition
+            }
+            count += derivation.postconditions().size();
+        }
+        return count;
+    }
+
+    /**
+     * Starts building a new service contract.
+     *
+     * <p>Use explicit type parameters for clarity:
+     * <pre>{@code
+     * ServiceContract.<MyInput, MyResult>define()
+     *     .require(...)
+     *     .deriving(...)
+     *     .build();
+     * }</pre>
+     *
+     * @param <I> the input type
+     * @param <R> the result type
+     * @return a new contract builder
+     */
+    public static <I, R> ContractBuilder<I, R> define() {
+        return new ContractBuilder<>();
+    }
+
+    @Override
+    public String toString() {
+        return "ServiceContract[preconditions=" + preconditions.size() +
+                ", derivations=" + derivations.size() +
+                ", postconditions=" + postconditionCount() + "]";
+    }
+
+    /**
+     * Builder for creating service contracts.
+     *
+     * @param <I> the input type
+     * @param <R> the result type
+     */
+    public static final class ContractBuilder<I, R> {
+
+        private final List<Precondition<I>> preconditions = new ArrayList<>();
+        private final List<Derivation<R, ?>> derivations = new ArrayList<>();
+
+        private ContractBuilder() {
+        }
+
+        /**
+         * Adds a precondition to the contract.
+         *
+         * <p>Preconditions are checked eagerly when input is provided.
+         *
+         * @param description the human-readable description
+         * @param predicate the condition to evaluate
+         * @return this builder
+         */
+        public ContractBuilder<I, R> require(String description, Predicate<I> predicate) {
+            preconditions.add(new Precondition<>(description, predicate));
+            return this;
+        }
+
+        /**
+         * Starts a fallible derivation with a description.
+         *
+         * <p>The description names this derivation as an ensure clause in its own right.
+         * If the derivation fails, nested ensures are skipped.
+         *
+         * @param description the description (this becomes a postcondition)
+         * @param function the derivation function
+         * @param <D> the derived type
+         * @return a deriving builder for adding postconditions
+         */
+        public <D> DerivingBuilder<I, R, D> deriving(String description, Function<R, Outcome<D>> function) {
+            Objects.requireNonNull(description, "description must not be null");
+            Objects.requireNonNull(function, "function must not be null");
+            if (description.isBlank()) {
+                throw new IllegalArgumentException("description must not be blank");
+            }
+            return new DerivingBuilder<>(this, description, function);
+        }
+
+        /**
+         * Starts an infallible derivation without a description.
+         *
+         * <p>Use this for trivial transformations that cannot fail.
+         * Consider using {@link Outcome#lift(Function)} for pure functions.
+         *
+         * @param function the derivation function
+         * @param <D> the derived type
+         * @return a deriving builder for adding postconditions
+         */
+        public <D> DerivingBuilder<I, R, D> deriving(Function<R, Outcome<D>> function) {
+            Objects.requireNonNull(function, "function must not be null");
+            return new DerivingBuilder<>(this, null, function);
+        }
+
+        /**
+         * Builds the service contract.
+         *
+         * @return the immutable service contract
+         */
+        public ServiceContract<I, R> build() {
+            return new ServiceContract<>(preconditions, derivations);
+        }
+
+        void addDerivation(Derivation<R, ?> derivation) {
+            derivations.add(derivation);
+        }
+    }
+
+    /**
+     * Builder for adding postconditions to a derivation.
+     *
+     * @param <I> the input type
+     * @param <R> the result type
+     * @param <D> the derived type
+     */
+    public static final class DerivingBuilder<I, R, D> {
+
+        private final ContractBuilder<I, R> parent;
+        private final String description;
+        private final Function<R, Outcome<D>> function;
+        private final List<Postcondition<D>> postconditions = new ArrayList<>();
+
+        private DerivingBuilder(ContractBuilder<I, R> parent, String description, Function<R, Outcome<D>> function) {
+            this.parent = parent;
+            this.description = description;
+            this.function = function;
+        }
+
+        /**
+         * Adds a postcondition to this derivation.
+         *
+         * @param description the human-readable description
+         * @param predicate the condition to evaluate
+         * @return this builder
+         */
+        public DerivingBuilder<I, R, D> ensure(String description, Predicate<D> predicate) {
+            postconditions.add(new Postcondition<>(description, predicate));
+            return this;
+        }
+
+        /**
+         * Starts a new fallible derivation.
+         *
+         * <p>Finalizes the current derivation and starts a new one.
+         *
+         * @param description the description for the new derivation
+         * @param function the new derivation function
+         * @param <D2> the new derived type
+         * @return a deriving builder for the new derivation
+         */
+        public <D2> DerivingBuilder<I, R, D2> deriving(String description, Function<R, Outcome<D2>> function) {
+            finalizeCurrent();
+            return parent.deriving(description, function);
+        }
+
+        /**
+         * Starts a new infallible derivation.
+         *
+         * <p>Finalizes the current derivation and starts a new one.
+         *
+         * @param function the new derivation function
+         * @param <D2> the new derived type
+         * @return a deriving builder for the new derivation
+         */
+        public <D2> DerivingBuilder<I, R, D2> deriving(Function<R, Outcome<D2>> function) {
+            finalizeCurrent();
+            return parent.deriving(function);
+        }
+
+        /**
+         * Builds the service contract.
+         *
+         * <p>Finalizes the current derivation and returns the contract.
+         *
+         * @return the immutable service contract
+         */
+        public ServiceContract<I, R> build() {
+            finalizeCurrent();
+            return parent.build();
+        }
+
+        private void finalizeCurrent() {
+            parent.addDerivation(new Derivation<>(description, function, postconditions));
+        }
+    }
+}
