@@ -19,6 +19,14 @@
  *   <li>{@link org.javai.punit.contract.PreconditionException} — Thrown when a precondition is violated</li>
  * </ul>
  *
+ * <h2>Integration Types</h2>
+ * <p>These types enable the Design by Contract system to integrate with the existing
+ * PUnit experiment infrastructure:
+ * <ul>
+ *   <li>{@link org.javai.punit.contract.PostconditionResultAdapter} — Converts PostconditionResult to CriterionOutcome</li>
+ *   <li>{@link org.javai.punit.contract.ContractCriteriaAdapter} — Adapts PostconditionEvaluator to UseCaseCriteria</li>
+ * </ul>
+ *
  * <h2>Design by Contract Vocabulary</h2>
  * <p>Borrowing from Eiffel:
  * <table border="1">

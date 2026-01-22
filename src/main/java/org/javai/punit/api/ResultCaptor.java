@@ -1,8 +1,11 @@
 package org.javai.punit.api;
 
+import org.javai.punit.contract.ContractCriteriaAdapter;
 import org.javai.punit.model.UseCaseCriteria;
 import org.javai.punit.model.UseCaseOutcome;
 import org.javai.punit.model.UseCaseResult;
+
+import java.time.Instant;
 
 /**
  * Captures use case execution results during experiments.
@@ -66,6 +69,49 @@ public class ResultCaptor {
         if (!recorded) {
             this.result = outcome.result();
             this.criteria = outcome.criteria();
+            this.recorded = true;
+        }
+        return outcome;
+    }
+
+    /**
+     * Records a contract-based use case outcome.
+     *
+     * <p>This method supports the new Design by Contract system. It converts
+     * the typed result and postcondition evaluator to the existing model types
+     * for compatibility with the experiment infrastructure.
+     *
+     * <h2>Example Usage</h2>
+     * <pre>{@code
+     * @Experiment(useCase = MyUseCase.class, samples = 1000)
+     * void measureBaseline(MyUseCase useCase, ResultCaptor captor) {
+     *     UseCaseOutcome<String> outcome = useCase.performAction(input);
+     *     captor.recordContract(outcome);
+     * }
+     * }</pre>
+     *
+     * @param outcome the contract-based outcome to record
+     * @param <R> the result type
+     * @return the outcome (for fluent chaining)
+     */
+    public <R> org.javai.punit.contract.UseCaseOutcome<R> recordContract(
+            org.javai.punit.contract.UseCaseOutcome<R> outcome) {
+        if (!recorded) {
+            // Convert contract outcome to model types
+            UseCaseResult.Builder builder = UseCaseResult.builder()
+                    .executionTime(outcome.executionTime())
+                    .timestamp(Instant.now());
+
+            // Copy metadata
+            outcome.metadata().forEach(builder::meta);
+
+            // Store the raw result as a value (if not null)
+            if (outcome.result() != null) {
+                builder.value("result", outcome.result());
+            }
+
+            this.result = builder.build();
+            this.criteria = ContractCriteriaAdapter.from(outcome);
             this.recorded = true;
         }
         return outcome;
