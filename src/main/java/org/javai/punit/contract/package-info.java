@@ -9,6 +9,7 @@
  * <h2>Core Types</h2>
  * <ul>
  *   <li>{@link org.javai.punit.contract.ServiceContract} — The contract definition with preconditions and postconditions</li>
+ *   <li>{@link org.javai.punit.contract.UseCaseOutcome} — The outcome of a use case execution with result, timing, and postconditions</li>
  *   <li>{@link org.javai.punit.contract.Outcomes} — Factory methods for creating Outcome instances in derivations</li>
  *   <li>{@link org.javai.punit.contract.Precondition} — A single require clause with description and predicate</li>
  *   <li>{@link org.javai.punit.contract.Postcondition} — A single ensure clause with description and predicate</li>
@@ -33,12 +34,23 @@
  *     .<ServiceInput, String>define()
  *     .require("Prompt not null", in -> in.prompt() != null)
  *     .require("Instruction not blank", in -> !in.instruction().isBlank())
+ *     .ensure("Response not empty", response -> !response.isEmpty())
  *     .deriving("Valid JSON", MyUseCase::parseJson)
  *         .ensure("Has operations array", json -> json.has("operations"))
  *     .build();
+ *
+ * public UseCaseOutcome<String> translateInstruction(String instruction) {
+ *     return UseCaseOutcome
+ *         .withContract(CONTRACT)
+ *         .input(new ServiceInput(systemPrompt, instruction))
+ *         .execute(in -> llm.chat(in.prompt(), in.instruction()))
+ *         .meta("tokensUsed", llm.getLastTokensUsed())
+ *         .build();
+ * }
  * }</pre>
  *
  * @see org.javai.punit.contract.ServiceContract
+ * @see org.javai.punit.contract.UseCaseOutcome
  * @see org.javai.punit.contract.Outcomes
  * @see org.javai.punit.contract.Postcondition
  * @see org.javai.punit.contract.PostconditionResult

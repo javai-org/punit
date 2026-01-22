@@ -1,0 +1,292 @@
+package org.javai.punit.contract;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+@DisplayName("UseCaseOutcome")
+class UseCaseOutcomeTest {
+
+    record TestInput(String value, int number) {}
+
+    private static final ServiceContract<TestInput, String> CONTRACT = ServiceContract
+            .<TestInput, String>define()
+            .require("Value not null", in -> in.value() != null)
+            .require("Number positive", in -> in.number() > 0)
+            .ensure("Not empty", s -> !s.isEmpty())
+            .ensure("Reasonable length", s -> s.length() < 1000)
+            .deriving("Uppercase", Outcomes.lift(String::toUpperCase))
+                .ensure("All caps", s -> s.equals(s.toUpperCase()))
+            .build();
+
+    @Nested
+    @DisplayName("builder")
+    class BuilderTests {
+
+        @Test
+        @DisplayName("produces outcome with result")
+        void producesOutcomeWithResult() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result: " + in.value())
+                    .build();
+
+            assertThat(outcome.result()).isEqualTo("result: hello");
+        }
+
+        @Test
+        @DisplayName("captures execution time")
+        void capturesExecutionTime() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> {
+                        try {
+                            Thread.sleep(50);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return "result";
+                    })
+                    .build();
+
+            assertThat(outcome.executionTime()).isGreaterThanOrEqualTo(Duration.ofMillis(50));
+            assertThat(outcome.executionTime()).isLessThan(Duration.ofMillis(200));
+        }
+
+        @Test
+        @DisplayName("stores metadata")
+        void storesMetadata() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("tokensUsed", 150)
+                    .meta("model", "gpt-4")
+                    .build();
+
+            assertThat(outcome.metadata()).containsEntry("tokensUsed", 150);
+            assertThat(outcome.metadata()).containsEntry("model", "gpt-4");
+        }
+
+        @Test
+        @DisplayName("metadata is immutable")
+        void metadataIsImmutable() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("key", "value")
+                    .build();
+
+            assertThatThrownBy(() -> outcome.metadata().put("newKey", "newValue"))
+                    .isInstanceOf(UnsupportedOperationException.class);
+        }
+
+        @Test
+        @DisplayName("throws when contract is null")
+        void throwsWhenContractIsNull() {
+            assertThatThrownBy(() -> UseCaseOutcome.withContract(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("contract must not be null");
+        }
+
+        @Test
+        @DisplayName("throws when execute function is null")
+        void throwsWhenExecuteFunctionIsNull() {
+            assertThatThrownBy(() -> UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("function must not be null");
+        }
+
+        @Test
+        @DisplayName("throws when meta key is null")
+        void throwsWhenMetaKeyIsNull() {
+            assertThatThrownBy(() -> UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta(null, "value"))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("key must not be null");
+        }
+
+        @Test
+        @DisplayName("allows null meta value")
+        void allowsNullMetaValue() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("nullableField", null)
+                    .build();
+
+            assertThat(outcome.metadata()).containsEntry("nullableField", null);
+        }
+    }
+
+    @Nested
+    @DisplayName("preconditions")
+    class PreconditionTests {
+
+        @Test
+        @DisplayName("checks preconditions at input()")
+        void checksPreconditionsAtInput() {
+            assertThatThrownBy(() -> UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput(null, 42)))
+                    .isInstanceOf(PreconditionException.class)
+                    .satisfies(e -> {
+                        PreconditionException ex = (PreconditionException) e;
+                        assertThat(ex.getPreconditionDescription()).isEqualTo("Value not null");
+                    });
+        }
+
+        @Test
+        @DisplayName("checks all preconditions in order")
+        void checksAllPreconditionsInOrder() {
+            // Both fail, but first one throws
+            assertThatThrownBy(() -> UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput(null, -1)))
+                    .isInstanceOf(PreconditionException.class)
+                    .satisfies(e -> {
+                        PreconditionException ex = (PreconditionException) e;
+                        assertThat(ex.getPreconditionDescription()).isEqualTo("Value not null");
+                    });
+        }
+
+        @Test
+        @DisplayName("does not execute service if precondition fails")
+        void doesNotExecuteServiceIfPreconditionFails() {
+            boolean[] executed = {false};
+
+            assertThatThrownBy(() -> UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput(null, 42))
+                    .execute(in -> {
+                        executed[0] = true;
+                        return "result";
+                    }))
+                    .isInstanceOf(PreconditionException.class);
+
+            assertThat(executed[0]).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("postconditions")
+    class PostconditionTests {
+
+        @Test
+        @DisplayName("evaluates postconditions through contract")
+        void evaluatesPostconditionsThroughContract() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "hello")
+                    .build();
+
+            List<PostconditionResult> results = outcome.evaluatePostconditions();
+
+            // 2 direct + 1 derivation + 1 nested = 4
+            assertThat(results).hasSize(4);
+            assertThat(results).allMatch(PostconditionResult::passed);
+        }
+
+        @Test
+        @DisplayName("returns postcondition count from contract")
+        void returnsPostconditionCountFromContract() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .build();
+
+            assertThat(outcome.postconditionCount()).isEqualTo(4);
+        }
+
+        @Test
+        @DisplayName("allPostconditionsSatisfied returns true when all pass")
+        void allPostconditionsSatisfiedReturnsTrueWhenAllPass() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "hello")
+                    .build();
+
+            assertThat(outcome.allPostconditionsSatisfied()).isTrue();
+        }
+
+        @Test
+        @DisplayName("allPostconditionsSatisfied returns false when any fails")
+        void allPostconditionsSatisfiedReturnsFalseWhenAnyFails() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "")  // Empty string fails "Not empty"
+                    .build();
+
+            assertThat(outcome.allPostconditionsSatisfied()).isFalse();
+        }
+
+        @Test
+        @DisplayName("postconditions are evaluated lazily on each call")
+        void postconditionsAreEvaluatedLazilyOnEachCall() {
+            int[] evaluationCount = {0};
+
+            ServiceContract<TestInput, String> countingContract = ServiceContract
+                    .<TestInput, String>define()
+                    .ensure("Counting", s -> {
+                        evaluationCount[0]++;
+                        return true;
+                    })
+                    .build();
+
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(countingContract)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .build();
+
+            assertThat(evaluationCount[0]).isZero();
+
+            outcome.evaluatePostconditions();
+            assertThat(evaluationCount[0]).isEqualTo(1);
+
+            outcome.evaluatePostconditions();
+            assertThat(evaluationCount[0]).isEqualTo(2);
+        }
+    }
+
+    @Nested
+    @DisplayName("toString()")
+    class ToStringTests {
+
+        @Test
+        @DisplayName("returns descriptive string")
+        void returnsDescriptiveString() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("tokens", 100)
+                    .build();
+
+            assertThat(outcome.toString())
+                    .contains("UseCaseOutcome")
+                    .contains("result")
+                    .contains("tokens");
+        }
+    }
+}
