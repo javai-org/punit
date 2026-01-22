@@ -49,7 +49,7 @@ import java.util.function.Predicate;
  * @see Derivation
  * @see Postcondition
  */
-public final class ServiceContract<I, R> {
+public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
 
     private final List<Precondition<I>> preconditions;
     private final List<Postcondition<R>> postconditions;
@@ -114,7 +114,8 @@ public final class ServiceContract<I, R> {
      * @param result the result to evaluate
      * @return list of all postcondition results
      */
-    public List<PostconditionResult> evaluatePostconditions(R result) {
+    @Override
+    public List<PostconditionResult> evaluate(R result) {
         List<PostconditionResult> results = new ArrayList<>();
         for (Postcondition<R> postcondition : postconditions) {
             results.add(postcondition.evaluate(result));
@@ -137,6 +138,7 @@ public final class ServiceContract<I, R> {
      *
      * @return total postcondition count
      */
+    @Override
     public int postconditionCount() {
         int count = postconditions.size();
         for (Derivation<R, ?> derivation : derivations) {

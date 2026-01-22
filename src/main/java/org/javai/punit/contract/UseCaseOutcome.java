@@ -17,7 +17,7 @@ import java.util.function.Function;
  *   <li>The raw result from the service</li>
  *   <li>Execution time (automatically captured)</li>
  *   <li>Arbitrary metadata (e.g., token counts)</li>
- *   <li>Lazy postcondition evaluation via the bound contract</li>
+ *   <li>Lazy postcondition evaluation</li>
  * </ul>
  *
  * <h2>Usage</h2>
@@ -32,64 +32,41 @@ import java.util.function.Function;
  * }
  * }</pre>
  *
+ * @param result the raw result from the service
+ * @param executionTime the duration of the service execution
+ * @param metadata arbitrary key-value metadata (e.g., token counts)
+ * @param postconditionEvaluator evaluates postconditions against the result
  * @param <R> the result type
  * @see ServiceContract
+ * @see PostconditionEvaluator
  */
-public final class UseCaseOutcome<R> {
-
-    private final R result;
-    private final Duration executionTime;
-    private final Map<String, Object> metadata;
-    private final ServiceContract<?, R> contract;
-
-    private UseCaseOutcome(
-            R result,
-            Duration executionTime,
-            Map<String, Object> metadata,
-            ServiceContract<?, R> contract) {
-        this.result = result;
-        this.executionTime = Objects.requireNonNull(executionTime, "executionTime must not be null");
-        this.metadata = Collections.unmodifiableMap(new HashMap<>(metadata));
-        this.contract = Objects.requireNonNull(contract, "contract must not be null");
-    }
+public record UseCaseOutcome<R>(
+        R result,
+        Duration executionTime,
+        Map<String, Object> metadata,
+        PostconditionEvaluator<R> postconditionEvaluator
+) {
 
     /**
-     * Returns the raw result from the service.
+     * Creates a new use case outcome.
      *
-     * @return the result
+     * @throws NullPointerException if executionTime or postconditionEvaluator is null
      */
-    public R result() {
-        return result;
+    public UseCaseOutcome {
+        Objects.requireNonNull(executionTime, "executionTime must not be null");
+        Objects.requireNonNull(postconditionEvaluator, "postconditionEvaluator must not be null");
+        metadata = Collections.unmodifiableMap(new HashMap<>(metadata));
     }
 
     /**
-     * Returns the execution time of the service call.
+     * Evaluates all postconditions against the result.
      *
-     * @return the duration
-     */
-    public Duration executionTime() {
-        return executionTime;
-    }
-
-    /**
-     * Returns the metadata associated with this outcome.
-     *
-     * @return unmodifiable map of metadata
-     */
-    public Map<String, Object> metadata() {
-        return metadata;
-    }
-
-    /**
-     * Evaluates all postconditions from the contract against the result.
-     *
-     * <p>This includes both direct postconditions and derivation postconditions.
-     * Postconditions are evaluated lazily on each call.
+     * <p>Postconditions are evaluated lazily on each call.
      *
      * @return list of postcondition results
      */
     public List<PostconditionResult> evaluatePostconditions() {
-        return contract.evaluatePostconditions(result);
+        return postconditionEvaluator.evaluate(result);
     }
 
     /**
@@ -105,12 +82,12 @@ public final class UseCaseOutcome<R> {
     }
 
     /**
-     * Returns the total number of postconditions in the contract.
+     * Returns the total number of postconditions.
      *
      * @return the postcondition count
      */
     public int postconditionCount() {
-        return contract.postconditionCount();
+        return postconditionEvaluator.postconditionCount();
     }
 
     /**
@@ -124,13 +101,6 @@ public final class UseCaseOutcome<R> {
     public static <I, R> InputBuilder<I, R> withContract(ServiceContract<I, R> contract) {
         Objects.requireNonNull(contract, "contract must not be null");
         return new InputBuilder<>(contract);
-    }
-
-    @Override
-    public String toString() {
-        return "UseCaseOutcome[result=" + result +
-                ", executionTime=" + executionTime +
-                ", metadata=" + metadata.keySet() + "]";
     }
 
     /**
@@ -206,13 +176,13 @@ public final class UseCaseOutcome<R> {
      */
     public static final class MetadataBuilder<R> {
 
-        private final ServiceContract<?, R> contract;
+        private final PostconditionEvaluator<R> evaluator;
         private final R result;
         private final Duration executionTime;
         private final Map<String, Object> metadata = new HashMap<>();
 
-        private MetadataBuilder(ServiceContract<?, R> contract, R result, Duration executionTime) {
-            this.contract = contract;
+        private MetadataBuilder(PostconditionEvaluator<R> evaluator, R result, Duration executionTime) {
+            this.evaluator = evaluator;
             this.result = result;
             this.executionTime = executionTime;
         }
@@ -239,7 +209,7 @@ public final class UseCaseOutcome<R> {
          * @return the immutable outcome
          */
         public UseCaseOutcome<R> build() {
-            return new UseCaseOutcome<>(result, executionTime, metadata, contract);
+            return new UseCaseOutcome<>(result, executionTime, metadata, evaluator);
         }
     }
 }

@@ -202,7 +202,7 @@ class ServiceContractTest {
     }
 
     @Nested
-    @DisplayName("evaluatePostconditions()")
+    @DisplayName("evaluate()")
     class EvaluatePostconditionsTests {
 
         @Test
@@ -214,7 +214,7 @@ class ServiceContractTest {
                     .ensure("Starts with H", s -> s.startsWith("H"))
                     .build();
 
-            List<PostconditionResult> results = contract.evaluatePostconditions("Hello");
+            List<PostconditionResult> results = contract.evaluate("Hello");
 
             assertThat(results).hasSize(2);
             assertThat(results).allMatch(PostconditionResult::passed);
@@ -230,7 +230,7 @@ class ServiceContractTest {
                         .ensure("All caps", s -> s.equals(s.toUpperCase()))
                     .build();
 
-            List<PostconditionResult> results = contract.evaluatePostconditions("hello");
+            List<PostconditionResult> results = contract.evaluate("hello");
 
             assertThat(results).hasSize(3);
             // Direct postcondition first
@@ -260,7 +260,7 @@ class ServiceContractTest {
                         .ensure("Less than 100", n -> n < 100)
                     .build();
 
-            List<PostconditionResult> results = contract.evaluatePostconditions("42");
+            List<PostconditionResult> results = contract.evaluate("42");
 
             assertThat(results).hasSize(3);
             assertThat(results).allMatch(PostconditionResult::passed);
@@ -282,7 +282,7 @@ class ServiceContractTest {
                         .ensure("Less than 100", n -> n < 100)
                     .build();
 
-            List<PostconditionResult> results = contract.evaluatePostconditions("not-a-number");
+            List<PostconditionResult> results = contract.evaluate("not-a-number");
 
             assertThat(results).hasSize(3);
             assertThat(results.get(0).failed()).isTrue();
@@ -309,7 +309,7 @@ class ServiceContractTest {
                     .build();
 
             // First derivation fails, second succeeds
-            List<PostconditionResult> results = contract.evaluatePostconditions("hello");
+            List<PostconditionResult> results = contract.evaluate("hello");
 
             assertThat(results).hasSize(4);
             // First derivation: Failed + Skipped
