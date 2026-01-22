@@ -270,7 +270,7 @@ public class ShoppingBasketUseCase {
                 "tokensUsed", lastTokensUsed
         );
 
-        return new UseCaseOutcome<>(result, executionTime, metadata, contract);
+        return new UseCaseOutcome<>(result, executionTime, Instant.now(), metadata, contract);
     }
 
     /**

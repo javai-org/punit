@@ -1,6 +1,6 @@
 package org.javai.punit.experiment.optimize;
 
-import org.javai.punit.model.UseCaseOutcome;
+import org.javai.punit.contract.UseCaseOutcome;
 
 import java.util.List;
 
@@ -9,16 +9,13 @@ import java.util.List;
  *
  * <p>Computes standard statistics from a list of use case outcomes.
  *
- * <p>Token counts are extracted from the outcome's result values using the key "tokensUsed".
- * If not present, tokens are counted as 0.
+ * <p>Token counts are extracted from the outcome's metadata using common keys
+ * ("tokensUsed", "tokens", "totalTokens").
  */
 public final class DefaultOptimizationOutcomeAggregator implements OptimizationOutcomeAggregator {
 
-    /** The default key for token count in result values. */
-    public static final String TOKEN_COUNT_KEY = "tokensUsed";
-
     @Override
-    public OptimizeStatistics aggregate(List<UseCaseOutcome> outcomes) {
+    public OptimizeStatistics aggregate(List<UseCaseOutcome<?>> outcomes) {
         if (outcomes == null || outcomes.isEmpty()) {
             return OptimizeStatistics.empty();
         }
@@ -28,12 +25,12 @@ public final class DefaultOptimizationOutcomeAggregator implements OptimizationO
         long totalTokens = 0;
         long totalLatencyMs = 0;
 
-        for (UseCaseOutcome outcome : outcomes) {
-            if (outcome.allPassed()) {
+        for (UseCaseOutcome<?> outcome : outcomes) {
+            if (outcome.allPostconditionsSatisfied()) {
                 successCount++;
             }
-            // Extract tokens from result values (common convention: "tokensUsed")
-            totalTokens += outcome.result().getLong(TOKEN_COUNT_KEY, 0);
+            // Extract tokens from metadata using common keys
+            totalTokens += outcome.getMetadataLong("tokensUsed", "tokens", "totalTokens").orElse(0L);
             // Get latency from execution time
             totalLatencyMs += outcome.executionTime().toMillis();
         }

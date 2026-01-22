@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.spec.criteria.PostconditionAggregator;
 import org.javai.punit.experiment.model.ResultProjection;
 import org.javai.punit.model.UseCaseCriteria;
@@ -36,6 +37,7 @@ public class ExperimentResultAggregator {
     private long totalTokens = 0;
     private final Map<String, Integer> failureDistribution = new LinkedHashMap<>();
     private final List<UseCaseResult> results = new ArrayList<>();
+    private final List<UseCaseOutcome<?>> contractOutcomes = new ArrayList<>();
     private final List<ResultProjection> resultProjections = new ArrayList<>();
     private final PostconditionAggregator postconditionAggregator = new PostconditionAggregator();
     private String terminationReason = null;
@@ -55,31 +57,70 @@ public class ExperimentResultAggregator {
     }
     
     /**
+     * Records a successful sample execution from a contract outcome.
+     *
+     * @param outcome the contract-based outcome
+     */
+    public void recordSuccess(UseCaseOutcome<?> outcome) {
+        Objects.requireNonNull(outcome, "outcome must not be null");
+        successes++;
+        contractOutcomes.add(outcome);
+        trackTokens(outcome);
+        recordPostconditions(outcome.evaluatePostconditions());
+        updateLastSampleTime();
+    }
+
+    /**
+     * Records a failed sample execution from a contract outcome.
+     *
+     * @param outcome the contract-based outcome
+     * @param failureCategory the category of failure (for distribution tracking)
+     */
+    public void recordFailure(UseCaseOutcome<?> outcome, String failureCategory) {
+        Objects.requireNonNull(outcome, "outcome must not be null");
+        failures++;
+        contractOutcomes.add(outcome);
+        trackTokens(outcome);
+        recordPostconditions(outcome.evaluatePostconditions());
+        updateLastSampleTime();
+
+        if (failureCategory != null && !failureCategory.isEmpty()) {
+            failureDistribution.merge(failureCategory, 1, Integer::sum);
+        } else {
+            failureDistribution.merge("unknown", 1, Integer::sum);
+        }
+    }
+
+    /**
      * Records a successful sample execution.
      *
      * @param result the use case result
+     * @deprecated Use {@link #recordSuccess(UseCaseOutcome)} instead
      */
+    @Deprecated(forRemoval = true)
     public void recordSuccess(UseCaseResult result) {
         Objects.requireNonNull(result, "result must not be null");
         successes++;
         results.add(result);
-        trackTokens(result);
+        trackTokensFromResult(result);
         updateLastSampleTime();
     }
-    
+
     /**
      * Records a failed sample execution.
      *
      * @param result the use case result
      * @param failureCategory the category of failure (for distribution tracking)
+     * @deprecated Use {@link #recordFailure(UseCaseOutcome, String)} instead
      */
+    @Deprecated(forRemoval = true)
     public void recordFailure(UseCaseResult result, String failureCategory) {
         Objects.requireNonNull(result, "result must not be null");
         failures++;
         results.add(result);
-        trackTokens(result);
+        trackTokensFromResult(result);
         updateLastSampleTime();
-        
+
         if (failureCategory != null && !failureCategory.isEmpty()) {
             failureDistribution.merge(failureCategory, 1, Integer::sum);
         } else {
@@ -107,8 +148,19 @@ public class ExperimentResultAggregator {
     private void updateLastSampleTime() {
         this.lastSampleTimeMs = System.currentTimeMillis();
     }
-    
-    private void trackTokens(UseCaseResult result) {
+
+    /**
+     * Tracks tokens from a contract outcome using metadata.
+     */
+    private void trackTokens(UseCaseOutcome<?> outcome) {
+        outcome.getMetadataLong("tokensUsed", "tokens", "totalTokens")
+                .ifPresent(tokens -> totalTokens += tokens);
+    }
+
+    /**
+     * Tracks tokens from a legacy UseCaseResult.
+     */
+    private void trackTokensFromResult(UseCaseResult result) {
         // Look for common token count keys
         long tokens = result.getLong("tokensUsed", 0);
         if (tokens == 0) {
@@ -281,7 +333,23 @@ public class ExperimentResultAggregator {
     public Map<String, Integer> getFailureDistribution() {
         return Collections.unmodifiableMap(failureDistribution);
     }
-    
+
+    /**
+     * Returns all recorded contract outcomes.
+     *
+     * @return unmodifiable list of contract outcomes
+     */
+    public List<UseCaseOutcome<?>> getContractOutcomes() {
+        return Collections.unmodifiableList(contractOutcomes);
+    }
+
+    /**
+     * Returns all recorded legacy results.
+     *
+     * @return unmodifiable list of results
+     * @deprecated Use {@link #getContractOutcomes()} instead
+     */
+    @Deprecated(forRemoval = true)
     public List<UseCaseResult> getResults() {
         return Collections.unmodifiableList(results);
     }

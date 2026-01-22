@@ -11,22 +11,17 @@ import java.util.function.Supplier;
 /**
  * Adapts a contract-based postcondition evaluator to the {@link UseCaseCriteria} interface.
  *
- * <p>This adapter enables the new Design by Contract system to integrate with the
- * existing PUnit experiment infrastructure. It wraps a {@link PostconditionEvaluator}
- * and a result value, presenting them as a {@link UseCaseCriteria} for compatibility
- * with {@link org.javai.punit.api.ResultCaptor} and aggregators.
- *
- * <h2>Usage</h2>
- * <pre>{@code
- * UseCaseOutcome<String> outcome = ...; // contract-based outcome
- * UseCaseCriteria criteria = ContractCriteriaAdapter.from(outcome);
- * captor.recordCriteria(criteria);
- * }</pre>
+ * <p>This adapter bridges the Design by Contract system with legacy PUnit infrastructure.
+ * It will be removed when the legacy infrastructure is fully migrated.
  *
  * @param <R> the result type
+ * @deprecated This adapter exists for backward compatibility. Use
+ *             {@link UseCaseOutcome#evaluatePostconditions()} directly instead of
+ *             converting to legacy criteria.
  * @see PostconditionEvaluator
  * @see UseCaseCriteria
  */
+@Deprecated(forRemoval = true)
 public final class ContractCriteriaAdapter<R> implements UseCaseCriteria {
 
     private final PostconditionEvaluator<R> evaluator;

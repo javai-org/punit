@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,6 +44,7 @@ class ResultRecorderTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "test data",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -69,6 +71,7 @@ class ResultRecorderTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "test data",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -96,6 +99,7 @@ class ResultRecorderTest {
                 UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                         "test",
                         Duration.ofMillis(100),
+                        Instant.now(),
                         Map.of(),
                         contract
                 );
@@ -129,6 +133,7 @@ class ResultRecorderTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "not-a-number",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );

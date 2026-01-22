@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "hello world",
                     Duration.ofMillis(150),
+                    Instant.now(),
                     Map.of("tokensUsed", 42),
                     contract
             );
@@ -63,6 +65,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "hello",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -90,6 +93,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "result",
                     executionTime,
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -109,6 +113,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "result",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of("tokensUsed", 150, "model", "gpt-4"),
                     contract
             );
@@ -129,6 +134,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "the actual result",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -151,6 +157,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     null,
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -178,6 +185,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome1 = new UseCaseOutcome<>(
                     "first",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract1
             );
@@ -185,6 +193,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome2 = new UseCaseOutcome<>(
                     "second",
                     Duration.ofMillis(200),
+                    Instant.now(),
                     Map.of(),
                     contract2
             );
@@ -208,6 +217,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "result",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -242,6 +252,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "42",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -273,6 +284,7 @@ class ResultCaptorContractIntegrationTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "not-a-number",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,7 @@ class ContractCriteriaAdapterTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "hello world",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -54,6 +56,7 @@ class ContractCriteriaAdapterTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "hello",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -80,6 +83,7 @@ class ContractCriteriaAdapterTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "hello",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -108,6 +112,7 @@ class ContractCriteriaAdapterTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "hello",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -122,6 +127,7 @@ class ContractCriteriaAdapterTest {
             UseCaseOutcome<String> passingOutcome = new UseCaseOutcome<>(
                     "42",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -198,6 +204,7 @@ class ContractCriteriaAdapterTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "hello",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );
@@ -234,6 +241,7 @@ class ContractCriteriaAdapterTest {
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
                     "test",
                     Duration.ofMillis(100),
+                    Instant.now(),
                     Map.of(),
                     contract
             );

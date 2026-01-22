@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.model.FactorSuit;
-import org.javai.punit.model.UseCaseOutcome;
 
 /**
  * Mutable state for an OPTIMIZE experiment execution.
@@ -47,7 +47,7 @@ public final class OptimizeState {
     private volatile Instant iterationStartTime;
 
     // Current iteration outcomes (reset at start of each iteration)
-    private final List<UseCaseOutcome> currentIterationOutcomes = new ArrayList<>();
+    private final List<UseCaseOutcome<?>> currentIterationOutcomes = new ArrayList<>();
 
     // History builder
     private final OptimizeHistory.Builder historyBuilder;
@@ -181,7 +181,7 @@ public final class OptimizeState {
     /**
      * Records an outcome for the current iteration.
      */
-    public synchronized void recordOutcome(UseCaseOutcome outcome) {
+    public synchronized void recordOutcome(UseCaseOutcome<?> outcome) {
         currentIterationOutcomes.add(outcome);
     }
 

@@ -6,24 +6,18 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Adapts the new Design by Contract postcondition results to the existing PUnit
+ * Adapts the Design by Contract postcondition results to the legacy PUnit
  * criterion outcome model.
  *
- * <p>This adapter enables the new {@link PostconditionResult} types to integrate
- * with the existing experiment infrastructure (aggregators, spec generation, etc.)
- * by converting them to {@link CriterionOutcome} instances.
+ * <p>This adapter bridges the new postcondition system with legacy infrastructure.
+ * It will be removed when the legacy infrastructure is fully migrated.
  *
- * <h2>Mapping</h2>
- * <table border="1">
- *   <tr><th>PostconditionResult</th><th>CriterionOutcome</th></tr>
- *   <tr><td>{@link PostconditionResult.Passed}</td><td>{@link CriterionOutcome.Passed}</td></tr>
- *   <tr><td>{@link PostconditionResult.Failed}</td><td>{@link CriterionOutcome.Failed}</td></tr>
- *   <tr><td>{@link PostconditionResult.Skipped}</td><td>{@link CriterionOutcome.NotEvaluated}</td></tr>
- * </table>
- *
+ * @deprecated Use {@link PostconditionResult} directly instead of converting
+ *             to legacy criterion outcomes.
  * @see PostconditionResult
  * @see CriterionOutcome
  */
+@Deprecated(forRemoval = true)
 public final class PostconditionResultAdapter {
 
     private PostconditionResultAdapter() {

@@ -94,7 +94,7 @@ public class PaymentGatewayUseCase {
                 "region", region
         );
 
-        return new UseCaseOutcome<>(result, executionTime, metadata, contract);
+        return new UseCaseOutcome<>(result, executionTime, Instant.now(), metadata, contract);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

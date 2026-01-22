@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.model.FactorSuit;
-import org.javai.punit.model.UseCaseOutcome;
 
 /**
  * Executes the OPTIMIZE experiment loop.
@@ -107,7 +107,7 @@ public final class OptimizationOrchestrator<F> {
                     .with(config.controlFactorName(), currentFactorValue);
 
             // 2. Execute use case N times (like MEASURE)
-            List<UseCaseOutcome> outcomes;
+            List<UseCaseOutcome<?>> outcomes;
             try {
                 outcomes = executor.execute(factorSuit, config.samplesPerIteration());
             } catch (UseCaseExecutor.ExecutionException e) {

@@ -1,6 +1,10 @@
 package org.javai.punit.experiment.optimize;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -13,12 +17,11 @@ import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.model.FactorSuit;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseOutcome;
-import org.javai.punit.model.UseCaseResult;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -164,14 +167,13 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         try {
             invocation.proceed();
 
-            // Record the outcome - prefer contract outcome, fall back to legacy
-            if (captor != null && captor.hasResult()) {
-                UseCaseOutcome outcome = buildOutcomeFromCaptor(captor);
-                state.recordOutcome(outcome);
+            // Record the outcome - use contract outcome directly
+            if (captor != null && captor.hasContractOutcome()) {
+                state.recordOutcome(captor.getContractOutcome());
             }
         } catch (Throwable e) {
             // Record as failed outcome
-            state.recordOutcome(UseCaseOutcome.invocationFailed(e));
+            state.recordOutcome(createInvocationFailedOutcome(e));
             // Don't rethrow - allow experiment to continue
         }
 
@@ -360,18 +362,43 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
     }
 
     /**
-     * Builds a model UseCaseOutcome from the captor.
+     * Creates a contract UseCaseOutcome for invocation failures.
      *
-     * <p>The captor already handles bridging contract outcomes to legacy criteria
-     * via ContractCriteriaAdapter, so we just need to extract the result and criteria.
+     * <p>The outcome has a null result and a single failing postcondition
+     * indicating the invocation failed with the given exception.
      */
-    @SuppressWarnings("deprecation")
-    private UseCaseOutcome buildOutcomeFromCaptor(ResultCaptor captor) {
-        UseCaseResult result = captor.getResult();
-        UseCaseCriteria criteria = captor.hasCriteria()
-                ? captor.getCriteria()
-                : UseCaseCriteria.defaultCriteria();
-        return new UseCaseOutcome(result, criteria);
+    private UseCaseOutcome<Void> createInvocationFailedOutcome(Throwable e) {
+        String errorMessage = "Invocation failed: " + e.getClass().getSimpleName() +
+                (e.getMessage() != null ? " - " + e.getMessage() : "");
+
+        return new UseCaseOutcome<>(
+                null,
+                Duration.ZERO,
+                Instant.now(),
+                Map.of("error", errorMessage, "exceptionType", e.getClass().getName()),
+                new FailedInvocationEvaluator(errorMessage)
+        );
+    }
+
+    /**
+     * PostconditionEvaluator for invocation failures.
+     */
+    private static final class FailedInvocationEvaluator implements org.javai.punit.contract.PostconditionEvaluator<Void> {
+        private final String errorMessage;
+
+        FailedInvocationEvaluator(String errorMessage) {
+            this.errorMessage = errorMessage;
+        }
+
+        @Override
+        public List<PostconditionResult> evaluate(Void result) {
+            return List.of(PostconditionResult.failed("Invocation succeeded", errorMessage));
+        }
+
+        @Override
+        public int postconditionCount() {
+            return 1;
+        }
     }
 
     private void reportProgress(ExtensionContext context, OptimizeState state,

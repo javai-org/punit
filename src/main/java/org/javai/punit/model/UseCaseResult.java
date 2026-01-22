@@ -12,35 +12,12 @@ import java.util.Optional;
 /**
  * A neutral container for observed outcomes from a use case invocation.
  *
- * <p>{@code UseCaseResult} holds key-value pairs representing the observations
- * made during use case execution. It is:
- * <ul>
- *   <li><strong>Neutral and descriptive</strong>: Contains data, not judgments. Whether
- *       a value represents "success" or "failure" is determined by the interpreter
- *       (experiment or test), not the result itself.</li>
- *   <li><strong>Flexible</strong>: The {@code Map<String, Object>} allows domain-specific
- *       values without requiring framework changes.</li>
- *   <li><strong>Immutable</strong>: Guaranteed by the record specification.</li>
- * </ul>
+ * @deprecated Use {@link org.javai.punit.contract.UseCaseOutcome} instead, which provides
+ *             type-safe result access via a typed result object rather than a map of values.
  *
- * <h2>Example Usage</h2>
- * <pre>{@code
- * UseCaseResult result = UseCaseResult.builder()
- *     .value("isValid", true)
- *     .value("score", 0.95)
- *     .value("responseText", "Generated content...")
- *     .value("tokensUsed", 150)
- *     .meta("requestId", "abc-123")
- *     .build();
- *
- * // Retrieve values with type safety
- * boolean isValid = result.getBoolean("isValid", false);
- * double score = result.getDouble("score", 0.0);
- * int tokens = result.getInt("tokensUsed", 0);
- * }</pre>
- *
- * @see org.javai.punit.api.UseCase
+ * @see org.javai.punit.contract.UseCaseOutcome
  */
+@Deprecated(forRemoval = true)
 public record UseCaseResult(
     Map<String, Object> values,
     Map<String, Object> metadata,

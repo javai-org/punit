@@ -69,24 +69,8 @@ public class OutcomeCaptor {
     public <R> org.javai.punit.contract.UseCaseOutcome<R> record(
             org.javai.punit.contract.UseCaseOutcome<R> outcome) {
         if (!recorded) {
-            // Store the contract outcome for direct postcondition access
+            // Store the contract outcome directly - UseCaseResult is built lazily
             this.contractOutcome = outcome;
-
-            // Convert contract outcome to model types for legacy compatibility
-            UseCaseResult.Builder builder = UseCaseResult.builder()
-                    .executionTime(outcome.executionTime())
-                    .timestamp(Instant.now());
-
-            // Copy metadata
-            outcome.metadata().forEach(builder::meta);
-
-            // Store the raw result as a value (if not null)
-            if (outcome.result() != null) {
-                builder.value("result", outcome.result());
-            }
-
-            this.result = builder.build();
-            this.criteria = ContractCriteriaAdapter.from(outcome);
             this.recorded = true;
         }
         return outcome;
@@ -184,7 +168,7 @@ public class OutcomeCaptor {
      * @return true if a result was recorded
      */
     public boolean hasResult() {
-        return result != null;
+        return result != null || contractOutcome != null;
     }
 
     /**
@@ -197,11 +181,46 @@ public class OutcomeCaptor {
     }
 
     /**
+     * Gets the recorded contract outcome directly.
+     *
+     * <p>This provides direct access to the contract outcome without conversion
+     * to legacy types. Use this method when you need the typed result or
+     * postcondition evaluator.
+     *
+     * @return the recorded contract outcome, or null if none was recorded
+     */
+    public org.javai.punit.contract.UseCaseOutcome<?> getContractOutcome() {
+        return contractOutcome;
+    }
+
+    /**
      * Gets the recorded result.
      *
+     * <p>If a contract outcome was recorded, this method lazily builds a
+     * UseCaseResult from it for backward compatibility.
+     *
      * @return the recorded result, or null if none was recorded
+     * @deprecated Use {@link #getContractOutcome()} for contract-based outcomes
      */
+    @Deprecated(forRemoval = true)
     public UseCaseResult getResult() {
+        // Build lazily from contract outcome if needed
+        if (result == null && contractOutcome != null) {
+            UseCaseResult.Builder builder = UseCaseResult.builder()
+                    .executionTime(contractOutcome.executionTime())
+                    .timestamp(contractOutcome.timestamp());
+
+            // Copy metadata
+            contractOutcome.metadata().forEach(builder::meta);
+
+            // Store the raw result as a value (if not null)
+            if (contractOutcome.result() != null) {
+                builder.value("result", contractOutcome.result());
+            }
+
+            this.result = builder.build();
+            this.criteria = ContractCriteriaAdapter.from(contractOutcome);
+        }
         return result;
     }
 
@@ -226,23 +245,30 @@ public class OutcomeCaptor {
     /**
      * Gets the recorded success criteria.
      *
+     * <p>If a contract outcome was recorded, this method lazily builds
+     * criteria from it for backward compatibility.
+     *
      * @return the recorded criteria, or null if none was recorded
      * @deprecated Use {@link #getPostconditionResults()} for contract-based outcomes
      */
     @Deprecated(forRemoval = true)
     public UseCaseCriteria getCriteria() {
+        // Build lazily from contract outcome if needed
+        if (criteria == null && contractOutcome != null) {
+            this.criteria = ContractCriteriaAdapter.from(contractOutcome);
+        }
         return criteria;
     }
 
     /**
      * Checks if criteria have been recorded.
      *
-     * @return true if criteria were recorded
+     * @return true if criteria were recorded (directly or via contract outcome)
      * @deprecated Use {@link #hasContractOutcome()} for contract-based outcomes
      */
     @Deprecated(forRemoval = true)
     public boolean hasCriteria() {
-        return criteria != null;
+        return criteria != null || contractOutcome != null;
     }
 
     /**

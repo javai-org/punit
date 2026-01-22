@@ -12,7 +12,7 @@ import java.util.function.Function;
 /**
  * The outcome of a use case execution, containing the result, timing, and postcondition evaluation.
  *
- * <p>A {@code UseCaseOutcome} captures:
+ * <p>A {@code UseCaOutseOutcome} captures:
  * <ul>
  *   <li>The raw result from the service</li>
  *   <li>Execution time (automatically captured)</li>
@@ -43,6 +43,7 @@ import java.util.function.Function;
 public record UseCaseOutcome<R>(
         R result,
         Duration executionTime,
+        Instant timestamp,
         Map<String, Object> metadata,
         PostconditionEvaluator<R> postconditionEvaluator
 ) {
@@ -50,10 +51,11 @@ public record UseCaseOutcome<R>(
     /**
      * Creates a new use case outcome.
      *
-     * @throws NullPointerException if executionTime or postconditionEvaluator is null
+     * @throws NullPointerException if executionTime, timestamp, or postconditionEvaluator is null
      */
     public UseCaseOutcome {
         Objects.requireNonNull(executionTime, "executionTime must not be null");
+        Objects.requireNonNull(timestamp, "timestamp must not be null");
         Objects.requireNonNull(postconditionEvaluator, "postconditionEvaluator must not be null");
         metadata = Collections.unmodifiableMap(new HashMap<>(metadata));
     }
@@ -128,6 +130,55 @@ public record UseCaseOutcome<R>(
         }
     }
 
+    // ========== Metadata Accessors ==========
+
+    /**
+     * Gets a long value from metadata, trying multiple keys in order.
+     *
+     * <p>This is useful when different use cases may store the same information
+     * under different keys (e.g., "tokensUsed", "tokens", "totalTokens").
+     *
+     * @param keys the keys to try in order
+     * @return the value if found, empty otherwise
+     */
+    public java.util.Optional<Long> getMetadataLong(String... keys) {
+        for (String key : keys) {
+            Object value = metadata.get(key);
+            if (value instanceof Number n) {
+                return java.util.Optional.of(n.longValue());
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Gets a string value from metadata.
+     *
+     * @param key the metadata key
+     * @return the value if present and is a String, empty otherwise
+     */
+    public java.util.Optional<String> getMetadataString(String key) {
+        Object value = metadata.get(key);
+        if (value instanceof String s) {
+            return java.util.Optional.of(s);
+        }
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Gets a boolean value from metadata.
+     *
+     * @param key the metadata key
+     * @return the value if present and is a Boolean, empty otherwise
+     */
+    public java.util.Optional<Boolean> getMetadataBoolean(String key) {
+        Object value = metadata.get(key);
+        if (value instanceof Boolean b) {
+            return java.util.Optional.of(b);
+        }
+        return java.util.Optional.empty();
+    }
+
     /**
      * Starts building a use case outcome with the given contract.
      *
@@ -191,7 +242,8 @@ public record UseCaseOutcome<R>(
          * Executes the service function and captures timing.
          *
          * <p>The execution time is automatically measured from before the function
-         * is called until after it returns.
+         * is called until after it returns. The timestamp is captured at the start
+         * of execution.
          *
          * @param function the service function to execute
          * @return a builder for adding metadata and building the outcome
@@ -203,7 +255,7 @@ public record UseCaseOutcome<R>(
             R result = function.apply(input);
             Duration executionTime = Duration.between(start, Instant.now());
 
-            return new MetadataBuilder<>(contract, result, executionTime);
+            return new MetadataBuilder<>(contract, result, executionTime, start);
         }
     }
 
@@ -217,12 +269,14 @@ public record UseCaseOutcome<R>(
         private final PostconditionEvaluator<R> evaluator;
         private final R result;
         private final Duration executionTime;
+        private final Instant timestamp;
         private final Map<String, Object> metadata = new HashMap<>();
 
-        private MetadataBuilder(PostconditionEvaluator<R> evaluator, R result, Duration executionTime) {
+        private MetadataBuilder(PostconditionEvaluator<R> evaluator, R result, Duration executionTime, Instant timestamp) {
             this.evaluator = evaluator;
             this.result = result;
             this.executionTime = executionTime;
+            this.timestamp = timestamp;
         }
 
         /**
@@ -247,7 +301,7 @@ public record UseCaseOutcome<R>(
          * @return the immutable outcome
          */
         public UseCaseOutcome<R> build() {
-            return new UseCaseOutcome<>(result, executionTime, metadata, evaluator);
+            return new UseCaseOutcome<>(result, executionTime, timestamp, metadata, evaluator);
         }
     }
 }

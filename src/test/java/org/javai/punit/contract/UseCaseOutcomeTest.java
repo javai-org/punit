@@ -62,6 +62,21 @@ class UseCaseOutcomeTest {
         }
 
         @Test
+        @DisplayName("captures timestamp at execution start")
+        void capturesTimestampAtExecutionStart() {
+            java.time.Instant before = java.time.Instant.now();
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .build();
+            java.time.Instant after = java.time.Instant.now();
+
+            assertThat(outcome.timestamp()).isAfterOrEqualTo(before);
+            assertThat(outcome.timestamp()).isBeforeOrEqualTo(after);
+        }
+
+        @Test
         @DisplayName("stores metadata")
         void storesMetadata() {
             UseCaseOutcome<String> outcome = UseCaseOutcome
@@ -132,6 +147,141 @@ class UseCaseOutcomeTest {
                     .build();
 
             assertThat(outcome.metadata()).containsEntry("nullableField", null);
+        }
+    }
+
+    @Nested
+    @DisplayName("metadata accessors")
+    class MetadataAccessorTests {
+
+        @Test
+        @DisplayName("getMetadataLong returns value for first matching key")
+        void getMetadataLongReturnsValueForFirstMatchingKey() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("tokens", 150)
+                    .build();
+
+            assertThat(outcome.getMetadataLong("tokensUsed", "tokens", "totalTokens"))
+                    .hasValue(150L);
+        }
+
+        @Test
+        @DisplayName("getMetadataLong tries multiple keys in order")
+        void getMetadataLongTriesMultipleKeysInOrder() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("totalTokens", 200)
+                    .build();
+
+            assertThat(outcome.getMetadataLong("tokensUsed", "tokens", "totalTokens"))
+                    .hasValue(200L);
+        }
+
+        @Test
+        @DisplayName("getMetadataLong returns empty when no key matches")
+        void getMetadataLongReturnsEmptyWhenNoKeyMatches() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .build();
+
+            assertThat(outcome.getMetadataLong("tokensUsed", "tokens"))
+                    .isEmpty();
+        }
+
+        @Test
+        @DisplayName("getMetadataLong handles Integer values")
+        void getMetadataLongHandlesIntegerValues() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("tokensUsed", Integer.valueOf(100))
+                    .build();
+
+            assertThat(outcome.getMetadataLong("tokensUsed")).hasValue(100L);
+        }
+
+        @Test
+        @DisplayName("getMetadataString returns value when present")
+        void getMetadataStringReturnsValueWhenPresent() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("model", "gpt-4")
+                    .build();
+
+            assertThat(outcome.getMetadataString("model")).hasValue("gpt-4");
+        }
+
+        @Test
+        @DisplayName("getMetadataString returns empty when not present")
+        void getMetadataStringReturnsEmptyWhenNotPresent() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .build();
+
+            assertThat(outcome.getMetadataString("model")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("getMetadataString returns empty for non-string value")
+        void getMetadataStringReturnsEmptyForNonStringValue() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("model", 123)
+                    .build();
+
+            assertThat(outcome.getMetadataString("model")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("getMetadataBoolean returns value when present")
+        void getMetadataBooleanReturnsValueWhenPresent() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("cached", true)
+                    .build();
+
+            assertThat(outcome.getMetadataBoolean("cached")).hasValue(true);
+        }
+
+        @Test
+        @DisplayName("getMetadataBoolean returns empty when not present")
+        void getMetadataBooleanReturnsEmptyWhenNotPresent() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .build();
+
+            assertThat(outcome.getMetadataBoolean("cached")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("getMetadataBoolean returns empty for non-boolean value")
+        void getMetadataBooleanReturnsEmptyForNonBooleanValue() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .meta("cached", "yes")
+                    .build();
+
+            assertThat(outcome.getMetadataBoolean("cached")).isEmpty();
         }
     }
 

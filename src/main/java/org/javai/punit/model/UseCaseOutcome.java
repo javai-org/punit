@@ -9,58 +9,17 @@ import java.util.Objects;
 /**
  * A compound return type that bundles a use case result with its success criteria.
  *
- * <p>{@code UseCaseOutcome} solves the "round-trip type safety" problem: it ensures
- * that a use case result and its criteria are always returned together, preventing
- * the programming error of evaluating criteria with an unrelated result.
+ * @deprecated Use {@link org.javai.punit.contract.UseCaseOutcome} instead, which provides:
+ *             <ul>
+ *               <li>Type-safe result access (no map lookups)</li>
+ *               <li>Postconditions via Design by Contract</li>
+ *               <li>Built-in execution timing and timestamps</li>
+ *             </ul>
  *
- * <h2>Why This Matters</h2>
- * <p>Without {@code UseCaseOutcome}, the old pattern was:
- * <pre>{@code
- * UseCaseResult result = useCase.search(query);
- * UseCaseCriteria criteria = useCase.criteria(result);  // What if result is from a different use case?
- * }</pre>
- *
- * <p>With {@code UseCaseOutcome}, the result and criteria are inextricably linked:
- * <pre>{@code
- * UseCaseOutcome outcome = useCase.search(query);
- * outcome.assertAll();  // Type-safe: criteria is bound to this result
- * }</pre>
- *
- * <h2>Usage in Use Cases</h2>
- * <pre>{@code
- * public UseCaseOutcome search(String query) {
- *     LlmResponse response = llm.complete(buildPrompt(query));
- *     
- *     UseCaseResult result = UseCaseResult.builder()
- *         .value("response", response.content())
- *         .value("tokensUsed", response.tokens())
- *         .build();
- *     
- *     UseCaseCriteria criteria = UseCaseCriteria.ordered()
- *         .criterion("JSON parsed", () -> parsed.get() != null)
- *         .criterion("Has products", () -> countProducts(parsed.get()) > 0)
- *         .build();
- *     
- *     return new UseCaseOutcome(result, criteria);
- * }
- * }</pre>
- *
- * <h2>Usage in Tests</h2>
- * <pre>{@code
- * UseCaseOutcome outcome = useCase.search("wireless headphones");
- * outcome.assertAll();  // Throws on failure
- * }</pre>
- *
- * <h2>Usage in Experiments</h2>
- * <pre>{@code
- * UseCaseOutcome outcome = useCase.search(query);
- * captor.record(outcome);  // Records both result and criteria outcomes
- * }</pre>
- *
- * @see UseCaseResult
- * @see UseCaseCriteria
- * @see CriterionOutcome
+ * @see org.javai.punit.contract.UseCaseOutcome
+ * @see org.javai.punit.contract.ServiceContract
  */
+@Deprecated(forRemoval = true)
 public record UseCaseOutcome(
     UseCaseResult result,
     UseCaseCriteria criteria

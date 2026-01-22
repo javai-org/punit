@@ -1,7 +1,7 @@
 package org.javai.punit.experiment.optimize;
 
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.model.FactorSuit;
-import org.javai.punit.model.UseCaseOutcome;
 
 import java.util.List;
 
@@ -30,7 +30,7 @@ public interface UseCaseExecutor {
      * @return list of outcomes from each execution
      * @throws ExecutionException if execution fails catastrophically
      */
-    List<UseCaseOutcome> execute(FactorSuit factorSuit, int sampleCount) throws ExecutionException;
+    List<UseCaseOutcome<?>> execute(FactorSuit factorSuit, int sampleCount) throws ExecutionException;
 
     /**
      * Exception thrown when use case execution fails catastrophically.

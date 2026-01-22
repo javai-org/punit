@@ -2,6 +2,7 @@ package org.javai.punit.experiment.engine.shared;
 
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
 import org.javai.punit.model.CriterionOutcome;
 import org.javai.punit.model.UseCaseCriteria;
@@ -30,27 +31,25 @@ public final class ResultRecorder {
      *   <li>Otherwise, fall back to legacy heuristics</li>
      * </ol>
      */
+    @SuppressWarnings("deprecation")
     public static void recordResult(OutcomeCaptor captor, ExperimentResultAggregator aggregator) {
         if (captor != null && captor.hasResult()) {
-            UseCaseResult result = captor.getResult();
-
-            // Determine success: prefer contract postconditions, then legacy criteria
-            boolean success;
+            // Prefer contract outcomes - use directly without conversion
             if (captor.hasContractOutcome()) {
-                // New path: use contract postconditions directly
-                success = captor.allPostconditionsPassed();
-                List<PostconditionResult> postconditions = captor.getPostconditionResults();
-                aggregator.recordPostconditions(postconditions);
+                UseCaseOutcome<?> outcome = captor.getContractOutcome();
+                boolean success = outcome.allPostconditionsSatisfied();
 
                 if (success) {
-                    aggregator.recordSuccess(result);
+                    aggregator.recordSuccess(outcome);
                 } else {
+                    List<PostconditionResult> postconditions = outcome.evaluatePostconditions();
                     String failureCategory = determineFailureCategoryFromPostconditions(postconditions);
-                    aggregator.recordFailure(result, failureCategory);
+                    aggregator.recordFailure(outcome, failureCategory);
                 }
             } else if (captor.hasCriteria()) {
-                // Legacy path: use criteria
-                success = captor.getCriteria().allPassed();
+                // Legacy path: use criteria (requires UseCaseResult)
+                UseCaseResult result = captor.getResult();
+                boolean success = captor.getCriteria().allPassed();
                 recordCriteriaLegacy(aggregator, captor.getCriteria());
 
                 if (success) {
@@ -60,8 +59,9 @@ public final class ResultRecorder {
                     aggregator.recordFailure(result, failureCategory);
                 }
             } else {
-                // No criteria: use heuristics
-                success = determineSuccess(result);
+                // No criteria: use heuristics (requires UseCaseResult)
+                UseCaseResult result = captor.getResult();
+                boolean success = determineSuccess(result);
                 if (success) {
                     aggregator.recordSuccess(result);
                 } else {
