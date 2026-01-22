@@ -65,28 +65,28 @@ class PreconditionTest {
         }
 
         @Test
-        @DisplayName("throws UseCasePreconditionException when predicate returns false")
+        @DisplayName("throws PreconditionException when predicate returns false")
         void throwsWhenFails() {
             Precondition<String> precondition = new Precondition<>(
                     "Not empty", s -> !s.isEmpty());
 
             assertThatThrownBy(() -> precondition.check(""))
-                    .isInstanceOf(UseCasePreconditionException.class)
+                    .isInstanceOf(PreconditionException.class)
                     .satisfies(e -> {
-                        UseCasePreconditionException ex = (UseCasePreconditionException) e;
+                        PreconditionException ex = (PreconditionException) e;
                         assertThat(ex.getPreconditionDescription()).isEqualTo("Not empty");
                         assertThat(ex.getInput()).isEqualTo("");
                     });
         }
 
         @Test
-        @DisplayName("throws UseCasePreconditionException when predicate throws")
+        @DisplayName("throws PreconditionException when predicate throws")
         void throwsWhenPredicateThrows() {
             Precondition<String> precondition = new Precondition<>(
                     "Has length", s -> s.length() > 0);
 
             assertThatThrownBy(() -> precondition.check(null))
-                    .isInstanceOf(UseCasePreconditionException.class)
+                    .isInstanceOf(PreconditionException.class)
                     .hasMessageContaining("Has length")
                     .hasMessageContaining("evaluation failed");
         }

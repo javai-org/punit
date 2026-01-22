@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@DisplayName("UseCasePreconditionException")
-class UseCasePreconditionExceptionTest {
+@DisplayName("PreconditionException")
+class PreconditionExceptionTest {
 
     @Nested
     @DisplayName("constructor")
@@ -18,8 +18,8 @@ class UseCasePreconditionExceptionTest {
         @DisplayName("creates exception with description and input")
         void createsExceptionWithDescriptionAndInput() {
             Object input = new Object();
-            UseCasePreconditionException exception =
-                    new UseCasePreconditionException("Input must not be null", input);
+            PreconditionException exception =
+                    new PreconditionException("Input must not be null", input);
 
             assertThat(exception.getPreconditionDescription()).isEqualTo("Input must not be null");
             assertThat(exception.getInput()).isSameAs(input);
@@ -29,8 +29,8 @@ class UseCasePreconditionExceptionTest {
         @Test
         @DisplayName("allows null input")
         void allowsNullInput() {
-            UseCasePreconditionException exception =
-                    new UseCasePreconditionException("Input must not be null", null);
+            PreconditionException exception =
+                    new PreconditionException("Input must not be null", null);
 
             assertThat(exception.getInput()).isNull();
         }
@@ -38,7 +38,7 @@ class UseCasePreconditionExceptionTest {
         @Test
         @DisplayName("throws when description is null")
         void throwsWhenDescriptionIsNull() {
-            assertThatThrownBy(() -> new UseCasePreconditionException(null, new Object()))
+            assertThatThrownBy(() -> new PreconditionException(null, new Object()))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("preconditionDescription must not be null");
         }
@@ -51,8 +51,8 @@ class UseCasePreconditionExceptionTest {
         @Test
         @DisplayName("is a RuntimeException")
         void isRuntimeException() {
-            UseCasePreconditionException exception =
-                    new UseCasePreconditionException("test", null);
+            PreconditionException exception =
+                    new PreconditionException("test", null);
 
             assertThat(exception).isInstanceOf(RuntimeException.class);
         }
@@ -61,12 +61,12 @@ class UseCasePreconditionExceptionTest {
         @DisplayName("can be thrown and caught")
         void canBeThrownAndCaught() {
             assertThatThrownBy(() -> {
-                throw new UseCasePreconditionException("Model must be specified", "invalid-input");
+                throw new PreconditionException("Model must be specified", "invalid-input");
             })
-                    .isInstanceOf(UseCasePreconditionException.class)
+                    .isInstanceOf(PreconditionException.class)
                     .hasMessageContaining("Model must be specified")
                     .satisfies(e -> {
-                        UseCasePreconditionException ex = (UseCasePreconditionException) e;
+                        PreconditionException ex = (PreconditionException) e;
                         assertThat(ex.getInput()).isEqualTo("invalid-input");
                     });
         }

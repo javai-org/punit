@@ -143,9 +143,9 @@ class ServiceContractTest {
                     .build();
 
             assertThatThrownBy(() -> contract.checkPreconditions(new TestInput(null, 42)))
-                    .isInstanceOf(UseCasePreconditionException.class)
+                    .isInstanceOf(PreconditionException.class)
                     .satisfies(e -> {
-                        UseCasePreconditionException ex = (UseCasePreconditionException) e;
+                        PreconditionException ex = (PreconditionException) e;
                         assertThat(ex.getPreconditionDescription()).isEqualTo("Value not null");
                     });
         }
@@ -161,9 +161,9 @@ class ServiceContractTest {
 
             // Both fail, but first one throws
             assertThatThrownBy(() -> contract.checkPreconditions(new TestInput(null, -1)))
-                    .isInstanceOf(UseCasePreconditionException.class)
+                    .isInstanceOf(PreconditionException.class)
                     .satisfies(e -> {
-                        UseCasePreconditionException ex = (UseCasePreconditionException) e;
+                        PreconditionException ex = (PreconditionException) e;
                         assertThat(ex.getPreconditionDescription()).isEqualTo("Value not null");
                     });
         }

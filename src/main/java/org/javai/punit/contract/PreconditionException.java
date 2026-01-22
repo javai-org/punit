@@ -3,11 +3,10 @@ package org.javai.punit.contract;
 import java.util.Objects;
 
 /**
- * Thrown when a use case precondition is violated.
+ * Thrown when a precondition is violated.
  *
- * <p>Precondition violations represent programming errors — the caller (test writer
- * or experiment writer) provided invalid input. This is not an outcome to be
- * handled gracefully; it demands a fix.
+ * <p>Precondition violations represent programming errors — the caller provided
+ * invalid input. This is not an outcome to be handled gracefully; it demands a fix.
  *
  * <h2>When This Is Thrown</h2>
  * <p>This exception is thrown eagerly when {@code input()} is called on the
@@ -22,12 +21,11 @@ import java.util.Objects;
  * <h2>Design by Contract</h2>
  * <p>In Design by Contract terms, preconditions define what the service requires
  * from its caller. A violated precondition means the caller broke the contract,
- * not the service. Experiments should not count precondition failures as
- * "the service failed" — they indicate invalid test data.
+ * not the service.
  *
  * @see ServiceContract
  */
-public class UseCasePreconditionException extends RuntimeException {
+public class PreconditionException extends RuntimeException {
 
     private final String preconditionDescription;
     private final Object input;
@@ -38,7 +36,7 @@ public class UseCasePreconditionException extends RuntimeException {
      * @param preconditionDescription the description of the violated precondition
      * @param input the input that violated the precondition (may be null)
      */
-    public UseCasePreconditionException(String preconditionDescription, Object input) {
+    public PreconditionException(String preconditionDescription, Object input) {
         super("Precondition violated: " + preconditionDescription);
         this.preconditionDescription = Objects.requireNonNull(
                 preconditionDescription, "preconditionDescription must not be null");

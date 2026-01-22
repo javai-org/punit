@@ -14,7 +14,7 @@
  *   <li>{@link org.javai.punit.contract.Postcondition} — A single ensure clause with description and predicate</li>
  *   <li>{@link org.javai.punit.contract.Derivation} — Transforms raw result into derived perspective for postconditions</li>
  *   <li>{@link org.javai.punit.contract.PostconditionResult} — Evaluation result (Passed, Failed, or Skipped)</li>
- *   <li>{@link org.javai.punit.contract.UseCasePreconditionException} — Thrown when a precondition is violated</li>
+ *   <li>{@link org.javai.punit.contract.PreconditionException} — Thrown when a precondition is violated</li>
  * </ul>
  *
  * <h2>Design by Contract Vocabulary</h2>
