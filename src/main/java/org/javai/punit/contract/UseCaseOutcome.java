@@ -91,6 +91,44 @@ public record UseCaseOutcome<R>(
     }
 
     /**
+     * Asserts that all postconditions pass.
+     *
+     * <p>Each postcondition is evaluated and checked. On failure, an {@link AssertionError}
+     * is thrown with a message describing the failed postcondition.
+     *
+     * @throws AssertionError if any postcondition fails
+     */
+    public void assertAll() {
+        for (PostconditionResult result : evaluatePostconditions()) {
+            if (result.failed()) {
+                String reason = result.failureReason();
+                String message = reason != null
+                        ? result.description() + ": " + reason
+                        : result.description();
+                throw new AssertionError("Postcondition failed: " + message);
+            }
+        }
+    }
+
+    /**
+     * Asserts that all postconditions pass, throwing a custom message on failure.
+     *
+     * @param contextMessage additional context for the error message
+     * @throws AssertionError if any postcondition fails
+     */
+    public void assertAll(String contextMessage) {
+        for (PostconditionResult result : evaluatePostconditions()) {
+            if (result.failed()) {
+                String reason = result.failureReason();
+                String message = reason != null
+                        ? result.description() + ": " + reason
+                        : result.description();
+                throw new AssertionError(contextMessage + " - Postcondition failed: " + message);
+            }
+        }
+    }
+
+    /**
      * Starts building a use case outcome with the given contract.
      *
      * @param contract the service contract

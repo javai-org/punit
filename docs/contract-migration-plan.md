@@ -254,33 +254,45 @@ Files modified:
 - `src/test/java/org/javai/punit/examples/usecases/package-info.java`
 - `docs/USER-GUIDE.md`
 
-### Phase 8: Migrate Optimize Strategy Classes
+### Phase 8: Migrate Optimize Strategy Classes ✅ COMPLETE (via bridge)
 
 **Goal**: Update optimization infrastructure to use contract types.
 
-Tasks:
-- [ ] Update `UseCaseExecutor` to work with `contract.UseCaseOutcome<R>`
-- [ ] Update `OptimizationOutcomeAggregator` and implementations
-- [ ] Update `OptimizeState` and `OptimizeStrategy`
-- [ ] Update tests
+**Assessment**: The optimize infrastructure already works with contract-based outcomes
+through the `OutcomeCaptor` bridge:
 
-Files affected:
-- `src/main/java/org/javai/punit/experiment/optimize/*.java`
-- `src/test/java/org/javai/punit/experiment/optimize/*.java`
+1. When a use case returns `contract.UseCaseOutcome<R>`, it's recorded via `OutcomeCaptor.record()`
+2. `OutcomeCaptor` converts the contract outcome to `UseCaseResult` + `UseCaseCriteria`
+3. `OptimizeStrategy.intercept()` reads from the captor and constructs `model.UseCaseOutcome`
+4. The rest of the optimize pipeline works unchanged
 
-### Phase 9: Migrate Example Use Cases
+This bridge approach means:
+- [x] Optimize experiments work with BOTH old and new use case patterns
+- [x] No changes needed to optimize code for Phase 9 (migrate use cases)
+- [ ] Full migration to contract types deferred to Phase 11 (when deleting old types)
+
+The optimize code will be updated to directly use `contract.UseCaseOutcome<?>` when
+we delete `model.UseCaseOutcome` in Phase 11, forcing the refactoring at that point.
+
+### Phase 9: Migrate Example Use Cases ✅ COMPLETE
 
 **Goal**: Update example use cases to demonstrate the new contract pattern.
 
 Tasks:
-- [ ] Migrate `ShoppingBasketUseCase` to use `ServiceContract` and `contract.UseCaseOutcome<R>`
-- [ ] Migrate `PaymentGatewayUseCase`
-- [ ] Update associated tests and experiments
+- [x] Migrated `ShoppingBasketUseCase` to use `ServiceContract` and `contract.UseCaseOutcome<TranslationResult>`
+  - Created `TranslationResult` record as typed result
+  - Replaced `UseCaseCriteria.ordered()` with `ServiceContract.define()`
+  - Uses method references for postconditions: `TranslationResult::isValidJson`
+- [x] Migrated `PaymentGatewayUseCase` to use `ServiceContract` and `contract.UseCaseOutcome<PaymentResult>`
+  - Uses existing `PaymentResult` record as typed result
+  - Single postcondition: `PaymentResult::success`
+- [x] Added `assertAll()` method to `contract.UseCaseOutcome` for test compatibility
+- [x] All tests pass (experiments use captor bridge for backward compatibility)
 
-Files affected:
+Files modified:
 - `src/test/java/org/javai/punit/examples/usecases/ShoppingBasketUseCase.java`
 - `src/test/java/org/javai/punit/examples/usecases/PaymentGatewayUseCase.java`
-- `src/experiment/java/...`
+- `src/main/java/org/javai/punit/contract/UseCaseOutcome.java`
 
 ### Phase 10: Move UseCaseResult to Contract Package
 

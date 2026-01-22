@@ -3,16 +3,16 @@ package org.javai.punit.examples.usecases;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.contract.ServiceContract;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.payment.MockPaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentResult;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseOutcome;
-import org.javai.punit.model.UseCaseResult;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Use case for processing payment transactions through a payment gateway.
@@ -72,32 +72,29 @@ public class PaymentGatewayUseCase {
      *
      * @param cardToken the tokenized card reference
      * @param amountCents the amount to charge in cents
-     * @return outcome containing result and success criteria
+     * @return outcome containing typed result and postconditions
      */
-    public UseCaseOutcome chargeCard(String cardToken, long amountCents) {
+    public UseCaseOutcome<PaymentResult> chargeCard(String cardToken, long amountCents) {
         Instant start = Instant.now();
 
-        PaymentResult paymentResult = gateway.charge(cardToken, amountCents);
+        PaymentResult result = gateway.charge(cardToken, amountCents);
 
         Duration executionTime = Duration.between(start, Instant.now());
 
-        UseCaseResult result = UseCaseResult.builder()
-                .value("success", paymentResult.success())
-                .value("transactionId", paymentResult.transactionId())
-                .value("errorCode", paymentResult.errorCode())
-                .meta("cardToken", cardToken)
-                .meta("amountCents", amountCents)
-                .meta("region", region)
-                .executionTime(executionTime)
+        // Simple success postcondition: the transaction succeeded
+        ServiceContract<Void, PaymentResult> contract = ServiceContract
+                .<Void, PaymentResult>define()
+                .ensure("Transaction succeeded", PaymentResult::success)
                 .build();
 
-        // Simple success criterion: the transaction succeeded
-        UseCaseCriteria criteria = UseCaseCriteria.ordered()
-                .criterion("Transaction succeeded",
-                        () -> result.getBoolean("success", false))
-                .build();
+        // Build metadata
+        Map<String, Object> metadata = Map.of(
+                "cardToken", cardToken,
+                "amountCents", amountCents,
+                "region", region
+        );
 
-        return new UseCaseOutcome(result, criteria);
+        return new UseCaseOutcome<>(result, executionTime, metadata, contract);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

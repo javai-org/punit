@@ -11,16 +11,16 @@ import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.contract.ServiceContract;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.llm.ChatLlm;
 import org.javai.punit.examples.infrastructure.llm.ChatResponse;
 import org.javai.punit.examples.infrastructure.llm.MockChatLlm;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseOutcome;
-import org.javai.punit.model.UseCaseResult;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -77,6 +77,27 @@ public class ShoppingBasketUseCase {
 
     private static final Set<String> VALID_ACTIONS = Set.of("add", "remove", "clear");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    /**
+     * Result of translating a natural language instruction to JSON operations.
+     *
+     * @param rawResponse the raw LLM response
+     * @param isValidJson true if response is valid JSON
+     * @param hasOperationsArray true if JSON has "operations" array
+     * @param allOperationsValid true if all operations have required fields
+     * @param allActionsValid true if all actions are valid (add/remove/clear)
+     * @param allQuantitiesPositive true if all quantities are positive integers
+     * @param parseError error message if parsing failed, null otherwise
+     */
+    public record TranslationResult(
+            String rawResponse,
+            boolean isValidJson,
+            boolean hasOperationsArray,
+            boolean allOperationsValid,
+            boolean allActionsValid,
+            boolean allQuantitiesPositive,
+            String parseError
+    ) {}
 
     private final ChatLlm llm;
     private String model = "mock-llm";
@@ -205,9 +226,9 @@ public class ShoppingBasketUseCase {
      * budget tracking with {@link org.javai.punit.api.TokenChargeRecorder}.
      *
      * @param instruction the natural language instruction (e.g., "Add 2 apples and remove the bread")
-     * @return outcome containing result and success criteria
+     * @return outcome containing typed result and postconditions
      */
-    public UseCaseOutcome translateInstruction(String instruction) {
+    public UseCaseOutcome<TranslationResult> translateInstruction(String instruction) {
         Instant start = Instant.now();
 
         // Call the LLM and track tokens
@@ -220,35 +241,36 @@ public class ShoppingBasketUseCase {
         // Validate the response using Jackson
         ValidationResult validation = validateResponse(response);
 
-        UseCaseResult result = UseCaseResult.builder()
-                .value("isValidJson", validation.isValidJson)
-                .value("hasOperationsArray", validation.hasOperationsArray)
-                .value("allOperationsValid", validation.allOperationsValid)
-                .value("allActionsValid", validation.allActionsValid)
-                .value("allQuantitiesPositive", validation.allQuantitiesPositive)
-                .value("rawResponse", response)
-                .value("parseError", validation.parseError)
-                .meta("instruction", instruction)
-                .meta("model", model)
-                .meta("temperature", temperature)
-                .executionTime(executionTime)
+        // Build typed result
+        TranslationResult result = new TranslationResult(
+                response,
+                validation.isValidJson,
+                validation.hasOperationsArray,
+                validation.allOperationsValid,
+                validation.allActionsValid,
+                validation.allQuantitiesPositive,
+                validation.parseError
+        );
+
+        // Define postconditions using ServiceContract
+        ServiceContract<String, TranslationResult> contract = ServiceContract
+                .<String, TranslationResult>define()
+                .ensure("Valid JSON", TranslationResult::isValidJson)
+                .ensure("Has operations array", TranslationResult::hasOperationsArray)
+                .ensure("Operations have required fields", TranslationResult::allOperationsValid)
+                .ensure("Actions are valid", TranslationResult::allActionsValid)
+                .ensure("Quantities are positive", TranslationResult::allQuantitiesPositive)
                 .build();
 
-        // Define success criteria
-        UseCaseCriteria criteria = UseCaseCriteria.ordered()
-                .criterion("Valid JSON",
-                        () -> result.getBoolean("isValidJson", false))
-                .criterion("Has operations array",
-                        () -> result.getBoolean("hasOperationsArray", false))
-                .criterion("Operations have required fields",
-                        () -> result.getBoolean("allOperationsValid", false))
-                .criterion("Actions are valid",
-                        () -> result.getBoolean("allActionsValid", false))
-                .criterion("Quantities are positive",
-                        () -> result.getBoolean("allQuantitiesPositive", false))
-                .build();
+        // Build metadata
+        Map<String, Object> metadata = Map.of(
+                "instruction", instruction,
+                "model", model,
+                "temperature", temperature,
+                "tokensUsed", lastTokensUsed
+        );
 
-        return new UseCaseOutcome(result, criteria);
+        return new UseCaseOutcome<>(result, executionTime, metadata, contract);
     }
 
     /**
