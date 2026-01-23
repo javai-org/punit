@@ -46,22 +46,22 @@ dependencies {
     implementation("org.apache.commons:commons-statistics-distribution:1.2")
 
     // SnakeYAML - for YAML serialization in spec generation
-    implementation("org.yaml:snakeyaml:2.2")
+    implementation("org.yaml:snakeyaml:2.5")
 
     // Log4j 2 - structured logging for runtime output
-    implementation("org.apache.logging.log4j:log4j-api:2.23.1")
-    runtimeOnly("org.apache.logging.log4j:log4j-core:2.23.1")
+    implementation("org.apache.logging.log4j:log4j-api:2.25.3")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.3")
     // Bridge SLF4J to Log4j2 (some dependencies use SLF4J)
-    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1")
+    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
     
     // Test dependencies
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.junit.platform:junit-platform-testkit")
     testImplementation("org.assertj:assertj-core:3.27.6")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.23.1")
-    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
+    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
