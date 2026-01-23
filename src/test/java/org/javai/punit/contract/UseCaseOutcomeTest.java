@@ -17,7 +17,7 @@ class UseCaseOutcomeTest {
             .<TestInput, String>define()
             .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
             .ensure("Reasonable length", s -> s.length() < 1000 ? Outcomes.okVoid() : Outcomes.fail("too long"))
-            .deriving("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
+            .derive("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
                 .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcomes.okVoid() : Outcomes.fail("not all caps"))
             .build();
 

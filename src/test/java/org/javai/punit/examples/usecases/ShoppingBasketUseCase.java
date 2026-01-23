@@ -96,7 +96,7 @@ public class ShoppingBasketUseCase {
      */
     private static final ServiceContract<ServiceInput, ChatResponse> CONTRACT =
             ServiceContract.<ServiceInput, ChatResponse>define()
-                    .deriving("Response content", cr -> Outcome.ok(cr.content()))
+                    .derive("Response content", cr -> Outcome.ok(cr.content()))
                     .ensure("Viable response content", c ->
                             c != null && !c.isBlank() ? Outcome.ok() : Outcomes.fail("content was null or blank"))
                     .derive("Valid Json", ShoppingBasketUseCase::parseJSON)

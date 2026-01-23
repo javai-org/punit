@@ -27,7 +27,7 @@ import org.javai.outcome.Outcome;
  *     .ensure("Response not empty", response ->
  *         response.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
  *
- *     .deriving("Valid JSON", MyUseCase::parseJson)
+ *     .derive("Valid JSON", MyUseCase::parseJson)
  *         .ensure("Has operations array", json ->
  *             json.has("operations") ? Outcomes.okVoid() : Outcomes.fail("missing operations"))
  *         .ensure("All operations valid", MyUseCase::validateOperations)
@@ -187,7 +187,7 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
          * @param <D> the derived type
          * @return a deriving builder for adding postconditions
          */
-        public <D> DerivingBuilder<I, R, D> deriving(String description, Function<R, Outcome<D>> function) {
+        public <D> DerivingBuilder<I, R, D> derive(String description, Function<R, Outcome<D>> function) {
             Objects.requireNonNull(description, "description must not be null");
             Objects.requireNonNull(function, "function must not be null");
             if (description.isBlank()) {
@@ -264,7 +264,7 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
          */
         public <D2> DerivingBuilder<I, R, D2> derive(String description, Function<R, Outcome<D2>> function) {
             finalizeCurrent();
-            return parent.deriving(description, function);
+            return parent.derive(description, function);
         }
 
         /**

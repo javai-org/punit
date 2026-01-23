@@ -48,7 +48,7 @@ class ServiceContractTest {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
                     .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
-                    .deriving("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
+                    .derive("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
                         .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcomes.okVoid() : Outcomes.fail("not caps"))
                     .build();
 
@@ -62,7 +62,7 @@ class ServiceContractTest {
         void buildsContractWithDerivation() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Valid number", s -> {
+                    .derive("Valid number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
@@ -82,7 +82,7 @@ class ServiceContractTest {
         void buildsContractWithMultipleDerivations() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Valid number", s -> {
+                    .derive("Valid number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
@@ -103,7 +103,7 @@ class ServiceContractTest {
         void throwsWhenDerivingDescriptionIsBlank() {
             assertThatThrownBy(() -> ServiceContract
                     .<TestInput, String>define()
-                    .deriving("   ", s -> Outcomes.ok(s)))
+                    .derive("   ", s -> Outcomes.ok(s)))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 
@@ -112,7 +112,7 @@ class ServiceContractTest {
         void throwsWhenDerivingFunctionIsNull() {
             assertThatThrownBy(() -> ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Test", null))
+                    .derive("Test", null))
                     .isInstanceOf(NullPointerException.class);
         }
     }
@@ -142,7 +142,7 @@ class ServiceContractTest {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
                     .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
-                    .deriving("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
+                    .derive("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
                         .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcomes.okVoid() : Outcomes.fail("not caps"))
                     .build();
 
@@ -165,7 +165,7 @@ class ServiceContractTest {
         void returnsAllPassedWhenAllSatisfied() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Valid number", s -> {
+                    .derive("Valid number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
@@ -187,7 +187,7 @@ class ServiceContractTest {
         void returnsFailedDerivationAndSkippedEnsures() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Valid number", s -> {
+                    .derive("Valid number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
@@ -215,7 +215,7 @@ class ServiceContractTest {
         void evaluatesMultipleDerivationsIndependently() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Valid number", s -> {
+                    .derive("Valid number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
@@ -266,7 +266,7 @@ class ServiceContractTest {
         void countsDerivationAsPostcondition() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Valid JSON", s -> Outcomes.ok(s))
+                    .derive("Valid JSON", s -> Outcomes.ok(s))
                         .ensure("Has field", s -> Outcomes.okVoid())
                     .build();
 
@@ -278,7 +278,7 @@ class ServiceContractTest {
         void countsDerivationWithoutEnsures() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Uppercase", Outcomes.lift(String::toUpperCase))
+                    .derive("Uppercase", Outcomes.lift(String::toUpperCase))
                     .build();
 
             assertThat(contract.postconditionCount()).isEqualTo(1); // just the derivation
@@ -294,7 +294,7 @@ class ServiceContractTest {
         void returnsDescriptiveString() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .deriving("Valid number", s -> Outcomes.ok(42))
+                    .derive("Valid number", s -> Outcomes.ok(42))
                         .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
                     .build();
 

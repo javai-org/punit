@@ -116,7 +116,7 @@ class ResultRecorderTest {
         void handlesDerivationFailuresCorrectly() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .deriving("Parse number", s -> {
+                    .derive("Parse number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {

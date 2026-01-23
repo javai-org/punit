@@ -236,7 +236,7 @@ class OutcomeCaptorContractIntegrationTest {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
                     .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
-                    .deriving("Parse number", s -> {
+                    .derive("Parse number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
@@ -269,7 +269,7 @@ class OutcomeCaptorContractIntegrationTest {
         void handlesFailedDerivationWithSkippedPostconditions() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .deriving("Parse number", s -> {
+                    .derive("Parse number", s -> {
                         try {
                             return Outcomes.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
