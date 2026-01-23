@@ -17,10 +17,7 @@ import org.javai.punit.examples.infrastructure.llm.ChatLlm;
 import org.javai.punit.examples.infrastructure.llm.ChatResponse;
 import org.javai.punit.examples.infrastructure.llm.MockChatLlm;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -79,6 +76,15 @@ public class ShoppingBasketUseCase {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
+     * Input parameters for the translation service.
+     *
+     * @param systemPrompt the system prompt for the LLM
+     * @param instruction the user's natural language instruction
+     * @param temperature the LLM temperature setting
+     */
+    private record ServiceInput(String systemPrompt, String instruction, double temperature) {}
+
+    /**
      * Result of translating a natural language instruction to JSON operations.
      *
      * @param rawResponse the raw LLM response
@@ -98,6 +104,25 @@ public class ShoppingBasketUseCase {
             boolean allQuantitiesPositive,
             String parseError
     ) {}
+
+    /**
+     * The service contract defining postconditions for translation results.
+     *
+     * <p>This contract is defined once and reused for all invocations.
+     * Postconditions are evaluated lazily when {@link UseCaseOutcome#evaluatePostconditions()}
+     * or {@link UseCaseOutcome#assertAll()} is called.
+     */
+    private static final ServiceContract<ServiceInput, TranslationResult> CONTRACT =
+            ServiceContract.<ServiceInput, TranslationResult>define()
+                    .require("System prompt valid", si -> si.systemPrompt() != null && !si.systemPrompt().isBlank())
+                    .require("Instruction valid", si -> si.instruction() != null && !si.instruction().isBlank())
+                    .require("Temperature valid", si -> si.temperature() >= 0.0 && si.temperature() <= 1.0)
+                    .ensure("Valid JSON", TranslationResult::isValidJson)
+                    .ensure("Has operations array", TranslationResult::hasOperationsArray)
+                    .ensure("Operations have required fields", TranslationResult::allOperationsValid)
+                    .ensure("Actions are valid", TranslationResult::allActionsValid)
+                    .ensure("Quantities are positive", TranslationResult::allQuantitiesPositive)
+                    .build();
 
     private final ChatLlm llm;
     private String model = "mock-llm";
@@ -221,6 +246,13 @@ public class ShoppingBasketUseCase {
     /**
      * Translates a natural language shopping instruction to JSON operations.
      *
+     * <p>This method uses the fluent {@link UseCaseOutcome} builder API which:
+     * <ul>
+     *   <li>Automatically captures execution timing</li>
+     *   <li>Evaluates postconditions lazily</li>
+     *   <li>Bundles metadata with the result</li>
+     * </ul>
+     *
      * <p>After calling this method, use {@link #getLastTokensUsed()} to retrieve
      * the token count for this invocation. This is useful for dynamic token
      * budget tracking with {@link org.javai.punit.api.TokenChargeRecorder}.
@@ -229,20 +261,41 @@ public class ShoppingBasketUseCase {
      * @return outcome containing typed result and postconditions
      */
     public UseCaseOutcome<TranslationResult> translateInstruction(String instruction) {
-        Instant start = Instant.now();
+        return UseCaseOutcome
+                .withContract(CONTRACT)
+                .input(new ServiceInput(systemPrompt, instruction, temperature))
+                .execute(this::executeTranslation)
+                .meta("instruction", instruction)
+                .meta("model", model)
+                .meta("temperature", temperature)
+                .meta("tokensUsed", lastTokensUsed)
+                .build();
+    }
 
+    /**
+     * Executes the translation by calling the LLM and validating the response.
+     *
+     * <p>This method is called by the fluent builder's {@code execute()} step.
+     * It handles the actual service interaction and result construction.
+     *
+     * @param input the service input parameters
+     * @return the translation result with validation flags
+     */
+    private TranslationResult executeTranslation(ServiceInput input) {
         // Call the LLM and track tokens
-        ChatResponse chatResponse = llm.chatWithMetadata(systemPrompt, instruction, temperature);
+        ChatResponse chatResponse = llm.chatWithMetadata(
+                input.systemPrompt(),
+                input.instruction(),
+                input.temperature()
+        );
         String response = chatResponse.content();
         lastTokensUsed = chatResponse.totalTokens();
-
-        Duration executionTime = Duration.between(start, Instant.now());
 
         // Validate the response using Jackson
         ValidationResult validation = validateResponse(response);
 
-        // Build typed result
-        TranslationResult result = new TranslationResult(
+        // Build and return typed result
+        return new TranslationResult(
                 response,
                 validation.isValidJson,
                 validation.hasOperationsArray,
@@ -251,26 +304,6 @@ public class ShoppingBasketUseCase {
                 validation.allQuantitiesPositive,
                 validation.parseError
         );
-
-        // Define postconditions using ServiceContract
-        ServiceContract<String, TranslationResult> contract = ServiceContract
-                .<String, TranslationResult>define()
-                .ensure("Valid JSON", TranslationResult::isValidJson)
-                .ensure("Has operations array", TranslationResult::hasOperationsArray)
-                .ensure("Operations have required fields", TranslationResult::allOperationsValid)
-                .ensure("Actions are valid", TranslationResult::allActionsValid)
-                .ensure("Quantities are positive", TranslationResult::allQuantitiesPositive)
-                .build();
-
-        // Build metadata
-        Map<String, Object> metadata = Map.of(
-                "instruction", instruction,
-                "model", model,
-                "temperature", temperature,
-                "tokensUsed", lastTokensUsed
-        );
-
-        return new UseCaseOutcome<>(result, executionTime, Instant.now(), metadata, contract);
     }
 
     /**

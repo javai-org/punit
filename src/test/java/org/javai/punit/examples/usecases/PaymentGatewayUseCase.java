@@ -9,10 +9,7 @@ import org.javai.punit.examples.infrastructure.payment.MockPaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentResult;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Use case for processing payment transactions through a payment gateway.
@@ -35,6 +32,28 @@ import java.util.Map;
  */
 @UseCase(description = "Process payment transactions through a payment gateway")
 public class PaymentGatewayUseCase {
+
+    /**
+     * Input parameters for the payment service.
+     *
+     * @param cardToken the tokenized card reference
+     * @param amountCents the amount to charge in cents
+     */
+    private record PaymentInput(String cardToken, long amountCents) {}
+
+    /**
+     * The service contract defining postconditions for payment results.
+     *
+     * <p>This contract defines a single postcondition: the transaction must succeed.
+     * For SLA testing, the pass rate threshold comes from the contractual agreement
+     * rather than empirical baseline measurement.
+     */
+    private static final ServiceContract<PaymentInput, PaymentResult> CONTRACT =
+            ServiceContract.<PaymentInput, PaymentResult>define()
+                    .require("Card token value", pi -> pi.cardToken != null && !pi.cardToken.isBlank())
+                    .require("Positive value", pi -> pi.amountCents() >= 0)
+                    .ensure("Transaction succeeded", PaymentResult::success)
+                    .build();
 
     private final PaymentGateway gateway;
     private String region = "us-east-1";
@@ -70,31 +89,36 @@ public class PaymentGatewayUseCase {
     /**
      * Processes a payment charge.
      *
+     * <p>This method uses the fluent {@link UseCaseOutcome} builder API which:
+     * <ul>
+     *   <li>Automatically captures execution timing</li>
+     *   <li>Evaluates postconditions lazily</li>
+     *   <li>Bundles metadata with the result</li>
+     * </ul>
+     *
      * @param cardToken the tokenized card reference
      * @param amountCents the amount to charge in cents
      * @return outcome containing typed result and postconditions
      */
     public UseCaseOutcome<PaymentResult> chargeCard(String cardToken, long amountCents) {
-        Instant start = Instant.now();
-
-        PaymentResult result = gateway.charge(cardToken, amountCents);
-
-        Duration executionTime = Duration.between(start, Instant.now());
-
-        // Simple success postcondition: the transaction succeeded
-        ServiceContract<Void, PaymentResult> contract = ServiceContract
-                .<Void, PaymentResult>define()
-                .ensure("Transaction succeeded", PaymentResult::success)
+        return UseCaseOutcome
+                .withContract(CONTRACT)
+                .input(new PaymentInput(cardToken, amountCents))
+                .execute(this::executeCharge)
+                .meta("region", region)
                 .build();
+    }
 
-        // Build metadata
-        Map<String, Object> metadata = Map.of(
-                "cardToken", cardToken,
-                "amountCents", amountCents,
-                "region", region
-        );
-
-        return new UseCaseOutcome<>(result, executionTime, Instant.now(), metadata, contract);
+    /**
+     * Executes the payment charge through the gateway.
+     *
+     * <p>This method is called by the fluent builder's {@code execute()} step.
+     *
+     * @param input the payment input parameters
+     * @return the payment result from the gateway
+     */
+    private PaymentResult executeCharge(PaymentInput input) {
+        return gateway.charge(input.cardToken(), input.amountCents());
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
