@@ -40,7 +40,8 @@
       "Bash(samples do I need?\" has no finite answer - detecting arbitrarily small\ndegradations requires arbitrarily many samples.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "WebFetch(domain:github.com)",
       "Bash(./gradlew dependencies:*)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(./gradlew:*)"
     ]
   }
 }

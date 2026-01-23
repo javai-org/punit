@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
@@ -292,6 +293,31 @@ public record UseCaseOutcome<R>(
         public MetadataBuilder<R> meta(String key, Object value) {
             Objects.requireNonNull(key, "key must not be null");
             metadata.put(key, value);
+            return this;
+        }
+
+        /**
+         * Extracts metadata from the execution result.
+         *
+         * <p>This method provides access to the captured result, enabling extraction
+         * of result-derived values (token counts, request IDs, etc.) as metadata.
+         *
+         * <p>Example:
+         * <pre>{@code
+         * .execute(this::callService)
+         * .withResult((response, meta) -> meta
+         *     .meta("tokensUsed", response.totalTokens())
+         *     .meta("requestId", response.requestId()))
+         * .build();
+         * }</pre>
+         *
+         * @param extractor a function receiving the result and this builder for metadata extraction
+         * @return this builder for method chaining
+         * @throws NullPointerException if extractor is null
+         */
+        public MetadataBuilder<R> withResult(BiConsumer<R, MetadataBuilder<R>> extractor) {
+            Objects.requireNonNull(extractor, "extractor must not be null");
+            extractor.accept(result, this);
             return this;
         }
 

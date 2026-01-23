@@ -1,14 +1,12 @@
 package org.javai.punit.contract;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("UseCaseOutcome")
 class UseCaseOutcomeTest {
@@ -19,10 +17,10 @@ class UseCaseOutcomeTest {
             .<TestInput, String>define()
             .require("Value not null", in -> in.value() != null)
             .require("Number positive", in -> in.number() > 0)
-            .ensure("Not empty", s -> !s.isEmpty())
-            .ensure("Reasonable length", s -> s.length() < 1000)
-            .deriving("Uppercase", Outcomes.lift(String::toUpperCase))
-                .ensure("All caps", s -> s.equals(s.toUpperCase()))
+            .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
+            .ensure("Reasonable length", s -> s.length() < 1000 ? Outcomes.okVoid() : Outcomes.fail("too long"))
+            .deriving("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
+                .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcomes.okVoid() : Outcomes.fail("not all caps"))
             .build();
 
     @Nested
@@ -147,6 +145,83 @@ class UseCaseOutcomeTest {
                     .build();
 
             assertThat(outcome.metadata()).containsEntry("nullableField", null);
+        }
+
+        @Test
+        @DisplayName("withResult extracts metadata from result")
+        void withResultExtractsMetadataFromResult() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result-" + in.number())
+                    .withResult((result, meta) -> meta
+                            .meta("resultLength", result.length())
+                            .meta("containsNumber", result.contains("42")))
+                    .build();
+
+            assertThat(outcome.metadata()).containsEntry("resultLength", 9);
+            assertThat(outcome.metadata()).containsEntry("containsNumber", true);
+        }
+
+        @Test
+        @DisplayName("withResult chains with meta")
+        void withResultChainsWithMeta() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .withResult((result, meta) -> meta.meta("fromResult", result.toUpperCase()))
+                    .meta("staticValue", "test")
+                    .build();
+
+            assertThat(outcome.metadata()).containsEntry("fromResult", "RESULT");
+            assertThat(outcome.metadata()).containsEntry("staticValue", "test");
+        }
+
+        @Test
+        @DisplayName("withResult can be called multiple times")
+        void withResultCanBeCalledMultipleTimes() {
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .withResult((result, meta) -> meta.meta("length", result.length()))
+                    .withResult((result, meta) -> meta.meta("upper", result.toUpperCase()))
+                    .build();
+
+            assertThat(outcome.metadata()).containsEntry("length", 6);
+            assertThat(outcome.metadata()).containsEntry("upper", "RESULT");
+        }
+
+        @Test
+        @DisplayName("withResult throws when extractor is null")
+        void withResultThrowsWhenExtractorIsNull() {
+            assertThatThrownBy(() -> UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "result")
+                    .withResult(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("extractor must not be null");
+        }
+
+        @Test
+        @DisplayName("withResult provides access to actual result value")
+        void withResultProvidesAccessToActualResultValue() {
+            String[] capturedResult = {null};
+
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(CONTRACT)
+                    .input(new TestInput("hello", 42))
+                    .execute(in -> "computed-" + in.value())
+                    .withResult((result, meta) -> {
+                        capturedResult[0] = result;
+                        meta.meta("captured", true);
+                    })
+                    .build();
+
+            assertThat(capturedResult[0]).isEqualTo("computed-hello");
+            assertThat(outcome.result()).isEqualTo("computed-hello");
         }
     }
 
@@ -399,7 +474,7 @@ class UseCaseOutcomeTest {
                     .<TestInput, String>define()
                     .ensure("Counting", s -> {
                         evaluationCount[0]++;
-                        return true;
+                        return Outcomes.okVoid();
                     })
                     .build();
 

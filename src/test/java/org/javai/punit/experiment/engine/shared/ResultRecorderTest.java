@@ -1,5 +1,9 @@
 package org.javai.punit.experiment.engine.shared;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.contract.Outcomes;
 import org.javai.punit.contract.ServiceContract;
@@ -9,12 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ResultRecorder")
 class ResultRecorderTest {
@@ -35,8 +33,8 @@ class ResultRecorderTest {
         void recordsSuccessWhenAllPostconditionsPass() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Not empty", s -> !s.isEmpty())
-                    .ensure("Contains data", s -> s.contains("data"))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .ensure("Contains data", s -> s.contains("data") ? Outcomes.okVoid() : Outcomes.fail("missing data"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -62,8 +60,8 @@ class ResultRecorderTest {
         void recordsFailureWhenAnyPostconditionFails() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Not empty", s -> !s.isEmpty())
-                    .ensure("Starts with X", s -> s.startsWith("X"))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .ensure("Starts with X", s -> s.startsWith("X") ? Outcomes.okVoid() : Outcomes.fail("wrong start"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -89,8 +87,8 @@ class ResultRecorderTest {
         void recordsPostconditionStatsForAggregation() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Check A", s -> true)
-                    .ensure("Check B", s -> true)
+                    .ensure("Check A", s -> Outcomes.okVoid())
+                    .ensure("Check B", s -> Outcomes.okVoid())
                     .build();
 
             for (int i = 0; i < 5; i++) {
@@ -125,7 +123,7 @@ class ResultRecorderTest {
                             return Outcomes.fail("Not a number");
                         }
                     })
-                    .ensure("Positive", n -> n > 0)
+                    .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(

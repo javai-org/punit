@@ -1,14 +1,12 @@
 package org.javai.punit.contract;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("ServiceContract")
 class ServiceContractTest {
@@ -52,8 +50,8 @@ class ServiceContractTest {
         void buildsContractWithDirectPostconditionsOnly() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .ensure("Not empty", s -> !s.isEmpty())
-                    .ensure("Reasonable length", s -> s.length() < 1000)
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .ensure("Reasonable length", s -> s.length() < 1000 ? Outcomes.okVoid() : Outcomes.fail("too long"))
                     .build();
 
             assertThat(contract.preconditions()).isEmpty();
@@ -67,9 +65,9 @@ class ServiceContractTest {
         void buildsContractWithDirectPostconditionsAndDerivations() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .ensure("Not empty", s -> !s.isEmpty())
-                    .deriving("Uppercase", Outcomes.lift(String::toUpperCase))
-                        .ensure("All caps", s -> s.equals(s.toUpperCase()))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .deriving("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
+                        .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcomes.okVoid() : Outcomes.fail("not caps"))
                     .build();
 
             assertThat(contract.postconditions()).hasSize(1);
@@ -90,8 +88,8 @@ class ServiceContractTest {
                             return Outcomes.fail("Not a number");
                         }
                     })
-                        .ensure("Positive", n -> n > 0)
-                        .ensure("Less than 100", n -> n < 100)
+                        .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
+                        .ensure("Less than 100", n -> n < 100 ? Outcomes.okVoid() : Outcomes.fail("too large"))
                     .build();
 
             assertThat(contract.preconditions()).hasSize(1);
@@ -111,9 +109,9 @@ class ServiceContractTest {
                             return Outcomes.fail("Not a number");
                         }
                     })
-                        .ensure("Positive", n -> n > 0)
-                    .deriving("Uppercase", Outcomes.lift(String::toUpperCase))
-                        .ensure("Not empty", s -> !s.isEmpty())
+                        .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
+                    .deriving("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
+                        .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
                     .build();
 
             assertThat(contract.derivations()).hasSize(2);
@@ -210,8 +208,8 @@ class ServiceContractTest {
         void evaluatesDirectPostconditions() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .ensure("Not empty", s -> !s.isEmpty())
-                    .ensure("Starts with H", s -> s.startsWith("H"))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .ensure("Starts with H", s -> s.startsWith("H") ? Outcomes.okVoid() : Outcomes.fail("wrong start"))
                     .build();
 
             List<PostconditionResult> results = contract.evaluate("Hello");
@@ -225,9 +223,9 @@ class ServiceContractTest {
         void evaluatesDirectPostconditionsBeforeDerivations() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .ensure("Not empty", s -> !s.isEmpty())
-                    .deriving("Uppercase", Outcomes.lift(String::toUpperCase))
-                        .ensure("All caps", s -> s.equals(s.toUpperCase()))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .deriving("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
+                        .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcomes.okVoid() : Outcomes.fail("not caps"))
                     .build();
 
             List<PostconditionResult> results = contract.evaluate("hello");
@@ -256,8 +254,8 @@ class ServiceContractTest {
                             return Outcomes.fail("Not a number");
                         }
                     })
-                        .ensure("Positive", n -> n > 0)
-                        .ensure("Less than 100", n -> n < 100)
+                        .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
+                        .ensure("Less than 100", n -> n < 100 ? Outcomes.okVoid() : Outcomes.fail("too large"))
                     .build();
 
             List<PostconditionResult> results = contract.evaluate("42");
@@ -278,8 +276,8 @@ class ServiceContractTest {
                             return Outcomes.fail("Not a number");
                         }
                     })
-                        .ensure("Positive", n -> n > 0)
-                        .ensure("Less than 100", n -> n < 100)
+                        .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
+                        .ensure("Less than 100", n -> n < 100 ? Outcomes.okVoid() : Outcomes.fail("too large"))
                     .build();
 
             List<PostconditionResult> results = contract.evaluate("not-a-number");
@@ -306,9 +304,9 @@ class ServiceContractTest {
                             return Outcomes.fail("Not a number");
                         }
                     })
-                        .ensure("Positive", n -> n > 0)
+                        .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
                     .deriving("Uppercase", Outcomes.lift(String::toUpperCase))
-                        .ensure("Not empty", s -> !s.isEmpty())
+                        .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
                     .build();
 
             // First derivation fails, second succeeds
@@ -338,8 +336,8 @@ class ServiceContractTest {
         void countsDirectPostconditions() {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
-                    .ensure("Not empty", s -> !s.isEmpty())
-                    .ensure("Reasonable length", s -> s.length() < 1000)
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .ensure("Reasonable length", s -> s.length() < 1000 ? Outcomes.okVoid() : Outcomes.fail("too long"))
                     .build();
 
             assertThat(contract.postconditionCount()).isEqualTo(2);
@@ -351,7 +349,7 @@ class ServiceContractTest {
             ServiceContract<TestInput, String> contract = ServiceContract
                     .<TestInput, String>define()
                     .deriving("Valid JSON", s -> Outcomes.ok(s))
-                        .ensure("Has field", s -> true)
+                        .ensure("Has field", s -> Outcomes.okVoid())
                     .build();
 
             assertThat(contract.postconditionCount()).isEqualTo(2); // derivation + ensure
@@ -380,7 +378,7 @@ class ServiceContractTest {
                     .<TestInput, String>define()
                     .require("Value not null", in -> in.value() != null)
                     .deriving("Valid number", s -> Outcomes.ok(42))
-                        .ensure("Positive", n -> n > 0)
+                        .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
                     .build();
 
             assertThat(contract.toString())

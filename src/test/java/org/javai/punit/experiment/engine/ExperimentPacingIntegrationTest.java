@@ -1,7 +1,6 @@
 package org.javai.punit.experiment.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -10,13 +9,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
-import org.javai.punit.api.MeasureExperiment;
-import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.FactorArguments;
+import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.contract.Outcomes;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.junit.jupiter.api.BeforeEach;
@@ -151,7 +151,7 @@ class ExperimentPacingIntegrationTest {
 
     private static final ServiceContract<Void, String> SIMPLE_CONTRACT = ServiceContract
             .<Void, String>define()
-            .ensure("Not null", s -> s != null)
+            .ensure("Not null", s -> s != null ? Outcomes.okVoid() : Outcomes.fail("was null"))
             .build();
 
     private static UseCaseOutcome<String> createOutcome(String value) {

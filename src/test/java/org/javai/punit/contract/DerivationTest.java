@@ -1,13 +1,11 @@
 package org.javai.punit.contract;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("Derivation")
 class DerivationTest {
@@ -22,7 +20,7 @@ class DerivationTest {
             Derivation<String, Integer> derivation = new Derivation<>(
                     "Valid number",
                     s -> Outcomes.ok(Integer.parseInt(s)),
-                    List.of(new Postcondition<>("Positive", n -> n > 0)));
+                    List.of(Postcondition.simple("Positive", n -> n > 0)));
 
             assertThat(derivation.description()).isEqualTo("Valid number");
             assertThat(derivation.postconditions()).hasSize(1);
@@ -84,8 +82,8 @@ class DerivationTest {
                     "Valid number",
                     s -> Outcomes.ok(Integer.parseInt(s)),
                     List.of(
-                            new Postcondition<>("Positive", n -> n > 0),
-                            new Postcondition<>("Less than 100", n -> n < 100)));
+                            Postcondition.simple("Positive", n -> n > 0),
+                            Postcondition.simple("Less than 100", n -> n < 100)));
 
             List<PostconditionResult> results = derivation.evaluate("42");
 
@@ -111,8 +109,8 @@ class DerivationTest {
                         }
                     },
                     List.of(
-                            new Postcondition<>("Positive", n -> n > 0),
-                            new Postcondition<>("Less than 100", n -> n < 100)));
+                            Postcondition.simple("Positive", n -> n > 0),
+                            Postcondition.simple("Less than 100", n -> n < 100)));
 
             List<PostconditionResult> results = derivation.evaluate("not-a-number");
 
@@ -135,7 +133,7 @@ class DerivationTest {
             Derivation<String, Integer> derivation = new Derivation<>(
                     "Valid number",
                     s -> Outcomes.ok(Integer.parseInt(s)),
-                    List.of(new Postcondition<>("Positive", n -> n > 0)));
+                    List.of(Postcondition.simple("Positive", n -> n > 0)));
 
             List<PostconditionResult> results = derivation.evaluate("not-a-number");
 

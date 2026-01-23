@@ -1,12 +1,11 @@
 package org.javai.punit.contract;
 
-import org.javai.outcome.Outcome;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import org.javai.outcome.Outcome;
 
 /**
  * A service contract defines the preconditions and postconditions for a service.
@@ -34,11 +33,13 @@ import java.util.function.Predicate;
  *     .require("Prompt not null", in -> in.prompt() != null)
  *     .require("Instruction not blank", in -> !in.instruction().isBlank())
  *
- *     .ensure("Response not empty", response -> !response.isEmpty())
+ *     .ensure("Response not empty", response ->
+ *         response.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
  *
  *     .deriving("Valid JSON", MyUseCase::parseJson)
- *         .ensure("Has operations array", json -> json.has("operations"))
- *         .ensure("All operations valid", json -> allOpsValid(json))
+ *         .ensure("Has operations array", json ->
+ *             json.has("operations") ? Outcomes.okVoid() : Outcomes.fail("missing operations"))
+ *         .ensure("All operations valid", MyUseCase::validateOperations)
  *
  *     .build();
  * }</pre>
@@ -207,15 +208,21 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
          * Adds a postcondition on the raw result.
          *
          * <p>This postcondition is evaluated directly against the result without
-         * any derivation transformation. Use this for simple checks that don't
-         * require parsing or transforming the result.
+         * any derivation transformation. Return {@code Outcomes.okVoid()} for success
+         * or {@code Outcomes.fail(reason)} to indicate failure with details.
+         *
+         * <p>Example:
+         * <pre>{@code
+         * .ensure("Response not empty", response ->
+         *     response.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
+         * }</pre>
          *
          * @param description the human-readable description
-         * @param predicate the condition to evaluate against the result
+         * @param check the function returning success or failure with reason
          * @return this builder
          */
-        public ContractBuilder<I, R> ensure(String description, Predicate<R> predicate) {
-            postconditions.add(new Postcondition<>(description, predicate));
+        public ContractBuilder<I, R> ensure(String description, PostconditionCheck<R> check) {
+            postconditions.add(new Postcondition<>(description, check));
             return this;
         }
 
@@ -276,12 +283,22 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
         /**
          * Adds a postcondition to this derivation.
          *
+         * <p>Return {@code Outcomes.okVoid()} for success or {@code Outcomes.fail(reason)}
+         * to indicate failure with details.
+         *
+         * <p>Example:
+         * <pre>{@code
+         * .deriving("Parse JSON", this::parseJson)
+         *     .ensure("Has operations", json ->
+         *         json.has("operations") ? Outcomes.okVoid() : Outcomes.fail("missing operations"))
+         * }</pre>
+         *
          * @param description the human-readable description
-         * @param predicate the condition to evaluate
+         * @param check the function returning success or failure with reason
          * @return this builder
          */
-        public DerivingBuilder<I, R, D> ensure(String description, Predicate<D> predicate) {
-            postconditions.add(new Postcondition<>(description, predicate));
+        public DerivingBuilder<I, R, D> ensure(String description, PostconditionCheck<D> check) {
+            postconditions.add(new Postcondition<>(description, check));
             return this;
         }
 

@@ -1,15 +1,15 @@
 package org.javai.punit.examples.usecases;
 
+import java.util.List;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.contract.Outcomes;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.payment.MockPaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentResult;
-
-import java.util.List;
 
 /**
  * Use case for processing payment transactions through a payment gateway.
@@ -52,7 +52,7 @@ public class PaymentGatewayUseCase {
             ServiceContract.<PaymentInput, PaymentResult>define()
                     .require("Card token value", pi -> pi.cardToken != null && !pi.cardToken.isBlank())
                     .require("Positive value", pi -> pi.amountCents() >= 0)
-                    .ensure("Transaction succeeded", PaymentResult::success)
+                    .ensure("Transaction succeeded", pr -> pr.success() ? Outcomes.okVoid() : Outcomes.fail("transaction failed: " + pr.errorCode()))
                     .build();
 
     private final PaymentGateway gateway;

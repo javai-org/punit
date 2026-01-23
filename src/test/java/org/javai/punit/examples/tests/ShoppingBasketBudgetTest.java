@@ -159,8 +159,8 @@ public class ShoppingBasketBudgetTest {
     ) {
         var outcome = useCase.translateInstruction(instruction);
 
-        // Record actual tokens from the LLM call
-        tokenRecorder.recordTokens(useCase.getLastTokensUsed());
+        // Record actual tokens from the outcome metadata (extracted from response via withResult)
+        outcome.getMetadataLong("tokensUsed").ifPresent(tokenRecorder::recordTokens);
 
         outcome.assertAll();
     }
