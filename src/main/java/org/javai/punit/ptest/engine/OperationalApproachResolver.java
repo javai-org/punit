@@ -1,11 +1,10 @@
 package org.javai.punit.ptest.engine;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.OperationalApproach;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Resolves which operational approach to use based on annotation parameters.

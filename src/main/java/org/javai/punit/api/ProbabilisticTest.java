@@ -345,8 +345,8 @@ public @interface ProbabilisticTest {
      *
      * @ProbabilisticTest(useCase = ShoppingUseCase.class, samples = 30)
      * void testJsonValidity(ShoppingUseCase useCase) {
-     *     UseCaseResult result = useCase.searchProducts("query", context);
-     *     assertThat(result.getBoolean("isValidJson")).isTrue();
+     *     UseCaseOutcome<SearchResult> outcome = useCase.searchProducts("query", context);
+     *     assertThat(outcome.result().isValidJson()).isTrue();
      * }
      * }</pre>
      *

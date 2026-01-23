@@ -1,17 +1,17 @@
 package org.javai.punit.experiment.engine.shared;
 
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
 /**
- * Parameter resolver that provides the {@link ResultCaptor} for the current invocation.
+ * Parameter resolver that provides the {@link OutcomeCaptor} for the current invocation.
  *
  * <p>Also stores metadata in the extension context store for access by the interceptor:
  * <ul>
- *   <li>{@code captor} - the ResultCaptor instance</li>
+ *   <li>{@code captor} - the OutcomeCaptor instance</li>
  *   <li>{@code configName} - the configuration name (for EXPLORE mode)</li>
  *   <li>{@code sampleInConfig} - the sample number within the configuration</li>
  *   <li>{@code factorValues} - the factor values (if present)</li>
@@ -22,16 +22,16 @@ public class CaptorParameterResolver implements ParameterResolver {
     private static final ExtensionContext.Namespace NAMESPACE =
             ExtensionContext.Namespace.create("org.javai.punit.experiment");
 
-    private final ResultCaptor captor;
+    private final OutcomeCaptor captor;
     private final String configName;
     private final int sampleInConfig;
     private final Object[] factorValues;
 
-    public CaptorParameterResolver(ResultCaptor captor, String configName, int sampleInConfig) {
+    public CaptorParameterResolver(OutcomeCaptor captor, String configName, int sampleInConfig) {
         this(captor, configName, sampleInConfig, null);
     }
 
-    public CaptorParameterResolver(ResultCaptor captor, String configName,
+    public CaptorParameterResolver(OutcomeCaptor captor, String configName,
                                    int sampleInConfig, Object[] factorValues) {
         this.captor = captor;
         this.configName = configName;
@@ -43,7 +43,7 @@ public class CaptorParameterResolver implements ParameterResolver {
     public boolean supportsParameter(ParameterContext parameterContext,
                                      ExtensionContext extensionContext)
             throws ParameterResolutionException {
-        return parameterContext.getParameter().getType() == ResultCaptor.class;
+        return parameterContext.getParameter().getType() == OutcomeCaptor.class;
     }
 
     @Override

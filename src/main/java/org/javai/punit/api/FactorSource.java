@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  *     @Factor("model") String model,
  *     @Factor("temperature") double temperature,
  *     UseCaseProvider provider,
- *     ResultCaptor captor
+ *     OutcomeCaptor captor
  * ) {
  *     // Configure use case with factor values
  *     provider.register(ShoppingUseCase.class, () ->
@@ -105,7 +105,7 @@ public @interface FactorSource {
      * <h2>Example</h2>
      * <pre>{@code
      * @FactorSource(value = "configs", factors = {"model", "temp", "query"})
-     * void exploreConfigs(ShoppingUseCase useCase, ResultCaptor captor) {
+     * void exploreConfigs(ShoppingUseCase useCase, OutcomeCaptor captor) {
      *     // useCase is pre-configured with model/temp
      *     // query can be obtained from the factor values if needed
      * }

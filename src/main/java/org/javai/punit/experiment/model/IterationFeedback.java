@@ -1,7 +1,6 @@
 package org.javai.punit.experiment.model;
 
 import java.util.List;
-
 import org.javai.punit.model.FailureObservation;
 
 /**

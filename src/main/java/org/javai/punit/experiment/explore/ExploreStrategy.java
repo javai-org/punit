@@ -13,18 +13,18 @@ import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
-import org.javai.punit.experiment.measure.MeasureInvocationContext;
 import org.javai.punit.experiment.engine.ResultProjectionBuilder;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorResolver;
 import org.javai.punit.experiment.engine.shared.ResultRecorder;
+import org.javai.punit.experiment.measure.MeasureInvocationContext;
 import org.javai.punit.experiment.model.ResultProjection;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -122,7 +122,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
             for (int sample = 1; sample <= samplesPerConfig; sample++) {
                 invocations.add(new ExploreInvocationContext(
                         sample, samplesPerConfig, configIndex + 1, argsList.size(),
-                        useCaseId, configName, factorValues, factorInfos, new ResultCaptor()
+                        useCaseId, configName, factorValues, factorInfos, new OutcomeCaptor()
                 ));
             }
         }
@@ -144,7 +144,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         return Stream.iterate(1, i -> i + 1)
                 .limit(samplesPerConfig)
                 .map(i -> new MeasureInvocationContext(
-                        i, samplesPerConfig, useCaseId, new ResultCaptor()));
+                        i, samplesPerConfig, useCaseId, new OutcomeCaptor()));
     }
 
     @Override
@@ -164,7 +164,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
 
         // Get explore invocation context info from extension context store
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
-        ResultCaptor captor = invocationStore.get("captor", ResultCaptor.class);
+        OutcomeCaptor captor = invocationStore.get("captor", OutcomeCaptor.class);
         String configName = invocationStore.get("configName", String.class);
         Integer sampleInConfig = invocationStore.get("sampleInConfig", Integer.class);
         Object[] factorValues = invocationStore.get("factorValues", Object[].class);
@@ -210,7 +210,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
             if (captor != null && captor.hasResult()) {
                 ResultProjection projection = projectionBuilder.build(
                         sampleInConfig - 1,
-                        captor.getResult()
+                        captor.getContractOutcome()
                 );
                 aggregator.addResultProjection(projection);
             }

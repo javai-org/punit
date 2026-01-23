@@ -1,15 +1,14 @@
 package org.javai.punit.api;
 
 import java.util.List;
-
-import org.javai.punit.model.UseCaseResult;
+import org.javai.punit.contract.UseCaseOutcome;
 
 /**
  * Interface for use case classes that want to customize diff projection.
  *
  * <p>When a use case class implements this interface, the framework uses
  * its {@link #getDiffableContent} method instead of the default algorithm
- * on {@link UseCaseResult#getDiffableContent(int)}.
+ * based on record component reflection.
  *
  * <h2>Example Usage</h2>
  * <pre>{@code
@@ -17,10 +16,11 @@ import org.javai.punit.model.UseCaseResult;
  * public class ShoppingUseCase implements DiffableContentProvider {
  *
  *     @Override
- *     public List<String> getDiffableContent(UseCaseResult result, int maxLineLength) {
- *         // Custom projection: summarize instead of showing raw values
- *         int productCount = result.getInt("productCount", 0);
- *         boolean hasErrors = result.hasValue("error");
+ *     public List<String> getDiffableContent(UseCaseOutcome<?> outcome, int maxLineLength) {
+ *         // Custom projection: summarize the typed result
+ *         SearchResult result = (SearchResult) outcome.result();
+ *         int productCount = result.products().size();
+ *         boolean hasErrors = result.error() != null;
  *
  *         return List.of(
  *             truncate("productCount: " + productCount, maxLineLength),
@@ -51,21 +51,20 @@ import org.javai.punit.model.UseCaseResult;
  *   <li>Use ellipsis (…) to indicate truncation</li>
  * </ul>
  *
- * @see UseCaseResult#getDiffableContent(int)
+ * @see UseCaseOutcome
  */
 @FunctionalInterface
 public interface DiffableContentProvider {
 
     /**
-     * Returns custom diffable content for a use case result.
+     * Returns custom diffable content for a use case outcome.
      *
      * <p>This method is called during EXPLORE mode to generate diff-optimized
      * output for side-by-side comparison of exploration specs.
      *
-     * @param result the use case result to project
+     * @param outcome the use case outcome containing the typed result
      * @param maxLineLength maximum characters per line
      * @return list of formatted lines for diff comparison
      */
-    List<String> getDiffableContent(UseCaseResult result, int maxLineLength);
+    List<String> getDiffableContent(UseCaseOutcome<?> outcome, int maxLineLength);
 }
-

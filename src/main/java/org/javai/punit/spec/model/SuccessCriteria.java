@@ -4,10 +4,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.javai.punit.model.UseCaseResult;
 
 /**
- * Evaluates whether a UseCaseResult meets success criteria.
+ * Evaluates whether a set of values meets success criteria.
  *
  * <h2>Supported Syntax</h2>
  * <ul>
@@ -29,12 +28,12 @@ import org.javai.punit.model.UseCaseResult;
 public interface SuccessCriteria {
 
 	/**
-	 * Evaluates whether a result meets success criteria.
+	 * Evaluates whether a set of values meets success criteria.
 	 *
-	 * @param result the result to evaluate
-	 * @return true if the result meets criteria
+	 * @param values the values to evaluate
+	 * @return true if the values meet criteria
 	 */
-	boolean isSuccess(UseCaseResult result);
+	boolean isSuccess(Map<String, Object> values);
 
 	/**
 	 * Returns a human-readable description of the criteria.
@@ -51,7 +50,7 @@ public interface SuccessCriteria {
 	static SuccessCriteria alwaysTrue() {
 		return new SuccessCriteria() {
 			@Override
-			public boolean isSuccess(UseCaseResult result) {
+			public boolean isSuccess(Map<String, Object> values) {
 				return true;
 			}
 
@@ -91,8 +90,8 @@ class ExpressionSuccessCriteria implements SuccessCriteria {
 	}
 
 	@Override
-	public boolean isSuccess(UseCaseResult result) {
-		return evaluate(expression, result.values());
+	public boolean isSuccess(Map<String, Object> values) {
+		return evaluate(expression, values);
 	}
 
 	@Override

@@ -1,15 +1,9 @@
 package org.javai.punit.ptest.engine;
 
-import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.StandardCovariate;
-import org.javai.punit.api.UseCase;
-import org.javai.punit.spec.baseline.BaselineRepository;
-import org.javai.punit.spec.baseline.NoCompatibleBaselineException;
-import org.javai.punit.model.CovariateProfile;
-import org.javai.punit.model.CovariateValue;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,8 +13,15 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.HexFormat;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.StandardCovariate;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.model.CovariateValue;
+import org.javai.punit.spec.baseline.BaselineRepository;
+import org.javai.punit.spec.baseline.NoCompatibleBaselineException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests for covariate integration in {@link ProbabilisticTestExtension}.

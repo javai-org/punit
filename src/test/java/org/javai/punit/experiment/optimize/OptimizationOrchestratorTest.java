@@ -7,13 +7,14 @@ import static org.javai.punit.model.TerminationReason.SCORING_FAILURE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.model.FactorSuit;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseOutcome;
-import org.javai.punit.model.UseCaseResult;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -22,27 +23,40 @@ import org.junit.jupiter.api.Test;
 class OptimizationOrchestratorTest {
 
     /**
-     * Creates a mock use case outcome with the given success rate.
+     * Creates a mock use case outcome with the given success status.
      */
-    private UseCaseOutcome createOutcome(boolean success) {
-        UseCaseResult result = UseCaseResult.builder()
-                .value("response", "test response")
-                .value("tokensUsed", 100L)
-                .executionTime(Duration.ofMillis(50))
-                .build();
+    private UseCaseOutcome<String> createOutcome(boolean success) {
+        return new UseCaseOutcome<>(
+                "test response",
+                Duration.ofMillis(50),
+                Instant.now(),
+                Map.of("tokensUsed", 100L),
+                new TestPostconditionEvaluator(success)
+        );
+    }
 
-        UseCaseCriteria criteria;
-        if (success) {
-            criteria = UseCaseCriteria.ordered()
-                    .criterion("success", () -> true)
-                    .build();
-        } else {
-            criteria = UseCaseCriteria.ordered()
-                    .criterion("success", () -> false)
-                    .build();
+    /**
+     * PostconditionEvaluator for test outcomes.
+     */
+    private static final class TestPostconditionEvaluator
+            implements org.javai.punit.contract.PostconditionEvaluator<String> {
+        private final boolean success;
+
+        TestPostconditionEvaluator(boolean success) {
+            this.success = success;
         }
 
-        return new UseCaseOutcome(result, criteria);
+        @Override
+        public List<PostconditionResult> evaluate(String result) {
+            return success
+                    ? List.of(PostconditionResult.passed("success"))
+                    : List.of(PostconditionResult.failed("success", "test failure"));
+        }
+
+        @Override
+        public int postconditionCount() {
+            return 1;
+        }
     }
 
     /**
@@ -50,7 +64,7 @@ class OptimizationOrchestratorTest {
      */
     private UseCaseExecutor createExecutor(double successRate) {
         return (factorSuit, sampleCount) -> {
-            List<UseCaseOutcome> outcomes = new ArrayList<>();
+            List<UseCaseOutcome<?>> outcomes = new ArrayList<>();
             int successCount = (int) (sampleCount * successRate);
             for (int i = 0; i < sampleCount; i++) {
                 outcomes.add(createOutcome(i < successCount));
@@ -67,7 +81,7 @@ class OptimizationOrchestratorTest {
             int iteration = callCount.getAndIncrement();
             // Success rate improves: 0.7, 0.8, 0.9, 0.95, 0.95...
             double successRate = Math.min(0.95, 0.7 + iteration * 0.1);
-            List<UseCaseOutcome> outcomes = new ArrayList<>();
+            List<UseCaseOutcome<?>> outcomes = new ArrayList<>();
             int successCount = (int) (sampleCount * successRate);
             for (int i = 0; i < sampleCount; i++) {
                 outcomes.add(createOutcome(i < successCount));

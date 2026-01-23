@@ -1,19 +1,15 @@
 package org.javai.punit.examples.usecases;
 
+import java.util.List;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseContract;
+import org.javai.punit.contract.Outcomes;
+import org.javai.punit.contract.ServiceContract;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.payment.MockPaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentGateway;
 import org.javai.punit.examples.infrastructure.payment.PaymentResult;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseOutcome;
-import org.javai.punit.model.UseCaseResult;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
 
 /**
  * Use case for processing payment transactions through a payment gateway.
@@ -35,7 +31,27 @@ import java.util.List;
  * @see org.javai.punit.examples.tests.PaymentGatewaySlaTest
  */
 @UseCase(description = "Process payment transactions through a payment gateway")
-public class PaymentGatewayUseCase implements UseCaseContract {
+public class PaymentGatewayUseCase {
+
+    /**
+     * Input parameters for the payment service.
+     *
+     * @param cardToken the tokenized card reference
+     * @param amountCents the amount to charge in cents
+     */
+    private record PaymentInput(String cardToken, long amountCents) {}
+
+    /**
+     * The service contract defining postconditions for payment results.
+     *
+     * <p>This contract defines a single postcondition: the transaction must succeed.
+     * For SLA testing, the pass rate threshold comes from the contractual agreement
+     * rather than empirical baseline measurement.
+     */
+    private static final ServiceContract<PaymentInput, PaymentResult> CONTRACT =
+            ServiceContract.<PaymentInput, PaymentResult>define()
+                    .ensure("Transaction succeeded", pr -> pr.success() ? Outcomes.okVoid() : Outcomes.fail("transaction failed: " + pr.errorCode()))
+                    .build();
 
     private final PaymentGateway gateway;
     private String region = "us-east-1";
@@ -71,34 +87,36 @@ public class PaymentGatewayUseCase implements UseCaseContract {
     /**
      * Processes a payment charge.
      *
+     * <p>This method uses the fluent {@link UseCaseOutcome} builder API which:
+     * <ul>
+     *   <li>Automatically captures execution timing</li>
+     *   <li>Evaluates postconditions lazily</li>
+     *   <li>Bundles metadata with the result</li>
+     * </ul>
+     *
      * @param cardToken the tokenized card reference
      * @param amountCents the amount to charge in cents
-     * @return outcome containing result and success criteria
+     * @return outcome containing typed result and postconditions
      */
-    public UseCaseOutcome chargeCard(String cardToken, long amountCents) {
-        Instant start = Instant.now();
-
-        PaymentResult paymentResult = gateway.charge(cardToken, amountCents);
-
-        Duration executionTime = Duration.between(start, Instant.now());
-
-        UseCaseResult result = UseCaseResult.builder()
-                .value("success", paymentResult.success())
-                .value("transactionId", paymentResult.transactionId())
-                .value("errorCode", paymentResult.errorCode())
-                .meta("cardToken", cardToken)
-                .meta("amountCents", amountCents)
+    public UseCaseOutcome<PaymentResult> chargeCard(String cardToken, long amountCents) {
+        return UseCaseOutcome
+                .withContract(CONTRACT)
+                .input(new PaymentInput(cardToken, amountCents))
+                .execute(this::executeCharge)
                 .meta("region", region)
-                .executionTime(executionTime)
                 .build();
+    }
 
-        // Simple success criterion: the transaction succeeded
-        UseCaseCriteria criteria = UseCaseCriteria.ordered()
-                .criterion("Transaction succeeded",
-                        () -> result.getBoolean("success", false))
-                .build();
-
-        return new UseCaseOutcome(result, criteria);
+    /**
+     * Executes the payment charge through the gateway.
+     *
+     * <p>This method is called by the fluent builder's {@code execute()} step.
+     *
+     * @param input the payment input parameters
+     * @return the payment result from the gateway
+     */
+    private PaymentResult executeCharge(PaymentInput input) {
+        return gateway.charge(input.cardToken(), input.amountCents());
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

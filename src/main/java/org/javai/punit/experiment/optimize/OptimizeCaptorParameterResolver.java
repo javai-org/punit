@@ -1,17 +1,17 @@
 package org.javai.punit.experiment.optimize;
 
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
 /**
- * Parameter resolver that provides the {@link ResultCaptor} for OPTIMIZE mode invocations.
+ * Parameter resolver that provides the {@link OutcomeCaptor} for OPTIMIZE mode invocations.
  *
  * <p>Stores optimization metadata in the extension context store for access by the interceptor:
  * <ul>
- *   <li>{@code captor} - the ResultCaptor instance</li>
+ *   <li>{@code captor} - the OutcomeCaptor instance</li>
  *   <li>{@code iterationNumber} - the current iteration (0-indexed)</li>
  *   <li>{@code sampleInIteration} - the sample number within the iteration (1-indexed)</li>
  *   <li>{@code samplesPerIteration} - total samples per iteration</li>
@@ -34,7 +34,7 @@ public class OptimizeCaptorParameterResolver implements ParameterResolver {
     public boolean supportsParameter(ParameterContext parameterContext,
                                      ExtensionContext extensionContext)
             throws ParameterResolutionException {
-        return parameterContext.getParameter().getType() == ResultCaptor.class;
+        return parameterContext.getParameter().getType() == OutcomeCaptor.class;
     }
 
     @Override

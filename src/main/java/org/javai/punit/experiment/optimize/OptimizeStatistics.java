@@ -1,8 +1,7 @@
 package org.javai.punit.experiment.optimize;
 
-import org.javai.punit.experiment.model.EmpiricalSummary;
-
 import java.util.Map;
+import org.javai.punit.experiment.model.EmpiricalSummary;
 
 /**
  * Optimization statistics aggregated from N outcomes.

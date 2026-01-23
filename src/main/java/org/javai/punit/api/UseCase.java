@@ -24,7 +24,7 @@ import java.lang.annotation.Target;
  * // ID is "ShoppingUseCase"
  * @UseCase
  * public class ShoppingUseCase {
- *     public UseCaseResult searchProducts(String query, UseCaseContext ctx) {
+ *     public UseCaseOutcome<SearchResult> searchProducts(String query, UseCaseContext ctx) {
  *         // ...
  *     }
  * }
@@ -41,10 +41,11 @@ import java.lang.annotation.Target;
  * <h2>Method-Level Usage</h2>
  * <pre>{@code
  * @UseCase("usecase.email.validation")
- * UseCaseResult validateEmailFormat(String email, UseCaseContext context) {
- *     ValidationResult result = emailValidator.validate(email);
- *     return UseCaseResult.builder()
- *         .value("isValid", result.isValid())
+ * UseCaseOutcome<ValidationResult> validateEmail(String email, UseCaseContext context) {
+ *     return UseCaseOutcome
+ *         .withContract(EMAIL_CONTRACT)
+ *         .input(email)
+ *         .execute(e -> emailValidator.validate(e))
  *         .build();
  * }
  * }</pre>

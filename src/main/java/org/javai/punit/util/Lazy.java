@@ -19,17 +19,14 @@ import java.util.function.Supplier;
  *
  * <h2>Usage Example</h2>
  * <pre>{@code
- * public UseCaseCriteria criteria(UseCaseResult result) {
- *     String response = result.getString("response", "");
+ * // Parsing happens once, on first access
+ * Lazy<JsonNode> parsed = Lazy.of(() -> parseJson(response));
  *
- *     // Parsing happens once, on first access
- *     Lazy<JsonNode> parsed = Lazy.of(() -> parseJson(response));
- *
- *     return UseCaseCriteria.ordered()
- *         .criterion("JSON parsed", () -> parsed.get() != null)
- *         .criterion("Has products", () -> countProducts(parsed.get()) > 0)
- *         .build();
- * }
+ * ServiceContract<Void, String> contract = ServiceContract
+ *     .<Void, String>define()
+ *     .ensure("JSON parsed", s -> parsed.get() != null)
+ *     .ensure("Has products", s -> countProducts(parsed.get()) > 0)
+ *     .build();
  * }</pre>
  *
  * <h2>Exception Behavior</h2>

@@ -32,7 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *     samples = 1000,
  *     timeBudgetMs = 600_000
  * )
- * void measureProductSearchBaseline(ShoppingUseCase useCase, ResultCaptor captor) {
+ * void measureProductSearchBaseline(ShoppingUseCase useCase, OutcomeCaptor captor) {
  *     captor.record(useCase.searchProducts("headphones", context));
  * }
  * }</pre>
@@ -43,7 +43,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * @see ExploreExperiment
  * @see UseCase
  * @see UseCaseProvider
- * @see ResultCaptor
+ * @see OutcomeCaptor
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

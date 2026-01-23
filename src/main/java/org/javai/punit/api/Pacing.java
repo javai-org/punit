@@ -64,7 +64,7 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @Experiment(mode = ExperimentMode.MEASURE, samples = 500)
  * @Pacing(maxRequestsPerMinute = 60)
- * void measureWithPacing(ResultCaptor<String> captor) { ... }
+ * void measureWithPacing(OutcomeCaptor<String> captor) { ... }
  * }</pre>
  *
  * <h3>EXPLORE mode with continuous pacing:</h3>
@@ -78,7 +78,7 @@ import java.lang.annotation.Target;
  * @Pacing(maxRequestsPerMinute = 30)
  * void exploreWithPacing(
  *     @Factor({"gpt-4", "gpt-3.5"}) String model,
- *     ResultCaptor<String> captor
+ *     OutcomeCaptor<String> captor
  * ) { ... }
  * }</pre>
  *

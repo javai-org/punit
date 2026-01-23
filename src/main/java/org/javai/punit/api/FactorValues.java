@@ -14,7 +14,7 @@ import java.util.List;
  * <h2>In Experiment Methods</h2>
  * <pre>{@code
  * @FactorSource("configs")
- * void exploreConfigs(ShoppingUseCase useCase, FactorValues factors, ResultCaptor captor) {
+ * void exploreConfigs(ShoppingUseCase useCase, FactorValues factors, OutcomeCaptor captor) {
  *     String query = factors.getString("query");
  *     captor.record(useCase.searchProducts(query));
  * }

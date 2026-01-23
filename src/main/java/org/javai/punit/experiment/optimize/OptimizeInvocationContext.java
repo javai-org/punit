@@ -3,7 +3,7 @@ package org.javai.punit.experiment.optimize;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -15,7 +15,7 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
  * Invocation context for @OptimizeExperiment.
  *
  * <p>Represents a single sample execution within an optimization iteration.
- * Each invocation receives a fresh {@link ResultCaptor} and the current
+ * Each invocation receives a fresh {@link OutcomeCaptor} and the current
  * treatment factor value.
  *
  * <p>The display name shows both the iteration and sample numbers:
@@ -29,7 +29,7 @@ public record OptimizeInvocationContext(
         String useCaseId,
         Object treatmentValue,
         String controlFactorName,
-        ResultCaptor captor
+        OutcomeCaptor captor
 ) implements TestTemplateInvocationContext {
 
     @Override

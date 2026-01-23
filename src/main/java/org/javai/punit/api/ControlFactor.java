@@ -24,7 +24,7 @@ import java.lang.annotation.Target;
  * void optimizePrompt(
  *     ShoppingUseCase useCase,
  *     @ControlFactor String currentPrompt,  // Injected from use case
- *     ResultCaptor captor
+ *     OutcomeCaptor captor
  * ) {
  *     captor.record(useCase.searchProducts("headphones"));
  * }
@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  *     ShoppingUseCase useCase,
  *     @ControlFactor("systemPrompt") String prompt,
  *     @ControlFactor("temperature") double temp,
- *     ResultCaptor captor
+ *     OutcomeCaptor captor
  * ) { ... }
  * }</pre>
  *

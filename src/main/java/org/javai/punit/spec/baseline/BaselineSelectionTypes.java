@@ -3,7 +3,6 @@ package org.javai.punit.spec.baseline;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
 import org.javai.punit.spec.baseline.covariate.CovariateMatcher;

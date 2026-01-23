@@ -89,9 +89,9 @@ public class EmpiricalBaselineGenerator {
             ? Map.of() 
             : aggregator.getFailureDistribution();
         
-        // Include criteria pass rates if available
-        Map<String, Double> criteriaPassRates = aggregator.hasCriteriaStats()
-            ? aggregator.getCriteriaPassRates()
+        // Include postcondition pass rates if available
+        Map<String, Double> criteriaPassRates = aggregator.hasPostconditionStats()
+            ? aggregator.getPostconditionPassRates()
             : Map.of();
         
         StatisticsSummary statistics = new StatisticsSummary(

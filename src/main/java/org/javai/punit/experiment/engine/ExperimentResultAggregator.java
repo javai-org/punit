@@ -6,40 +6,39 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.javai.punit.spec.criteria.CriteriaOutcomeAggregator;
+import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.model.ResultProjection;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseResult;
+import org.javai.punit.spec.criteria.PostconditionAggregator;
 
 /**
  * Aggregates results from experiment sample executions.
  *
- * <p>Unlike {@link org.javai.punit.ptest.engine.SampleResultAggregator}, this aggregator
- * is designed for experiments which:
+ * <p>This aggregator is designed for experiments which:
  * <ul>
- *   <li>Collect {@link UseCaseResult} instances (not just pass/fail)</li>
+ *   <li>Collect {@link UseCaseOutcome} instances</li>
  *   <li>Track failure modes by category</li>
  *   <li>Compute statistical summaries</li>
  *   <li>Track token consumption</li>
  * </ul>
  */
 public class ExperimentResultAggregator {
-    
+
     private final String useCaseId;
     private final int totalSamples;
     private final long startTimeMs;
     private long lastSampleTimeMs;
-    
+
     private int successes = 0;
     private int failures = 0;
     private long totalTokens = 0;
     private final Map<String, Integer> failureDistribution = new LinkedHashMap<>();
-    private final List<UseCaseResult> results = new ArrayList<>();
+    private final List<UseCaseOutcome<?>> outcomes = new ArrayList<>();
     private final List<ResultProjection> resultProjections = new ArrayList<>();
-    private final CriteriaOutcomeAggregator criteriaAggregator = new CriteriaOutcomeAggregator();
+    private final PostconditionAggregator postconditionAggregator = new PostconditionAggregator();
     private String terminationReason = null;
     private String terminationDetails = null;
-    
+
     /**
      * Creates a new aggregator for an experiment.
      *
@@ -52,49 +51,51 @@ public class ExperimentResultAggregator {
         this.startTimeMs = System.currentTimeMillis();
         this.lastSampleTimeMs = this.startTimeMs;
     }
-    
+
     /**
      * Records a successful sample execution.
      *
-     * @param result the use case result
+     * @param outcome the use case outcome
      */
-    public void recordSuccess(UseCaseResult result) {
-        Objects.requireNonNull(result, "result must not be null");
+    public void recordSuccess(UseCaseOutcome<?> outcome) {
+        Objects.requireNonNull(outcome, "outcome must not be null");
         successes++;
-        results.add(result);
-        trackTokens(result);
+        outcomes.add(outcome);
+        trackTokens(outcome);
+        recordPostconditions(outcome.evaluatePostconditions());
         updateLastSampleTime();
     }
-    
+
     /**
      * Records a failed sample execution.
      *
-     * @param result the use case result
+     * @param outcome the use case outcome
      * @param failureCategory the category of failure (for distribution tracking)
      */
-    public void recordFailure(UseCaseResult result, String failureCategory) {
-        Objects.requireNonNull(result, "result must not be null");
+    public void recordFailure(UseCaseOutcome<?> outcome, String failureCategory) {
+        Objects.requireNonNull(outcome, "outcome must not be null");
         failures++;
-        results.add(result);
-        trackTokens(result);
+        outcomes.add(outcome);
+        trackTokens(outcome);
+        recordPostconditions(outcome.evaluatePostconditions());
         updateLastSampleTime();
-        
+
         if (failureCategory != null && !failureCategory.isEmpty()) {
             failureDistribution.merge(failureCategory, 1, Integer::sum);
         } else {
             failureDistribution.merge("unknown", 1, Integer::sum);
         }
     }
-    
+
     /**
-     * Records a failure from an exception (no UseCaseResult available).
+     * Records a failure from an exception (no outcome available).
      *
      * @param exception the exception that caused the failure
      */
     public void recordException(Throwable exception) {
         failures++;
-        String category = exception != null 
-            ? exception.getClass().getSimpleName() 
+        String category = exception != null
+            ? exception.getClass().getSimpleName()
             : "unknown";
         failureDistribution.merge(category, 1, Integer::sum);
         updateLastSampleTime();
@@ -106,19 +107,15 @@ public class ExperimentResultAggregator {
     private void updateLastSampleTime() {
         this.lastSampleTimeMs = System.currentTimeMillis();
     }
-    
-    private void trackTokens(UseCaseResult result) {
-        // Look for common token count keys
-        long tokens = result.getLong("tokensUsed", 0);
-        if (tokens == 0) {
-            tokens = result.getLong("tokens", 0);
-        }
-        if (tokens == 0) {
-            tokens = result.getLong("totalTokens", 0);
-        }
-        totalTokens += tokens;
+
+    /**
+     * Tracks tokens from an outcome using metadata.
+     */
+    private void trackTokens(UseCaseOutcome<?> outcome) {
+        outcome.getMetadataLong("tokensUsed", "tokens", "totalTokens")
+                .ifPresent(tokens -> totalTokens += tokens);
     }
-    
+
     /**
      * Adds tokens to the total count (for external token tracking).
      *
@@ -129,21 +126,20 @@ public class ExperimentResultAggregator {
             totalTokens += tokens;
         }
     }
-    
+
     /**
-     * Records success criteria outcomes for a sample.
+     * Records postcondition outcomes for a sample.
      *
-     * <p>The criteria's {@code evaluate()} method is called to obtain outcomes,
-     * which are then aggregated for statistical reporting.
+     * <p>The postcondition results are aggregated for statistical reporting.
      *
-     * @param criteria the success criteria to record
+     * @param results the postcondition results to record
      */
-    public void recordCriteria(UseCaseCriteria criteria) {
-        if (criteria != null) {
-            criteriaAggregator.record(criteria);
+    public void recordPostconditions(List<PostconditionResult> results) {
+        if (results != null) {
+            postconditionAggregator.record(results);
         }
     }
-    
+
     /**
      * Marks the experiment as terminated.
      *
@@ -154,7 +150,7 @@ public class ExperimentResultAggregator {
         this.terminationReason = reason;
         this.terminationDetails = details;
     }
-    
+
     /**
      * Marks the experiment as completed.
      */
@@ -162,29 +158,29 @@ public class ExperimentResultAggregator {
         this.terminationReason = "COMPLETED";
         this.terminationDetails = null;
     }
-    
+
     // Getters
-    
+
     public String getUseCaseId() {
         return useCaseId;
     }
-    
+
     public int getTotalSamples() {
         return totalSamples;
     }
-    
+
     public int getSuccesses() {
         return successes;
     }
-    
+
     public int getFailures() {
         return failures;
     }
-    
+
     public int getSamplesExecuted() {
         return successes + failures;
     }
-    
+
     public double getObservedSuccessRate() {
         int executed = getSamplesExecuted();
         if (executed == 0) {
@@ -192,7 +188,7 @@ public class ExperimentResultAggregator {
         }
         return (double) successes / executed;
     }
-    
+
     /**
      * Computes the standard error of the success rate.
      *
@@ -208,7 +204,7 @@ public class ExperimentResultAggregator {
         double p = getObservedSuccessRate();
         return Math.sqrt(p * (1 - p) / n);
     }
-    
+
     /**
      * Computes the 95% confidence interval for the success rate.
      *
@@ -225,7 +221,7 @@ public class ExperimentResultAggregator {
             Math.min(1.0, p + margin)
         };
     }
-    
+
     public long getElapsedMs() {
         return System.currentTimeMillis() - startTimeMs;
     }
@@ -240,11 +236,11 @@ public class ExperimentResultAggregator {
     public java.time.Instant getEndTime() {
         return java.time.Instant.ofEpochMilli(lastSampleTimeMs);
     }
-    
+
     public long getTotalTokens() {
         return totalTokens;
     }
-    
+
     public long getAvgTokensPerSample() {
         int executed = getSamplesExecuted();
         if (executed == 0) {
@@ -252,7 +248,7 @@ public class ExperimentResultAggregator {
         }
         return totalTokens / executed;
     }
-    
+
     public long getAvgTimePerSampleMs() {
         int executed = getSamplesExecuted();
         if (executed == 0) {
@@ -260,15 +256,31 @@ public class ExperimentResultAggregator {
         }
         return getElapsedMs() / executed;
     }
-    
+
     public Map<String, Integer> getFailureDistribution() {
         return Collections.unmodifiableMap(failureDistribution);
     }
-    
-    public List<UseCaseResult> getResults() {
-        return Collections.unmodifiableList(results);
+
+    /**
+     * Returns all recorded outcomes.
+     *
+     * @return unmodifiable list of outcomes
+     */
+    public List<UseCaseOutcome<?>> getOutcomes() {
+        return Collections.unmodifiableList(outcomes);
     }
-    
+
+    /**
+     * Returns all recorded outcomes.
+     *
+     * @return unmodifiable list of outcomes
+     * @deprecated Use {@link #getOutcomes()} instead (renamed for clarity)
+     */
+    @Deprecated(forRemoval = true)
+    public List<UseCaseOutcome<?>> getContractOutcomes() {
+        return getOutcomes();
+    }
+
     /**
      * Adds a result projection (for EXPLORE mode).
      *
@@ -279,7 +291,7 @@ public class ExperimentResultAggregator {
             resultProjections.add(projection);
         }
     }
-    
+
     /**
      * Returns all result projections.
      *
@@ -288,7 +300,7 @@ public class ExperimentResultAggregator {
     public List<ResultProjection> getResultProjections() {
         return Collections.unmodifiableList(resultProjections);
     }
-    
+
     /**
      * Returns true if result projections have been recorded.
      *
@@ -297,51 +309,50 @@ public class ExperimentResultAggregator {
     public boolean hasResultProjections() {
         return !resultProjections.isEmpty();
     }
-    
+
     public String getTerminationReason() {
         return terminationReason;
     }
-    
+
     public String getTerminationDetails() {
         return terminationDetails;
     }
-    
+
     public boolean isComplete() {
         return terminationReason != null || getSamplesExecuted() >= totalSamples;
     }
-    
+
     public int getRemainingSamples() {
         return Math.max(0, totalSamples - getSamplesExecuted());
     }
-    
+
     /**
-     * Returns the criteria outcome aggregator.
+     * Returns the postcondition aggregator.
      *
-     * @return the criteria aggregator
+     * @return the postcondition aggregator
      */
-    public CriteriaOutcomeAggregator getCriteriaAggregator() {
-        return criteriaAggregator;
+    public PostconditionAggregator getPostconditionAggregator() {
+        return postconditionAggregator;
     }
-    
+
     /**
-     * Returns true if any criteria have been recorded.
+     * Returns true if any postconditions have been recorded.
      *
-     * @return true if criteria stats are available
+     * @return true if postcondition stats are available
      */
-    public boolean hasCriteriaStats() {
-        return criteriaAggregator.getSamplesRecorded() > 0;
+    public boolean hasPostconditionStats() {
+        return postconditionAggregator.getSamplesRecorded() > 0;
     }
-    
+
     /**
-     * Returns a summary of criterion pass rates.
+     * Returns a summary of postcondition pass rates.
      *
-     * <p>This is a convenience method that returns a map of criterion
+     * <p>This is a convenience method that returns a map of postcondition
      * descriptions to their observed pass rates. Useful for spec generation.
      *
-     * @return map of criterion descriptions to pass rates
+     * @return map of postcondition descriptions to pass rates
      */
-    public Map<String, Double> getCriteriaPassRates() {
-        return criteriaAggregator.getPassRateSummary();
+    public Map<String, Double> getPostconditionPassRates() {
+        return postconditionAggregator.getPassRateSummary();
     }
 }
-

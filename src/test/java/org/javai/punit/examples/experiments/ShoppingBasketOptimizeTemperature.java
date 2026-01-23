@@ -2,7 +2,7 @@ package org.javai.punit.examples.experiments;
 
 import org.javai.punit.api.ControlFactor;
 import org.javai.punit.api.OptimizeExperiment;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.javai.punit.experiment.optimize.OptimizationObjective;
@@ -109,7 +109,7 @@ public class ShoppingBasketOptimizeTemperature {
     void optimizeTemperature(
             ShoppingBasketUseCase useCase,
             @ControlFactor("temperature") Double temperature,
-            ResultCaptor captor
+            OutcomeCaptor captor
     ) {
         // Temperature is automatically set via @FactorSetter on the use case
         assert useCase.getTemperature() == temperature;

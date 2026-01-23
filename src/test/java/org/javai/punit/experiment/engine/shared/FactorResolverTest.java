@@ -2,7 +2,6 @@ package org.javai.punit.experiment.engine.shared;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.List;

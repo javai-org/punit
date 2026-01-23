@@ -1,7 +1,6 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import java.util.List;
-
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.ConformanceDetail;
 
 /**

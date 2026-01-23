@@ -2,6 +2,11 @@ package org.javai.punit.examples.usecases;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import org.javai.outcome.Outcome;
+import org.javai.outcome.boundary.Boundary;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.CovariateSource;
@@ -11,18 +16,12 @@ import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseContract;
+import org.javai.punit.contract.Outcomes;
+import org.javai.punit.contract.ServiceContract;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.llm.ChatLlm;
 import org.javai.punit.examples.infrastructure.llm.ChatResponse;
 import org.javai.punit.examples.infrastructure.llm.MockChatLlm;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseOutcome;
-import org.javai.punit.model.UseCaseResult;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Use case for translating natural language shopping instructions to JSON operations.
@@ -74,15 +73,45 @@ import java.util.Set;
                 @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)
         }
 )
-public class ShoppingBasketUseCase implements UseCaseContract {
+public class ShoppingBasketUseCase {
 
     private static final Set<String> VALID_ACTIONS = Set.of("add", "remove", "clear");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    /**
+     * Input parameters for the translation service.
+     *
+     * @param systemPrompt the system prompt for the LLM
+     * @param instruction the user's natural language instruction
+     * @param temperature the LLM temperature setting
+     */
+    private record ServiceInput(String systemPrompt, String instruction, double temperature) {}
+
+    /**
+     * The service contract defining postconditions for translation results.
+     *
+     * <p>This contract is defined once and reused for all invocations.
+     * Postconditions are evaluated lazily when {@link UseCaseOutcome#evaluatePostconditions()}
+     * or {@link UseCaseOutcome#assertAll()} is called.
+     */
+    private static final ServiceContract<ServiceInput, ChatResponse> CONTRACT =
+            ServiceContract.<ServiceInput, ChatResponse>define()
+                    .deriving("Response content", cr -> Outcome.ok(cr.content()))
+                    .ensure("Viable response content", c ->
+                            c != null && !c.isBlank() ? Outcome.ok() : Outcomes.fail("content was null or blank"))
+                    .derive("Valid Json", ShoppingBasketUseCase::parseJSON)
+                    .ensure("Has operations array", ShoppingBasketUseCase::hasOperationsArray)
+                    .ensure("All operations valid", ShoppingBasketUseCase::allOperationsValid)
+                    .build();
+
+    private static Outcome<JsonNode> parseJSON(ChatResponse chatResponse) {
+        String responseContent = chatResponse.content();
+        return Boundary.silent().call("parseJSON", () -> OBJECT_MAPPER.readTree(responseContent));
+    }
+
     private final ChatLlm llm;
     private String model = "mock-llm";
     private double temperature = 0.3;
-    private int lastTokensUsed = 0;
     private String systemPrompt = """
             You are a shopping assistant that converts natural language instructions into JSON operations.
 
@@ -154,28 +183,6 @@ public class ShoppingBasketUseCase implements UseCaseContract {
         this.systemPrompt = systemPrompt;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TOKEN TRACKING
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Returns the token count from the most recent {@link #translateInstruction} call.
-     *
-     * <p>Use this method to record actual token usage with
-     * {@link org.javai.punit.api.TokenChargeRecorder}:
-     *
-     * <pre>{@code
-     * var outcome = useCase.translateInstruction(instruction);
-     * tokenRecorder.recordTokens(useCase.getLastTokensUsed());
-     * outcome.assertAll();
-     * }</pre>
-     *
-     * @return the total tokens (prompt + completion) from the last call
-     */
-    public int getLastTokensUsed() {
-        return lastTokensUsed;
-    }
-
     /**
      * Returns the cumulative tokens used by the underlying LLM since the last reset.
      *
@@ -201,128 +208,93 @@ public class ShoppingBasketUseCase implements UseCaseContract {
     /**
      * Translates a natural language shopping instruction to JSON operations.
      *
-     * <p>After calling this method, use {@link #getLastTokensUsed()} to retrieve
-     * the token count for this invocation. This is useful for dynamic token
-     * budget tracking with {@link org.javai.punit.api.TokenChargeRecorder}.
+     * <p>This method uses the fluent {@link UseCaseOutcome} builder API which:
+     * <ul>
+     *   <li>Automatically captures execution timing</li>
+     *   <li>Evaluates postconditions lazily</li>
+     *   <li>Bundles metadata with the result, including token usage extracted from the response</li>
+     * </ul>
+     *
+     * <p>Token counts are automatically extracted from the response and stored as metadata:
+     * {@code tokensUsed}, {@code promptTokens}, and {@code completionTokens}.
      *
      * @param instruction the natural language instruction (e.g., "Add 2 apples and remove the bread")
-     * @return outcome containing result and success criteria
+     * @return outcome containing typed result and postconditions
      */
-    public UseCaseOutcome translateInstruction(String instruction) {
-        Instant start = Instant.now();
-
-        // Call the LLM and track tokens
-        ChatResponse chatResponse = llm.chatWithMetadata(systemPrompt, instruction, temperature);
-        String response = chatResponse.content();
-        lastTokensUsed = chatResponse.totalTokens();
-
-        Duration executionTime = Duration.between(start, Instant.now());
-
-        // Validate the response using Jackson
-        ValidationResult validation = validateResponse(response);
-
-        UseCaseResult result = UseCaseResult.builder()
-                .value("isValidJson", validation.isValidJson)
-                .value("hasOperationsArray", validation.hasOperationsArray)
-                .value("allOperationsValid", validation.allOperationsValid)
-                .value("allActionsValid", validation.allActionsValid)
-                .value("allQuantitiesPositive", validation.allQuantitiesPositive)
-                .value("rawResponse", response)
-                .value("parseError", validation.parseError)
+    public UseCaseOutcome<ChatResponse> translateInstruction(String instruction) {
+        return UseCaseOutcome
+                .withContract(CONTRACT)
+                .input(new ServiceInput(systemPrompt, instruction, temperature))
+                .execute(this::executeTranslation)
+                .withResult((response, meta) -> meta
+                        .meta("tokensUsed", response.totalTokens())
+                        .meta("promptTokens", response.promptTokens())
+                        .meta("completionTokens", response.completionTokens()))
                 .meta("instruction", instruction)
                 .meta("model", model)
                 .meta("temperature", temperature)
-                .executionTime(executionTime)
                 .build();
-
-        // Define success criteria
-        UseCaseCriteria criteria = UseCaseCriteria.ordered()
-                .criterion("Valid JSON",
-                        () -> result.getBoolean("isValidJson", false))
-                .criterion("Has operations array",
-                        () -> result.getBoolean("hasOperationsArray", false))
-                .criterion("Operations have required fields",
-                        () -> result.getBoolean("allOperationsValid", false))
-                .criterion("Actions are valid",
-                        () -> result.getBoolean("allActionsValid", false))
-                .criterion("Quantities are positive",
-                        () -> result.getBoolean("allQuantitiesPositive", false))
-                .build();
-
-        return new UseCaseOutcome(result, criteria);
     }
 
     /**
-     * Validates a JSON response using Jackson.
+     * Executes the translation by calling the LLM and validating the response.
+     *
+     * <p>This method is called by the fluent builder's {@code execute()} step.
+     * It handles the actual service interaction and result construction.
+     *
+     * @param input the service input parameters
+     * @return the translation result with validation flags
      */
-    private ValidationResult validateResponse(String response) {
-        ValidationResult result = new ValidationResult();
+    private ChatResponse executeTranslation(ServiceInput input) {
+        // Call the LLM and track tokens
+        return llm.chatWithMetadata(
+                input.systemPrompt(),
+                input.instruction(),
+                input.temperature()
+        );
+    }
 
-        if (response == null || response.isBlank()) {
-            result.parseError = "Response is null or empty";
-            return result;
-        }
-
-        // Parse JSON
-        JsonNode root;
-        try {
-            root = OBJECT_MAPPER.readTree(response);
-        } catch (Exception e) {
-            result.parseError = "Invalid JSON: " + e.getMessage();
-            return result;
-        }
-
-        result.isValidJson = true;
-
-        // Check for operations array
+    private static Outcome<Void> hasOperationsArray(JsonNode root) {
         JsonNode operations = root.get("operations");
-        if (operations == null || !operations.isArray()) {
-            result.hasOperationsArray = false;
-            return result;
+        if (operations == null) {
+            return Outcomes.fail("missing 'operations' field");
         }
+        if (!operations.isArray()) {
+            return Outcomes.fail("'operations' is not an array");
+        }
+        return Outcome.ok();
+    }
 
-        result.hasOperationsArray = true;
-
-        // Validate each operation
-        result.allOperationsValid = true;
-        result.allActionsValid = true;
-        result.allQuantitiesPositive = true;
-
+    private static Outcome<Void> allOperationsValid(JsonNode root) {
+        JsonNode operations = root.get("operations");
+        List<String> problems = new ArrayList<>();
         for (JsonNode op : operations) {
             JsonNode actionNode = op.get("action");
-            JsonNode itemNode = op.get("item");
-            JsonNode quantityNode = op.get("quantity");
-
-            // Check required fields
-            if (actionNode == null || itemNode == null || quantityNode == null) {
-                result.allOperationsValid = false;
-            }
-
-            // Validate action
-            if (actionNode != null) {
+            if (actionNode == null) {
+                problems.add("Missing action");
+            } else {
                 String action = actionNode.asText();
                 if (!VALID_ACTIONS.contains(action.toLowerCase())) {
-                    result.allActionsValid = false;
+                    problems.add("Invalid action: " + action);
                 }
             }
-
-            // Validate quantity
-            if (quantityNode == null || !quantityNode.isInt() || quantityNode.asInt() <= 0) {
-                result.allQuantitiesPositive = false;
+            JsonNode itemNode = op.get("item");
+            if (itemNode == null) {
+                problems.add("Missing item");
+            }
+            JsonNode quantityNode = op.get("quantity");
+            if (quantityNode == null) {
+                problems.add("Missing quantity");
+            } else if (!quantityNode.isInt() || quantityNode.asInt() <= 0) {
+                problems.add("Invalid quantity: " + quantityNode.asText());
             }
         }
-
-        return result;
+        if (problems.isEmpty()) {
+            return Outcome.ok();
+        }
+        return Outcomes.fail(String.join(", ", problems));
     }
 
-    private static class ValidationResult {
-        boolean isValidJson = false;
-        boolean hasOperationsArray = false;
-        boolean allOperationsValid = false;
-        boolean allActionsValid = false;
-        boolean allQuantitiesPositive = false;
-        String parseError = null;
-    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // FACTOR PROVIDERS - Realistic input values

@@ -5,7 +5,7 @@ import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,7 +81,7 @@ public class ShoppingBasketExplore {
     void compareModels(
             ShoppingBasketUseCase useCase,
             @Factor("model") String model,
-            ResultCaptor captor
+            OutcomeCaptor captor
     ) {
         useCase.setModel(model);
         useCase.setTemperature(0.3);  // Fixed temperature for fair comparison
@@ -118,7 +118,7 @@ public class ShoppingBasketExplore {
             ShoppingBasketUseCase useCase,
             @Factor("model") String model,
             @Factor("temperature") Double temperature,
-            ResultCaptor captor
+            OutcomeCaptor captor
     ) {
         useCase.setModel(model);
         useCase.setTemperature(temperature);

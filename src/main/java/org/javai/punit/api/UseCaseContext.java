@@ -15,16 +15,16 @@ import java.util.Optional;
  * <h2>Example Usage</h2>
  * <pre>{@code
  * @UseCase("usecase.json.generation")
- * UseCaseResult generateJson(String prompt, UseCaseContext context) {
+ * UseCaseOutcome<JsonResult> generateJson(String prompt, UseCaseContext context) {
  *     String model = context.getParameter("model", String.class, "gpt-4");
  *     double temperature = context.getParameter("temperature", Double.class, 0.7);
- *     
+ *
  *     // Use model and temperature to configure the LLM call
  *     LlmResponse response = llmClient.complete(prompt, model, temperature);
- *     
- *     return UseCaseResult.builder()
- *         .value("isValidJson", isValidJson(response.getContent()))
- *         .value("tokensUsed", response.getTokensUsed())
+ *
+ *     return UseCaseOutcome.withContract(jsonContract)
+ *         .input(prompt)
+ *         .execute(p -> new JsonResult(response.getContent(), response.getTokensUsed()))
  *         .build();
  * }
  * }</pre>

@@ -9,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.StandardCovariate;
 

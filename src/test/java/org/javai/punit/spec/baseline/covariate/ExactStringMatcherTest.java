@@ -1,10 +1,9 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
-import org.javai.punit.spec.baseline.covariate.CovariateMatcher.MatchResult;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
+import org.javai.punit.spec.baseline.covariate.CovariateMatcher.MatchResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

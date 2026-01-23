@@ -2,20 +2,18 @@ package org.javai.punit.ptest.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.util.List;
 import java.util.Optional;
-
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.ptest.engine.BaselineSelectionOrchestrator.PendingSelection;
+import org.javai.punit.ptest.engine.BaselineSelectionOrchestrator.PreparationResult;
+import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.spec.baseline.BaselineRepository;
 import org.javai.punit.spec.baseline.BaselineSelector;
 import org.javai.punit.spec.baseline.FootprintComputer;
 import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
 import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
-import org.javai.punit.model.CovariateDeclaration;
-import org.javai.punit.ptest.engine.BaselineSelectionOrchestrator.PendingSelection;
-import org.javai.punit.ptest.engine.BaselineSelectionOrchestrator.PreparationResult;
-import org.javai.punit.reporting.PUnitReporter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

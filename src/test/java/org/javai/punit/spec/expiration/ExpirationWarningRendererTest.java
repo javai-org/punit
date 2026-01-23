@@ -1,7 +1,6 @@
 package org.javai.punit.spec.expiration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Duration;
 import java.time.Instant;
 import org.javai.punit.model.ExpirationPolicy;

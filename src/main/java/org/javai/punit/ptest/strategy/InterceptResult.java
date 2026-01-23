@@ -1,7 +1,6 @@
 package org.javai.punit.ptest.strategy;
 
 import java.util.Optional;
-
 import org.javai.punit.model.TerminationReason;
 
 /**

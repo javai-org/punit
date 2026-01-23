@@ -1,7 +1,6 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.model.CovariateValue;
 import org.junit.jupiter.api.DisplayName;

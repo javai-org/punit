@@ -3,8 +3,10 @@ package org.javai.punit.spec.baseline;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
 import org.javai.punit.api.CovariateCategory;
+import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.model.CovariateValue;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.ConformanceDetail;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.CovariateScore;
@@ -12,9 +14,6 @@ import org.javai.punit.spec.baseline.BaselineSelectionTypes.ScoredCandidate;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.SelectionResult;
 import org.javai.punit.spec.baseline.covariate.CovariateMatcher;
 import org.javai.punit.spec.baseline.covariate.CovariateMatcherRegistry;
-import org.javai.punit.model.CovariateDeclaration;
-import org.javai.punit.model.CovariateProfile;
-import org.javai.punit.model.CovariateValue;
 
 /**
  * Selects the best-matching baseline for a probabilistic test.

@@ -1,12 +1,9 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-
 import org.javai.punit.model.CovariateValue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -6,12 +6,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Optional;
+import org.javai.punit.api.UseCaseContext;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.spec.baseline.BaselineFileNamer;
-import org.javai.punit.spec.baseline.FootprintComputer;
-import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
-import org.javai.punit.spec.baseline.covariate.DefaultCovariateResolutionContext;
-import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
 import org.javai.punit.experiment.engine.BaselineWriter;
 import org.javai.punit.experiment.engine.EmpiricalBaselineGenerator;
 import org.javai.punit.experiment.engine.ExperimentConfig;
@@ -20,7 +16,11 @@ import org.javai.punit.experiment.model.DefaultUseCaseContext;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
-import org.javai.punit.api.UseCaseContext;
+import org.javai.punit.spec.baseline.BaselineFileNamer;
+import org.javai.punit.spec.baseline.FootprintComputer;
+import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
+import org.javai.punit.spec.baseline.covariate.DefaultCovariateResolutionContext;
+import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**

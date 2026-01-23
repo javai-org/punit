@@ -1,8 +1,6 @@
 package org.javai.punit.experiment.measure;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -11,7 +9,7 @@ import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.MeasureExperiment;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
@@ -99,7 +97,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         return Stream.iterate(1, i -> i + 1)
                 .limit(samples)
                 .takeWhile(i -> !terminated.get())
-                .map(i -> new MeasureInvocationContext(i, samples, useCaseId, new ResultCaptor()));
+                .map(i -> new MeasureInvocationContext(i, samples, useCaseId, new OutcomeCaptor()));
     }
 
     @SuppressWarnings("unchecked")
@@ -135,7 +133,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
                     FactorArguments args = factorsList.get(factorIndex);
                     Object[] factorValues = FactorResolver.extractFactorValues(args, factorInfos);
                     return new MeasureWithFactorsInvocationContext(
-                            i, samples, useCaseId, new ResultCaptor(), factorValues, factorInfos);
+                            i, samples, useCaseId, new OutcomeCaptor(), factorValues, factorInfos);
                 });
     }
 
@@ -180,7 +178,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
 
         // Get captor from invocation context store
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
-        ResultCaptor captor = invocationStore.get("captor", ResultCaptor.class);
+        OutcomeCaptor captor = invocationStore.get("captor", OutcomeCaptor.class);
 
         try {
             invocation.proceed();

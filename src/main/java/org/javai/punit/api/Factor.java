@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
  *     @Factor("model") String model,
  *     @Factor("temperature") double temperature,
  *     ShoppingUseCase useCase,
- *     ResultCaptor captor
+ *     OutcomeCaptor captor
  * ) {
  *     // Factors configure the use case
  *     useCase.setModel(model);

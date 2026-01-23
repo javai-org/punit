@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-
 import org.javai.punit.api.CovariateSource;
 import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.model.CovariateDeclaration;

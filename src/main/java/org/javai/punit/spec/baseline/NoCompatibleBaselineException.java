@@ -1,7 +1,6 @@
 package org.javai.punit.spec.baseline;
 
 import java.util.List;
-
 import org.javai.punit.ptest.engine.ProbabilisticTestConfigurationException;
 
 /**

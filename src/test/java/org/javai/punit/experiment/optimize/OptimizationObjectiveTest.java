@@ -1,8 +1,8 @@
 package org.javai.punit.experiment.optimize;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link OptimizationObjective}.

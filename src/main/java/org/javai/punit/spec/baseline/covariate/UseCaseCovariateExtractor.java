@@ -1,10 +1,8 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.StandardCovariate;

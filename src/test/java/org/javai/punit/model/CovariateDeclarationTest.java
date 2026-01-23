@@ -2,11 +2,9 @@ package org.javai.punit.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.StandardCovariate;
 import org.junit.jupiter.api.DisplayName;

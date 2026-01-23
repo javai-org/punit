@@ -148,18 +148,21 @@ A use case in PUnit represents a **behavioral contract**—a formal specificatio
 - **What success means** (postconditions/criteria)
 - **What factors affect behavior** (inputs, configuration)
 
-This follows the Design by Contract principle. The `UseCaseContract` interface defines postconditions that must be satisfied for an invocation to be considered successful. PUnit then measures how reliably these postconditions are met.
+This follows the Design by Contract principle. Use cases define postconditions (success criteria) that must be satisfied for an invocation to be considered successful. PUnit then measures how reliably these postconditions are met.
 
 ```java
-public class ShoppingBasketUseCase implements UseCaseContract {
+public class ShoppingBasketUseCase {
 
-    @Override
-    public UseCaseCriteria criteria(UseCaseResult result) {
-        return UseCaseCriteria.ordered()
+    public UseCaseOutcome translateInstruction(String instruction) {
+        // ... execute use case logic ...
+
+        UseCaseCriteria criteria = UseCaseCriteria.ordered()
             .criterion("Valid JSON", () -> result.getBoolean("isValidJson", false))
             .criterion("Has operations array", () -> result.getBoolean("hasOperationsArray", false))
             .criterion("Actions are valid", () -> result.getBoolean("allActionsValid", false))
             .build();
+
+        return new UseCaseOutcome(result, criteria);
     }
 }
 ```
@@ -215,7 +218,7 @@ The full implementation demonstrates key PUnit concepts:
         @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)
     }
 )
-public class ShoppingBasketUseCase implements UseCaseContract {
+public class ShoppingBasketUseCase {
 
     @FactorGetter
     @CovariateSource("llm_model")
@@ -233,7 +236,6 @@ public class ShoppingBasketUseCase implements UseCaseContract {
 Key elements:
 
 - **`@UseCase`** — Declares covariates that may affect behavior. Covariates are discussed later in this guide
-- **`UseCaseContract`** — Interface for defining success criteria
 - **`@FactorGetter` / `@FactorSetter`** — Allow experiments to manipulate configuration
 - **`@CovariateSource`** — Links factors to covariate tracking
 - **`UseCaseOutcome`** — Bundles result data with success criteria
@@ -838,7 +840,7 @@ PUnit PASSED: testInstructionTranslation
         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION)
     }
 )
-public class ShoppingBasketUseCase implements UseCaseContract { }
+public class ShoppingBasketUseCase { }
 ```
 
 *Source: `org.javai.punit.examples.tests.ShoppingBasketCovariateTest`*

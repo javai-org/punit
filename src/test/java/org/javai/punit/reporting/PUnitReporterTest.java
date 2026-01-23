@@ -1,7 +1,6 @@
 package org.javai.punit.reporting;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.logging.log4j.Level;

@@ -3,7 +3,6 @@ package org.javai.punit.spec.baseline.covariate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-
 import org.javai.punit.api.StandardCovariate;
 
 /**

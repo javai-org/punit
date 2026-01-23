@@ -10,9 +10,8 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.registry.SpecificationLoader;
 

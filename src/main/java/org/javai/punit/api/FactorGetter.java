@@ -46,7 +46,7 @@ import java.lang.annotation.Target;
  *     treatmentFactor = "systemPrompt",  // looks up @FactorGetter for this
  *     ...
  * )
- * void optimize(ShoppingUseCase useCase, @ControlFactor String prompt, ResultCaptor captor) {
+ * void optimize(ShoppingUseCase useCase, @ControlFactor String prompt, OutcomeCaptor captor) {
  *     // prompt contains the current value from getSystemPrompt()
  * }
  * }</pre>

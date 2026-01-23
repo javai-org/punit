@@ -1,15 +1,16 @@
 package org.javai.punit.experiment.engine.shared;
 
-import org.javai.punit.api.ResultCaptor;
+import java.util.List;
+import org.javai.punit.api.OutcomeCaptor;
+import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
-import org.javai.punit.model.CriterionOutcome;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseResult;
 
 /**
- * Records results from a ResultCaptor into an ExperimentResultAggregator.
+ * Records outcomes from an OutcomeCaptor into an ExperimentResultAggregator.
  *
- * <p>Handles success/failure determination and failure categorization.
+ * <p>Handles success/failure determination and failure categorization based on
+ * postcondition evaluation.
  */
 public final class ResultRecorder {
 
@@ -18,89 +19,45 @@ public final class ResultRecorder {
     }
 
     /**
-     * Records the result from the captor into the aggregator.
+     * Records the outcome from the captor into the aggregator.
      *
-     * <p>Success is determined in priority order:
-     * <ol>
-     *   <li>If criteria are recorded, use {@code criteria.allPassed()}</li>
-     *   <li>Otherwise, fall back to legacy heuristics</li>
-     * </ol>
+     * <p>Success is determined by evaluating postconditions via
+     * {@code outcome.allPostconditionsSatisfied()}.
+     *
+     * @param captor the outcome captor containing the recorded outcome
+     * @param aggregator the aggregator to record results into
      */
-    public static void recordResult(ResultCaptor captor, ExperimentResultAggregator aggregator) {
+    public static void recordResult(OutcomeCaptor captor, ExperimentResultAggregator aggregator) {
         if (captor != null && captor.hasResult()) {
-            UseCaseResult result = captor.getResult();
-
-            // Determine success: prefer criteria if available
-            boolean success;
-            if (captor.hasCriteria()) {
-                success = captor.getCriteria().allPassed();
-                aggregator.recordCriteria(captor.getCriteria());
-            } else {
-                success = determineSuccess(result);
-            }
+            UseCaseOutcome<?> outcome = captor.getContractOutcome();
+            boolean success = outcome.allPostconditionsSatisfied();
 
             if (success) {
-                aggregator.recordSuccess(result);
+                aggregator.recordSuccess(outcome);
             } else {
-                String failureCategory = determineFailureCategory(result, captor.getCriteria());
-                aggregator.recordFailure(result, failureCategory);
+                List<PostconditionResult> postconditions = outcome.evaluatePostconditions();
+                String failureCategory = determineFailureCategory(postconditions);
+                aggregator.recordFailure(outcome, failureCategory);
             }
         } else if (captor != null && captor.hasException()) {
             aggregator.recordException(captor.getException());
-        } else {
-            aggregator.recordSuccess(UseCaseResult.builder().value("recorded", false).build());
         }
+        // If nothing was recorded, don't add anything to the aggregator
     }
 
     /**
-     * Determines success from common result indicators.
+     * Determines the failure category from postcondition results.
+     *
+     * @param postconditions the postcondition results
+     * @return the description of the first failed postcondition, or "unknown"
      */
-    private static boolean determineSuccess(UseCaseResult result) {
-        if (result.hasValue("success")) {
-            return result.getBoolean("success", false);
-        }
-        if (result.hasValue("isSuccess")) {
-            return result.getBoolean("isSuccess", false);
-        }
-        if (result.hasValue("passed")) {
-            return result.getBoolean("passed", false);
-        }
-        if (result.hasValue("isValid")) {
-            return result.getBoolean("isValid", false);
-        }
-        if (result.hasValue("isValidJson")) {
-            return result.getBoolean("isValidJson", false);
-        }
-        if (result.hasValue("error")) {
-            return result.getValue("error", Object.class).isEmpty();
-        }
-
-        // Default to success if no failure indicators
-        return true;
-    }
-
-    /**
-     * Determines the failure category from criteria or result.
-     */
-    private static String determineFailureCategory(UseCaseResult result, UseCaseCriteria criteria) {
-        // If criteria are available, derive failure category from first failed criterion
-        if (criteria != null) {
-            for (CriterionOutcome outcome : criteria.evaluate()) {
-                if (!outcome.passed()) {
-                    return outcome.description();
+    private static String determineFailureCategory(List<PostconditionResult> postconditions) {
+        if (postconditions != null) {
+            for (PostconditionResult result : postconditions) {
+                if (result.failed()) {
+                    return result.description();
                 }
             }
-        }
-
-        // Legacy: check for common failure category indicators in result
-        if (result.hasValue("failureCategory")) {
-            return result.getString("failureCategory", "unknown");
-        }
-        if (result.hasValue("errorType")) {
-            return result.getString("errorType", "unknown");
-        }
-        if (result.hasValue("errorCode")) {
-            return result.getString("errorCode", "unknown");
         }
         return "unknown";
     }

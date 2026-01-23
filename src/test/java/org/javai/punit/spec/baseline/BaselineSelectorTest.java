@@ -1,17 +1,14 @@
 package org.javai.punit.spec.baseline;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
-import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.StandardCovariate;
-import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
-import org.javai.punit.spec.baseline.covariate.CovariateMatcher.MatchResult;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
+import org.javai.punit.spec.baseline.covariate.CovariateMatcher.MatchResult;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

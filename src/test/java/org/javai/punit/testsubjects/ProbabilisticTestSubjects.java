@@ -1,14 +1,12 @@
 package org.javai.punit.testsubjects;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenChargeRecorder;
-
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test subject classes for integration tests.

@@ -3,7 +3,7 @@ package org.javai.punit.examples.experiments;
 import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.MeasureExperiment;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,7 +97,7 @@ public class ShoppingBasketMeasure {
     void measureBaseline(
             ShoppingBasketUseCase useCase,
             @Factor("instruction") String instruction,
-            ResultCaptor captor
+            OutcomeCaptor captor
     ) {
         captor.record(useCase.translateInstruction(instruction));
     }

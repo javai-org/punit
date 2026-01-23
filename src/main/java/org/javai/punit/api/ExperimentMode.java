@@ -49,7 +49,7 @@ public enum ExperimentMode {
      * <h3>Example</h3>
      * <pre>{@code
      * @MeasureExperiment(useCase = ShoppingUseCase.class, samples = 1000)
-     * void measureShoppingSearch(ShoppingUseCase useCase, ResultCaptor captor) {
+     * void measureShoppingSearch(ShoppingUseCase useCase, OutcomeCaptor captor) {
      *     captor.record(useCase.searchProducts("headphones"));
      * }
      * }</pre>

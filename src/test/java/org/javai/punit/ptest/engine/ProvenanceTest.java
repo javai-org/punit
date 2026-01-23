@@ -1,9 +1,10 @@
 package org.javai.punit.ptest.engine;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.Appender;
-import org.apache.logging.log4j.core.Layout;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Configuration;
@@ -12,6 +13,7 @@ import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.reporting.PUnitReporter;
+import org.javai.punit.testsubjects.ProbabilisticTestSubjects.AlwaysPassingTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceContractRefOnlyTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceEmpiricalSourceTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenancePolicySourceTest;
@@ -20,18 +22,11 @@ import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceSloSourc
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceThresholdOriginOnlyTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceUnspecifiedTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ProvenanceWithBothTest;
-import org.javai.punit.testsubjects.ProbabilisticTestSubjects.AlwaysPassingTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineTestKit;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for SLA provenance feature in probabilistic tests.

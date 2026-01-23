@@ -1,20 +1,24 @@
 package org.javai.punit.experiment.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
-import org.javai.punit.api.MeasureExperiment;
-import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.FactorArguments;
+import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.MeasureExperiment;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.Pacing;
-import org.javai.punit.api.ResultCaptor;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.model.UseCaseResult;
+import org.javai.punit.contract.Outcomes;
+import org.javai.punit.contract.ServiceContract;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -144,14 +148,29 @@ class ExperimentPacingIntegrationTest {
     // ═══════════════════════════════════════════════════════════════════════════
     // SIMPLE TEST USE CASE
     // ═══════════════════════════════════════════════════════════════════════════
-    
+
+    private static final ServiceContract<Void, String> SIMPLE_CONTRACT = ServiceContract
+            .<Void, String>define()
+            .ensure("Not null", s -> s != null ? Outcomes.okVoid() : Outcomes.fail("was null"))
+            .build();
+
+    private static UseCaseOutcome<String> createOutcome(String value) {
+        return new UseCaseOutcome<>(
+                value,
+                Duration.ofMillis(10),
+                Instant.now(),
+                Map.of(),
+                SIMPLE_CONTRACT
+        );
+    }
+
     /**
      * Minimal use case for testing experiments.
      */
     @UseCase("SimpleTestUseCase")
     public static class SimpleTestUseCase {
-        public UseCaseResult execute() {
-            return UseCaseResult.builder().value("success", true).build();
+        public UseCaseOutcome<String> execute() {
+            return createOutcome("success");
         }
     }
 
@@ -183,14 +202,14 @@ class ExperimentPacingIntegrationTest {
 
         @MeasureExperiment(samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @Pacing(minMsPerSample = 100)
-        public void experimentWithPacing(ResultCaptor captor) {
+        public void experimentWithPacing(OutcomeCaptor captor) {
             int count = sampleCount.incrementAndGet();
             if (count == 1) {
                 startTime.set(System.currentTimeMillis());
             } else if (count == 5) {
                 totalExecutionTime.set(System.currentTimeMillis() - startTime.get());
             }
-            captor.record(UseCaseResult.builder().value("sample", count).build());
+            captor.record(createOutcome("sample-" + count));
         }
     }
 
@@ -217,14 +236,14 @@ class ExperimentPacingIntegrationTest {
         }
 
         @MeasureExperiment(samples = 5, expiresInDays = 0, useCase = SimpleTestUseCase.class)
-        public void experimentWithoutPacing(ResultCaptor captor) {
+        public void experimentWithoutPacing(OutcomeCaptor captor) {
             int count = sampleCount.incrementAndGet();
             if (count == 1) {
                 startTime.set(System.currentTimeMillis());
             } else if (count == 5) {
                 totalExecutionTime.set(System.currentTimeMillis() - startTime.get());
             }
-            captor.record(UseCaseResult.builder().value("sample", count).build());
+            captor.record(createOutcome("sample-" + count));
         }
     }
 
@@ -255,14 +274,14 @@ class ExperimentPacingIntegrationTest {
         @Pacing(minMsPerSample = 100)
         public void experimentWithPacing(
                 @Factor("option") String option,
-                ResultCaptor captor) {
+                OutcomeCaptor captor) {
             int count = sampleCount.incrementAndGet();
             if (count == 1) {
                 startTime.set(System.currentTimeMillis());
             } else if (count == 6) { // 2 configs × 3 samples = 6
                 totalExecutionTime.set(System.currentTimeMillis() - startTime.get());
             }
-            captor.record(UseCaseResult.builder().value("option", option).value("sample", count).build());
+            captor.record(createOutcome(option + "-sample-" + count));
         }
 
         static Stream<FactorArguments> options() {
@@ -301,14 +320,14 @@ class ExperimentPacingIntegrationTest {
         @Pacing(minMsPerSample = 150)
         public void experimentWithGlobalCounter(
                 @Factor("config") String config,
-                ResultCaptor captor) {
+                OutcomeCaptor captor) {
             int count = sampleCount.incrementAndGet();
             if (count == 1) {
                 startTime.set(System.currentTimeMillis());
             } else if (count == 4) { // 2 configs × 2 samples = 4
                 totalExecutionTime.set(System.currentTimeMillis() - startTime.get());
             }
-            captor.record(UseCaseResult.builder().value("config", config).value("sample", count).build());
+            captor.record(createOutcome(config + "-sample-" + count));
         }
 
         static Stream<FactorArguments> configs() {
@@ -344,7 +363,7 @@ class ExperimentPacingIntegrationTest {
 
         @MeasureExperiment(samples = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
         @Pacing(minMsPerSample = 150)
-        public void experimentWithTimingCheck(ResultCaptor captor) {
+        public void experimentWithTimingCheck(OutcomeCaptor captor) {
             long now = System.currentTimeMillis();
             int count = sampleCount.incrementAndGet();
 
@@ -354,7 +373,7 @@ class ExperimentPacingIntegrationTest {
             }
 
             lastSampleTime.set(now);
-            captor.record(UseCaseResult.builder().value("sample", count).build());
+            captor.record(createOutcome("sample-" + count));
         }
     }
 }

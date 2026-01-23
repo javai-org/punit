@@ -49,7 +49,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * void optimizeSystemPrompt(
  *     ShoppingUseCase useCase,
  *     @ControlFactor String currentPrompt,  // Current value for this iteration
- *     ResultCaptor captor
+ *     OutcomeCaptor captor
  * ) {
  *     UseCaseOutcome outcome = useCase.searchProducts("wireless headphones");
  *     captor.record(outcome);

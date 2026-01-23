@@ -1,7 +1,6 @@
 package org.javai.punit.ptest.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;

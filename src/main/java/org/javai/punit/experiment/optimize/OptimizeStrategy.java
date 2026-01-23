@@ -1,6 +1,10 @@
 package org.javai.punit.experiment.optimize;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -11,14 +15,13 @@ import java.util.stream.StreamSupport;
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.api.OptimizeExperiment;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.model.FactorSuit;
-import org.javai.punit.model.UseCaseCriteria;
-import org.javai.punit.model.UseCaseOutcome;
-import org.javai.punit.model.UseCaseResult;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -156,7 +159,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
 
         // Get invocation-specific data from the invocation context store
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
-        ResultCaptor captor = invocationStore.get("captor", ResultCaptor.class);
+        OutcomeCaptor captor = invocationStore.get("captor", OutcomeCaptor.class);
         Integer iterationNumber = invocationStore.get("iterationNumber", Integer.class);
         Integer sampleInIteration = invocationStore.get("sampleInIteration", Integer.class);
 
@@ -164,16 +167,13 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         try {
             invocation.proceed();
 
-            // Record the outcome
-            if (captor != null && captor.hasResult()) {
-                UseCaseResult result = captor.getResult();
-                UseCaseCriteria criteria = captor.getCriteria();
-                UseCaseOutcome outcome = new UseCaseOutcome(result, criteria);
-                state.recordOutcome(outcome);
+            // Record the outcome - use contract outcome directly
+            if (captor != null && captor.hasContractOutcome()) {
+                state.recordOutcome(captor.getContractOutcome());
             }
         } catch (Throwable e) {
             // Record as failed outcome
-            state.recordOutcome(UseCaseOutcome.invocationFailed(e));
+            state.recordOutcome(createInvocationFailedOutcome(e));
             // Don't rethrow - allow experiment to continue
         }
 
@@ -361,6 +361,46 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         return Optional.empty();
     }
 
+    /**
+     * Creates a contract UseCaseOutcome for invocation failures.
+     *
+     * <p>The outcome has a null result and a single failing postcondition
+     * indicating the invocation failed with the given exception.
+     */
+    private UseCaseOutcome<Void> createInvocationFailedOutcome(Throwable e) {
+        String errorMessage = "Invocation failed: " + e.getClass().getSimpleName() +
+                (e.getMessage() != null ? " - " + e.getMessage() : "");
+
+        return new UseCaseOutcome<>(
+                null,
+                Duration.ZERO,
+                Instant.now(),
+                Map.of("error", errorMessage, "exceptionType", e.getClass().getName()),
+                new FailedInvocationEvaluator(errorMessage)
+        );
+    }
+
+    /**
+     * PostconditionEvaluator for invocation failures.
+     */
+    private static final class FailedInvocationEvaluator implements org.javai.punit.contract.PostconditionEvaluator<Void> {
+        private final String errorMessage;
+
+        FailedInvocationEvaluator(String errorMessage) {
+            this.errorMessage = errorMessage;
+        }
+
+        @Override
+        public List<PostconditionResult> evaluate(Void result) {
+            return List.of(PostconditionResult.failed("Invocation succeeded", errorMessage));
+        }
+
+        @Override
+        public int postconditionCount() {
+            return 1;
+        }
+    }
+
     private void reportProgress(ExtensionContext context, OptimizeState state,
                                 Integer iteration, Integer sample) {
         context.publishReportEntry("punit.mode", "OPTIMIZE");
@@ -430,7 +470,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
                     state.useCaseId(),
                     state.currentControlFactorValue(),
                     state.controlFactorName(),
-                    new ResultCaptor()
+                    new OutcomeCaptor()
             );
 
             action.accept(context);

@@ -2,7 +2,7 @@ package org.javai.punit.experiment.explore;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.javai.punit.api.ResultCaptor;
+import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.experiment.engine.shared.CaptorParameterResolver;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorParameterResolver;
@@ -26,7 +26,7 @@ public record ExploreInvocationContext(
         String configName,
         Object[] factorValues,
         List<FactorInfo> factorInfos,
-        ResultCaptor captor
+        OutcomeCaptor captor
 ) implements TestTemplateInvocationContext {
 
     @Override

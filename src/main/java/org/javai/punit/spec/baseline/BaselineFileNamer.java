@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
-
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;

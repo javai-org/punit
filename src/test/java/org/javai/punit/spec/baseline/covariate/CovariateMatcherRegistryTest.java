@@ -1,7 +1,6 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import org.javai.punit.api.StandardCovariate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

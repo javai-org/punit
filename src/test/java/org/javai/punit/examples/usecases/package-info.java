@@ -26,16 +26,15 @@
  * the contractual approach: an external SLA (e.g., "99.5% success rate") defines
  * the expected behavior, so you verify compliance against that contract.
  *
- * <h2>Use Case Contract</h2>
- * <p>Use cases implement {@link org.javai.punit.api.UseCaseContract}, which requires:
+ * <h2>Use Case Structure</h2>
+ * <p>Use cases are plain Java classes that:
  * <ul>
- *   <li>A method returning {@link org.javai.punit.model.UseCaseResult}</li>
- *   <li>Success criteria defined via {@link org.javai.punit.model.UseCaseCriteria}</li>
- *   <li>Optional: factor sources, covariate declarations, treatment setters</li>
+ *   <li>Return outcomes bundled with success criteria</li>
+ *   <li>Define postconditions that determine success/failure</li>
+ *   <li>Optionally declare factor sources, covariates, and treatment setters</li>
  * </ul>
  *
  * @see org.javai.punit.api.UseCase
- * @see org.javai.punit.api.UseCaseContract
- * @see org.javai.punit.model.UseCaseResult
+ * @see org.javai.punit.contract.ServiceContract
  */
 package org.javai.punit.examples.usecases;

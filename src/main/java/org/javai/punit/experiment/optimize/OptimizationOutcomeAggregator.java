@@ -1,8 +1,7 @@
 package org.javai.punit.experiment.optimize;
 
-import org.javai.punit.model.UseCaseOutcome;
-
 import java.util.List;
+import org.javai.punit.contract.UseCaseOutcome;
 
 /**
  * Aggregates use case outcomes into statistics.
@@ -19,7 +18,7 @@ public interface OptimizationOutcomeAggregator {
      * @param outcomes the list of outcomes to aggregate
      * @return aggregated statistics
      */
-    OptimizeStatistics aggregate(List<UseCaseOutcome> outcomes);
+    OptimizeStatistics aggregate(List<UseCaseOutcome<?>> outcomes);
 
     /**
      * Default aggregator that computes standard statistics.

@@ -2,19 +2,60 @@ package org.javai.punit.experiment.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
-
+import java.util.Map;
 import org.javai.punit.api.DiffableContentProvider;
+import org.javai.punit.contract.PostconditionEvaluator;
+import org.javai.punit.contract.PostconditionResult;
+import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.model.ResultProjection;
-import org.javai.punit.model.UseCaseResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ResultProjectionBuilder")
 class ResultProjectionBuilderTest {
+
+    // Simple no-op evaluator for tests
+    private static final PostconditionEvaluator<Object> ALWAYS_PASSING = new PostconditionEvaluator<>() {
+        @Override
+        public List<PostconditionResult> evaluate(Object result) {
+            return List.of();
+        }
+
+        @Override
+        public int postconditionCount() {
+            return 0;
+        }
+    };
+
+    @SuppressWarnings("unchecked")
+    private static <T> PostconditionEvaluator<T> alwaysPassing() {
+        return (PostconditionEvaluator<T>) ALWAYS_PASSING;
+    }
+
+    // Helper to create a UseCaseOutcome with a record result
+    private UseCaseOutcome<TestResult> createOutcome(String key, String value) {
+        return createOutcome(new TestResult(key, value), Duration.ZERO);
+    }
+
+    private UseCaseOutcome<TestResult> createOutcome(TestResult result, Duration executionTime) {
+        return new UseCaseOutcome<>(
+            result,
+            executionTime,
+            Instant.now(),
+            Map.of(),
+            alwaysPassing()
+        );
+    }
+
+    // Test record for outcomes
+    record TestResult(String key, String value) {}
+
+    // Multi-field test record
+    record MultiFieldResult(String alpha, String beta, String gamma, String delta, String epsilon) {}
 
     @Nested
     @DisplayName("constructor validation")
@@ -45,9 +86,9 @@ class ResultProjectionBuilderTest {
         @DisplayName("creates projection with correct sample index")
         void createsProjectionWithCorrectSampleIndex() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            UseCaseResult result = UseCaseResult.builder().value("key", "value").build();
+            UseCaseOutcome<TestResult> outcome = createOutcome("key", "value");
 
-            ResultProjection projection = builder.build(3, result);
+            ResultProjection projection = builder.build(3, outcome);
 
             assertThat(projection.sampleIndex()).isEqualTo(3);
         }
@@ -56,28 +97,25 @@ class ResultProjectionBuilderTest {
         @DisplayName("captures execution time in milliseconds")
         void capturesExecutionTimeInMilliseconds() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            UseCaseResult result = UseCaseResult.builder()
-                .value("key", "value")
-                .executionTime(Duration.ofMillis(250))
-                .build();
+            UseCaseOutcome<TestResult> outcome = createOutcome(
+                new TestResult("key", "value"),
+                Duration.ofMillis(250)
+            );
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjection projection = builder.build(0, outcome);
 
             assertThat(projection.executionTimeMs()).isEqualTo(250);
         }
 
         @Test
-        @DisplayName("uses getDiffableContent from result")
-        void usesGetDiffableContentFromResult() {
+        @DisplayName("extracts record components alphabetically")
+        void extractsRecordComponentsAlphabetically() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            UseCaseResult result = UseCaseResult.builder()
-                .value("alpha", "a")
-                .value("beta", "b")
-                .build();
+            UseCaseOutcome<TestResult> outcome = createOutcome("key", "value");
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjection projection = builder.build(0, outcome);
 
-            assertThat(projection.diffableLines()).contains("alpha: a", "beta: b");
+            assertThat(projection.diffableLines()).contains("key: key", "value: value");
         }
     }
 
@@ -89,15 +127,15 @@ class ResultProjectionBuilderTest {
         @DisplayName("pads with <absent> when fewer values than max")
         void padsWithAbsentWhenFewerValues() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            UseCaseResult result = UseCaseResult.builder()
-                .value("only", "one")
-                .build();
+            UseCaseOutcome<TestResult> outcome = createOutcome("only", "one");
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjection projection = builder.build(0, outcome);
 
             assertThat(projection.diffableLines()).hasSize(5);
-            assertThat(projection.diffableLines().get(0)).isEqualTo("only: one");
-            assertThat(projection.diffableLines().get(1)).isEqualTo(ResultProjection.ABSENT);
+            // Record has 2 fields: key and value
+            assertThat(projection.diffableLines().get(0)).isEqualTo("key: only");
+            assertThat(projection.diffableLines().get(1)).isEqualTo("value: one");
+            assertThat(projection.diffableLines().get(2)).isEqualTo(ResultProjection.ABSENT);
             assertThat(projection.diffableLines().get(4)).isEqualTo(ResultProjection.ABSENT);
         }
 
@@ -105,38 +143,37 @@ class ResultProjectionBuilderTest {
         @DisplayName("adds truncation notice when more values than max")
         void addsTruncationNoticeWhenMoreValues() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(3, 60);
-            UseCaseResult result = UseCaseResult.builder()
-                .value("a", "1")
-                .value("b", "2")
-                .value("c", "3")
-                .value("d", "4")
-                .value("e", "5")
-                .build();
+            // Use a record with 5 fields
+            UseCaseOutcome<MultiFieldResult> outcome = new UseCaseOutcome<>(
+                new MultiFieldResult("1", "2", "3", "4", "5"),
+                Duration.ZERO,
+                Instant.now(),
+                Map.of(),
+                alwaysPassing()
+            );
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjection projection = builder.build(0, outcome);
 
             // Should have 3 content lines + 1 truncation notice = 4 total
             assertThat(projection.diffableLines()).hasSize(4);
-            assertThat(projection.diffableLines().get(0)).isEqualTo("a: 1");
-            assertThat(projection.diffableLines().get(1)).isEqualTo("b: 2");
-            assertThat(projection.diffableLines().get(2)).isEqualTo("c: 3");
+            // Alphabetically: alpha, beta, delta, epsilon, gamma
+            assertThat(projection.diffableLines().get(0)).isEqualTo("alpha: 1");
+            assertThat(projection.diffableLines().get(1)).isEqualTo("beta: 2");
+            assertThat(projection.diffableLines().get(2)).isEqualTo("delta: 4");
             assertThat(projection.diffableLines().get(3)).isEqualTo("<truncated: +2 more>");
         }
 
         @Test
         @DisplayName("no padding or truncation when exactly max values")
         void noPaddingOrTruncationWhenExactlyMaxValues() {
-            ResultProjectionBuilder builder = new ResultProjectionBuilder(3, 60);
-            UseCaseResult result = UseCaseResult.builder()
-                .value("a", "1")
-                .value("b", "2")
-                .value("c", "3")
-                .build();
+            ResultProjectionBuilder builder = new ResultProjectionBuilder(2, 60);
+            UseCaseOutcome<TestResult> outcome = createOutcome("a", "b");
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjection projection = builder.build(0, outcome);
 
-            assertThat(projection.diffableLines()).hasSize(3);
-            assertThat(projection.diffableLines()).noneMatch(line -> 
+            // Record has exactly 2 fields (key, value)
+            assertThat(projection.diffableLines()).hasSize(2);
+            assertThat(projection.diffableLines()).noneMatch(line ->
                 line.equals(ResultProjection.ABSENT) || line.startsWith("<truncated"));
         }
     }
@@ -149,10 +186,10 @@ class ResultProjectionBuilderTest {
         @DisplayName("includes error class name")
         void includesErrorClassName() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            
+
             ResultProjection projection = builder.buildError(
-                0, 
-                100, 
+                0,
+                100,
                 new IllegalArgumentException("test message")
             );
 
@@ -164,10 +201,10 @@ class ResultProjectionBuilderTest {
         @DisplayName("includes error message")
         void includesErrorMessage() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            
+
             ResultProjection projection = builder.buildError(
-                0, 
-                100, 
+                0,
+                100,
                 new IllegalArgumentException("test message")
             );
 
@@ -179,10 +216,10 @@ class ResultProjectionBuilderTest {
         @DisplayName("pads remaining lines with absent")
         void padsRemainingLinesWithAbsent() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            
+
             ResultProjection projection = builder.buildError(
-                0, 
-                100, 
+                0,
+                100,
                 new RuntimeException("error")
             );
 
@@ -195,10 +232,10 @@ class ResultProjectionBuilderTest {
         @DisplayName("handles multi-line error messages")
         void handlesMultilineErrorMessages() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            
+
             ResultProjection projection = builder.buildError(
-                0, 
-                100, 
+                0,
+                100,
                 new RuntimeException("first line\nsecond line\nthird line")
             );
 
@@ -211,10 +248,10 @@ class ResultProjectionBuilderTest {
         @DisplayName("handles null error message")
         void handlesNullErrorMessage() {
             ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
-            
+
             ResultProjection projection = builder.buildError(
-                0, 
-                100, 
+                0,
+                100,
                 new RuntimeException((String) null)
             );
 
@@ -230,15 +267,13 @@ class ResultProjectionBuilderTest {
         @Test
         @DisplayName("uses custom provider when supplied")
         void usesCustomProviderWhenSupplied() {
-            DiffableContentProvider customProvider = (result, maxLineLength) -> 
+            DiffableContentProvider customProvider = (outcome, maxLineLength) ->
                 List.of("custom: projection");
-            
-            ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60, customProvider);
-            UseCaseResult result = UseCaseResult.builder()
-                .value("ignored", "value")
-                .build();
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60, customProvider);
+            UseCaseOutcome<TestResult> outcome = createOutcome("ignored", "value");
+
+            ResultProjection projection = builder.build(0, outcome);
 
             assertThat(projection.diffableLines().get(0)).isEqualTo("custom: projection");
         }
@@ -246,13 +281,13 @@ class ResultProjectionBuilderTest {
         @Test
         @DisplayName("pads custom provider output if needed")
         void padsCustomProviderOutputIfNeeded() {
-            DiffableContentProvider customProvider = (result, maxLineLength) -> 
+            DiffableContentProvider customProvider = (outcome, maxLineLength) ->
                 List.of("line1", "line2");
-            
-            ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60, customProvider);
-            UseCaseResult result = UseCaseResult.builder().build();
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60, customProvider);
+            UseCaseOutcome<TestResult> outcome = createOutcome("ignored", "value");
+
+            ResultProjection projection = builder.build(0, outcome);
 
             assertThat(projection.diffableLines()).hasSize(5);
             assertThat(projection.diffableLines().get(2)).isEqualTo(ResultProjection.ABSENT);
@@ -261,18 +296,39 @@ class ResultProjectionBuilderTest {
         @Test
         @DisplayName("truncates custom provider output if exceeds max")
         void truncatesCustomProviderOutputIfExceedsMax() {
-            DiffableContentProvider customProvider = (result, maxLineLength) -> 
+            DiffableContentProvider customProvider = (outcome, maxLineLength) ->
                 List.of("a", "b", "c", "d", "e", "f", "g");
-            
-            ResultProjectionBuilder builder = new ResultProjectionBuilder(3, 60, customProvider);
-            UseCaseResult result = UseCaseResult.builder().build();
 
-            ResultProjection projection = builder.build(0, result);
+            ResultProjectionBuilder builder = new ResultProjectionBuilder(3, 60, customProvider);
+            UseCaseOutcome<TestResult> outcome = createOutcome("ignored", "value");
+
+            ResultProjection projection = builder.build(0, outcome);
 
             // 3 content + 1 truncation = 4 total
             assertThat(projection.diffableLines()).hasSize(4);
             assertThat(projection.diffableLines().get(3)).isEqualTo("<truncated: +4 more>");
         }
     }
-}
 
+    @Nested
+    @DisplayName("null result handling")
+    class NullResultHandling {
+
+        @Test
+        @DisplayName("handles null result")
+        void handlesNullResult() {
+            ResultProjectionBuilder builder = new ResultProjectionBuilder(5, 60);
+            UseCaseOutcome<TestResult> outcome = new UseCaseOutcome<>(
+                null,
+                Duration.ZERO,
+                Instant.now(),
+                Map.of(),
+                alwaysPassing()
+            );
+
+            ResultProjection projection = builder.build(0, outcome);
+
+            assertThat(projection.diffableLines().get(0)).isEqualTo("result: null");
+        }
+    }
+}

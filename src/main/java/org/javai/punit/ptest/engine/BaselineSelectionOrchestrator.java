@@ -5,9 +5,11 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.spec.baseline.BaselineRepository;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.SelectionResult;
@@ -17,9 +19,6 @@ import org.javai.punit.spec.baseline.NoCompatibleBaselineException;
 import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
 import org.javai.punit.spec.baseline.covariate.DefaultCovariateResolutionContext;
 import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
-import org.javai.punit.model.CovariateDeclaration;
-import org.javai.punit.model.CovariateProfile;
-import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.spec.model.ExecutionSpecification;
 
 /**

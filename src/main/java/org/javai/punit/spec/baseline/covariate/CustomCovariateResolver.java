@@ -1,7 +1,6 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import java.util.Objects;
-
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
 

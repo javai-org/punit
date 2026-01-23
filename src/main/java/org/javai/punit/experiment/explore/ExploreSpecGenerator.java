@@ -4,13 +4,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import org.javai.punit.api.UseCaseContext;
 import org.javai.punit.experiment.engine.BaselineWriter;
 import org.javai.punit.experiment.engine.EmpiricalBaselineGenerator;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
 import org.javai.punit.experiment.model.DefaultUseCaseContext;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
-import org.javai.punit.api.UseCaseContext;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**

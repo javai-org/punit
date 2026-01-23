@@ -1,7 +1,6 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import java.time.LocalTime;
-
 import org.javai.punit.model.CovariateValue;
 
 /**

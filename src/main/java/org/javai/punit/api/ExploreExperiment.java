@@ -36,7 +36,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *     @Factor("model") String model,
  *     @Factor("temperature") double temperature,
  *     ShoppingUseCase useCase,
- *     ResultCaptor captor
+ *     OutcomeCaptor captor
  * ) {
  *     captor.record(useCase.searchProducts("headphones"));
  * }
@@ -66,7 +66,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * @see Factor
  * @see UseCase
  * @see UseCaseProvider
- * @see ResultCaptor
+ * @see OutcomeCaptor
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

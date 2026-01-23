@@ -1,11 +1,10 @@
 package org.javai.punit.ptest.engine;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.spec.model.ExecutionSpecification;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Validates probabilistic test configurations for statistical validity.

@@ -2,7 +2,6 @@ package org.javai.punit.spec.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
-import org.javai.punit.model.UseCaseResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -10,24 +9,16 @@ import org.junit.jupiter.api.Test;
 @DisplayName("SuccessCriteria")
 class SuccessCriteriaTest {
 
-    // Helper to create a UseCaseResult with values
-    private UseCaseResult createResult(Map<String, Object> values) {
-        UseCaseResult.Builder builder = UseCaseResult.builder();
-        values.forEach(builder::value);
-        return builder.build();
-    }
-
     @Nested
     @DisplayName("alwaysTrue")
     class AlwaysTrue {
 
         @Test
-        @DisplayName("returns true for any result")
-        void returnsTrueForAnyResult() {
+        @DisplayName("returns true for any values")
+        void returnsTrueForAnyValues() {
             SuccessCriteria criteria = SuccessCriteria.alwaysTrue();
-            UseCaseResult result = createResult(Map.of("value", "anything"));
 
-            assertThat(criteria.isSuccess(result)).isTrue();
+            assertThat(criteria.isSuccess(Map.of("value", "anything"))).isTrue();
         }
 
         @Test
@@ -48,7 +39,7 @@ class SuccessCriteriaTest {
         void returnsAlwaysTrueForNull() {
             SuccessCriteria criteria = SuccessCriteria.parse(null);
 
-            assertThat(criteria.isSuccess(createResult(Map.of()))).isTrue();
+            assertThat(criteria.isSuccess(Map.of())).isTrue();
         }
 
         @Test
@@ -56,7 +47,7 @@ class SuccessCriteriaTest {
         void returnsAlwaysTrueForEmpty() {
             SuccessCriteria criteria = SuccessCriteria.parse("");
 
-            assertThat(criteria.isSuccess(createResult(Map.of()))).isTrue();
+            assertThat(criteria.isSuccess(Map.of())).isTrue();
         }
 
         @Test
@@ -64,7 +55,7 @@ class SuccessCriteriaTest {
         void returnsAlwaysTrueForWhitespace() {
             SuccessCriteria criteria = SuccessCriteria.parse("   ");
 
-            assertThat(criteria.isSuccess(createResult(Map.of()))).isTrue();
+            assertThat(criteria.isSuccess(Map.of())).isTrue();
         }
 
         @Test
@@ -85,8 +76,8 @@ class SuccessCriteriaTest {
         void equalsWithBooleanTrue() {
             SuccessCriteria criteria = SuccessCriteria.parse("isValid == true");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("isValid", true)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("isValid", false)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("isValid", true))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("isValid", false))).isFalse();
         }
 
         @Test
@@ -94,8 +85,8 @@ class SuccessCriteriaTest {
         void equalsWithBooleanFalse() {
             SuccessCriteria criteria = SuccessCriteria.parse("hasError == false");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("hasError", false)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("hasError", true)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("hasError", false))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("hasError", true))).isFalse();
         }
 
         @Test
@@ -103,8 +94,8 @@ class SuccessCriteriaTest {
         void equalsWithInteger() {
             SuccessCriteria criteria = SuccessCriteria.parse("count == 5");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("count", 5)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("count", 3)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("count", 5))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("count", 3))).isFalse();
         }
 
         @Test
@@ -112,8 +103,8 @@ class SuccessCriteriaTest {
         void equalsWithDouble() {
             SuccessCriteria criteria = SuccessCriteria.parse("score == 0.5");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.5)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.8)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("score", 0.5))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("score", 0.8))).isFalse();
         }
 
         @Test
@@ -121,8 +112,8 @@ class SuccessCriteriaTest {
         void equalsWithString() {
             SuccessCriteria criteria = SuccessCriteria.parse("status == success");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("status", "success")))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("status", "error")))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("status", "success"))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("status", "error"))).isFalse();
         }
 
         @Test
@@ -130,7 +121,7 @@ class SuccessCriteriaTest {
         void equalsWithQuotedString() {
             SuccessCriteria criteria = SuccessCriteria.parse("status == \"success\"");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("status", "success")))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("status", "success"))).isTrue();
         }
 
         @Test
@@ -138,8 +129,8 @@ class SuccessCriteriaTest {
         void notEquals() {
             SuccessCriteria criteria = SuccessCriteria.parse("status != error");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("status", "success")))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("status", "error")))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("status", "success"))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("status", "error"))).isFalse();
         }
 
         @Test
@@ -148,7 +139,7 @@ class SuccessCriteriaTest {
             SuccessCriteria criteria = SuccessCriteria.parse("value != null");
 
             // When actual is null and we're checking != non-null, it should be true
-            assertThat(criteria.isSuccess(createResult(Map.of()))).isTrue();
+            assertThat(criteria.isSuccess(Map.of())).isTrue();
         }
     }
 
@@ -161,9 +152,9 @@ class SuccessCriteriaTest {
         void greaterThan() {
             SuccessCriteria criteria = SuccessCriteria.parse("score > 0.5");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.8)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.5)))).isFalse();
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.3)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("score", 0.8))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("score", 0.5))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("score", 0.3))).isFalse();
         }
 
         @Test
@@ -171,9 +162,9 @@ class SuccessCriteriaTest {
         void greaterThanOrEqual() {
             SuccessCriteria criteria = SuccessCriteria.parse("score >= 0.5");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.8)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.5)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 0.3)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("score", 0.8))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("score", 0.5))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("score", 0.3))).isFalse();
         }
 
         @Test
@@ -181,9 +172,9 @@ class SuccessCriteriaTest {
         void lessThan() {
             SuccessCriteria criteria = SuccessCriteria.parse("errors < 3");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("errors", 1)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("errors", 3)))).isFalse();
-            assertThat(criteria.isSuccess(createResult(Map.of("errors", 5)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("errors", 1))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("errors", 3))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("errors", 5))).isFalse();
         }
 
         @Test
@@ -191,9 +182,9 @@ class SuccessCriteriaTest {
         void lessThanOrEqual() {
             SuccessCriteria criteria = SuccessCriteria.parse("errors <= 3");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("errors", 1)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("errors", 3)))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("errors", 5)))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("errors", 1))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("errors", 3))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("errors", 5))).isFalse();
         }
 
         @Test
@@ -202,7 +193,7 @@ class SuccessCriteriaTest {
             SuccessCriteria criteria = SuccessCriteria.parse("score >= 0.5");
 
             // Integer value compared to double threshold
-            assertThat(criteria.isSuccess(createResult(Map.of("score", 1)))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("score", 1))).isTrue();
         }
     }
 
@@ -215,10 +206,10 @@ class SuccessCriteriaTest {
         void andBothTrue() {
             SuccessCriteria criteria = SuccessCriteria.parse("valid == true && score > 0.5");
 
-            assertThat(criteria.isSuccess(createResult(Map.of(
-                "valid", true, 
+            assertThat(criteria.isSuccess(Map.of(
+                "valid", true,
                 "score", 0.8
-            )))).isTrue();
+            ))).isTrue();
         }
 
         @Test
@@ -226,10 +217,10 @@ class SuccessCriteriaTest {
         void andFirstFalse() {
             SuccessCriteria criteria = SuccessCriteria.parse("valid == true && score > 0.5");
 
-            assertThat(criteria.isSuccess(createResult(Map.of(
-                "valid", false, 
+            assertThat(criteria.isSuccess(Map.of(
+                "valid", false,
                 "score", 0.8
-            )))).isFalse();
+            ))).isFalse();
         }
 
         @Test
@@ -237,10 +228,10 @@ class SuccessCriteriaTest {
         void andSecondFalse() {
             SuccessCriteria criteria = SuccessCriteria.parse("valid == true && score > 0.5");
 
-            assertThat(criteria.isSuccess(createResult(Map.of(
-                "valid", true, 
+            assertThat(criteria.isSuccess(Map.of(
+                "valid", true,
                 "score", 0.3
-            )))).isFalse();
+            ))).isFalse();
         }
 
         @Test
@@ -248,10 +239,10 @@ class SuccessCriteriaTest {
         void orBothTrue() {
             SuccessCriteria criteria = SuccessCriteria.parse("valid == true || fallback == true");
 
-            assertThat(criteria.isSuccess(createResult(Map.of(
-                "valid", true, 
+            assertThat(criteria.isSuccess(Map.of(
+                "valid", true,
                 "fallback", true
-            )))).isTrue();
+            ))).isTrue();
         }
 
         @Test
@@ -259,10 +250,10 @@ class SuccessCriteriaTest {
         void orFirstTrue() {
             SuccessCriteria criteria = SuccessCriteria.parse("valid == true || fallback == true");
 
-            assertThat(criteria.isSuccess(createResult(Map.of(
-                "valid", true, 
+            assertThat(criteria.isSuccess(Map.of(
+                "valid", true,
                 "fallback", false
-            )))).isTrue();
+            ))).isTrue();
         }
 
         @Test
@@ -270,10 +261,10 @@ class SuccessCriteriaTest {
         void orSecondTrue() {
             SuccessCriteria criteria = SuccessCriteria.parse("valid == true || fallback == true");
 
-            assertThat(criteria.isSuccess(createResult(Map.of(
-                "valid", false, 
+            assertThat(criteria.isSuccess(Map.of(
+                "valid", false,
                 "fallback", true
-            )))).isTrue();
+            ))).isTrue();
         }
 
         @Test
@@ -281,10 +272,10 @@ class SuccessCriteriaTest {
         void orBothFalse() {
             SuccessCriteria criteria = SuccessCriteria.parse("valid == true || fallback == true");
 
-            assertThat(criteria.isSuccess(createResult(Map.of(
-                "valid", false, 
+            assertThat(criteria.isSuccess(Map.of(
+                "valid", false,
                 "fallback", false
-            )))).isFalse();
+            ))).isFalse();
         }
     }
 
@@ -297,7 +288,7 @@ class SuccessCriteriaTest {
         void handlesParenthesizedExpression() {
             SuccessCriteria criteria = SuccessCriteria.parse("(value == true)");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("value", true)))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("value", true))).isTrue();
         }
     }
 
@@ -310,7 +301,7 @@ class SuccessCriteriaTest {
         void returnsFalseForUnknownFormat() {
             SuccessCriteria criteria = SuccessCriteria.parse("not a valid expression");
 
-            assertThat(criteria.isSuccess(createResult(Map.of()))).isFalse();
+            assertThat(criteria.isSuccess(Map.of())).isFalse();
         }
 
         @Test
@@ -318,7 +309,7 @@ class SuccessCriteriaTest {
         void returnsFalseWhenKeyMissing() {
             SuccessCriteria criteria = SuccessCriteria.parse("missingKey == true");
 
-            assertThat(criteria.isSuccess(createResult(Map.of()))).isFalse();
+            assertThat(criteria.isSuccess(Map.of())).isFalse();
         }
 
         @Test
@@ -326,7 +317,7 @@ class SuccessCriteriaTest {
         void handlesSingleQuotedStrings() {
             SuccessCriteria criteria = SuccessCriteria.parse("status == 'ok'");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("status", "ok")))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("status", "ok"))).isTrue();
         }
 
         @Test
@@ -334,9 +325,8 @@ class SuccessCriteriaTest {
         void comparesComparableValues() {
             SuccessCriteria criteria = SuccessCriteria.parse("name > aaa");
 
-            assertThat(criteria.isSuccess(createResult(Map.of("name", "zzz")))).isTrue();
-            assertThat(criteria.isSuccess(createResult(Map.of("name", "aaa")))).isFalse();
+            assertThat(criteria.isSuccess(Map.of("name", "zzz"))).isTrue();
+            assertThat(criteria.isSuccess(Map.of("name", "aaa"))).isFalse();
         }
     }
 }
-

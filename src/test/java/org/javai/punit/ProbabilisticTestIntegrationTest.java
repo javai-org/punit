@@ -1,5 +1,6 @@
 package org.javai.punit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.AlwaysFailingTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.AlwaysPassingTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.BarelyFailingTest;
@@ -19,8 +20,6 @@ import org.javai.punit.testsubjects.ProbabilisticTestSubjects.TerminateOnFirstFa
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineTestKit;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for the probabilistic testing framework.
