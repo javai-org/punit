@@ -32,7 +32,7 @@ tasks.withType<JavaCompile> {
 }
 
 repositories {
-    mavenLocal()  // Check local ~/.m2/repository first
+    mavenLocal()  // Required for outcome library (private repo)
     mavenCentral()
     maven { url = uri("https://jitpack.io") }
 }
@@ -50,7 +50,10 @@ dependencies {
     // SnakeYAML - for YAML serialization in spec generation
     implementation("org.yaml:snakeyaml:2.5")
 
-    // Log4j 2 - structured logging for runtime output
+    // Outcome - result types for contract postconditions
+    // Note: outcome is a private repo. For CI builds, either:
+    // 1. Make michaelfranz/outcome public for JitPack access, or
+    // 2. Publish to a private artifact repository accessible by CI
     api("org.javai:outcome:1.0-SNAPSHOT")
     implementation("org.apache.logging.log4j:log4j-api:2.25.3")
     runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.3")
