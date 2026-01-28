@@ -4,7 +4,7 @@ import java.util.List;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.contract.Outcomes;
+import org.javai.outcome.Outcome;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.payment.MockPaymentGateway;
@@ -50,7 +50,7 @@ public class PaymentGatewayUseCase {
      */
     private static final ServiceContract<PaymentInput, PaymentResult> CONTRACT =
             ServiceContract.<PaymentInput, PaymentResult>define()
-                    .ensure("Transaction succeeded", pr -> pr.success() ? Outcomes.okVoid() : Outcomes.fail("transaction failed: " + pr.errorCode()))
+                    .ensure("Transaction succeeded", pr -> pr.success() ? Outcome.ok() : Outcome.fail("check","transaction failed: " + pr.errorCode()))
                     .build();
 
     private final PaymentGateway gateway;

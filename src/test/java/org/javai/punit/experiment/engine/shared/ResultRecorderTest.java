@@ -5,7 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.contract.Outcomes;
+import org.javai.outcome.Outcome;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
@@ -33,8 +33,8 @@ class ResultRecorderTest {
         void recordsSuccessWhenAllPostconditionsPass() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
-                    .ensure("Contains data", s -> s.contains("data") ? Outcomes.okVoid() : Outcomes.fail("missing data"))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcome.fail("check","empty") : Outcome.ok())
+                    .ensure("Contains data", s -> s.contains("data") ? Outcome.ok() : Outcome.fail("check","missing data"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -60,8 +60,8 @@ class ResultRecorderTest {
         void recordsFailureWhenAnyPostconditionFails() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
-                    .ensure("Starts with X", s -> s.startsWith("X") ? Outcomes.okVoid() : Outcomes.fail("wrong start"))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcome.fail("check","empty") : Outcome.ok())
+                    .ensure("Starts with X", s -> s.startsWith("X") ? Outcome.ok() : Outcome.fail("check","wrong start"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -87,8 +87,8 @@ class ResultRecorderTest {
         void recordsPostconditionStatsForAggregation() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Check A", s -> Outcomes.okVoid())
-                    .ensure("Check B", s -> Outcomes.okVoid())
+                    .ensure("Check A", s -> Outcome.ok())
+                    .ensure("Check B", s -> Outcome.ok())
                     .build();
 
             for (int i = 0; i < 5; i++) {
@@ -118,12 +118,12 @@ class ResultRecorderTest {
                     .<Void, String>define()
                     .derive("Parse number", s -> {
                         try {
-                            return Outcomes.ok(Integer.parseInt(s));
+                            return Outcome.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
-                            return Outcomes.fail("Not a number");
+                            return Outcome.fail("check","Not a number");
                         }
                     })
-                    .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
+                    .ensure("Positive", n -> n > 0 ? Outcome.ok() : Outcome.fail("check","not positive"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(

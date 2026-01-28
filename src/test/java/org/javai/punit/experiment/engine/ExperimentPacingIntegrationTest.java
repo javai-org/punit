@@ -16,7 +16,7 @@ import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.contract.Outcomes;
+import org.javai.outcome.Outcome;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.junit.jupiter.api.BeforeEach;
@@ -151,7 +151,7 @@ class ExperimentPacingIntegrationTest {
 
     private static final ServiceContract<Void, String> SIMPLE_CONTRACT = ServiceContract
             .<Void, String>define()
-            .ensure("Not null", s -> s != null ? Outcomes.okVoid() : Outcomes.fail("was null"))
+            .ensure("Not null", s -> s != null ? Outcome.ok() : Outcome.fail("check","was null"))
             .build();
 
     private static UseCaseOutcome<String> createOutcome(String value) {

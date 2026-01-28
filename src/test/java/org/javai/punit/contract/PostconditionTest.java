@@ -2,6 +2,8 @@ package org.javai.punit.contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.javai.outcome.Outcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,7 +19,7 @@ class PostconditionTest {
         @DisplayName("creates postcondition with description and check function")
         void createsPostcondition() {
             Postcondition<String> postcondition = new Postcondition<>(
-                    "Is not empty", s -> s.isEmpty() ? Outcomes.fail("Was empty") : Outcomes.okVoid());
+                    "Is not empty", s -> s.isEmpty() ? Outcome.fail("check","Was empty") : Outcome.ok());
 
             assertThat(postcondition.description()).isEqualTo("Is not empty");
             assertThat(postcondition.check()).isNotNull();
@@ -26,7 +28,7 @@ class PostconditionTest {
         @Test
         @DisplayName("throws when description is null")
         void throwsWhenDescriptionIsNull() {
-            assertThatThrownBy(() -> new Postcondition<String>(null, s -> Outcomes.okVoid()))
+            assertThatThrownBy(() -> new Postcondition<String>(null, s -> Outcome.ok()))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("description must not be null");
         }
@@ -34,7 +36,7 @@ class PostconditionTest {
         @Test
         @DisplayName("throws when description is blank")
         void throwsWhenDescriptionIsBlank() {
-            assertThatThrownBy(() -> new Postcondition<String>("   ", s -> Outcomes.okVoid()))
+            assertThatThrownBy(() -> new Postcondition<String>("   ", s -> Outcome.ok()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("description must not be blank");
         }
@@ -142,7 +144,7 @@ class PostconditionTest {
         @DisplayName("returns passed when check returns ok")
         void returnsPassed() {
             Postcondition<String> postcondition = new Postcondition<>(
-                    "Is not empty", s -> s.isEmpty() ? Outcomes.fail("Was empty") : Outcomes.okVoid());
+                    "Is not empty", s -> s.isEmpty() ? Outcome.fail("check","Was empty") : Outcome.ok());
 
             PostconditionResult result = postcondition.evaluate("hello");
 
@@ -155,7 +157,7 @@ class PostconditionTest {
         @DisplayName("returns failed with custom reason when check returns failure")
         void returnsFailedWithCustomReason() {
             Postcondition<String> postcondition = new Postcondition<>(
-                    "Is not empty", s -> s.isEmpty() ? Outcomes.fail("Was empty") : Outcomes.okVoid());
+                    "Is not empty", s -> s.isEmpty() ? Outcome.fail("check","Was empty") : Outcome.ok());
 
             PostconditionResult result = postcondition.evaluate("");
 
@@ -170,12 +172,12 @@ class PostconditionTest {
             Postcondition<Integer> postcondition = new Postcondition<>(
                     "Is in valid range", value -> {
                         if (value < 0) {
-                            return Outcomes.fail("Value " + value + " is negative");
+                            return Outcome.fail("check","Value " + value + " is negative");
                         }
                         if (value > 100) {
-                            return Outcomes.fail("Value " + value + " exceeds maximum of 100");
+                            return Outcome.fail("check","Value " + value + " exceeds maximum of 100");
                         }
-                        return Outcomes.okVoid();
+                        return Outcome.ok();
                     });
 
             PostconditionResult resultNegative = postcondition.evaluate(-5);
@@ -194,7 +196,7 @@ class PostconditionTest {
         @DisplayName("returns failed with message when check throws exception")
         void returnsFailedWhenCheckThrows() {
             Postcondition<String> postcondition = new Postcondition<>(
-                    "Has length", s -> s.length() > 0 ? Outcomes.okVoid() : Outcomes.fail("Empty"));
+                    "Has length", s -> s.length() > 0 ? Outcome.ok() : Outcome.fail("check","Empty"));
 
             PostconditionResult result = postcondition.evaluate(null);
 

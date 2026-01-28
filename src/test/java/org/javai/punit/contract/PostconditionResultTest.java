@@ -2,6 +2,8 @@ package org.javai.punit.contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.javai.outcome.Outcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -77,7 +79,7 @@ class PostconditionResultTest {
         @Test
         @DisplayName("throws when description is null")
         void throwsWhenDescriptionIsNull() {
-            assertThatThrownBy(() -> new PostconditionResult(null, Outcomes.okVoid()))
+            assertThatThrownBy(() -> new PostconditionResult(null, Outcome.ok()))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("description must not be null");
         }
@@ -110,7 +112,7 @@ class PostconditionResultTest {
             PostconditionResult result = PostconditionResult.failed("test", "error message");
 
             assertThat(result.outcome().isOk()).isFalse();
-            assertThat(Outcomes.failureMessage(result.outcome())).isEqualTo("error message");
+            assertThat(((Outcome.Fail<?>) result.outcome()).failure().message()).isEqualTo("error message");
         }
     }
 }

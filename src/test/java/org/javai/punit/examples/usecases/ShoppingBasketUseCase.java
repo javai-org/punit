@@ -16,7 +16,6 @@ import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.contract.Outcomes;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.llm.ChatLlm;
@@ -98,7 +97,7 @@ public class ShoppingBasketUseCase {
             ServiceContract.<ServiceInput, ChatResponse>define()
                     .derive("Response content", cr -> Outcome.ok(cr.content()))
                     .ensure("Viable response content", c ->
-                            c != null && !c.isBlank() ? Outcome.ok() : Outcomes.fail("content was null or blank"))
+                            c != null && !c.isBlank() ? Outcome.ok() : Outcome.fail("check","content was null or blank"))
                     .derive("Valid Json", ShoppingBasketUseCase::parseJSON)
                     .ensure("Has operations array", ShoppingBasketUseCase::hasOperationsArray)
                     .ensure("All operations valid", ShoppingBasketUseCase::allOperationsValid)
@@ -257,10 +256,10 @@ public class ShoppingBasketUseCase {
     private static Outcome<Void> hasOperationsArray(JsonNode root) {
         JsonNode operations = root.get("operations");
         if (operations == null) {
-            return Outcomes.fail("missing 'operations' field");
+            return Outcome.fail("check","missing 'operations' field");
         }
         if (!operations.isArray()) {
-            return Outcomes.fail("'operations' is not an array");
+            return Outcome.fail("check","'operations' is not an array");
         }
         return Outcome.ok();
     }
@@ -292,7 +291,7 @@ public class ShoppingBasketUseCase {
         if (problems.isEmpty()) {
             return Outcome.ok();
         }
-        return Outcomes.fail(String.join(", ", problems));
+        return Outcome.fail("check",String.join(", ", problems));
     }
 
 

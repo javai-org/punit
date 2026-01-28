@@ -1,10 +1,12 @@
 package org.javai.punit.contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.OutcomeCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,8 +32,8 @@ class OutcomeCaptorContractIntegrationTest {
         void recordsContractOutcomeWithPassingPostconditions() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
-                    .ensure("Contains hello", s -> s.contains("hello") ? Outcomes.okVoid() : Outcomes.fail("missing hello"))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcome.fail("check","empty") : Outcome.ok())
+                    .ensure("Contains hello", s -> s.contains("hello") ? Outcome.ok() : Outcome.fail("check","missing hello"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -54,8 +56,8 @@ class OutcomeCaptorContractIntegrationTest {
         void recordsContractOutcomeWithFailingPostconditions() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
-                    .ensure("Starts with X", s -> s.startsWith("X") ? Outcomes.okVoid() : Outcomes.fail("wrong start"))
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcome.fail("check","empty") : Outcome.ok())
+                    .ensure("Starts with X", s -> s.startsWith("X") ? Outcome.ok() : Outcome.fail("check","wrong start"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -146,7 +148,7 @@ class OutcomeCaptorContractIntegrationTest {
         void handlesNullResultValue() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Is null", s -> s == null ? Outcomes.okVoid() : Outcomes.fail("not null"))
+                    .ensure("Is null", s -> s == null ? Outcome.ok() : Outcome.fail("check","not null"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -171,12 +173,12 @@ class OutcomeCaptorContractIntegrationTest {
         void onlyRecordsFirstOutcome() {
             ServiceContract<Void, String> contract1 = ServiceContract
                     .<Void, String>define()
-                    .ensure("Always pass", s -> Outcomes.okVoid())
+                    .ensure("Always pass", s -> Outcome.ok())
                     .build();
 
             ServiceContract<Void, String> contract2 = ServiceContract
                     .<Void, String>define()
-                    .ensure("Always fail", s -> Outcomes.fail("always fails"))
+                    .ensure("Always fail", s -> Outcome.fail("check","always fails"))
                     .build();
 
             UseCaseOutcome<String> outcome1 = new UseCaseOutcome<>(
@@ -235,16 +237,16 @@ class OutcomeCaptorContractIntegrationTest {
         void recordsOutcomesFromContractWithDerivations() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
-                    .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("empty") : Outcomes.okVoid())
+                    .ensure("Not empty", s -> s.isEmpty() ? Outcome.fail("check","empty") : Outcome.ok())
                     .derive("Parse number", s -> {
                         try {
-                            return Outcomes.ok(Integer.parseInt(s));
+                            return Outcome.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
-                            return Outcomes.fail("Not a valid number");
+                            return Outcome.fail("check","Not a valid number");
                         }
                     })
-                    .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
-                    .ensure("Less than 100", n -> n < 100 ? Outcomes.okVoid() : Outcomes.fail("too large"))
+                    .ensure("Positive", n -> n > 0 ? Outcome.ok() : Outcome.fail("check","not positive"))
+                    .ensure("Less than 100", n -> n < 100 ? Outcome.ok() : Outcome.fail("check","too large"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
@@ -271,12 +273,12 @@ class OutcomeCaptorContractIntegrationTest {
                     .<Void, String>define()
                     .derive("Parse number", s -> {
                         try {
-                            return Outcomes.ok(Integer.parseInt(s));
+                            return Outcome.ok(Integer.parseInt(s));
                         } catch (NumberFormatException e) {
-                            return Outcomes.fail("Not a valid number");
+                            return Outcome.fail("check","Not a valid number");
                         }
                     })
-                    .ensure("Positive", n -> n > 0 ? Outcomes.okVoid() : Outcomes.fail("not positive"))
+                    .ensure("Positive", n -> n > 0 ? Outcome.ok() : Outcome.fail("check","not positive"))
                     .build();
 
             UseCaseOutcome<String> outcome = new UseCaseOutcome<>(

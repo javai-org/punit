@@ -25,11 +25,11 @@ import org.javai.outcome.Outcome;
  *     .<ServiceInput, String>define()
  *
  *     .ensure("Response not empty", response ->
- *         response.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
+ *         response.isEmpty() ? Outcome.fail("check", "was empty") : Outcome.ok())
  *
  *     .derive("Valid JSON", MyUseCase::parseJson)
  *         .ensure("Has operations array", json ->
- *             json.has("operations") ? Outcomes.okVoid() : Outcomes.fail("missing operations"))
+ *             json.has("operations") ? Outcome.ok() : Outcome.fail("check", "missing operations"))
  *         .ensure("All operations valid", MyUseCase::validateOperations)
  *
  *     .build();
@@ -158,13 +158,13 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
          * Adds a postcondition on the raw result.
          *
          * <p>This postcondition is evaluated directly against the result without
-         * any derivation transformation. Return {@code Outcomes.okVoid()} for success
-         * or {@code Outcomes.fail(reason)} to indicate failure with details.
+         * any derivation transformation. Return {@code Outcome.ok()} for success
+         * or {@code Outcome.fail("check", reason)} to indicate failure with details.
          *
          * <p>Example:
          * <pre>{@code
          * .ensure("Response not empty", response ->
-         *     response.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
+         *     response.isEmpty() ? Outcome.fail("check", "was empty") : Outcome.ok())
          * }</pre>
          *
          * @param description the human-readable description
@@ -233,14 +233,14 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
         /**
          * Adds a postcondition to this derivation.
          *
-         * <p>Return {@code Outcomes.okVoid()} for success or {@code Outcomes.fail(reason)}
+         * <p>Return {@code Outcome.ok()} for success or {@code Outcome.fail("check", reason)}
          * to indicate failure with details.
          *
          * <p>Example:
          * <pre>{@code
          * .deriving("Parse JSON", this::parseJson)
          *     .ensure("Has operations", json ->
-         *         json.has("operations") ? Outcomes.okVoid() : Outcomes.fail("missing operations"))
+         *         json.has("operations") ? Outcome.ok() : Outcome.fail("check", "missing operations"))
          * }</pre>
          *
          * @param description the human-readable description

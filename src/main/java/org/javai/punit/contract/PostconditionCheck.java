@@ -14,9 +14,9 @@ import org.javai.outcome.Outcome;
  * <pre>{@code
  * PostconditionCheck<JsonNode> check = json -> {
  *     if (!json.has("operations")) {
- *         return Outcomes.fail("Missing 'operations' field");
+ *         return Outcome.fail("check", "Missing 'operations' field");
  *     }
- *     return Outcomes.okVoid();
+ *     return Outcome.ok();
  * };
  * }</pre>
  *

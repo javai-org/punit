@@ -10,7 +10,6 @@
  *   <li>{@link org.javai.punit.contract.ServiceContract} — The contract definition with postconditions</li>
  *   <li>{@link org.javai.punit.contract.UseCaseOutcome} — The outcome of a use case execution with result, timing, and postconditions</li>
  *   <li>{@link org.javai.punit.contract.PostconditionEvaluator} — Interface for evaluating postconditions against a result</li>
- *   <li>{@link org.javai.punit.contract.Outcomes} — Factory methods for creating Outcome instances in derivations</li>
  *   <li>{@link org.javai.punit.contract.Postcondition} — A single ensure clause with description and check function</li>
  *   <li>{@link org.javai.punit.contract.Derivation} — Transforms raw result into derived perspective for postconditions</li>
  *   <li>{@link org.javai.punit.contract.PostconditionResult} — Evaluation result (Passed, Failed, or Skipped)</li>
@@ -23,10 +22,10 @@
  * private static final ServiceContract<ServiceInput, String> CONTRACT = ServiceContract
  *     .<ServiceInput, String>define()
  *     .ensure("Response not empty", response ->
- *         response.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
+ *         response.isEmpty() ? Outcome.fail("check", "was empty") : Outcome.ok())
  *     .deriving("Valid JSON", MyUseCase::parseJson)
  *         .ensure("Has operations array", json ->
- *             json.has("operations") ? Outcomes.okVoid() : Outcomes.fail("missing"))
+ *             json.has("operations") ? Outcome.ok() : Outcome.fail("check", "missing"))
  *     .build();
  *
  * public UseCaseOutcome<String> translateInstruction(String instruction) {
@@ -41,7 +40,6 @@
  *
  * @see org.javai.punit.contract.ServiceContract
  * @see org.javai.punit.contract.UseCaseOutcome
- * @see org.javai.punit.contract.Outcomes
  * @see org.javai.punit.contract.Postcondition
  * @see org.javai.punit.contract.PostconditionResult
  */

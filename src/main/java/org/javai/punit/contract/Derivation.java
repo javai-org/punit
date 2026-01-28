@@ -84,16 +84,19 @@ public record Derivation<R, D>(
             return results;
         }
 
-        if (derivationOutcome.isOk()) {
-            D derivedValue = derivationOutcome.getOrThrow();
-            results.add(PostconditionResult.passed(description, derivedValue));
-            for (Postcondition<D> postcondition : postconditions) {
-                results.add(postcondition.evaluate(derivedValue));
+        switch (derivationOutcome) {
+            case Outcome.Ok<D> ok -> {
+                D derivedValue = ok.value();
+                results.add(PostconditionResult.passed(description, derivedValue));
+                for (Postcondition<D> postcondition : postconditions) {
+                    results.add(postcondition.evaluate(derivedValue));
+                }
             }
-        } else {
-            results.add(PostconditionResult.failed(description, Outcomes.failureMessage(derivationOutcome)));
-            for (Postcondition<D> postcondition : postconditions) {
-                results.add(postcondition.skip("Derivation '" + description + "' failed"));
+            case Outcome.Fail<D> fail -> {
+                results.add(PostconditionResult.failed(description, fail.failure().message()));
+                for (Postcondition<D> postcondition : postconditions) {
+                    results.add(postcondition.skip("Derivation '" + description + "' failed"));
+                }
             }
         }
 

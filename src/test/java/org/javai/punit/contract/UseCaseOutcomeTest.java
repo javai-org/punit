@@ -2,8 +2,10 @@ package org.javai.punit.contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.time.Duration;
 import java.util.List;
+import org.javai.outcome.Outcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,10 +17,10 @@ class UseCaseOutcomeTest {
 
     private static final ServiceContract<TestInput, String> CONTRACT = ServiceContract
             .<TestInput, String>define()
-            .ensure("Not empty", s -> s.isEmpty() ? Outcomes.fail("was empty") : Outcomes.okVoid())
-            .ensure("Reasonable length", s -> s.length() < 1000 ? Outcomes.okVoid() : Outcomes.fail("too long"))
-            .derive("Uppercase", s -> Outcomes.ok(s.toUpperCase()))
-                .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcomes.okVoid() : Outcomes.fail("not all caps"))
+            .ensure("Not empty", s -> s.isEmpty() ? Outcome.fail("check","was empty") : Outcome.ok())
+            .ensure("Reasonable length", s -> s.length() < 1000 ? Outcome.ok() : Outcome.fail("check","too long"))
+            .derive("Uppercase", s -> Outcome.ok(s.toUpperCase()))
+                .ensure("All caps", s -> s.equals(s.toUpperCase()) ? Outcome.ok() : Outcome.fail("check","not all caps"))
             .build();
 
     @Nested
@@ -423,7 +425,7 @@ class UseCaseOutcomeTest {
                     .<TestInput, String>define()
                     .ensure("Counting", s -> {
                         evaluationCount[0]++;
-                        return Outcomes.okVoid();
+                        return Outcome.ok();
                     })
                     .build();
 

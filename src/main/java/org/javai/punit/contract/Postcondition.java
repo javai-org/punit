@@ -74,8 +74,8 @@ public record Postcondition<T>(String description, PostconditionCheck<T> check) 
         Objects.requireNonNull(predicate, "predicate must not be null");
         PostconditionCheck<T> check = value ->
                 predicate.test(value)
-                        ? Outcomes.okVoid()
-                        : Outcomes.fail("Postcondition not satisfied");
+                        ? Outcome.ok()
+                        : Outcome.fail("check", "Postcondition not satisfied");
         return new Postcondition<>(description, check);
     }
 
@@ -88,9 +88,10 @@ public record Postcondition<T>(String description, PostconditionCheck<T> check) 
     public PostconditionResult evaluate(T value) {
         try {
             Outcome<Void> result = check.check(value);
-            return result.isOk()
-                    ? PostconditionResult.passed(description)
-                    : PostconditionResult.failed(description, Outcomes.failureMessage(result));
+            return switch (result) {
+                case Outcome.Ok<?> ignored -> PostconditionResult.passed(description);
+                case Outcome.Fail<?> f -> PostconditionResult.failed(description, f.failure().message());
+            };
         } catch (Exception e) {
             String message = e.getMessage();
             String reason = (message != null && !message.isBlank())
