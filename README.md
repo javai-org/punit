@@ -62,11 +62,11 @@ Don't let the simplicity of this snippet fool you. Behind this clean API lies ri
 
 ### Experimentation
 
-| Feature                | Description                                                               |
-|------------------------|---------------------------------------------------------------------------|
-| 🔬 **EXPLORE Mode**    | Compare configurations (models, prompts, parameters) with minimal samples |
-| 📊 **MEASURE Mode**    | Run large-scale experiments to establish empirical baselines              |
-| 📁 **Spec Generation** | Auto-generate version-controlled specs from experimental data             |
+| Experimental Mode   | Description                                                                            |
+|---------------------|----------------------------------------------------------------------------------------|
+| 🔬 **EXPLORE**      | Compare the impact of different factors (use case configurations) with minimal samples |
+| ⚙️ **OPTIMIZE**     | Auto-tune a factor iteratively to find the optimal value for production                |
+| 📊 **MEASURE**      | Generate a baseline pass rate with which to power probabilistic tests                  |
 
 ### Testing
 

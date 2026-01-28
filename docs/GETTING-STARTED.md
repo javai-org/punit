@@ -121,14 +121,19 @@ Before writing tests, you often need to **discover** how your system behaves. PU
 ### EXPLORE: Compare Configurations
 
 ```java
-@Experiment(mode = ExperimentMode.EXPLORE, samplesPerConfig = 1)
-@FactorSource("modelConfigs")
+@TestTemplate
+@ExploreExperiment(
+    useCase = MyUseCase.class,
+    samplesPerConfig = 20,
+    experimentId = "model-comparison-v1"
+)
+@FactorSource(value = "modelConfigs", factors = {"model", "temperature"})
 void exploreModels(
-        @Factor("model") String model,
-        @Factor("temperature") double temp,
         MyUseCase useCase,
+        @Factor("model") String model,
+        @Factor("temperature") Double temp,
         ResultCaptor captor) {
-    
+
     useCase.configure(model, temp);
     captor.record(useCase.execute("test input"));
 }
@@ -145,17 +150,51 @@ static List<FactorArguments> modelConfigs() {
 
 Run with:
 ```bash
-./gradlew explore --tests "MyExperiment.exploreModels"
+./gradlew exp -Prun=MyExperiment.exploreModels
 ```
 
 Output: One YAML file per configuration in `src/test/resources/punit/explorations/`
+
+### OPTIMIZE: Tune a Factor
+
+After exploring configurations, you may want to fine-tune a specific factor:
+
+```java
+@OptimizeExperiment(
+    useCase = MyUseCase.class,
+    controlFactor = "temperature",
+    initialControlFactorSource = "startingTemperature",
+    scorer = MySuccessRateScorer.class,
+    mutator = TemperatureMutator.class,
+    objective = OptimizationObjective.MAXIMIZE,
+    samplesPerIteration = 20,
+    maxIterations = 10
+)
+void optimizeTemperature(
+        MyUseCase useCase,
+        @ControlFactor("temperature") Double temperature,
+        ResultCaptor captor) {
+    captor.record(useCase.execute("test input"));
+}
+
+static Double startingTemperature() {
+    return 1.0;  // Start high, optimize down
+}
+```
+
+Run with:
+```bash
+./gradlew exp -Prun=MyExperiment.optimizeTemperature
+```
+
+Output: Optimization history at `src/test/resources/punit/optimizations/`
 
 ### MEASURE: Establish Baseline
 
 Once you've chosen a configuration, measure it thoroughly:
 
 ```java
-@Experiment(mode = ExperimentMode.MEASURE, samples = 1000)
+@MeasureExperiment(useCase = MyUseCase.class, samples = 1000)
 void measureChosenConfig(MyUseCase useCase, ResultCaptor captor) {
     captor.record(useCase.execute("production input"));
 }
@@ -163,7 +202,7 @@ void measureChosenConfig(MyUseCase useCase, ResultCaptor captor) {
 
 Run with:
 ```bash
-./gradlew measure --tests "MyExperiment.measureChosenConfig"
+./gradlew exp -Prun=MyExperiment.measureChosenConfig
 ```
 
 Output: A spec file at `src/test/resources/punit/specs/{UseCaseId}.yaml` — commit this to Git.
@@ -173,7 +212,7 @@ Output: A spec file at `src/test/resources/punit/specs/{UseCaseId}.yaml` — com
 ## The Complete Picture
 
 ```
-EXPLORE (discover) → MEASURE (baseline) → Spec (commit) → Test (verify)
+EXPLORE (discover) → OPTIMIZE (tune) → MEASURE (baseline) → Test (verify)
 ```
 
 Experimentation and testing are two halves of the same workflow. Specs bridge them: experiments generate specs, tests consume them.

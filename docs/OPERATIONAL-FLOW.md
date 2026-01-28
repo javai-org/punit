@@ -42,14 +42,14 @@ void apiMeetsSla() { ... }
 The threshold is **derived from empirical data** gathered through experiments:
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│ Use Case  ──▶  MEASURE Experiment  ──▶  Spec  ──▶  Test           │
-│                (1000+ samples)          (commit)    (threshold     │
-│                                                      derived)      │
-└────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Use Case ──▶ EXPLORE ──▶ OPTIMIZE ──▶ MEASURE ──▶ Spec ──▶ Test             │
+│              (compare)    (tune)       (1000+)     (commit)  (threshold      │
+│                                                               derived)       │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Workflow:** Experiment → Measure → Commit Spec → Test
+**Workflow:** Explore → Optimize → Measure → Commit Spec → Test
 
 Both paradigms use the same `@ProbabilisticTest` annotation. The difference is where `minPassRate` comes from.
 
@@ -328,28 +328,71 @@ git commit -am "Update JSON generation baseline after prompt improvements"
 When you have choices about how to configure a non-deterministic system (model, temperature, prompt), use EXPLORE mode to compare options:
 
 ```java
-@Experiment(
-    mode = ExperimentMode.EXPLORE,
-    samplesPerConfig = 3
+@TestTemplate
+@ExploreExperiment(
+    useCase = JsonGenerationUseCase.class,
+    samplesPerConfig = 20,
+    experimentId = "model-comparison-v1"
 )
-@FactorSource("modelConfigs")
-void explore(@Factor("model") String model, ResultCaptor captor) {
+@FactorSource(value = "modelConfigs", factors = {"model"})
+void explore(
+        JsonGenerationUseCase useCase,
+        @Factor("model") String model,
+        ResultCaptor captor) {
     captor.record(useCase.generateJson("Generate a profile"));
 }
 
 static List<FactorArguments> modelConfigs() {
-    return List.of(
-        FactorArguments.of("model", "gpt-4"),
-        FactorArguments.of("model", "gpt-3.5-turbo")
-    );
+    return FactorArguments.configurations()
+        .names("model")
+        .values("gpt-4")
+        .values("gpt-3.5-turbo")
+        .stream().toList();
 }
 ```
 
 ```bash
-./gradlew explore --tests "MyExperiment.explore"
+./gradlew exp -Prun=MyExperiment.explore
 ```
 
-EXPLORE is for **rapid feedback**, not statistical rigor. Run 1-3 samples per configuration, compare results, then MEASURE the winner.
+EXPLORE is for **rapid feedback** before committing to expensive measurements. Compare results, then OPTIMIZE or MEASURE the winner.
+
+---
+
+## OPTIMIZE Mode: Factor Tuning
+
+After EXPLORE identifies a promising configuration, use OPTIMIZE to fine-tune a specific factor:
+
+```java
+@TestTemplate
+@OptimizeExperiment(
+    useCase = JsonGenerationUseCase.class,
+    controlFactor = "temperature",
+    initialControlFactorSource = "startingTemperature",
+    scorer = SuccessRateScorer.class,
+    mutator = TemperatureMutator.class,
+    objective = OptimizationObjective.MAXIMIZE,
+    samplesPerIteration = 20,
+    maxIterations = 10,
+    noImprovementWindow = 3
+)
+void optimizeTemperature(
+        JsonGenerationUseCase useCase,
+        @ControlFactor("temperature") Double temperature,
+        ResultCaptor captor) {
+    captor.record(useCase.generateJson("Generate a profile"));
+}
+
+static Double startingTemperature() {
+    return 1.0;  // Start high, optimize down
+}
+```
+
+```bash
+./gradlew exp -Prun=MyExperiment.optimizeTemperature
+```
+
+OPTIMIZE iteratively refines a **control factor** through mutation and evaluation. Use it to find the optimal temperature, prompt phrasing, or other continuous parameters before establishing your baseline with MEASURE.
 
 ---
 
