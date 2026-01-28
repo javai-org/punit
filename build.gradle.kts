@@ -63,7 +63,7 @@ dependencies {
     // Test dependencies
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.junit.platform:junit-platform-testkit")
-    testImplementation("org.assertj:assertj-core:3.27.6")
+    testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
