@@ -1,5 +1,9 @@
 package org.javai.punit.examples.experiments;
 
+import org.javai.punit.examples.infrastructure.llm.ChatLlmProvider;
+import org.javai.punit.examples.infrastructure.llm.DeterministicPromptMutationStrategy;
+import org.javai.punit.examples.infrastructure.llm.LlmPromptMutationStrategy;
+import org.javai.punit.examples.infrastructure.llm.PromptMutationStrategy;
 import org.javai.punit.experiment.optimize.FactorMutator;
 import org.javai.punit.experiment.optimize.MutationException;
 import org.javai.punit.experiment.optimize.OptimizeHistory;
@@ -7,13 +11,30 @@ import org.javai.punit.experiment.optimize.OptimizeHistory;
 /**
  * Mutator that iteratively improves the system prompt for ShoppingBasketUseCase.
  *
- * <p>This mutator demonstrates a realistic prompt engineering progression,
- * taking a weak initial prompt and systematically improving it by adding
- * specific instructions that address common LLM failure modes.
+ * <p>This mutator uses a strategy pattern to switch between:
+ * <ul>
+ *   <li><b>Mock mode</b> ({@link DeterministicPromptMutationStrategy}): A scripted progression
+ *       of prompts that demonstrates prompt engineering principles without API calls.</li>
+ *   <li><b>Real mode</b> ({@link LlmPromptMutationStrategy}): LLM-powered prompt improvement
+ *       that analyzes failure patterns and generates targeted improvements.</li>
+ * </ul>
  *
- * <h2>Prompt Evolution</h2>
- * <p>The mutator produces this progression:
+ * <h2>Mode Selection</h2>
+ * <p>The strategy is selected based on {@code punit.llm.mode}:
+ * <ul>
+ *   <li>{@code mock} (default): Uses deterministic progression</li>
+ *   <li>{@code real}: Uses LLM-powered improvement</li>
+ * </ul>
  *
+ * <h2>LLM Mutation Configuration</h2>
+ * <p>In real mode, the model used for mutations can be configured separately:
+ * <ul>
+ *   <li>System property: {@code punit.llm.mutation.model}</li>
+ *   <li>Environment variable: {@code PUNIT_LLM_MUTATION_MODEL}</li>
+ *   <li>Default: {@code gpt-4o-mini}</li>
+ * </ul>
+ *
+ * <h2>Prompt Evolution (Deterministic Mode)</h2>
  * <pre>
  * Iteration 0 (weak): "You are a shopping assistant..."
  *   → ~30% success: vague, no schema, LLM invents formats
@@ -34,119 +55,43 @@ import org.javai.punit.experiment.optimize.OptimizeHistory;
  *   → ~95% success: robust prompt, rare edge case failures
  * </pre>
  *
- * <h2>Design Notes</h2>
- * <p>This is a deterministic mutator for demonstration purposes.
- * A production mutator might use an LLM to analyze failure patterns
- * and generate targeted improvements.
- *
+ * @see DeterministicPromptMutationStrategy
+ * @see LlmPromptMutationStrategy
  * @see org.javai.punit.experiment.optimize.FactorMutator
  */
 public class ShoppingBasketPromptMutator implements FactorMutator<String> {
 
+    private final PromptMutationStrategy strategy;
+
     /**
-     * Sequence of prompts representing progressive improvement.
-     * Each prompt builds on the previous one, addressing a specific failure mode.
+     * Creates a mutator with the strategy selected based on LLM mode.
+     *
+     * <p>In mock mode, uses deterministic progression. In real mode, uses
+     * LLM-powered improvement.
      */
-    private static final String[] PROMPT_PROGRESSION = {
-        // Iteration 0: Weak starting prompt (provided by initialControlFactorSource)
-        // This is just for reference - the actual starting prompt comes from the experiment
+    public ShoppingBasketPromptMutator() {
+        this.strategy = ChatLlmProvider.isRealMode()
+                ? new LlmPromptMutationStrategy()
+                : new DeterministicPromptMutationStrategy();
+    }
 
-        // Iteration 1: Add JSON-only format requirement
-        """
-        You are a shopping assistant. Convert the user's request into
-        a JSON list of shopping basket operations.
-
-        IMPORTANT: Respond with ONLY valid JSON. No explanations, no markdown, just JSON.""",
-
-        // Iteration 2: Add explicit schema structure
-        """
-        You are a shopping assistant. Convert the user's request into
-        JSON shopping basket operations.
-
-        Respond with ONLY valid JSON in this structure:
-        {"operations": [...]}
-
-        The "operations" array contains the list of basket changes.""",
-
-        // Iteration 3: Add required fields specification
-        """
-        You are a shopping assistant. Convert the user's request into
-        JSON shopping basket operations.
-
-        Respond with ONLY valid JSON in this structure:
-        {"operations": [{"action": "...", "item": "...", "quantity": N}, ...]}
-
-        Each operation MUST have exactly three fields:
-        - "action": the operation type
-        - "item": the product name
-        - "quantity": the number of items""",
-
-        // Iteration 4: Add valid action enumeration
-        """
-        You are a shopping assistant. Convert the user's request into
-        JSON shopping basket operations.
-
-        Respond with ONLY valid JSON:
-        {"operations": [{"action": "...", "item": "...", "quantity": N}, ...]}
-
-        Rules:
-        - "action" MUST be one of: "add", "remove", or "clear"
-        - "item" is the product name as a string
-        - "quantity" is the number of items""",
-
-        // Iteration 5: Add quantity constraints
-        """
-        You are a shopping assistant that converts natural language into JSON.
-
-        OUTPUT FORMAT (no other text, just this JSON):
-        {"operations": [{"action": "...", "item": "...", "quantity": N}, ...]}
-
-        RULES:
-        1. "action" must be exactly one of: "add", "remove", "clear"
-        2. "item" is the product name (string)
-        3. "quantity" must be a positive integer (1 or greater)
-        4. For "clear" action, quantity should be 0 and item can be empty""",
-
-        // Iteration 6+: Final refined prompt
-        """
-        You are a shopping basket assistant. Convert natural language instructions
-        into structured JSON operations.
-
-        RESPOND WITH ONLY THIS JSON FORMAT:
-        {
-          "operations": [
-            {"action": "add"|"remove"|"clear", "item": "product name", "quantity": N}
-          ]
-        }
-
-        STRICT RULES:
-        1. action: ONLY "add", "remove", or "clear" (lowercase, no variations)
-        2. item: product name as a non-empty string
-        3. quantity: positive integer ≥ 1 (except "clear" which uses 0)
-        4. NO explanations, NO markdown, NO extra fields
-
-        Example: "Add 2 apples" → {"operations": [{"action": "add", "item": "apples", "quantity": 2}]}"""
-    };
+    /**
+     * Creates a mutator with a specific strategy.
+     *
+     * @param strategy the mutation strategy to use
+     */
+    public ShoppingBasketPromptMutator(PromptMutationStrategy strategy) {
+        this.strategy = strategy;
+    }
 
     @Override
     public String mutate(String currentPrompt, OptimizeHistory history) throws MutationException {
-        // iterationCount() returns the number of completed iterations.
-        // After iteration 0 (weak prompt), we want PROMPT_PROGRESSION[0] for iteration 1.
-        // So the index is iterationCount - 1.
-        int index = history.iterationCount() - 1;
-
-        // Return the next prompt in the progression
-        if (index >= 0 && index < PROMPT_PROGRESSION.length) {
-            return PROMPT_PROGRESSION[index];
-        }
-
-        // Beyond our progression - return the final refined prompt
-        return PROMPT_PROGRESSION[PROMPT_PROGRESSION.length - 1];
+        return strategy.mutate(currentPrompt, history);
     }
 
     @Override
     public String description() {
-        return "Progressive prompt refinement - systematically adds structure, constraints, and examples";
+        return strategy.description();
     }
 
     @Override

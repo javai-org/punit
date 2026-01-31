@@ -39,11 +39,11 @@ import java.util.Random;
  * <pre>{@code
  * ChatLlm llm = MockChatLlm.instance();
  *
- * // Simple usage
- * String response = llm.chat(systemPrompt, userMessage, 0.3);
+ * // Simple usage - model parameter is accepted but ignored
+ * String response = llm.chat(systemPrompt, userMessage, "gpt-4o-mini", 0.3);
  *
  * // With token tracking
- * ChatResponse resp = llm.chatWithMetadata(systemPrompt, userMessage, 0.3);
+ * ChatResponse resp = llm.chatWithMetadata(systemPrompt, userMessage, "gpt-4o-mini", 0.3);
  * int tokens = resp.totalTokens();
  *
  * // Check cumulative usage
@@ -100,12 +100,14 @@ public final class MockChatLlm implements ChatLlm {
     }
 
     @Override
-    public String chat(String systemMessage, String userMessage, double temperature) {
-        return chatWithMetadata(systemMessage, userMessage, temperature).content();
+    public String chat(String systemMessage, String userMessage, String model, double temperature) {
+        return chatWithMetadata(systemMessage, userMessage, model, temperature).content();
     }
 
     @Override
-    public ChatResponse chatWithMetadata(String systemMessage, String userMessage, double temperature) {
+    public ChatResponse chatWithMetadata(String systemMessage, String userMessage, String model, double temperature) {
+        // Note: model parameter is accepted for interface compatibility but ignored.
+        // Mock behavior is determined solely by temperature and prompt content.
         // Analyze what the prompt specifies - this determines response quality
         PromptRequirements requirements = analyzePromptRequirements(systemMessage);
 

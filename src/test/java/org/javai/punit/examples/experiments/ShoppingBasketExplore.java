@@ -132,15 +132,17 @@ public class ShoppingBasketExplore {
     /**
      * Models to compare.
      *
-     * <p>In a real application, replace these with actual model identifiers.
+     * <p>These are actual model identifiers recognized by the routing LLM.
+     * In mock mode, any model name works. In real mode, these route to
+     * the appropriate provider (OpenAI or Anthropic).
      */
     public static Stream<FactorArguments> modelConfigurations() {
         return FactorArguments.configurations()
                 .names("model")
                 .values("gpt-4o-mini")
                 .values("gpt-4o")
-                .values("claude-3-5-haiku")
-                .values("claude-3-5-sonnet")
+//                .values("claude-3-5-haiku-20241022")
+//                .values("claude-3-5-sonnet-20241022")
                 .stream();
     }
 
@@ -162,13 +164,13 @@ public class ShoppingBasketExplore {
                 .values("gpt-4o", 0.5)
                 .values("gpt-4o", 1.0)
                 // Claude Haiku across temperatures
-                .values("claude-3-5-haiku", 0.0)
-                .values("claude-3-5-haiku", 0.5)
-                .values("claude-3-5-haiku", 1.0)
-                // Claude Sonnet across temperatures
-                .values("claude-3-5-sonnet", 0.0)
-                .values("claude-3-5-sonnet", 0.5)
-                .values("claude-3-5-sonnet", 1.0)
+//                .values("claude-3-5-haiku-20241022", 0.0)
+//                .values("claude-3-5-haiku-20241022", 0.5)
+//                .values("claude-3-5-haiku-20241022", 1.0)
+//                // Claude Sonnet across temperatures
+//                .values("claude-3-5-sonnet-20241022", 0.0)
+//                .values("claude-3-5-sonnet-20241022", 0.5)
+//                .values("claude-3-5-sonnet-20241022", 1.0)
                 .stream();
     }
 }

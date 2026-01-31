@@ -14,8 +14,8 @@ import org.javai.punit.api.UseCase;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.examples.infrastructure.llm.ChatLlm;
+import org.javai.punit.examples.infrastructure.llm.ChatLlmProvider;
 import org.javai.punit.examples.infrastructure.llm.ChatResponse;
-import org.javai.punit.examples.infrastructure.llm.MockChatLlm;
 
 /**
  * Use case for translating natural language shopping instructions to structured actions.
@@ -72,7 +72,7 @@ public class ShoppingBasketUseCase {
     /**
      * Input parameters for the translation service.
      */
-    private record ServiceInput(String systemPrompt, String instruction, double temperature) {}
+    private record ServiceInput(String systemPrompt, String instruction, String model, double temperature) {}
 
     /**
      * The service contract defining postconditions for translation results.
@@ -100,7 +100,7 @@ public class ShoppingBasketUseCase {
                     .build();
 
     private final ChatLlm llm;
-    private String model = "mock-llm";
+    private String model = "gpt-4o-mini";
     private double temperature = 0.3;
     private String systemPrompt = """
             You are a shopping assistant that converts natural language instructions into JSON actions.
@@ -124,10 +124,12 @@ public class ShoppingBasketUseCase {
             """;
 
     /**
-     * Creates a use case with the default mock LLM.
+     * Creates a use case with the LLM resolved from configuration.
+     *
+     * @see ChatLlmProvider#resolve()
      */
     public ShoppingBasketUseCase() {
-        this(MockChatLlm.instance());
+        this(ChatLlmProvider.resolve());
     }
 
     /**
@@ -208,7 +210,7 @@ public class ShoppingBasketUseCase {
     public UseCaseOutcome<ChatResponse> translateInstruction(String instruction) {
         return UseCaseOutcome
                 .withContract(CONTRACT)
-                .input(new ServiceInput(systemPrompt, instruction, temperature))
+                .input(new ServiceInput(systemPrompt, instruction, model, temperature))
                 .execute(this::executeTranslation)
                 .withResult((response, meta) -> meta
                         .meta("tokensUsed", response.totalTokens())
@@ -224,6 +226,7 @@ public class ShoppingBasketUseCase {
         return llm.chatWithMetadata(
                 input.systemPrompt(),
                 input.instruction(),
+                input.model(),
                 input.temperature()
         );
     }

@@ -194,9 +194,10 @@ class ArchitectureTest {
                     .withImportOption(ImportOption.Predefined.ONLY_INCLUDE_TESTS)
                     .importPackages("org.javai.punit.examples");
 
-            // Check classes ending with "Test"
+            // Check classes ending with "Test" (except infrastructure tests which are real unit tests)
             ArchRule testRule = classes()
                     .that().resideInAnyPackage("org.javai.punit.examples..")
+                    .and().resideOutsideOfPackage("org.javai.punit.examples.infrastructure..")
                     .and().areTopLevelClasses()
                     .and().haveSimpleNameEndingWith("Test")
                     .should().beAnnotatedWith(org.junit.jupiter.api.Disabled.class)

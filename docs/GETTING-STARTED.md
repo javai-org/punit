@@ -220,6 +220,41 @@ Experimentation and testing are two halves of the same workflow. Specs bridge th
 
 ---
 
+## Running with Real LLMs
+
+By default, PUnit examples use mock LLMs for fast, free, deterministic results. To run experiments with actual LLM providers:
+
+### Configuration
+
+```bash
+# Enable real mode
+export PUNIT_LLM_MODE=real
+
+# Provide API keys for the providers you'll use
+export OPENAI_API_KEY=sk-...           # For gpt-* models
+export ANTHROPIC_API_KEY=sk-ant-...    # For claude-* models
+
+# Run experiments
+./gradlew exp -Prun=ShoppingBasketExplore.compareModels
+```
+
+### Model Routing
+
+In real mode, the model name determines which provider handles the request:
+
+| Model Pattern | Provider | Examples |
+|---------------|----------|----------|
+| `gpt-*`, `o1-*`, `o3-*` | OpenAI | `gpt-4o-mini`, `gpt-4o`, `o1-preview` |
+| `claude-*` | Anthropic | `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022` |
+
+### Cost Awareness
+
+> **Warning**: Real LLM APIs cost money. A MEASURE experiment with 1000 samples can cost several dollars. Start with mock mode or small sample sizes to verify your setup before running large experiments.
+>
+> Use `tokenBudget` or `timeBudgetMs` constraints to cap costs.
+
+---
+
 ## Next Steps
 
 | Document                                          | Description                                                     |

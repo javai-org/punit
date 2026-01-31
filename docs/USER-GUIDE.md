@@ -356,6 +356,30 @@ All experiments use the unified `exp` Gradle task:
 
 Experiments are `@Disabled` by default to prevent accidental execution during normal test runs. The `exp` task deactivates this condition.
 
+**Running with real LLMs:**
+
+By default, experiments use mock LLMs for fast, free, deterministic results. To run with real LLM providers, set the mode and provide API keys:
+
+```bash
+export PUNIT_LLM_MODE=real
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+./gradlew exp -Prun=ShoppingBasketExplore.compareModels
+```
+
+See [Appendix A: Configuration Reference](#a-configuration-reference) for all LLM configuration options.
+
+> **Cost Warning**: Running experiments with real LLMs incurs API costs. A typical EXPLORE experiment with 4 models × 20 samples = 80 API calls. A MEASURE experiment with 1000 samples can cost several dollars depending on the model. Approximate costs per 1M tokens (as of Jan 2025):
+>
+> | Model | Input | Output |
+> |-------|-------|--------|
+> | `gpt-4o-mini` | $0.15 | $0.60 |
+> | `gpt-4o` | $2.50 | $10.00 |
+> | `claude-3-5-haiku-20241022` | $0.25 | $1.25 |
+> | `claude-3-5-sonnet-20241022` | $3.00 | $15.00 |
+>
+> Use budget constraints (`tokenBudget`, `timeBudgetMs`) to cap costs. Start with mock mode or small sample sizes to verify your experiment works before running with real APIs.
+
 ### EXPLORE: Compare Configurations
 
 **When to use EXPLORE:**
@@ -1099,6 +1123,48 @@ PUnit configuration follows this resolution order: System property → Environme
 | `punit.stats.transparent`      | `PUNIT_STATS_TRANSPARENT`       | Enable transparent statistics |
 | `punit.specs.outputDir`        | `PUNIT_SPECS_OUTPUT_DIR`        | Spec output directory         |
 | `punit.explorations.outputDir` | `PUNIT_EXPLORATIONS_OUTPUT_DIR` | Exploration output directory  |
+
+#### LLM Provider Configuration
+
+The example infrastructure supports switching between mock and real LLM providers. This is useful for running experiments with actual LLM APIs.
+
+| Property                      | Environment Variable   | Default                        | Description                             |
+|-------------------------------|------------------------|--------------------------------|-----------------------------------------|
+| `punit.llm.mode`              | `PUNIT_LLM_MODE`       | `mock`                         | Mode: `mock` or `real`                  |
+| `punit.llm.openai.key`        | `OPENAI_API_KEY`       | —                              | OpenAI API key (required for OpenAI models) |
+| `punit.llm.anthropic.key`     | `ANTHROPIC_API_KEY`    | —                              | Anthropic API key (required for Anthropic models) |
+| `punit.llm.openai.baseUrl`    | `OPENAI_BASE_URL`      | `https://api.openai.com/v1`    | OpenAI API base URL                     |
+| `punit.llm.anthropic.baseUrl` | `ANTHROPIC_BASE_URL`   | `https://api.anthropic.com/v1` | Anthropic API base URL                  |
+| `punit.llm.timeout`           | `PUNIT_LLM_TIMEOUT`    | `30000`                        | Request timeout in milliseconds         |
+| `punit.llm.mutation.model`    | `PUNIT_LLM_MUTATION_MODEL` | `gpt-4o-mini`              | Model used for LLM-powered prompt mutations |
+
+**Mode switching:**
+
+- **`mock`** (default) — Uses `MockChatLlm` which returns deterministic responses. No API keys required. Safe for CI.
+- **`real`** — Uses `RoutingChatLlm` which routes to the appropriate provider based on the model name specified in each call.
+
+**Model → Provider routing:**
+
+In `real` mode, the model name determines which provider handles the request:
+
+| Model Pattern | Provider | Examples |
+|---------------|----------|----------|
+| `gpt-*`, `o1-*`, `o3-*`, `text-*`, `davinci*` | OpenAI | `gpt-4o`, `gpt-4o-mini`, `o1-preview` |
+| `claude-*` | Anthropic | `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022` |
+
+**Example: Running experiments with real LLMs:**
+
+```bash
+# Set mode and API keys
+export PUNIT_LLM_MODE=real
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Run experiments - model names in factor providers determine which APIs are called
+./gradlew exp -Prun=ShoppingBasketExplore.compareModels
+```
+
+You only need API keys for the providers you're actually using. If your experiment only uses OpenAI models, you don't need an Anthropic API key.
 
 ### B: Experiment Output Formats
 

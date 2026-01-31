@@ -7,8 +7,14 @@ package org.javai.punit.examples.infrastructure.llm;
  * <ul>
  *   <li>A system message establishes context and instructions</li>
  *   <li>A user message provides the specific request</li>
+ *   <li>A model identifier specifies which LLM to use</li>
  *   <li>Temperature controls response variability</li>
  * </ul>
+ *
+ * <h2>Model Parameter</h2>
+ * <p>The model is passed explicitly in each call, making each invocation
+ * self-contained. This enables experiments that explore multiple models
+ * from different providers in a single run.
  *
  * <h2>Token Tracking</h2>
  * <p>The interface supports token usage tracking, which is essential for:
@@ -33,15 +39,16 @@ public interface ChatLlm {
      * Sends a chat request to the LLM and returns the response.
      *
      * <p>This is the simple form that returns just the response text.
-     * Use {@link #chatWithMetadata(String, String, double)} if you need
+     * Use {@link #chatWithMetadata(String, String, String, double)} if you need
      * token usage information for the individual call.
      *
      * @param systemMessage the system prompt establishing context and instructions
      * @param userMessage the user's request
+     * @param model the model identifier (e.g., "gpt-4o-mini", "claude-3-5-haiku-20241022")
      * @param temperature controls randomness (0.0 = deterministic, 1.0 = creative)
      * @return the LLM's response as a string
      */
-    String chat(String systemMessage, String userMessage, double temperature);
+    String chat(String systemMessage, String userMessage, String model, double temperature);
 
     /**
      * Sends a chat request and returns both the response and metadata.
@@ -57,10 +64,11 @@ public interface ChatLlm {
      *
      * @param systemMessage the system prompt establishing context and instructions
      * @param userMessage the user's request
+     * @param model the model identifier (e.g., "gpt-4o-mini", "claude-3-5-haiku-20241022")
      * @param temperature controls randomness (0.0 = deterministic, 1.0 = creative)
      * @return the response with metadata including token usage
      */
-    ChatResponse chatWithMetadata(String systemMessage, String userMessage, double temperature);
+    ChatResponse chatWithMetadata(String systemMessage, String userMessage, String model, double temperature);
 
     /**
      * Returns the total number of tokens used across all calls since the last reset.
