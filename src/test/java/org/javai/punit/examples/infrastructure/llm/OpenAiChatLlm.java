@@ -2,15 +2,19 @@ package org.javai.punit.examples.infrastructure.llm;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.javai.outcome.Failure;
+import org.javai.outcome.FailureId;
+import org.javai.outcome.Outcome;
+import org.javai.outcome.boundary.Boundary;
+import org.javai.outcome.retry.Retrier;
+import org.javai.outcome.retry.RetryPolicy;
 
 /**
  * OpenAI Chat Completions API implementation.
@@ -41,13 +45,15 @@ public final class OpenAiChatLlm implements ChatLlm {
     private static final String[] MODEL_PREFIXES = {"gpt-", "o1-", "o3-", "text-", "davinci"};
 
     private static final int MAX_RETRY_ATTEMPTS = 3;
-    private static final long INITIAL_RETRY_DELAY_MS = 500;
-    private static final double BACKOFF_MULTIPLIER = 2.0;
+    private static final Duration INITIAL_RETRY_DELAY = Duration.ofMillis(500);
+    private static final Duration MAX_RETRY_DELAY = Duration.ofSeconds(5);
 
     private final String apiKey;
     private final String baseUrl;
     private final HttpClient httpClient;
     private final Duration timeout;
+    private final Boundary boundary;
+    private final Retrier retrier;
     private long totalTokensUsed;
 
     /**
@@ -87,6 +93,10 @@ public final class OpenAiChatLlm implements ChatLlm {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(timeout)
                 .build();
+        this.boundary = Boundary.of(new HttpFailureClassifier(), logReporter());
+        this.retrier = Retrier.builder()
+                .policy(RetryPolicy.exponentialBackoff(MAX_RETRY_ATTEMPTS, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY))
+                .build();
         this.totalTokensUsed = 0;
     }
 
@@ -98,7 +108,18 @@ public final class OpenAiChatLlm implements ChatLlm {
     @Override
     public ChatResponse chatWithMetadata(String systemMessage, String userMessage, String model, double temperature) {
         HttpRequest request = buildRequest(systemMessage, userMessage, model, temperature);
-        return executeWithRetry(request, model);
+
+        Outcome<ChatResponse> result = retrier.execute(
+                () -> executeRequest(request, model)
+        );
+
+        return switch (result) {
+            case Outcome.Ok<ChatResponse> ok -> ok.value();
+            case Outcome.Fail<ChatResponse> fail -> throw new LlmApiException(
+                    "OpenAI API call failed: " + fail.failure().message(),
+                    fail.failure().exception()
+            );
+        };
     }
 
     @Override
@@ -140,62 +161,59 @@ public final class OpenAiChatLlm implements ChatLlm {
         );
     }
 
-    private ChatResponse executeWithRetry(HttpRequest request, String model) {
-        LlmApiException lastException = null;
-        long delayMs = INITIAL_RETRY_DELAY_MS;
+    private Outcome<ChatResponse> executeRequest(HttpRequest request, String model) {
+        // Use Boundary to execute the HTTP call, converting exceptions to Outcome.Fail
+        Outcome<HttpResponse<String>> httpResult = boundary.call(
+                "OpenAI.chat.completions",
+                () -> httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        );
 
-        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
-            try {
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                return handleResponse(response, model);
-            } catch (HttpTimeoutException e) {
-                lastException = new LlmApiException("Request timed out after " + timeout.toMillis() + "ms", e);
-                LOG.log(Level.WARNING, "Attempt {0}/{1} timed out, retrying...",
-                        new Object[]{attempt, MAX_RETRY_ATTEMPTS});
-            } catch (IOException e) {
-                lastException = new LlmApiException("Network error: " + e.getMessage(), e);
-                LOG.log(Level.WARNING, "Attempt {0}/{1} failed with network error, retrying...",
-                        new Object[]{attempt, MAX_RETRY_ATTEMPTS});
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new LlmApiException("Request interrupted", e);
-            } catch (LlmApiException e) {
-                if (!e.isTransient()) {
-                    throw e; // Don't retry permanent errors
-                }
-                lastException = e;
-                LOG.log(Level.WARNING, "Attempt {0}/{1} failed with transient error (HTTP {2}), retrying...",
-                        new Object[]{attempt, MAX_RETRY_ATTEMPTS, e.getStatusCode()});
-            }
-
-            // Wait before retry (except on last attempt)
-            if (attempt < MAX_RETRY_ATTEMPTS) {
-                try {
-                    Thread.sleep(delayMs);
-                    delayMs = (long) (delayMs * BACKOFF_MULTIPLIER);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new LlmApiException("Retry interrupted", e);
-                }
-            }
-        }
-
-        throw lastException;
+        // Chain the response handling
+        return httpResult.flatMap(response -> handleResponse(response, model));
     }
 
-    private ChatResponse handleResponse(HttpResponse<String> response, String model) {
+    private Outcome<ChatResponse> handleResponse(HttpResponse<String> response, String model) {
         int statusCode = response.statusCode();
         String body = response.body();
 
-        if (statusCode != 200) {
-            throw new LlmApiException("OpenAI API error", statusCode, body);
+        if (statusCode == 200) {
+            try {
+                return Outcome.ok(parseResponse(body, model));
+            } catch (Exception e) {
+                return Outcome.fail(Failure.permanentFailure(
+                        FailureId.of("llm", "parse_error"),
+                        "Failed to parse OpenAI response: " + e.getMessage(),
+                        "OpenAI.chat.completions",
+                        e
+                ));
+            }
         }
 
-        try {
-            return parseResponse(body, model);
-        } catch (Exception e) {
-            throw new LlmApiException("Failed to parse OpenAI response: " + e.getMessage(), e);
+        // Classify HTTP errors as transient or permanent
+        return Outcome.fail(classifyHttpError(statusCode, body));
+    }
+
+    private Failure classifyHttpError(int statusCode, String body) {
+        String truncatedBody = body.length() > 200 ? body.substring(0, 200) + "..." : body;
+        String message = "OpenAI API error [HTTP " + statusCode + "]: " + truncatedBody;
+
+        // Rate limits and server errors are transient (retriable)
+        if (statusCode == 429 || statusCode >= 500) {
+            return Failure.transientFailure(
+                    FailureId.of("llm", "http_" + statusCode),
+                    message,
+                    "OpenAI.chat.completions",
+                    null
+            );
         }
+
+        // Client errors (400, 401, 403, 404) are permanent
+        return Failure.permanentFailure(
+                FailureId.of("llm", "http_" + statusCode),
+                message,
+                "OpenAI.chat.completions",
+                null
+        );
     }
 
     private ChatResponse parseResponse(String json, String model) throws Exception {
@@ -231,6 +249,14 @@ public final class OpenAiChatLlm implements ChatLlm {
             case "o1-preview" -> (promptTokens * 15.00 + completionTokens * 60.00) / 1_000_000;
             case "o1-mini" -> (promptTokens * 3.00 + completionTokens * 12.00) / 1_000_000;
             default -> (promptTokens * 1.00 + completionTokens * 2.00) / 1_000_000; // Conservative estimate
+        };
+    }
+
+    private static org.javai.outcome.ops.OpReporter logReporter() {
+        return failure -> {
+            if (LOG.isLoggable(Level.WARNING)) {
+                LOG.log(Level.WARNING, "LLM API failure: {0}", failure.message());
+            }
         };
     }
 
