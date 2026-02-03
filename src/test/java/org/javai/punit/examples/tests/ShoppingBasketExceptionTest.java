@@ -8,7 +8,7 @@ import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.TestTemplate;
+
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
@@ -78,7 +78,7 @@ public class ShoppingBasketExceptionTest {
      * @param useCase the use case instance
      * @param instruction the instruction to process
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = ShoppingBasketUseCase.class,
             samples = 100,
@@ -106,7 +106,7 @@ public class ShoppingBasketExceptionTest {
      * @param useCase the use case instance
      * @param instruction the instruction to process
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = ShoppingBasketUseCase.class,
             samples = 100,
@@ -137,7 +137,7 @@ public class ShoppingBasketExceptionTest {
      * @param useCase the use case instance
      * @param instruction the instruction to process
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = ShoppingBasketUseCase.class,
             samples = 100,
@@ -165,7 +165,7 @@ public class ShoppingBasketExceptionTest {
      * @param useCase the use case instance
      * @param instruction the instruction to process
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = ShoppingBasketUseCase.class,
             samples = 100,

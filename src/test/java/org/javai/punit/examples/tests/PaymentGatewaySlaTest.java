@@ -8,7 +8,7 @@ import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.PaymentGatewayUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.TestTemplate;
+
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
@@ -93,7 +93,7 @@ public class PaymentGatewaySlaTest {
      * @param cardToken the card token
      * @param amountCents the amount to charge
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = PaymentGatewayUseCase.class,
             samples = 10000,
@@ -121,7 +121,7 @@ public class PaymentGatewaySlaTest {
      * @param cardToken the card token
      * @param amountCents the amount to charge
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = PaymentGatewayUseCase.class,
             samples = 1000,
@@ -148,7 +148,7 @@ public class PaymentGatewaySlaTest {
      * @param cardToken the card token
      * @param amountCents the amount to charge
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = PaymentGatewayUseCase.class,
             samples = 1000,
@@ -175,7 +175,7 @@ public class PaymentGatewaySlaTest {
      * @param cardToken the card token
      * @param amountCents the amount to charge
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = PaymentGatewayUseCase.class,
             samples = 5000,

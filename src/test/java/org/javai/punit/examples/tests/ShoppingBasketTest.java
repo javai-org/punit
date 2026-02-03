@@ -7,7 +7,7 @@ import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.TestTemplate;
+
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
@@ -69,7 +69,7 @@ public class ShoppingBasketTest {
      * @param useCase the use case instance (auto-wired by PUnit)
      * @param instruction the instruction to translate
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = ShoppingBasketUseCase.class,
             samples = 100
@@ -91,7 +91,7 @@ public class ShoppingBasketTest {
      * @param useCase the use case instance
      * @param instruction the instruction (always "Add 2 apples and remove the bread")
      */
-    @TestTemplate
+
     @ProbabilisticTest(
             useCase = ShoppingBasketUseCase.class,
             samples = 100

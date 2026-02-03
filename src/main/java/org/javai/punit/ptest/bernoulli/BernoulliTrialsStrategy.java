@@ -9,13 +9,12 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.api.InputSource;
-import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TokenChargeRecorder;
+import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.controls.budget.BudgetOrchestrator;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
@@ -213,28 +212,7 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
      * Finds the input parameter type from method parameters.
      */
     private Class<?> findInputParameterType(Method method) {
-        for (Parameter param : method.getParameters()) {
-            Class<?> type = param.getType();
-            if (type == OutcomeCaptor.class) {
-                continue;
-            }
-            if (param.isAnnotationPresent(Factor.class)) {
-                continue;
-            }
-            // Skip use case types - they are resolved by UseCaseProvider
-            if (type.getPackageName().contains("usecase") ||
-                type.getSimpleName().endsWith("UseCase")) {
-                continue;
-            }
-            // Skip TokenChargeRecorder
-            if (TokenChargeRecorder.class.isAssignableFrom(type)) {
-                continue;
-            }
-            return type;
-        }
-        throw new org.junit.jupiter.api.extension.ExtensionConfigurationException(
-                "@InputSource requires a method parameter to inject the input value. " +
-                "The parameter must not be OutcomeCaptor, UseCase, TokenChargeRecorder, or @Factor-annotated.");
+        return InputParameterDetector.findInputParameterType(method);
     }
 
     @Override

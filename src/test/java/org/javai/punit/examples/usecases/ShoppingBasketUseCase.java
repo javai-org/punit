@@ -1,13 +1,10 @@
 package org.javai.punit.examples.usecases;
 
-import java.util.List;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.CovariateSource;
-import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorGetter;
-import org.javai.punit.api.FactorProvider;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
@@ -106,13 +103,19 @@ public class ShoppingBasketUseCase {
     private String systemPrompt = """
             You are a shopping assistant that converts natural language instructions into JSON actions.
 
-            Respond ONLY with valid JSON in this exact format:
+            ALWAYS respond with a JSON object containing an "actions" array, even for single operations.
+
+            Format:
             {
-              "context": "SHOP",
-              "name": "<action>",
-              "parameters": [
-                {"name": "item", "value": "<item_name>"},
-                {"name": "quantity", "value": "<number>"}
+              "actions": [
+                {
+                  "context": "SHOP",
+                  "name": "<action>",
+                  "parameters": [
+                    {"name": "item", "value": "<item_name>"},
+                    {"name": "quantity", "value": "<number>"}
+                  ]
+                }
               ]
             }
 
@@ -120,8 +123,9 @@ public class ShoppingBasketUseCase {
             For "clear" actions, parameters may be empty.
 
             Examples:
-            - "Add 2 apples" -> {"context": "SHOP", "name": "add", "parameters": [{"name": "item", "value": "apple"}, {"name": "quantity", "value": "2"}]}
-            - "Clear the basket" -> {"context": "SHOP", "name": "clear", "parameters": []}
+            - "Add 2 apples" -> {"actions": [{"context": "SHOP", "name": "add", "parameters": [{"name": "item", "value": "apples"}, {"name": "quantity", "value": "2"}]}]}
+            - "Add apples and remove milk" -> {"actions": [{"context": "SHOP", "name": "add", "parameters": [{"name": "item", "value": "apples"}, {"name": "quantity", "value": "1"}]}, {"context": "SHOP", "name": "remove", "parameters": [{"name": "item", "value": "milk"}]}]}
+            - "Clear the basket" -> {"actions": [{"context": "SHOP", "name": "clear", "parameters": []}]}
             """;
 
     /**
@@ -259,51 +263,5 @@ public class ShoppingBasketUseCase {
                 input.model(),
                 input.temperature()
         );
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // FACTOR PROVIDERS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * A simple, single-item instruction.
-     */
-    @FactorProvider
-    public static List<FactorArguments> simpleBasketInstruction() {
-        return FactorArguments.configurations()
-                .names("instruction")
-                .values("Add 2 apples")
-                .stream().toList();
-    }
-
-    /**
-     * A complex, multi-operation instruction.
-     */
-    @FactorProvider
-    public static List<FactorArguments> complexBasketInstruction() {
-        return FactorArguments.configurations()
-                .names("instruction")
-                .values("Add 3 oranges and 2 bananas, then remove the milk")
-                .stream().toList();
-    }
-
-    /**
-     * A variety of instructions representing realistic production traffic.
-     */
-    @FactorProvider
-    public static List<FactorArguments> multipleBasketInstructions() {
-        return FactorArguments.configurations()
-                .names("instruction")
-                .values("Add 2 apples")
-                .values("Remove the milk")
-                .values("Add 1 loaf of bread")
-                .values("Add 3 oranges and 2 bananas")
-                .values("Add 5 tomatoes and remove the cheese")
-                .values("Clear the basket")
-                .values("Clear everything")
-                .values("Remove 2 eggs from the basket")
-                .values("Add a dozen eggs")
-                .values("I'd like to remove all the vegetables")
-                .stream().toList();
     }
 }

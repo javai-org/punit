@@ -27,20 +27,12 @@ class ShoppingActionValidator {
         static ValidationResult of(List<ShoppingAction> actions) {
             return new ValidationResult(List.copyOf(actions));
         }
-
-        static ValidationResult of(ShoppingAction action) {
-            return new ValidationResult(List.of(action));
-        }
     }
 
     /**
      * Parses and validates a chat response as shopping actions.
      *
-     * <p>Accepts either:
-     * <ul>
-     *   <li>A single action object: {@code {"context": "SHOP", "name": "add", ...}}</li>
-     *   <li>An array of actions: {@code [{"context": "SHOP", ...}, ...]}</li>
-     * </ul>
+     * <p>Expects the wrapped format: {@code {"actions": [{"context": "SHOP", ...}, ...]}}
      *
      * @param response the chat response containing JSON content
      * @return an outcome containing the validation result, or a failure with details
@@ -58,29 +50,16 @@ class ShoppingActionValidator {
             return Outcome.fail("validation", "Invalid JSON: " + e.getMessage());
         }
 
-        return parseActions(root);
-    }
-
-    private static Outcome<ValidationResult> parseActions(JsonNode root) {
-        if (root.isArray()) {
-            return parseActionArray(root);
-        } else if (root.isObject()) {
-            return parseSingleAction(root);
-        } else {
-            return Outcome.fail("validation", "Expected JSON object or array, got: " + root.getNodeType());
+        if (!root.isObject() || !root.has("actions")) {
+            return Outcome.fail("validation", "Expected JSON object with 'actions' array");
         }
-    }
 
-    private static Outcome<ValidationResult> parseSingleAction(JsonNode node) {
-        try {
-            ShoppingAction action = MAPPER.treeToValue(node, ShoppingAction.class);
-            return Outcome.ok(ValidationResult.of(action));
-        } catch (JsonProcessingException e) {
-            return Outcome.fail("validation", "Failed to parse action: " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            // Thrown by ShoppingAction compact constructor for invalid action names
-            return Outcome.fail("validation", e.getMessage());
+        JsonNode actionsNode = root.get("actions");
+        if (!actionsNode.isArray()) {
+            return Outcome.fail("validation", "Expected 'actions' to be an array");
         }
+
+        return parseActionArray(actionsNode);
     }
 
     private static Outcome<ValidationResult> parseActionArray(JsonNode arrayNode) {

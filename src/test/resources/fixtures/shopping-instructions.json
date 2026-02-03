@@ -1,0 +1,34 @@
+[
+  {
+    "instruction": "Add some apples",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"add\",\"parameters\":[{\"name\":\"item\",\"value\":\"apples\"},{\"name\":\"quantity\",\"value\":\"1\"}]}]}"
+  },
+  {
+    "instruction": "Remove the milk",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"remove\",\"parameters\":[{\"name\":\"item\",\"value\":\"milk\"}]}]}"
+  },
+  {
+    "instruction": "I need bread for sandwiches",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"add\",\"parameters\":[{\"name\":\"item\",\"value\":\"bread\"},{\"name\":\"quantity\",\"value\":\"1\"}]}]}"
+  },
+  {
+    "instruction": "Add 3 oranges and 2 bananas",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"add\",\"parameters\":[{\"name\":\"item\",\"value\":\"oranges\"},{\"name\":\"quantity\",\"value\":\"3\"}]},{\"context\":\"SHOP\",\"name\":\"add\",\"parameters\":[{\"name\":\"item\",\"value\":\"bananas\"},{\"name\":\"quantity\",\"value\":\"2\"}]}]}"
+  },
+  {
+    "instruction": "Clear the basket",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"clear\",\"parameters\":[]}]}"
+  },
+  {
+    "instruction": "Remove 2 eggs from the basket",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"remove\",\"parameters\":[{\"name\":\"item\",\"value\":\"eggs\"},{\"name\":\"quantity\",\"value\":\"2\"}]}]}"
+  },
+  {
+    "instruction": "Add a dozen eggs",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"add\",\"parameters\":[{\"name\":\"item\",\"value\":\"eggs\"},{\"name\":\"quantity\",\"value\":\"12\"}]}]}"
+  },
+  {
+    "instruction": "I'd like to remove all the vegetables",
+    "expected": "{\"actions\":[{\"context\":\"SHOP\",\"name\":\"remove\",\"parameters\":[{\"name\":\"item\",\"value\":\"vegetables\"}]}]}"
+  }
+]

@@ -5,26 +5,21 @@ import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.Input;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.examples.usecases.InputData;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
  * EXPLORE experiments for finding the best model and temperature configuration.
  *
  * <p>Before establishing a production baseline, you need to decide which LLM model
- * and temperature setting to use. These experiments help you compare options using
- * a simple instruction - just enough to see which configuration works best.
- *
- * <h2>Why Use a Simple Instruction?</h2>
- * <p>During exploration, you want to isolate the effect of model/temperature changes.
- * Using a simple instruction like "Add 2 apples" keeps the focus on configuration
- * comparison rather than instruction complexity. Once you've chosen a configuration,
- * you can measure its behavior across varied instructions.
+ * and temperature setting to use. These experiments help you compare configurations.
  *
  * <h2>Typical Workflow</h2>
  * <ol>
@@ -54,24 +49,19 @@ public class ShoppingBasketExplore {
         provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
     }
 
-    // Simple instruction used for all exploration - keeps focus on configuration comparison
-    private static final String SIMPLE_INSTRUCTION = "Add 2 apples";
+    // Representative instruction for configuration comparison
+    private static final String TEST_INSTRUCTION = "Add some apples";
 
     /**
-     * Compares different LLM models with a fixed simple instruction.
+     * Compares different LLM models.
      *
      * <p>This experiment answers: "Which model handles this task most reliably?"
-     * By keeping the instruction simple and temperature fixed (0.3), the only
-     * variable is the model itself.
-     *
-     * <p>In a real application, you would replace the mock model names with actual
-     * model identifiers like "gpt-4o", "claude-3-5-sonnet", etc.
+     * Temperature is fixed (0.1), so the only variable is the model itself.
      *
      * @param useCase the use case instance
      * @param model the model identifier to test
      * @param captor records outcomes for comparison
      */
-    @TestTemplate
     @ExploreExperiment(
             useCase = ShoppingBasketUseCase.class,
             samplesPerConfig = 20,
@@ -85,42 +75,63 @@ public class ShoppingBasketExplore {
     ) {
         useCase.setModel(model);
         useCase.setTemperature(0.1);  // Fixed temperature for fair comparison
-        captor.record(useCase.translateInstruction(SIMPLE_INSTRUCTION));
+        captor.record(useCase.translateInstruction(TEST_INSTRUCTION));
     }
 
     /**
-     * Compares models across different temperature settings.
+     * Compares temperature settings.
      *
-     * <p>This two-factor exploration reveals how each model responds to temperature
-     * changes. Some models may be more stable across temperatures than others.
-     * The instruction remains simple to isolate the model×temperature interaction.
-     *
-     * <p>Use this to answer questions like:
-     * <ul>
-     *   <li>Does model X work better at low or high temperature?</li>
-     *   <li>Which model is most stable across temperature changes?</li>
-     *   <li>Is there a clear winner for our use case?</li>
-     * </ul>
+     * <p>This experiment reveals how temperature affects reliability for
+     * structured output tasks. Lower temperatures typically improve consistency.
      *
      * @param useCase the use case instance
      * @param temperature the temperature setting
      * @param captor records outcomes
      */
-    @TestTemplate
     @ExploreExperiment(
             useCase = ShoppingBasketUseCase.class,
             samplesPerConfig = 20,
-            experimentId = "model-temperature-matrix-v1"
+            experimentId = "temperature-comparison-v1"
     )
-    @FactorSource(value = "temperatureConfigurations", factors = {"model", "temperature"})
-    void compareModelsAcrossTemperatures(
+    @FactorSource(value = "temperatureConfigurations", factors = {"temperature"})
+    void compareTemperatures(
             ShoppingBasketUseCase useCase,
             @Factor("temperature") Double temperature,
             OutcomeCaptor captor
     ) {
         useCase.setModel("gpt-4o-mini");
         useCase.setTemperature(temperature);
-        captor.record(useCase.translateInstruction(SIMPLE_INSTRUCTION));
+        captor.record(useCase.translateInstruction(TEST_INSTRUCTION));
+    }
+
+    /**
+     * Explores performance across varied inputs.
+     *
+     * <p>This experiment uses a curated set of instructions to understand how the
+     * LLM performs across different instruction types. Each input becomes a separate
+     * configuration, generating separate spec files for comparison.
+     *
+     * <p>The {@code @Input} annotation explicitly marks which parameter receives
+     * the input value, distinguishing it from the use case parameter.
+     *
+     * @param useCase the use case instance
+     * @param inputData the input data containing instruction and expected output
+     * @param captor records outcomes for comparison
+     */
+    @ExploreExperiment(
+            useCase = ShoppingBasketUseCase.class,
+            samplesPerConfig = 10,
+            experimentId = "input-exploration-v1"
+    )
+    @InputSource(file = "fixtures/shopping-instructions.json")
+    void exploreInputVariations(
+            ShoppingBasketUseCase useCase,
+            @Input InputData inputData,
+            OutcomeCaptor captor
+    ) {
+        useCase.setModel("gpt-4o-mini");
+        useCase.setTemperature(0.1);
+        captor.record(useCase.translateInstruction(inputData.instruction()));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -145,19 +156,13 @@ public class ShoppingBasketExplore {
     }
 
     /**
-     * Model × temperature combinations to explore.
-     *
-     * <p>Creates a matrix to understand how a model behaves at different
-     * temperature settings.
+     * Temperature settings to explore.
      */
     public static Stream<FactorArguments> temperatureConfigurations() {
         return FactorArguments.configurations()
                 .names("temperature")
                 .values(0.0)
-                .values(0.2)
-                .values(0.4)
-                .values(0.6)
-                .values(0.8)
+                .values(0.5)
                 .values(1.0)
                 .stream();
     }

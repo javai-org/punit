@@ -12,7 +12,10 @@
   - [Quick Start](#quick-start)
   - [Running the Examples](#running-the-examples)
 - [Part 1: The Shopping Basket Domain](#part-1-the-shopping-basket-domain)
-  - [The Use Case as a Contract](#the-use-case-as-a-contract)
+  - [Why Service Contracts?](#why-service-contracts)
+  - [The Service Contract](#the-service-contract)
+  - [The UseCaseOutcome](#the-usecaseoutcome)
+  - [Instance Conformance](#instance-conformance)
   - [Domain Overview](#domain-overview)
   - [The ShoppingBasketUseCase Implementation](#the-shoppingbasketusecase-implementation)
 - [Part 2: Compliance Testing](#part-2-compliance-testing)
@@ -29,6 +32,7 @@
   - [The Parameter Triangle](#the-parameter-triangle)
   - [Threshold Approaches (No Baseline Required)](#threshold-approaches-no-baseline-required)
   - [The UseCaseProvider Pattern](#the-usecaseprovider-pattern)
+  - [Input Sources](#input-sources)
   - [Regression Testing with Specs](#regression-testing-with-specs)
   - [Covariate-Aware Baseline Selection](#covariate-aware-baseline-selection)
   - [Understanding Test Results](#understanding-test-results)
@@ -140,40 +144,131 @@ First, comment out the @Disabled in the test class. Then...
 
 This guide uses a running example: the **ShoppingBasketUseCase**. Understanding this domain will help you apply PUnit to your own systems.
 
-### The Use Case as a Contract
+### Why Service Contracts?
 
-A use case in PUnit represents a **behavioral contract**—a formal specification of:
+In traditional Java development, **Test-Driven Development (TDD)** places validation logic inside tests. You write a test that asserts expected behavior, and the test passes or fails. This works well for deterministic systems.
 
-- **What** the system does (the operation)
-- **What success means** (postconditions/criteria)
-- **What factors affect behavior** (inputs, configuration)
-
-This follows the Design by Contract principle. Use cases define postconditions (success criteria) that must be satisfied for an invocation to be considered successful. PUnit then measures how reliably these postconditions are met.
+But with non-deterministic systems—LLMs, ML models, distributed services—this approach breaks down. Consider what happens when you test an LLM integration the traditional way:
 
 ```java
-public class ShoppingBasketUseCase {
-
-    public UseCaseOutcome translateInstruction(String instruction) {
-        // ... execute use case logic ...
-
-        UseCaseCriteria criteria = UseCaseCriteria.ordered()
-            .criterion("Valid JSON", () -> result.getBoolean("isValidJson", false))
-            .criterion("Has operations array", () -> result.getBoolean("hasOperationsArray", false))
-            .criterion("Actions are valid", () -> result.getBoolean("allActionsValid", false))
-            .build();
-
-        return new UseCaseOutcome(result, criteria);
-    }
+@Test
+void shouldReturnValidJson() {
+    String result = llmClient.translate("Add 2 apples");
+    assertThat(result).matches(JSON_PATTERN);  // Sometimes fails!
 }
 ```
 
-The criteria define what "success" means. Each invocation either satisfies all criteria (success) or fails one (failure). PUnit counts successes across many invocations to determine reliability.
+This test will fail occasionally. And what do we learn from this failure? **Nothing useful.** It merely confirms what we already know: we're dealing with non-determinism. The test teaches us nothing about the *rate* of failure or whether that rate is acceptable.
+
+The fundamental question isn't "Does it work?" but rather **"How often does it work, and is that often enough?"**
+
+To answer this question, we need validation logic that is **non-judgmental**—logic that observes and records outcomes without immediately passing or failing. This is where the `ServiceContract` comes in.
+
+**The key insight**: We must separate the *specification of correctness* from the *judgment of acceptability*.
+
+- The **ServiceContract** defines what "correct" means—the postconditions that should hold
+- **Experiments** use this contract to *measure* how often it's satisfied
+- **Tests** use the same contract to *verify* the measured rate meets a threshold
+
+Using the same validation logic for both measurement and testing isn't just convenient—it's **essential**. To measure one thing and then test another would be nonsensical. If your experiment measures "valid JSON with correct fields" but your test checks "non-empty response," you've learned nothing about whether your system meets its actual requirements.
+
+This is why PUnit encourages declaring a `ServiceContract` for non-deterministic use cases from the outset. One might call it **Contract-Driven Development**.
+
+For deterministic services, this approach adds an artifact without much value—traditional tests work fine. But when dealing with non-deterministic behavior that must be measured over time, the service contract is **non-negotiable**. It's the only way to get from "the test failed" to "the system fails 3% of the time, which is within our 5% tolerance."
+
+### The Service Contract
+
+At the heart of every PUnit use case is a **ServiceContract**—a formal specification of what the service must do. The contract defines postconditions that must be satisfied for an invocation to be considered successful.
+
+Here's the contract from `ShoppingBasketUseCase`, defined at the top of the class:
+
+```java
+private static final ServiceContract<ServiceInput, ChatResponse> CONTRACT =
+        ServiceContract.<ServiceInput, ChatResponse>define()
+                .ensure("Response has content", response ->
+                        response.content() != null && !response.content().isBlank()
+                                ? Outcome.ok()
+                                : Outcome.fail("check", "content was null or blank"))
+                .derive("Valid shopping action", ShoppingActionValidator::validate)
+                .ensure("Contains valid actions", result -> {
+                    if (result.actions().isEmpty()) {
+                        return Outcome.fail("check", "No actions in result");
+                    }
+                    for (ShoppingAction action : result.actions()) {
+                        if (!action.context().isValidAction(action.name())) {
+                            return Outcome.fail("check",
+                                    "Invalid action '%s' for context %s"
+                                            .formatted(action.name(), action.context()));
+                        }
+                    }
+                    return Outcome.ok();
+                })
+                .build();
+```
+
+The contract has two types of clauses:
+
+- **`ensure`** — A postcondition that must hold. Returns `Outcome.ok()` on success or `Outcome.fail(...)` with a reason.
+- **`derive`** — Transforms the result (e.g., parsing JSON into domain objects) and can define nested postconditions on the derived value.
+
+Postconditions are evaluated in order. If any fails, subsequent ones are skipped. This creates a **fail-fast hierarchy**:
+
+1. "Response has content" — Is there a response at all?
+2. "Valid shopping action" — Can it be parsed into domain objects?
+3. "Contains valid actions" — Are the parsed actions semantically valid?
+
+### The UseCaseOutcome
+
+The `UseCaseOutcome` is a statement detailing how well a service performed against the postconditions defined in its contract. It captures the result, evaluates each postcondition, and records what passed, what failed, and why.
+
+```java
+public UseCaseOutcome<ChatResponse> translateInstruction(String instruction) {
+    ChatResponse response = llm.chat(systemPrompt, instruction, model, temperature);
+
+    return UseCaseOutcome
+            .withContract(CONTRACT)
+            .input(new ServiceInput(systemPrompt, instruction, model, temperature))
+            .execute(() -> response)
+            .build();
+}
+```
+
+This single artifact serves both experiments and tests:
+
+**In experiments**, the outcome is used to:
+- Create **diffable documents** comparing configurations (EXPLORE)
+- Provide the **basis for optimization runs** where the mutator learns from failures (OPTIMIZE)
+- Establish **baseline specifications** that later power probabilistic tests (MEASURE)
+
+**In probabilistic tests**, the outcome is used in the simplest way possible: to assert that the contract's postconditions were met, and to fail the sample if they were not. PUnit then counts successes across many samples to determine whether the observed rate meets the required threshold.
+
+### Instance Conformance
+
+Beyond postconditions, use cases can validate against **expected values**—specific instances the result should match. This enables golden dataset testing:
+
+```java
+public UseCaseOutcome<ChatResponse> translateInstruction(String instruction, String expectedJson) {
+    ChatResponse response = llm.chat(systemPrompt, instruction, model, temperature);
+
+    return UseCaseOutcome
+            .withContract(CONTRACT)
+            .input(new ServiceInput(systemPrompt, instruction, model, temperature))
+            .execute(() -> response)
+            .expecting(expectedJson, ChatResponse::content, JsonMatcher.semanticEquality())
+            .build();
+}
+```
+
+The outcome tracks both dimensions:
+- `allPostconditionsSatisfied()` — Did the result meet all contract postconditions?
+- `matchesExpected()` — Did the result match the expected value?
+- `fullySatisfied()` — Both of the above
 
 Note a key difference between an experiment and a test: An experiment *observes* how a use case's result compares to the contract, while a test *checks* that the result meets the contract (and signals a fail if it does not). 
 
 ### Domain Overview
 
-The ShoppingBasketUseCase translates natural language shopping instructions into structured JSON operations:
+The ShoppingBasketUseCase translates natural language shopping instructions into structured JSON actions:
 
 **Input:**
 ```
@@ -183,9 +278,22 @@ The ShoppingBasketUseCase translates natural language shopping instructions into
 **Expected Output:**
 ```json
 {
-  "operations": [
-    {"action": "add", "item": "apples", "quantity": 2},
-    {"action": "remove", "item": "bread", "quantity": 1}
+  "actions": [
+    {
+      "context": "SHOP",
+      "name": "add",
+      "parameters": [
+        {"name": "item", "value": "apples"},
+        {"name": "quantity", "value": "2"}
+      ]
+    },
+    {
+      "context": "SHOP",
+      "name": "remove",
+      "parameters": [
+        {"name": "item", "value": "bread"}
+      ]
+    }
   ]
 }
 ```
@@ -195,15 +303,14 @@ This task is inherently non-deterministic because it relies on an LLM. The model
 - Return invalid JSON
 - Omit required fields
 - Invent invalid actions like "purchase" instead of "add"
-- Use zero or negative quantities
+- Use the wrong context or misspell action names
 
 The success criteria hierarchy catches these failures in order:
 
 1. Valid JSON (parseable)
-2. Has "operations" array
-3. Each operation has required fields (action, item, quantity)
-4. Actions are valid ("add", "remove", "clear")
-5. Quantities are positive integers
+2. Has "actions" array with at least one action
+3. Each action has context, name, and parameters
+4. Actions are valid for the given context ("add", "remove", "clear" for SHOP)
 
 ### The ShoppingBasketUseCase Implementation
 
@@ -211,7 +318,7 @@ The full implementation demonstrates key PUnit concepts:
 
 ```java
 @UseCase(
-    description = "Translate natural language shopping instructions to JSON basket operations",
+    description = "Translate natural language shopping instructions to structured actions",
     covariates = {StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIME_OF_DAY},
     categorizedCovariates = {
         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
@@ -401,7 +508,7 @@ See [Appendix A: Configuration Reference](#a-configuration-reference) for all LL
 void compareModels(
     ShoppingBasketUseCase useCase,
     @Factor("model") String model,
-    ResultCaptor captor
+    OutcomeCaptor captor
 ) {
     useCase.setModel(model);
     useCase.setTemperature(0.3);  // Fixed for fair comparison
@@ -433,7 +540,7 @@ void compareModelsAcrossTemperatures(
     ShoppingBasketUseCase useCase,
     @Factor("model") String model,
     @Factor("temperature") Double temperature,
-    ResultCaptor captor
+    OutcomeCaptor captor
 ) {
     useCase.setModel(model);
     useCase.setTemperature(temperature);
@@ -498,7 +605,7 @@ OPTIMIZE iteratively refines a **control factor** through mutation and evaluatio
 void optimizeTemperature(
     ShoppingBasketUseCase useCase,
     @ControlFactor("temperature") Double temperature,
-    ResultCaptor captor
+    OutcomeCaptor captor
 ) {
     captor.record(useCase.translateInstruction("Add 2 apples and remove the bread"));
 }
@@ -519,23 +626,26 @@ static Double naiveStartingTemperature() {
     scorer = ShoppingBasketSuccessRateScorer.class,
     mutator = ShoppingBasketPromptMutator.class,
     objective = OptimizationObjective.MAXIMIZE,
-    samplesPerIteration = 5,
     maxIterations = 10,
     noImprovementWindow = 3,
     experimentId = "prompt-optimization-v1"
 )
+@InputSource(file = "golden/shopping-instructions.json")
 void optimizeSystemPrompt(
     ShoppingBasketUseCase useCase,
     @ControlFactor("systemPrompt") String systemPrompt,
-    ResultCaptor captor
+    TranslationInput input,
+    OutcomeCaptor captor
 ) {
-    captor.record(useCase.translateInstruction("Add 2 apples and remove the bread"));
+    captor.record(useCase.translateInstruction(input.instruction(), input.expected()));
 }
 
 static String weakStartingPrompt() {
     return "You are a shopping assistant. Convert requests to JSON.";
 }
 ```
+
+**Note:** When using `@InputSource`, each optimization iteration tests the control factor against ALL inputs in the source. Don't specify `samplesPerIteration` when using `@InputSource`—the effective samples per iteration equals the number of inputs.
 
 **Scorers and Mutators:**
 
@@ -567,28 +677,66 @@ The output file contains the optimized configuration as well as the history of i
 - You're preparing to commit a spec to version control
 
 A MEASURE experiment typically runs many samples (1000+ recommended) to establish precise statistics.
-**Example:**
+
+**Example with `@InputSource`:**
 
 ```java
 @TestTemplate
 @MeasureExperiment(
     useCase = ShoppingBasketUseCase.class,
-    samples = 1000,
     experimentId = "baseline-v1"
 )
-@FactorSource(value = "multipleBasketInstructions", factors = {"instruction"})
+@InputSource("basketInstructions")
 void measureBaseline(
     ShoppingBasketUseCase useCase,
-    @Factor("instruction") String instruction,
-    ResultCaptor captor
+    String instruction,
+    OutcomeCaptor captor
 ) {
     captor.record(useCase.translateInstruction(instruction));
 }
+
+static Stream<String> basketInstructions() {
+    return Stream.of(
+        "Add 2 apples",
+        "Remove the milk",
+        "Clear the basket"
+    );
+}
 ```
 
-**Factor Cycling:**
+**Using File-Based Input with Expected Values (Golden Dataset):**
 
-When a factor source returns multiple values, MEASURE cycles through them:
+For instance conformance testing, use a JSON file with expected values:
+
+```java
+record TranslationInput(String instruction, String expected) {}
+
+@TestTemplate
+@MeasureExperiment(
+    useCase = ShoppingBasketUseCase.class,
+    experimentId = "baseline-golden-v1"
+)
+@InputSource(file = "golden/shopping-instructions.json")
+void measureBaselineWithGolden(
+    ShoppingBasketUseCase useCase,
+    TranslationInput input,
+    OutcomeCaptor captor
+) {
+    captor.record(useCase.translateInstruction(input.instruction(), input.expected()));
+}
+```
+
+The JSON file contains an array of input objects:
+```json
+[
+  {"instruction": "Add 2 apples", "expected": "{\"context\":\"SHOP\",\"name\":\"add\",...}"},
+  {"instruction": "Clear the basket", "expected": "{\"context\":\"SHOP\",\"name\":\"clear\",...}"}
+]
+```
+
+**Input Cycling:**
+
+Samples are distributed evenly across inputs. With 1000 samples and 10 inputs:
 
 ```
 Sample 1    → "Add 2 apples"
@@ -596,12 +744,11 @@ Sample 2    → "Remove the milk"
 ...
 Sample 10   → "Clear the basket"
 Sample 11   → "Add 2 apples"  (cycles back)
-Sample 12   → "Remove the milk"
 ...
 Sample 1000 → (100th cycle completes)
 ```
 
-With 1000 samples and 10 instructions, each instruction is tested exactly 100 times.
+Each instruction is tested exactly 100 times.
 
 **Output:**
 
@@ -739,6 +886,59 @@ public class ShoppingBasketTest {
 }
 ```
 
+### Input Sources
+
+The `@InputSource` annotation provides test inputs for experiments and probabilistic tests. Inputs are cycled across samples, ensuring coverage of the input space.
+
+**Method Source:**
+
+```java
+@ProbabilisticTest(samples = 100)
+@InputSource("testInstructions")
+void myTest(ShoppingBasketUseCase useCase, String instruction) {
+    useCase.translateInstruction(instruction).assertAll();
+}
+
+static Stream<String> testInstructions() {
+    return Stream.of("Add milk", "Remove bread", "Clear cart");
+}
+```
+
+**File Source (JSON):**
+
+```java
+record TestInput(String instruction, String expected) {}
+
+@ProbabilisticTest(samples = 100)
+@InputSource(file = "golden/inputs.json")
+void myTest(ShoppingBasketUseCase useCase, TestInput input) {
+    useCase.translateInstruction(input.instruction(), input.expected()).assertAll();
+}
+```
+
+The JSON file contains an array matching the record structure:
+```json
+[
+  {"instruction": "Add 2 apples", "expected": "{...}"},
+  {"instruction": "Clear the basket", "expected": "{...}"}
+]
+```
+
+**Sample Distribution:**
+
+Samples are distributed evenly across inputs:
+- 100 samples with 10 inputs = 10 samples per input
+- Each input is tested the same number of times (remainders go to early inputs)
+
+**Choosing Method vs File Source:**
+
+| Use Case | Recommendation |
+|----------|----------------|
+| Simple string inputs | Method source (inline, version-controlled) |
+| Golden dataset with expected values | File source (easier to maintain, share) |
+| Generated/computed inputs | Method source (programmatic) |
+| Large input sets | File source (cleaner code) |
+
 ### Regression Testing with Specs
 
 Once you understand the parameter triangle, you can let **specs** provide **`minPassRate`**. The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives `minPassRate` from this baseline. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
@@ -778,12 +978,20 @@ extendedStatistics:
     useCase = ShoppingBasketUseCase.class,
     samples = 100
 )
-@FactorSource(value = "multipleBasketInstructions", factors = {"instruction"})
+@InputSource("standardInstructions")
 void testInstructionTranslation(
     ShoppingBasketUseCase useCase,
-    @Factor("instruction") String instruction
+    String instruction
 ) {
     useCase.translateInstruction(instruction).assertAll();
+}
+
+static Stream<String> standardInstructions() {
+    return Stream.of(
+        "Add 2 apples",
+        "Remove the milk",
+        "Clear the basket"
+    );
 }
 ```
 
@@ -1123,6 +1331,7 @@ PUnit configuration follows this resolution order: System property → Environme
 | `punit.stats.transparent`      | `PUNIT_STATS_TRANSPARENT`       | Enable transparent statistics |
 | `punit.specs.outputDir`        | `PUNIT_SPECS_OUTPUT_DIR`        | Spec output directory         |
 | `punit.explorations.outputDir` | `PUNIT_EXPLORATIONS_OUTPUT_DIR` | Exploration output directory  |
+| `punit.optimizations.outputDir`| `PUNIT_OPTIMIZATIONS_OUTPUT_DIR`| Optimization output directory |
 
 #### LLM Provider Configuration
 
@@ -1275,6 +1484,8 @@ bestIteration:
 | **confidence**          | Probability of a correct verdict; equals 1 minus the false positive rate. Part of the parameter triangle.  |
 | **Covariate**           | Environmental factor that may affect system behavior                                                       |
 | **Factor**              | Input or configuration that varies across test executions                                                  |
+| **Instance conformance**| Validation that actual results match expected values (golden dataset testing)                              |
+| **InputSource**         | Annotation providing test inputs from a method or file, distributed across samples                         |
 | **minDetectableEffect** | Smallest drop from baseline worth detecting; required for Confidence-First approach to compute sample size |
 | **minPassRate**         | The threshold pass rate the system must meet to pass the test. Part of the parameter triangle.             |
 | **power**               | Probability of catching a real degradation; equals 1 minus the false negative rate                         |

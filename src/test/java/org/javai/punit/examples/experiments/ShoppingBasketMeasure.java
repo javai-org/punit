@@ -8,7 +8,6 @@ import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
@@ -88,7 +87,6 @@ public class ShoppingBasketMeasure {
      * @param instruction the instruction (cycles through 10 variations)
      * @param captor records outcomes for aggregation
      */
-    @TestTemplate
     @MeasureExperiment(
             useCase = ShoppingBasketUseCase.class,
             experimentId = "baseline-v1"
@@ -117,7 +115,6 @@ public class ShoppingBasketMeasure {
      * @param input the input with instruction and expected response
      * @param captor records outcomes for aggregation
      */
-    @TestTemplate
     @MeasureExperiment(
             useCase = ShoppingBasketUseCase.class,
             experimentId = "baseline-with-golden-v1"

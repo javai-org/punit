@@ -1,5 +1,8 @@
 package org.javai.punit.experiment.engine.input;
 
+import java.lang.reflect.Parameter;
+
+import org.javai.punit.api.Input;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
@@ -10,13 +13,15 @@ import org.junit.jupiter.api.extension.ParameterResolver;
  *
  * <p>Resolves parameters that:
  * <ul>
- *   <li>Match the expected input type</li>
- *   <li>Are not OutcomeCaptor (handled by {@code CaptorParameterResolver})</li>
- *   <li>Are not annotated with @Factor (handled by {@code FactorParameterResolver})</li>
+ *   <li>Are annotated with @Input (explicit marking)</li>
+ *   <li>Or match the expected input type and are valid input candidates</li>
  * </ul>
  *
  * <p>This resolver is used when a method is annotated with {@code @InputSource}
  * to inject the current input value for each invocation.
+ *
+ * @see Input
+ * @see InputParameterDetector
  */
 public class InputParameterResolver implements ParameterResolver {
 
@@ -35,16 +40,16 @@ public class InputParameterResolver implements ParameterResolver {
     public boolean supportsParameter(ParameterContext parameterContext,
                                      ExtensionContext extensionContext)
             throws ParameterResolutionException {
-        Class<?> paramType = parameterContext.getParameter().getType();
+        Parameter param = parameterContext.getParameter();
+        Class<?> paramType = param.getType();
 
-        // Skip OutcomeCaptor - handled by CaptorParameterResolver
-        if (paramType.getName().equals("org.javai.punit.api.OutcomeCaptor")) {
-            return false;
+        // Explicit @Input annotation always matches if type is compatible
+        if (param.isAnnotationPresent(Input.class)) {
+            return paramType.isAssignableFrom(inputType);
         }
 
-        // Skip @Factor-annotated parameters - handled by FactorParameterResolver
-        if (parameterContext.getParameter().isAnnotationPresent(
-                org.javai.punit.api.Factor.class)) {
+        // Check if this is a valid input parameter candidate
+        if (!InputParameterDetector.isInputParameterCandidate(param, paramType)) {
             return false;
         }
 

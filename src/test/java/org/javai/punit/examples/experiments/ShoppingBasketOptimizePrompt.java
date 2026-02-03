@@ -10,7 +10,6 @@ import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.javai.punit.experiment.optimize.OptimizationObjective;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
@@ -124,7 +123,6 @@ public class ShoppingBasketOptimizePrompt {
      * @param input the test input with instruction and expected response
      * @param captor records outcomes for scoring
      */
-    @TestTemplate
     @OptimizeExperiment(
             useCase = ShoppingBasketUseCase.class,
             controlFactor = "systemPrompt",

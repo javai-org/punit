@@ -236,18 +236,18 @@ public final class MockChatLlm implements ChatLlm {
         boolean deviateSchema = random.nextDouble() < deviationChance;
 
         if (deviateSchema) {
-            // Generate old-style schema (wrong format)
+            // Generate wrong schema (missing actions wrapper or wrong structure)
             response.append(String.format("{\"operations\": [{\"action\": \"%s\", ", actionValue));
             response.append(String.format("\"item\": \"%s\", ", item));
             response.append(String.format("\"quantity\": %s}]}", quantityValue));
         } else {
-            // Generate correct ShoppingAction schema
-            response.append("{\"context\": \"SHOP\", ");
+            // Generate correct ShoppingResponse schema with actions wrapper
+            response.append("{\"actions\": [{\"context\": \"SHOP\", ");
             response.append(String.format("\"name\": \"%s\", ", actionValue));
             response.append("\"parameters\": [");
             response.append(String.format("{\"name\": \"item\", \"value\": \"%s\"}, ", item));
             response.append(String.format("{\"name\": \"quantity\", \"value\": \"%s\"}", quantityValue));
-            response.append("]}");
+            response.append("]}]}");
         }
 
         // Additional chance of malformed JSON at high temperature
