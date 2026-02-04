@@ -52,7 +52,11 @@
       "Bash(claude whoami:*)",
       "Bash(claude config list:*)",
       "WebSearch",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(open https://github.com/javai-org/punit/pull/33)",
+      "Bash(python3:*)",
+      "Bash(git merge:*)",
+      "Bash(git branch:*)"
     ]
   }
 }

@@ -10,5 +10,5 @@ package org.javai.punit.examples.usecases;
  * @param instruction the natural language instruction
  * @param expected the expected JSON response
  */
-public record InputData(String instruction, String expected) {
+public record ShoppingInstructionInput(String instruction, String expected) {
 }

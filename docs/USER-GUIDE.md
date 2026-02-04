@@ -8,7 +8,7 @@
 
 - [Introduction](#introduction)
   - [What is PUnit?](#what-is-punit)
-  - [Two Testing Scenarios: Compliance and Regression](#two-testing-scenarios-compliance-and-regression)
+  - [Two Testing Scenarios: Compliance and Conformance](#two-testing-scenarios-compliance-and-conformance)
   - [Quick Start](#quick-start)
   - [Running the Examples](#running-the-examples)
 - [Part 1: The Shopping Basket Domain](#part-1-the-shopping-basket-domain)
@@ -33,7 +33,7 @@
   - [Threshold Approaches (No Baseline Required)](#threshold-approaches-no-baseline-required)
   - [The UseCaseProvider Pattern](#the-usecaseprovider-pattern)
   - [Input Sources](#input-sources)
-  - [Regression Testing with Specs](#regression-testing-with-specs)
+  - [Conformance Testing with Specs](#conformance-testing-with-specs)
   - [Covariate-Aware Baseline Selection](#covariate-aware-baseline-selection)
   - [Understanding Test Results](#understanding-test-results)
 - [Part 5: Resource Management](#part-5-resource-management)
@@ -66,14 +66,14 @@ Traditional unit tests expect deterministic behavior—call a function, assert t
 
 PUnit runs tests multiple times and determines pass/fail based on **statistical thresholds** rather than binary success/failure. Instead of asking "Did it work?" PUnit asks "Does it work reliably enough?"
 
-### Two Testing Scenarios: Compliance and Regression
+### Two Testing Scenarios: Compliance and Conformance
 
 PUnit supports two distinct testing scenarios. These are not alternative approaches—they address different situations:
 
-| Scenario | Question | Threshold Source |
-|----------|----------|------------------|
-| **Compliance Testing** | Does the service meet a mandated standard? | SLA, SLO, or policy (prescribed) |
-| **Regression Testing** | Has performance dropped below baseline? | Empirical measurement (discovered) |
+| Scenario                | Question                                   | Threshold Source                   |
+|-------------------------|--------------------------------------------|------------------------------------|
+| **Compliance Testing**  | Does the service meet a mandated standard? | SLA, SLO, or policy (prescribed)   |
+| **Conformance Testing** | Has performance dropped below baseline?    | Empirical measurement (discovered) |
 
 **Compliance Testing**: You have an external mandate—a contractual SLA, an internal SLO, or a quality policy—that defines the required success rate. You verify the system meets it.
 
@@ -82,7 +82,7 @@ PUnit supports two distinct testing scenarios. These are not alternative approac
     → Run samples, verify compliance with the mandate
 ```
 
-**Regression Testing**: No external mandate exists. You measure the system's actual behavior to establish a baseline, then detect when performance degrades from that baseline.
+**Conformance Testing**: No external mandate exists. You measure the system's actual behavior to establish a baseline, then detect when performance regresses from that baseline.
 
 ```
 "What success rate should we expect from our LLM integration?"
@@ -403,7 +403,7 @@ The `thresholdOrigin` attribute documents where the threshold came from:
 | `SLA`       | External Service Level Agreement with customer         |
 | `SLO`       | Internal Service Level Objective                       |
 | `POLICY`    | Compliance or organizational policy                    |
-| `EMPIRICAL` | Derived from baseline measurement (regression testing) |
+| `EMPIRICAL` | Derived from baseline measurement (conformance testing) |
 
 This information appears in the verdict output, providing an audit trail:
 
@@ -441,7 +441,7 @@ The experimentation workflow:
 ```
 EXPLORE → OPTIMIZE → MEASURE → TEST
    |          |          |        |
-Compare    Tune one   Establish  Regression
+Compare    Tune one   Establish  Conformance
 configs    factor     baseline   testing
 ```
 
@@ -952,9 +952,9 @@ Samples are distributed evenly across inputs:
 | Generated/computed inputs | Method source (programmatic) |
 | Large input sets | File source (cleaner code) |
 
-### Regression Testing with Specs
+### Conformance Testing with Specs
 
-Once you understand the parameter triangle, you can let **specs** provide **`minPassRate`**. The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives `minPassRate` from this baseline. This enables **regression testing**—detecting when performance drops below an empirically established baseline.
+Once you understand the parameter triangle, you can let **specs** provide **`minPassRate`**. The spec contains the empirical success rate from a prior MEASURE experiment; PUnit derives `minPassRate` from this baseline. This enables **conformance testing**—detecting when performance regresses below an empirically established baseline.
 
 **A spec is more than a number.** It's a complete record of:
 
@@ -979,10 +979,10 @@ extendedStatistics:
   confidenceInterval: { lower: 0.919, upper: 0.949 }
 ```
 
-**When to use regression testing:**
+**When to use conformance testing:**
 
 - No external mandate defines the threshold—you need to discover what "normal" is
-- You want to detect degradation from established performance
+- You want to detect regression from established performance
 - The system evolves and you need to catch regressions early
 
 ```java
@@ -1502,7 +1502,7 @@ bestIteration:
 | **minDetectableEffect** | Smallest drop from baseline worth detecting; required for Confidence-First approach to compute sample size |
 | **minPassRate**         | The threshold pass rate the system must meet to pass the test. Part of the parameter triangle.             |
 | **power**               | Probability of catching a real degradation; equals 1 minus the false negative rate                         |
-| **Regression testing**  | Detecting when performance drops below an established baseline                                             |
+| **Conformance testing** | Detecting when performance regresses below an established baseline                                         |
 | **Sample**              | A single execution of the system under test                                                                |
 | **samples**             | Number of test executions; controls cost and time. Part of the parameter triangle.                         |
 | **Spec**                | YAML file containing baseline measurements and metadata                                                    |

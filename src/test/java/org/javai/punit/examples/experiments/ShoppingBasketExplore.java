@@ -9,7 +9,7 @@ import org.javai.punit.api.Input;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.examples.usecases.InputData;
+import org.javai.punit.examples.usecases.ShoppingInstructionInput;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -79,32 +79,6 @@ public class ShoppingBasketExplore {
     }
 
     /**
-     * Compares temperature settings.
-     *
-     * <p>This experiment reveals how temperature affects reliability for
-     * structured output tasks. Lower temperatures typically improve consistency.
-     *
-     * @param useCase the use case instance
-     * @param temperature the temperature setting
-     * @param captor records outcomes
-     */
-    @ExploreExperiment(
-            useCase = ShoppingBasketUseCase.class,
-            samplesPerConfig = 20,
-            experimentId = "temperature-comparison-v1"
-    )
-    @FactorSource(value = "temperatureConfigurations", factors = {"temperature"})
-    void compareTemperatures(
-            ShoppingBasketUseCase useCase,
-            @Factor("temperature") Double temperature,
-            OutcomeCaptor captor
-    ) {
-        useCase.setModel("gpt-4o-mini");
-        useCase.setTemperature(temperature);
-        captor.record(useCase.translateInstruction(TEST_INSTRUCTION));
-    }
-
-    /**
      * Explores performance across varied inputs.
      *
      * <p>This experiment uses a curated set of instructions to understand how the
@@ -126,7 +100,7 @@ public class ShoppingBasketExplore {
     @InputSource(file = "fixtures/shopping-instructions.json")
     void exploreInputVariations(
             ShoppingBasketUseCase useCase,
-            @Input InputData inputData,
+            @Input ShoppingInstructionInput inputData,
             OutcomeCaptor captor
     ) {
         useCase.setModel("gpt-4o-mini");
@@ -152,18 +126,6 @@ public class ShoppingBasketExplore {
                 .values("gpt-4o")
                 .values("claude-haiku-4-5-20251001")
                 .values("claude-sonnet-4-5-20250929")
-                .stream();
-    }
-
-    /**
-     * Temperature settings to explore.
-     */
-    public static Stream<FactorArguments> temperatureConfigurations() {
-        return FactorArguments.configurations()
-                .names("temperature")
-                .values(0.0)
-                .values(0.5)
-                .values(1.0)
                 .stream();
     }
 }
