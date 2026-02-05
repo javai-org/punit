@@ -1,5 +1,6 @@
 package org.javai.punit.examples.usecases;
 
+import java.time.Duration;
 import java.util.List;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorProvider;
@@ -18,15 +19,17 @@ import org.javai.punit.examples.infrastructure.payment.PaymentResult;
  * where thresholds come from contractual agreements rather than empirical baselines.
  *
  * <h2>SLA Context</h2>
- * <p>Payment gateways typically have contractual SLAs specifying availability targets.
- * For example:
+ * <p>Payment gateways typically have contractual SLAs specifying both availability
+ * and response time targets. For example:
  * <ul>
  *   <li>"Payment Provider SLA v2.3, Section 4.1: 99.99% availability"</li>
+ *   <li>"Payment Provider SLA v2.3, Section 4.2: Transactions complete within 1 second"</li>
  * </ul>
  *
  * <p>Unlike the shopping basket use case (where we discover acceptable failure rates
- * through measurement), here we <b>know</b> the acceptable failure rate upfront from
- * the contract. Tests verify that the gateway meets its contractual obligations.
+ * through measurement), here we <b>know</b> the acceptable thresholds upfront from
+ * the contract. Tests verify that the gateway meets its contractual obligations
+ * for both correctness and timing.
  *
  * @see org.javai.punit.examples.tests.PaymentGatewaySlaTest
  */
@@ -42,15 +45,21 @@ public class PaymentGatewayUseCase {
     private record PaymentInput(String cardToken, long amountCents) {}
 
     /**
-     * The service contract defining postconditions for payment results.
+     * The service contract defining requirements for payment results.
      *
-     * <p>This contract defines a single postcondition: the transaction must succeed.
-     * For SLA testing, the pass rate threshold comes from the contractual agreement
-     * rather than empirical baseline measurement.
+     * <p>This contract defines two requirements from the SLA:
+     * <ul>
+     *   <li>The transaction must succeed (correctness)</li>
+     *   <li>The transaction must complete within 1 second (timing)</li>
+     * </ul>
+     *
+     * <p>Both dimensions are evaluated independently — a slow success and a fast
+     * failure are different kinds of SLA violations.
      */
     private static final ServiceContract<PaymentInput, PaymentResult> CONTRACT =
             ServiceContract.<PaymentInput, PaymentResult>define()
                     .ensure("Transaction succeeded", pr -> pr.success() ? Outcome.ok() : Outcome.fail("check","transaction failed: " + pr.errorCode()))
+                    .ensureDurationBelow("SLA", Duration.ofSeconds(1))
                     .build();
 
     private final PaymentGateway gateway;
