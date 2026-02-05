@@ -1,8 +1,10 @@
 package org.javai.punit.contract;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import org.javai.outcome.Outcome;
 
@@ -44,12 +46,15 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
 
     private final List<Postcondition<R>> postconditions;
     private final List<Derivation<R, ?>> derivations;
+    private final DurationConstraint durationConstraint;
 
     private ServiceContract(
             List<Postcondition<R>> postconditions,
-            List<Derivation<R, ?>> derivations) {
+            List<Derivation<R, ?>> derivations,
+            DurationConstraint durationConstraint) {
         this.postconditions = List.copyOf(postconditions);
         this.derivations = List.copyOf(derivations);
+        this.durationConstraint = durationConstraint;
     }
 
     /**
@@ -71,6 +76,18 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
      */
     public List<Derivation<R, ?>> derivations() {
         return derivations;
+    }
+
+    /**
+     * Returns the duration constraint, if any.
+     *
+     * <p>Duration constraints are evaluated independently from postconditions,
+     * providing a parallel dimension of success/failure for timing requirements.
+     *
+     * @return the duration constraint, or empty if none specified
+     */
+    public Optional<DurationConstraint> durationConstraint() {
+        return Optional.ofNullable(durationConstraint);
     }
 
     /**
@@ -150,6 +167,7 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
 
         private final List<Postcondition<R>> postconditions = new ArrayList<>();
         private final List<Derivation<R, ?>> derivations = new ArrayList<>();
+        private DurationConstraint durationConstraint;
 
         private ContractBuilder() {
         }
@@ -197,12 +215,54 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
         }
 
         /**
+         * Adds a duration constraint to the contract.
+         *
+         * <p>The constraint is evaluated independently from postconditions.
+         * Both dimensions (correctness and timing) are always reported,
+         * regardless of whether one or both fail.
+         *
+         * <p>Example:
+         * <pre>{@code
+         * ServiceContract.<Input, Response>define()
+         *     .ensure("Response has content", ...)
+         *     .ensureDurationBelow(Duration.ofMillis(500))
+         *     .build();
+         * }</pre>
+         *
+         * @param maxDuration the maximum allowed execution duration
+         * @return this builder
+         * @throws NullPointerException if maxDuration is null
+         * @throws IllegalArgumentException if maxDuration is not positive
+         */
+        public ContractBuilder<I, R> ensureDurationBelow(Duration maxDuration) {
+            this.durationConstraint = DurationConstraint.of(maxDuration);
+            return this;
+        }
+
+        /**
+         * Adds a duration constraint with a custom description.
+         *
+         * <p>The constraint is evaluated independently from postconditions.
+         * Both dimensions (correctness and timing) are always reported.
+         *
+         * @param description the constraint description
+         * @param maxDuration the maximum allowed execution duration
+         * @return this builder
+         * @throws NullPointerException if description or maxDuration is null
+         * @throws IllegalArgumentException if maxDuration is not positive
+         */
+        public ContractBuilder<I, R> ensureDurationBelow(String description, Duration maxDuration) {
+            this.durationConstraint = DurationConstraint.of(description, maxDuration);
+            return this;
+        }
+
+        /**
          * Builds the service contract.
          *
          * @return the immutable service contract
          */
         public ServiceContract<I, R> build() {
-            return new ServiceContract<>(postconditions, derivations);
+            return new ServiceContract<>(postconditions, derivations, durationConstraint);
         }
 
         void addDerivation(Derivation<R, ?> derivation) {
@@ -265,6 +325,33 @@ public final class ServiceContract<I, R> implements PostconditionEvaluator<R> {
         public <D2> DerivingBuilder<I, R, D2> derive(String description, Function<R, Outcome<D2>> function) {
             finalizeCurrent();
             return parent.derive(description, function);
+        }
+
+        /**
+         * Adds a duration constraint to the contract.
+         *
+         * <p>Finalizes the current derivation and adds the duration constraint.
+         *
+         * @param maxDuration the maximum allowed execution duration
+         * @return the parent contract builder
+         */
+        public ContractBuilder<I, R> ensureDurationBelow(Duration maxDuration) {
+            finalizeCurrent();
+            return parent.ensureDurationBelow(maxDuration);
+        }
+
+        /**
+         * Adds a duration constraint with a custom description.
+         *
+         * <p>Finalizes the current derivation and adds the duration constraint.
+         *
+         * @param description the constraint description
+         * @param maxDuration the maximum allowed execution duration
+         * @return the parent contract builder
+         */
+        public ContractBuilder<I, R> ensureDurationBelow(String description, Duration maxDuration) {
+            finalizeCurrent();
+            return parent.ensureDurationBelow(description, maxDuration);
         }
 
         /**

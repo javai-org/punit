@@ -49,6 +49,7 @@ class ResultProjectionBuilderTest {
             Map.of(),
             alwaysPassing(),
             null,
+            null,
             null
         );
     }
@@ -152,6 +153,7 @@ class ResultProjectionBuilderTest {
                 Instant.now(),
                 Map.of(),
                 alwaysPassing(),
+                null,
                 null,
                 null
             );
@@ -350,6 +352,7 @@ class ResultProjectionBuilderTest {
                 Map.of(),
                 alwaysPassing(),
                 null,
+                null,
                 null
             );
 
@@ -389,6 +392,7 @@ class ResultProjectionBuilderTest {
                 Map.of(),
                 evaluator,
                 null,
+                null,
                 null
             );
 
@@ -425,6 +429,7 @@ class ResultProjectionBuilderTest {
                 Instant.now(),
                 Map.of(),
                 evaluator,
+                null,
                 null,
                 null
             );

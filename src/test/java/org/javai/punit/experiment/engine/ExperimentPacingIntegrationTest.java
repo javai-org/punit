@@ -162,6 +162,7 @@ class ExperimentPacingIntegrationTest {
                 Map.of(),
                 SIMPLE_CONTRACT,
                 null,
+                null,
                 null
         );
     }

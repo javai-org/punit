@@ -33,6 +33,7 @@ class OptimizationOrchestratorTest {
                 Map.of("tokensUsed", 100L),
                 new TestPostconditionEvaluator(success),
                 null,
+                null,
                 null
         );
     }

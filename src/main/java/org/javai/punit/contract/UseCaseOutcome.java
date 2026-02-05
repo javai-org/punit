@@ -18,13 +18,14 @@ import org.javai.punit.contract.match.VerificationMatcher.MatchResult;
 /**
  * The outcome of a use case execution, containing the result, timing, and postcondition evaluation.
  *
- * <p>A {@code UseCaOutseOutcome} captures:
+ * <p>A {@code UseCaseOutcome} captures:
  * <ul>
  *   <li>The raw result from the service</li>
  *   <li>Execution time (automatically captured)</li>
  *   <li>Arbitrary metadata (e.g., token counts)</li>
  *   <li>Lazy postcondition evaluation</li>
  *   <li>Optional expected value matching (instance conformance)</li>
+ *   <li>Optional duration constraint evaluation (timing conformance)</li>
  * </ul>
  *
  * <h2>Usage</h2>
@@ -61,10 +62,12 @@ import org.javai.punit.contract.match.VerificationMatcher.MatchResult;
  * @param postconditionEvaluator evaluates postconditions against the result
  * @param expectedValue the expected value for instance conformance (nullable)
  * @param matchResult the result of matching expected vs actual (nullable)
+ * @param durationResult the result of duration constraint evaluation (nullable)
  * @param <R> the result type
  * @see ServiceContract
  * @see PostconditionEvaluator
  * @see VerificationMatcher
+ * @see DurationConstraint
  */
 public record UseCaseOutcome<R>(
         R result,
@@ -73,7 +76,8 @@ public record UseCaseOutcome<R>(
         Map<String, Object> metadata,
         PostconditionEvaluator<R> postconditionEvaluator,
         Object expectedValue,
-        MatchResult matchResult
+        MatchResult matchResult,
+        DurationResult durationResult
 ) {
 
     /**
@@ -142,18 +146,48 @@ public record UseCaseOutcome<R>(
     }
 
     /**
+     * Returns whether a duration constraint was specified.
+     *
+     * @return true if a duration constraint was evaluated
+     */
+    public boolean hasDurationConstraint() {
+        return durationResult != null;
+    }
+
+    /**
+     * Returns the duration result as an optional.
+     *
+     * @return the duration result, or empty if no constraint was specified
+     */
+    public Optional<DurationResult> getDurationResult() {
+        return Optional.ofNullable(durationResult);
+    }
+
+    /**
+     * Returns whether execution completed within the duration limit.
+     *
+     * <p>If no duration constraint was specified, returns true (no constraint = trivially satisfied).
+     *
+     * @return true if no constraint exists or if execution was within the limit
+     */
+    public boolean withinDurationLimit() {
+        return durationResult == null || durationResult.passed();
+    }
+
+    /**
      * Returns whether this outcome is fully satisfied.
      *
      * <p>An outcome is fully satisfied when:
      * <ul>
      *   <li>All postconditions pass (behavioral conformance)</li>
      *   <li>The expected value matches, if specified (instance conformance)</li>
+     *   <li>Execution completed within the duration limit, if specified (timing conformance)</li>
      * </ul>
      *
-     * @return true if all postconditions pass and the expected value matches (if any)
+     * @return true if all criteria are met
      */
     public boolean fullySatisfied() {
-        return allPostconditionsSatisfied() && matchesExpected();
+        return allPostconditionsSatisfied() && matchesExpected() && withinDurationLimit();
     }
 
     /**
@@ -166,43 +200,51 @@ public record UseCaseOutcome<R>(
     }
 
     /**
-     * Asserts that all postconditions pass.
+     * Asserts that all contract criteria pass.
      *
-     * <p>All postconditions are evaluated and any failures are accumulated.
-     * If any postconditions fail, an {@link AssertionError} is thrown with
-     * messages describing all failed postconditions.
+     * <p>All postconditions and duration constraints are evaluated and any
+     * failures are accumulated. If any criteria fail, an {@link AssertionError}
+     * is thrown with messages describing all failures.
      *
-     * @throws AssertionError if any postcondition fails
+     * @throws AssertionError if any postcondition or duration constraint fails
      */
     public void assertAll() {
-        List<String> failures = evaluatePostconditions().stream()
+        List<String> failures = new java.util.ArrayList<>(evaluatePostconditions().stream()
                 .filter(PostconditionResult::failed)
                 .map(PostconditionResult::failureMessage)
-                .toList();
+                .toList());
+
+        if (durationResult != null && durationResult.failed()) {
+            failures.add(durationResult.failureMessage());
+        }
 
         if (!failures.isEmpty()) {
-            throw new AssertionError("Postconditions failed:\n  - " + String.join("\n  - ", failures));
+            throw new AssertionError("Contract violations:\n  - " + String.join("\n  - ", failures));
         }
     }
 
     /**
-     * Asserts that all postconditions pass, throwing a custom message on failure.
+     * Asserts that all contract criteria pass, throwing a custom message on failure.
      *
-     * <p>All postconditions are evaluated and any failures are accumulated.
-     * If any postconditions fail, an {@link AssertionError} is thrown with
-     * the context message and descriptions of all failed postconditions.
+     * <p>All postconditions and duration constraints are evaluated and any
+     * failures are accumulated. If any criteria fail, an {@link AssertionError}
+     * is thrown with the context message and descriptions of all failures.
      *
      * @param contextMessage additional context for the error message
-     * @throws AssertionError if any postcondition fails
+     * @throws AssertionError if any postcondition or duration constraint fails
      */
     public void assertAll(String contextMessage) {
-        List<String> failures = evaluatePostconditions().stream()
+        List<String> failures = new java.util.ArrayList<>(evaluatePostconditions().stream()
                 .filter(PostconditionResult::failed)
                 .map(PostconditionResult::failureMessage)
-                .toList();
+                .toList());
+
+        if (durationResult != null && durationResult.failed()) {
+            failures.add(durationResult.failureMessage());
+        }
 
         if (!failures.isEmpty()) {
-            throw new AssertionError(contextMessage + " - Postconditions failed:\n  - " + String.join("\n  - ", failures));
+            throw new AssertionError(contextMessage + " - Contract violations:\n  - " + String.join("\n  - ", failures));
         }
     }
 
@@ -337,7 +379,7 @@ public record UseCaseOutcome<R>(
      */
     public static final class MetadataBuilder<R> {
 
-        private final PostconditionEvaluator<R> evaluator;
+        private final ServiceContract<?, R> contract;
         private final R result;
         private final Duration executionTime;
         private final Instant timestamp;
@@ -345,8 +387,8 @@ public record UseCaseOutcome<R>(
         private Object expectedValue;
         private MatchResult matchResult;
 
-        private MetadataBuilder(PostconditionEvaluator<R> evaluator, R result, Duration executionTime, Instant timestamp) {
-            this.evaluator = evaluator;
+        private MetadataBuilder(ServiceContract<?, R> contract, R result, Duration executionTime, Instant timestamp) {
+            this.contract = contract;
             this.result = result;
             this.executionTime = executionTime;
             this.timestamp = timestamp;
@@ -451,7 +493,13 @@ public record UseCaseOutcome<R>(
          * @return the immutable outcome
          */
         public UseCaseOutcome<R> build() {
-            return new UseCaseOutcome<>(result, executionTime, timestamp, metadata, evaluator, expectedValue, matchResult);
+            DurationResult durationResult = contract.durationConstraint()
+                    .map(constraint -> constraint.evaluate(executionTime))
+                    .orElse(null);
+
+            return new UseCaseOutcome<>(
+                    result, executionTime, timestamp, metadata,
+                    contract, expectedValue, matchResult, durationResult);
         }
     }
 }

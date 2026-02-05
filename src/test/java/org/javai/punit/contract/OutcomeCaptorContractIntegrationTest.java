@@ -43,6 +43,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Map.of("tokensUsed", 42),
                     contract,
                     null,
+                    null,
                     null
             );
 
@@ -68,6 +69,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null
             );
@@ -98,6 +100,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Map.of(),
                     contract,
                     null,
+                    null,
                     null
             );
 
@@ -119,6 +122,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of("tokensUsed", 150, "model", "gpt-4"),
                     contract,
+                    null,
                     null,
                     null
             );
@@ -142,6 +146,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null
             );
@@ -167,6 +172,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null
             );
@@ -200,6 +206,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Map.of(),
                     contract1,
                     null,
+                    null,
                     null
             );
 
@@ -209,6 +216,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract2,
+                    null,
                     null,
                     null
             );
@@ -236,6 +244,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null
             );
@@ -274,6 +283,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Map.of(),
                     contract,
                     null,
+                    null,
                     null
             );
 
@@ -307,6 +317,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null
             );

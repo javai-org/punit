@@ -16,6 +16,7 @@
   - [The Service Contract](#the-service-contract)
   - [The UseCaseOutcome](#the-usecaseoutcome)
   - [Instance Conformance](#instance-conformance)
+  - [Duration Constraints](#duration-constraints)
   - [Domain Overview](#domain-overview)
   - [The ShoppingBasketUseCase Implementation](#the-shoppingbasketusecase-implementation)
 - [Part 2: Compliance Testing](#part-2-compliance-testing)
@@ -206,12 +207,13 @@ private static final ServiceContract<ServiceInput, ChatResponse> CONTRACT =
                 .build();
 ```
 
-The contract has two types of clauses:
+The contract has three types of clauses:
 
 - **`ensure`** — A postcondition that must hold. Returns `Outcome.ok()` on success or `Outcome.fail(...)` with a reason.
 - **`derive`** — Transforms the result (e.g., parsing JSON into domain objects) and can define nested postconditions on the derived value.
+- **`ensureDurationBelow`** — A timing constraint specifying the maximum allowed execution duration.
 
-Postconditions are evaluated in order. If any fails, subsequent ones are skipped. This creates a **fail-fast hierarchy**:
+Postconditions (`ensure` and `derive`) are evaluated in order. If any fails, subsequent ones are skipped. This creates a **fail-fast hierarchy**:
 
 1. "Response has content" — Is there a response at all?
 2. "Valid shopping action" — Can it be parsed into domain objects?
@@ -259,12 +261,39 @@ public UseCaseOutcome<ChatResponse> translateInstruction(String instruction, Str
 }
 ```
 
-The outcome tracks both dimensions:
+The outcome tracks multiple dimensions:
 - `allPostconditionsSatisfied()` — Did the result meet all contract postconditions?
 - `matchesExpected()` — Did the result match the expected value?
-- `fullySatisfied()` — Both of the above
+- `withinDurationLimit()` — Did execution complete within the time constraint?
+- `fullySatisfied()` — All of the above
 
-Note a key difference between an experiment and a test: An experiment *observes* how a use case's result compares to the contract, while a test *checks* that the result meets the contract (and signals a fail if it does not). 
+Note a key difference between an experiment and a test: An experiment *observes* how a use case's result compares to the contract, while a test *checks* that the result meets the contract (and signals a fail if it does not).
+
+### Duration Constraints
+
+Contracts can include timing requirements via `ensureDurationBelow`. Unlike postconditions, duration constraints are evaluated **independently**—you always learn both "was it correct?" and "was it fast enough?" regardless of which (if either) fails.
+
+```java
+private static final ServiceContract<ServiceInput, ChatResponse> CONTRACT =
+        ServiceContract.<ServiceInput, ChatResponse>define()
+                .ensure("Response has content", response -> ...)
+                .derive("Valid JSON", JsonParser::parse)
+                    .ensure("Has required fields", json -> ...)
+                .ensureDurationBelow(Duration.ofMillis(500))
+                .build();
+```
+
+This independence is deliberate. A slow-but-correct response and a fast-but-wrong response fail for different reasons—diagnostics should show both dimensions:
+
+```
+Sample 47: FAIL
+  ✓ Response has content
+  ✓ Valid JSON
+  ✓ Has required fields
+  ✗ Duration: 847ms exceeded limit of 500ms
+```
+
+Duration constraints are useful when response time is part of the service contract (SLAs, user experience requirements) and you want timing tracked alongside correctness through experiments and tests.
 
 ### Domain Overview
 
@@ -945,12 +974,12 @@ Samples are distributed evenly across inputs:
 
 **Choosing Method vs File Source:**
 
-| Use Case | Recommendation |
-|----------|----------------|
-| Simple string inputs | Method source (inline, version-controlled) |
-| Dataset with expected values | File source (easier to maintain, share) |
-| Generated/computed inputs | Method source (programmatic) |
-| Large input sets | File source (cleaner code) |
+| Use Case                     | Recommendation                             |
+|------------------------------|--------------------------------------------|
+| Simple string inputs         | Method source (inline, version-controlled) |
+| Dataset with expected values | File source (easier to maintain, share)    |
+| Generated/computed inputs    | Method source (programmatic)               |
+| Large input sets             | File source (cleaner code)                 |
 
 ### Conformance Testing with Specs
 
@@ -1495,6 +1524,7 @@ bestIteration:
 | **Compliance testing**  | Verifying a system meets a mandated threshold (SLA, SLO, policy)                                           |
 | **confidence**          | Probability of a correct verdict; equals 1 minus the false positive rate. Part of the parameter triangle.  |
 | **Covariate**           | Environmental factor that may affect system behavior                                                       |
+| **Duration constraint** | Timing requirement specifying maximum allowed execution duration; evaluated independently from postconditions |
 | **Factor**              | Input or configuration that varies across test executions                                                  |
 | **Instance conformance**| Validation that actual results match expected values                                                        |
 | **Input**               | Annotation marking a parameter as the target for input injection from `@InputSource`                       |
