@@ -800,12 +800,12 @@ But the power of the statistics behind PUnit means that this will itself occur v
 
 ## Requirements
 
-- Java 17+
+- Java 21+
 - JUnit Jupiter 5.13+
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Attribution Required License (ARL-1.0) - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
