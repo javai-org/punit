@@ -14,17 +14,15 @@
 
 EXAMPLES_DIR="src/test/java/org/javai/punit/examples"
 
-# Find staged Java files in the examples directory that are test/experiment classes
-# Exclude: package-info.java, *Mutator.java, *Scorer.java (helper classes)
-# Exclude: infrastructure/ directory (mock implementations, not test classes)
-# Exclude: usecases/ directory (use case implementations, not test classes)
+# Find staged Java files in the examples directory that are test/experiment classes.
+# Only check files whose name ends with Test.java, Measure*.java, Explore*.java,
+# or Optimize*.java — these are the classes that JUnit discovers and must be @Disabled.
+# Helper/utility classes (appenders, scorers, mutators, etc.) are not test classes.
 STAGED_EXAMPLE_FILES=$(git diff --cached --name-only --diff-filter=ACM | \
     grep "^${EXAMPLES_DIR}/.*\.java$" | \
-    grep -v "package-info.java" | \
-    grep -v "Mutator\.java$" | \
-    grep -v "Scorer\.java$" | \
     grep -v "/infrastructure/" | \
-    grep -v "/usecases/")
+    grep -v "/usecases/" | \
+    grep -E '(Test|Measure|Explore|Optimize)[^/]*\.java$')
 
 if [ -z "$STAGED_EXAMPLE_FILES" ]; then
     # No example files staged, nothing to check
