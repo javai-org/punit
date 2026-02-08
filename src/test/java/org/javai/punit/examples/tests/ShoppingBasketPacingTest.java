@@ -1,7 +1,7 @@
 package org.javai.punit.examples.tests;
 
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.FactorSource;
+import java.util.stream.Stream;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.UseCaseProvider;
@@ -69,10 +69,10 @@ public class ShoppingBasketPacingTest {
             samples = 50
     )
     @Pacing(maxRequestsPerSecond = 5)  // Max 5 requests per second
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithRpsLimit(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -96,10 +96,10 @@ public class ShoppingBasketPacingTest {
             samples = 50
     )
     @Pacing(maxRequestsPerMinute = 60)  // Max 60 requests per minute (1/sec avg)
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithRpmLimit(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -123,10 +123,10 @@ public class ShoppingBasketPacingTest {
             samples = 50
     )
     @Pacing(minMsPerSample = 200)  // At least 200ms between samples
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithDirectDelay(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -149,10 +149,10 @@ public class ShoppingBasketPacingTest {
             maxRequestsPerSecond = 10,   // Burst limit
             maxRequestsPerMinute = 120   // Sustained limit
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithMultipleConstraints(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -178,11 +178,21 @@ public class ShoppingBasketPacingTest {
             maxRequestsPerSecond = 2,
             maxRequestsPerMinute = 60
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithConservativeLlmPacing(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> standardInstructions() {
+        return Stream.of(
+                "Add 2 apples",
+                "Remove the milk",
+                "Add 1 loaf of bread",
+                "Add 3 oranges and 2 bananas",
+                "Clear the basket"
+        );
     }
 }

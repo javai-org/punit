@@ -1,8 +1,8 @@
 package org.javai.punit.examples.tests;
 
+import java.util.stream.Stream;
 import org.javai.punit.api.ExceptionHandling;
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
@@ -85,10 +85,10 @@ public class ShoppingBasketExceptionTest {
             onException = ExceptionHandling.FAIL_SAMPLE,
             maxExampleFailures = 5
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testFailSampleMode(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -112,10 +112,10 @@ public class ShoppingBasketExceptionTest {
             samples = 100,
             onException = ExceptionHandling.ABORT_TEST
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testAbortTestMode(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -144,10 +144,10 @@ public class ShoppingBasketExceptionTest {
             onException = ExceptionHandling.FAIL_SAMPLE,
             maxExampleFailures = 3  // Only capture first 3 failures
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithLimitedFailureExamples(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -172,11 +172,21 @@ public class ShoppingBasketExceptionTest {
             onException = ExceptionHandling.FAIL_SAMPLE,
             maxExampleFailures = 20
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithExtendedFailureExamples(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> standardInstructions() {
+        return Stream.of(
+                "Add 2 apples",
+                "Remove the milk",
+                "Add 1 loaf of bread",
+                "Add 3 oranges and 2 bananas",
+                "Clear the basket"
+        );
     }
 }

@@ -2,7 +2,7 @@ package org.javai.punit.statistics.transparent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
-import org.javai.punit.statistics.SlaVerificationSizer;
+import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -180,8 +180,8 @@ class StatisticalExplanationBuilderTest {
     }
 
     @Nested
-    @DisplayName("SLA verification sizing caveat")
-    class SlaVerificationSizingTests {
+    @DisplayName("Compliance evidence sizing caveat")
+    class ComplianceEvidenceSizingTests {
 
         @Test
         @DisplayName("SLA origin with undersized N=200 includes exact sizing note via build()")
@@ -194,7 +194,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .anyMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .anyMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -205,7 +205,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .anyMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .anyMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -217,7 +217,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .anyMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .anyMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -228,7 +228,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .noneMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .noneMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -242,7 +242,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .noneMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .noneMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -253,7 +253,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .anyMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .anyMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -264,7 +264,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .noneMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .noneMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -275,7 +275,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             assertThat(explanation.verdict().caveats())
-                    .anyMatch(c -> c.contains(SlaVerificationSizer.SIZING_NOTE));
+                    .anyMatch(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE));
         }
 
         @Test
@@ -286,7 +286,7 @@ class StatisticalExplanationBuilderTest {
             );
 
             String sizingCaveat = explanation.verdict().caveats().stream()
-                    .filter(c -> c.contains(SlaVerificationSizer.SIZING_NOTE))
+                    .filter(c -> c.contains(ComplianceEvidenceEvaluator.SIZING_NOTE))
                     .findFirst()
                     .orElseThrow();
 

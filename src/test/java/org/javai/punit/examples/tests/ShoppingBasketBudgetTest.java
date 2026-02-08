@@ -1,8 +1,8 @@
 package org.javai.punit.examples.tests;
 
+import java.util.stream.Stream;
 import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.FactorSource;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
 import org.javai.punit.api.TokenChargeRecorder;
@@ -72,10 +72,10 @@ public class ShoppingBasketBudgetTest {
             timeBudgetMs = 10000,  // 10 second method budget
             onBudgetExhausted = BudgetExhaustedBehavior.FAIL
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithTimeBudgetFail(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -97,10 +97,10 @@ public class ShoppingBasketBudgetTest {
             timeBudgetMs = 10000,
             onBudgetExhausted = BudgetExhaustedBehavior.EVALUATE_PARTIAL
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithTimeBudgetPartial(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -122,10 +122,10 @@ public class ShoppingBasketBudgetTest {
             tokenBudget = 10000,    // 10K token method budget
             onBudgetExhausted = BudgetExhaustedBehavior.EVALUATE_PARTIAL
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithStaticTokenCharge(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -151,10 +151,10 @@ public class ShoppingBasketBudgetTest {
             tokenBudget = 10000,
             onBudgetExhausted = BudgetExhaustedBehavior.EVALUATE_PARTIAL
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithDynamicTokenRecording(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction,
+            String instruction,
             TokenChargeRecorder tokenRecorder
     ) {
         var outcome = useCase.translateInstruction(instruction);
@@ -179,11 +179,21 @@ public class ShoppingBasketBudgetTest {
             useCase = ShoppingBasketUseCase.class,
             samples = 50
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testContributingToClassBudget(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> standardInstructions() {
+        return Stream.of(
+                "Add 2 apples",
+                "Remove the milk",
+                "Add 1 loaf of bread",
+                "Add 3 oranges and 2 bananas",
+                "Clear the basket"
+        );
     }
 }

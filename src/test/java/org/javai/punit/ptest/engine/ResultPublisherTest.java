@@ -11,7 +11,7 @@ import org.javai.punit.controls.budget.SharedBudgetMonitor;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.ptest.engine.ResultPublisher.PublishContext;
 import org.javai.punit.reporting.PUnitReporter;
-import org.javai.punit.statistics.SlaVerificationSizer;
+import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -326,8 +326,8 @@ class ResultPublisherTest {
     }
 
     @Nested
-    @DisplayName("appendSlaVerificationNote")
-    class AppendSlaVerificationNote {
+    @DisplayName("appendComplianceEvidenceNote")
+    class AppendComplianceEvidenceNote {
 
         @Test
         @DisplayName("appends sizing note for SLA-anchored undersized test")
@@ -335,9 +335,9 @@ class ResultPublisherTest {
             PublishContext ctx = createSlaContext(200, 0.9999, ThresholdOrigin.SLA, "SLA v2.3");
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSlaVerificationNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, ctx);
 
-            assertThat(sb.toString()).contains(SlaVerificationSizer.SIZING_NOTE);
+            assertThat(sb.toString()).contains(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
 
         @Test
@@ -346,9 +346,9 @@ class ResultPublisherTest {
             PublishContext ctx = createSlaContext(200, 0.9999, ThresholdOrigin.SLO, "Internal SLO");
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSlaVerificationNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, ctx);
 
-            assertThat(sb.toString()).contains(SlaVerificationSizer.SIZING_NOTE);
+            assertThat(sb.toString()).contains(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
 
         @Test
@@ -357,9 +357,9 @@ class ResultPublisherTest {
             PublishContext ctx = createSlaContext(200, 0.9999, ThresholdOrigin.UNSPECIFIED, null);
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSlaVerificationNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, ctx);
 
-            assertThat(sb.toString()).doesNotContain(SlaVerificationSizer.SIZING_NOTE);
+            assertThat(sb.toString()).doesNotContain(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
 
         @Test
@@ -368,9 +368,9 @@ class ResultPublisherTest {
             PublishContext ctx = createSlaContext(100000, 0.9999, ThresholdOrigin.SLA, "");
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSlaVerificationNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, ctx);
 
-            assertThat(sb.toString()).doesNotContain(SlaVerificationSizer.SIZING_NOTE);
+            assertThat(sb.toString()).doesNotContain(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
 
         @Test
@@ -379,9 +379,9 @@ class ResultPublisherTest {
             PublishContext ctx = createSlaContext(200, 0.95, ThresholdOrigin.SLA, "");
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSlaVerificationNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, ctx);
 
-            assertThat(sb.toString()).doesNotContain(SlaVerificationSizer.SIZING_NOTE);
+            assertThat(sb.toString()).doesNotContain(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
 
         private PublishContext createSlaContext(int samples, double minPassRate,

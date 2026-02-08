@@ -1,7 +1,7 @@
 package org.javai.punit.examples.tests;
 
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.FactorSource;
+import java.util.stream.Stream;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
@@ -108,10 +108,10 @@ public class ShoppingBasketDiagnosticsTest {
             samples = 100,
             transparentStats = true
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithTransparentStats(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -137,10 +137,10 @@ public class ShoppingBasketDiagnosticsTest {
             samples = 200,
             transparentStats = true
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testShowingEarlyTermination(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -162,11 +162,21 @@ public class ShoppingBasketDiagnosticsTest {
             minPassRate = 0.85,
             transparentStats = true
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithExplicitThresholdAndStats(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> standardInstructions() {
+        return Stream.of(
+                "Add 2 apples",
+                "Remove the milk",
+                "Add 1 loaf of bread",
+                "Add 3 oranges and 2 bananas",
+                "Clear the basket"
+        );
     }
 }

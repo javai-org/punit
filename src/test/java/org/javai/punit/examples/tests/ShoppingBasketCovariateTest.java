@@ -1,7 +1,7 @@
 package org.javai.punit.examples.tests;
 
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.FactorSource;
+import java.util.stream.Stream;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
@@ -95,10 +95,10 @@ public class ShoppingBasketCovariateTest {
             useCase = ShoppingBasketUseCase.class,
             samples = 50
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithAutomaticCovariates(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -117,10 +117,10 @@ public class ShoppingBasketCovariateTest {
             useCase = ShoppingBasketUseCase.class,
             samples = 50
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithExplicitModelCovariate(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         // Set model to a specific value
         // This affects the "llm_model" covariate via @CovariateSource
@@ -143,10 +143,10 @@ public class ShoppingBasketCovariateTest {
             useCase = ShoppingBasketUseCase.class,
             samples = 50
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithLowTemperature(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         // Low temperature for high reliability
         useCase.setTemperature(0.1);
@@ -169,14 +169,24 @@ public class ShoppingBasketCovariateTest {
             useCase = ShoppingBasketUseCase.class,
             samples = 50
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void testWithHighTemperature(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         // Higher temperature - may have different reliability characteristics
         useCase.setTemperature(0.7);
 
         useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> standardInstructions() {
+        return Stream.of(
+                "Add 2 apples",
+                "Remove the milk",
+                "Add 1 loaf of bread",
+                "Add 3 oranges and 2 bananas",
+                "Clear the basket"
+        );
     }
 }

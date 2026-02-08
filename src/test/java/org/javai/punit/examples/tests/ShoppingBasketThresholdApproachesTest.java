@@ -1,7 +1,7 @@
 package org.javai.punit.examples.tests;
 
-import org.javai.punit.api.Factor;
-import org.javai.punit.api.FactorSource;
+import java.util.stream.Stream;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
@@ -32,7 +32,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * <p><b>Specify:</b> {@code samples} + {@code minPassRate}<br>
  * <b>Framework computes:</b> implied confidence<br>
  * <b>Use when:</b> You have a specific pass rate requirement from
- * external sources (SLA, policy) and want to verify compliance.
+ * external sources (SLA, policy) and want to verify conformance.
  *
  * <h2>Running</h2>
  * <pre>{@code
@@ -73,10 +73,10 @@ public class ShoppingBasketThresholdApproachesTest {
             samples = 100,
             thresholdConfidence = 0.95
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void sampleSizeFirst(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -103,10 +103,10 @@ public class ShoppingBasketThresholdApproachesTest {
             minDetectableEffect = 0.05,
             power = 0.80
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void confidenceFirst(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
     }
@@ -119,7 +119,7 @@ public class ShoppingBasketThresholdApproachesTest {
      * <p>This approach is ideal when:
      * <ul>
      *   <li>You have a known threshold from SLA or policy</li>
-     *   <li>You want to verify compliance with that threshold</li>
+     *   <li>You want to verify conformance with that threshold</li>
      *   <li>Statistical confidence is informational, not the primary driver</li>
      * </ul>
      *
@@ -132,11 +132,21 @@ public class ShoppingBasketThresholdApproachesTest {
             samples = 100,
             minPassRate = 0.90
     )
-    @FactorSource(value = "standardInstructions", factors = {"instruction"})
+    @InputSource("standardInstructions")
     void thresholdFirst(
             ShoppingBasketUseCase useCase,
-            @Factor("instruction") String instruction
+            String instruction
     ) {
         useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> standardInstructions() {
+        return Stream.of(
+                "Add 2 apples",
+                "Remove the milk",
+                "Add 1 loaf of bread",
+                "Add 3 oranges and 2 bananas",
+                "Clear the basket"
+        );
     }
 }

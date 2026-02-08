@@ -14,7 +14,7 @@ import org.javai.punit.spec.expiration.ExpirationReportPublisher;
 import org.javai.punit.spec.expiration.ExpirationWarningRenderer;
 import org.javai.punit.spec.expiration.WarningLevel;
 import org.javai.punit.spec.model.ExecutionSpecification;
-import org.javai.punit.statistics.SlaVerificationSizer;
+import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.statistics.transparent.ConsoleExplanationRenderer;
 import org.javai.punit.statistics.transparent.StatisticalExplanation;
@@ -220,8 +220,8 @@ class ResultPublisher {
         // Append provenance if configured
         appendProvenance(sb, ctx);
 
-        // Append SLA verification sizing note if applicable
-        appendSlaVerificationNote(sb, ctx);
+        // Append compliance evidence sizing note if applicable
+        appendComplianceEvidenceNote(sb, ctx);
 
         ctx.terminationReason()
                 .filter(r -> r != TerminationReason.COMPLETED)
@@ -285,22 +285,22 @@ class ResultPublisher {
     }
 
     /**
-     * Appends an SLA verification sizing note if the test is SLA-anchored
-     * and the sample size is insufficient for verification-grade evidence.
+     * Appends a compliance evidence sizing note if the test has a compliance context
+     * and the sample size is insufficient for compliance-grade evidence.
      *
      * <p>This note appears in legacy (non-transparent-stats) mode. In transparent
      * stats mode, the equivalent information appears as a caveat in the
      * statistical explanation.
      */
-    void appendSlaVerificationNote(StringBuilder sb, PublishContext ctx) {
+    void appendComplianceEvidenceNote(StringBuilder sb, PublishContext ctx) {
         String originName = ctx.thresholdOrigin() != null ? ctx.thresholdOrigin().name() : null;
-        if (!SlaVerificationSizer.isSlaAnchored(originName, ctx.contractRef())) {
+        if (!ComplianceEvidenceEvaluator.hasComplianceContext(originName, ctx.contractRef())) {
             return;
         }
-        if (!SlaVerificationSizer.isUndersized(ctx.samplesExecuted(), ctx.minPassRate())) {
+        if (!ComplianceEvidenceEvaluator.isUndersized(ctx.samplesExecuted(), ctx.minPassRate())) {
             return;
         }
-        sb.append(String.format("%nNote: %s", SlaVerificationSizer.SIZING_NOTE));
+        sb.append(String.format("%nNote: %s", ComplianceEvidenceEvaluator.SIZING_NOTE));
     }
 
     /**

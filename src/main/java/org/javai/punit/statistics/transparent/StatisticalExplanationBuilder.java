@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.statistics.ProportionEstimate;
-import org.javai.punit.statistics.SlaVerificationSizer;
+import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
 
 /**
  * Builds statistical explanations from test execution context.
@@ -401,7 +401,7 @@ public class StatisticalExplanationBuilder {
         }
 
         List<String> caveats = buildCaveats(samples, observedRate, threshold, misalignments);
-        appendSlaVerificationCaveat(caveats, samples, threshold, thresholdOriginName, contractRef);
+        appendComplianceEvidenceCaveat(caveats, samples, threshold, thresholdOriginName, contractRef);
 
         return new StatisticalExplanation.VerdictInterpretation(
                 passed,
@@ -448,7 +448,7 @@ public class StatisticalExplanationBuilder {
                     "thresholds with confidence intervals, run a MEASURE experiment first.");
         }
 
-        appendSlaVerificationCaveat(caveats, samples, threshold, thresholdOriginName, contractRef);
+        appendComplianceEvidenceCaveat(caveats, samples, threshold, thresholdOriginName, contractRef);
 
         return new StatisticalExplanation.VerdictInterpretation(
                 passed,
@@ -548,34 +548,34 @@ public class StatisticalExplanationBuilder {
     }
 
     /**
-     * Appends an SLA verification sizing caveat if the test is SLA-anchored
-     * and the sample size is insufficient for verification-grade evidence.
+     * Appends a compliance evidence caveat if the test has a compliance context
+     * and the sample size is insufficient for compliance-grade evidence.
      *
-     * <p>For high-reliability SLA targets (e.g. 99.99%), a PASS verdict at small N
+     * <p>For high-reliability targets (e.g. 99.99%), a PASS verdict at small N
      * is not reliable evidence of conformance — it is a smoke test. However, a FAIL
      * verdict IS reliable evidence of non-conformance, since observed failures directly
      * demonstrate the system is not meeting the target.
      *
      * @param caveats the mutable caveats list to append to
      * @param samples the number of test samples
-     * @param threshold the SLA target pass rate
-     * @param thresholdOriginName the threshold origin (e.g. "SLA")
+     * @param threshold the target pass rate
+     * @param thresholdOriginName the threshold origin (e.g. "SLA", "SLO", "POLICY")
      * @param contractRef the contract reference (may be null or empty)
      */
-    private void appendSlaVerificationCaveat(List<String> caveats, int samples,
+    private void appendComplianceEvidenceCaveat(List<String> caveats, int samples,
             double threshold, String thresholdOriginName, String contractRef) {
-        if (!SlaVerificationSizer.isSlaAnchored(thresholdOriginName, contractRef)) {
+        if (!ComplianceEvidenceEvaluator.hasComplianceContext(thresholdOriginName, contractRef)) {
             return;
         }
-        if (!SlaVerificationSizer.isUndersized(samples, threshold)) {
+        if (!ComplianceEvidenceEvaluator.isUndersized(samples, threshold)) {
             return;
         }
         caveats.add(String.format(
-                "Warning: %s. With n=%d and SLA target of %.2f%%, even zero failures would " +
+                "Warning: %s. With n=%d and target of %.2f%%, even zero failures would " +
                 "not provide sufficient statistical evidence of compliance (\u03b1=%.3f). " +
                 "A PASS at this sample size is a smoke-test-level observation, not a compliance " +
                 "determination. Note: a FAIL verdict remains a reliable indication of non-conformance.",
-                SlaVerificationSizer.SIZING_NOTE, samples, threshold * 100,
-                SlaVerificationSizer.DEFAULT_ALPHA));
+                ComplianceEvidenceEvaluator.SIZING_NOTE, samples, threshold * 100,
+                ComplianceEvidenceEvaluator.DEFAULT_ALPHA));
     }
 }
