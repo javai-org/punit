@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
@@ -35,6 +36,7 @@ import org.javai.punit.spec.baseline.FootprintComputer;
 import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
 import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
 import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -91,6 +93,7 @@ public class ProbabilisticTestExtension implements
 	private static final String SELECTION_RESULT_KEY = "selectionResult";
 	private static final String PENDING_SELECTION_KEY = "pendingSelection";
 	private static final String STRATEGY_CONFIG_KEY = "strategyConfig";
+	private static final String THRESHOLD_DERIVED_KEY = "thresholdDerived";
 
 	// Strategy for test execution (currently only Bernoulli trials supported)
 	private final ProbabilisticTestStrategy strategy;
@@ -265,7 +268,9 @@ public class ProbabilisticTestExtension implements
 				strategyConfig.pacing(),
 				strategyConfig.transparentStats(),
 				strategyConfig.thresholdOrigin(),
-				strategyConfig.contractRef()
+				strategyConfig.contractRef(),
+				strategyConfig.intent(),
+				strategyConfig.resolvedConfidence()
 		);
 	}
 
@@ -423,7 +428,9 @@ public class ProbabilisticTestExtension implements
 				config.confidence(),
 				baseline,
 				misalignments,
-				baselineFilename
+				baselineFilename,
+				config.intent(),
+				config.resolvedConfidence()
 		);
 
 		// Print console summary
@@ -469,8 +476,8 @@ public class ProbabilisticTestExtension implements
 		// Use fromSpec to indicate this data comes from a selected baseline
 		return BaselineData.fromSpec(
 				filename,
-				spec.getEmpiricalBasis() != null 
-						? spec.getEmpiricalBasis().generatedAt() 
+				spec.getEmpiricalBasis() != null && spec.getEmpiricalBasis().generatedAt() != null
+						? spec.getEmpiricalBasis().generatedAt()
 						: spec.getGeneratedAt(),
 				spec.getBaselineSamples(),
 				spec.getBaselineSuccesses()
@@ -602,13 +609,15 @@ public class ProbabilisticTestExtension implements
 			return;
 		}
 
-		BaselineSelectionOrchestrator.PendingSelection pending = 
+		BaselineSelectionOrchestrator.PendingSelection pending =
 				store.get(PENDING_SELECTION_KEY, BaselineSelectionOrchestrator.PendingSelection.class);
 		if (pending == null) {
 			// No pending selection - validate without baseline
 			validateTestConfiguration(context, null);
 			// Log configuration for explicit threshold mode
 			logFinalConfiguration(context);
+			// Enforce verification feasibility gate (Req 5)
+			enforceVerificationFeasibility(context);
 			// Mark as resolved to prevent repeated logging
 			store.put(BASELINE_RESOLVED_KEY, Boolean.TRUE);
 			return;
@@ -642,6 +651,9 @@ public class ProbabilisticTestExtension implements
 			// Then log configuration (now that minPassRate is known)
 			logFinalConfiguration(context);
 
+			// Enforce verification feasibility gate (Req 5)
+			enforceVerificationFeasibility(context);
+
 			// Mark as resolved
 			store.put(BASELINE_RESOLVED_KEY, Boolean.TRUE);
 
@@ -657,20 +669,26 @@ public class ProbabilisticTestExtension implements
 		if (config == null) {
 			return;
 		}
-		
+
 		String testName = context.getParent()
 				.flatMap(ExtensionContext::getTestMethod)
 				.map(java.lang.reflect.Method::getName)
 				.orElse(context.getDisplayName());
-		
+
+		ExtensionContext.Store store = getMethodStore(context);
+		boolean thresholdDerived = Boolean.TRUE.equals(
+				store.get(THRESHOLD_DERIVED_KEY, Boolean.class));
+
 		FinalConfigurationLogger.ConfigurationData configData = new FinalConfigurationLogger.ConfigurationData(
 				config.samples(),
 				config.minPassRate(),
 				config.specId(),
 				config.thresholdOrigin(),
-				config.contractRef()
+				config.contractRef(),
+				config.intent(),
+				thresholdDerived
 		);
-		
+
 		configurationLogger.log(testName, configData);
 	}
 
@@ -699,6 +717,7 @@ public class ProbabilisticTestExtension implements
 		// Update TestConfiguration with derived minPassRate
 		TestConfiguration updatedConfig = config.withMinPassRate(derivedMinPassRate);
 		store.put(CONFIG_KEY, updatedConfig);
+		store.put(THRESHOLD_DERIVED_KEY, Boolean.TRUE);
 
 		// Update EarlyTerminationEvaluator with derived minPassRate
 		EarlyTerminationEvaluator oldEvaluator = store.get(EVALUATOR_KEY, EarlyTerminationEvaluator.class);
@@ -706,6 +725,46 @@ public class ProbabilisticTestExtension implements
 			EarlyTerminationEvaluator updatedEvaluator = new EarlyTerminationEvaluator(
 					config.samples(), derivedMinPassRate);
 			store.put(EVALUATOR_KEY, updatedEvaluator);
+		}
+	}
+
+	/**
+	 * Enforces the verification feasibility gate (Req 5).
+	 *
+	 * <p>If the test intent is VERIFICATION and the configured sample size is
+	 * insufficient for the declared target and confidence, this method throws
+	 * {@link ExtensionConfigurationException} to hard-fail the test before
+	 * any samples execute. This prevents "verification theatre" where an
+	 * undersized test silently passes.
+	 *
+	 * <p>SMOKE intent tests bypass this check entirely.
+	 *
+	 * @param context the extension context
+	 * @throws ExtensionConfigurationException if VERIFICATION is infeasible
+	 */
+	private void enforceVerificationFeasibility(ExtensionContext context) {
+		TestConfiguration config = getConfiguration(context);
+		if (config == null || config.intent() != TestIntent.VERIFICATION) {
+			return;
+		}
+
+		double minPassRate = config.minPassRate();
+		if (Double.isNaN(minPassRate) || minPassRate <= 0.0 || minPassRate >= 1.0) {
+			return; // Cannot evaluate feasibility without a valid target
+		}
+
+		VerificationFeasibilityEvaluator.FeasibilityResult result =
+				VerificationFeasibilityEvaluator.evaluate(
+						config.samples(), minPassRate, config.resolvedConfidence());
+
+		if (!result.feasible()) {
+			String testName = context.getParent()
+					.flatMap(ExtensionContext::getTestMethod)
+					.map(java.lang.reflect.Method::getName)
+					.orElse(context.getDisplayName());
+
+			throw new ExtensionConfigurationException(
+					VerificationFeasibilityEvaluator.buildInfeasibilityMessage(testName, result));
 		}
 	}
 

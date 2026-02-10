@@ -7,6 +7,7 @@ import java.time.Instant;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.OperationalApproach;
@@ -284,6 +285,7 @@ class StatisticsAwareConfigurationTest {
             @Override public boolean transparentStats() { return false; }
             @Override public ThresholdOrigin thresholdOrigin() { return ThresholdOrigin.UNSPECIFIED; }
             @Override public String contractRef() { return ""; }
+            @Override public TestIntent intent() { return TestIntent.VERIFICATION; }
         };
     }
 }

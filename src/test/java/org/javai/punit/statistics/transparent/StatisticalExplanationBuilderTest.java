@@ -294,6 +294,111 @@ class StatisticalExplanationBuilderTest {
         }
     }
 
+    @Nested
+    @DisplayName("SMOKE intent framing")
+    class SmokeIntentFraming {
+
+        @Test
+        @DisplayName("SMOKE + SLA hypothesis uses softened language")
+        void smokeSlahypothesisSoftened() {
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testSmoke", 50, 48, 0.90, true, "SLA", "", true
+            );
+
+            assertThat(explanation.hypothesis().nullHypothesis())
+                    .contains("observed rate consistent with target");
+            assertThat(explanation.hypothesis().alternativeHypothesis())
+                    .contains("observed rate inconsistent with target");
+        }
+
+        @Test
+        @DisplayName("VERIFICATION + SLA hypothesis uses full compliance language")
+        void verificationSlaHypothesisFullCompliance() {
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testVerification", 100, 95, 0.90, true, "SLA", "", false
+            );
+
+            assertThat(explanation.hypothesis().nullHypothesis())
+                    .contains("system meets SLA requirement");
+        }
+
+        @Test
+        @DisplayName("SMOKE + SLA verdict avoids compliance language")
+        void smokeVerdictAvoidsComplianceLanguage() {
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testSmoke", 50, 48, 0.90, true, "SLA", "", true
+            );
+
+            assertThat(explanation.verdict().plainEnglish())
+                    .contains("consistent with the target");
+            assertThat(explanation.verdict().plainEnglish())
+                    .doesNotContain("SLA requirement");
+        }
+
+        @Test
+        @DisplayName("SMOKE + SLA FAIL verdict avoids compliance language")
+        void smokeFailVerdictAvoidsComplianceLanguage() {
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testSmoke", 50, 30, 0.90, false, "SLA", "", true
+            );
+
+            assertThat(explanation.verdict().plainEnglish())
+                    .contains("inconsistent with the target");
+            assertThat(explanation.verdict().plainEnglish())
+                    .doesNotContain("SLA obligation");
+        }
+
+        @Test
+        @DisplayName("SMOKE + normative + undersized adds sizing caveat")
+        void smokeNormativeUndersizedAddsSizingCaveat() {
+            // N=10, p₀=0.95, SLA → undersized for verification (N_min=52)
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testSmoke", 10, 10, 0.95, true, "SLA", "", true
+            );
+
+            assertThat(explanation.verdict().caveats())
+                    .anyMatch(c -> c.contains("Sample not sized for verification"));
+        }
+
+        @Test
+        @DisplayName("SMOKE + normative + sized adds hint caveat")
+        void smokeNormativeSizedAddsHintCaveat() {
+            // N=100, p₀=0.90, SLA → sized for verification (N_min=25)
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testSmoke", 100, 95, 0.90, true, "SLA", "", true
+            );
+
+            assertThat(explanation.verdict().caveats())
+                    .anyMatch(c -> c.contains("Consider setting intent = VERIFICATION"));
+        }
+
+        @Test
+        @DisplayName("VERIFICATION intent does not add smoke sizing caveats")
+        void verificationDoesNotAddSmokeCaveats() {
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testVerification", 10, 10, 0.95, true, "SLA", "", false
+            );
+
+            assertThat(explanation.verdict().caveats())
+                    .noneMatch(c -> c.contains("Sample not sized for verification"));
+            assertThat(explanation.verdict().caveats())
+                    .noneMatch(c -> c.contains("Consider setting intent = VERIFICATION"));
+        }
+
+        @Test
+        @DisplayName("SMOKE + non-normative does not add smoke sizing caveats")
+        void smokeNonNormativeDoesNotAddCaveats() {
+            StatisticalExplanation explanation = builder.buildWithInlineThreshold(
+                    "testSmoke", 10, 10, 0.95, true, "EMPIRICAL", "", true
+            );
+
+            assertThat(explanation.verdict().caveats())
+                    .noneMatch(c -> c.contains("Sample not sized for verification"));
+            assertThat(explanation.verdict().caveats())
+                    .noneMatch(c -> c.contains("Consider setting intent = VERIFICATION"));
+        }
+    }
+
     private BaselineData createBaseline(int samples, int successes) {
         return new BaselineData(
                 "TestUseCase.yaml",

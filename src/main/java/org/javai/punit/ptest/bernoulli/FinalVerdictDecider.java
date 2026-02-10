@@ -60,7 +60,7 @@ public class FinalVerdictDecider {
 		if (context.isSpecDriven()) {
 			sb.append(BernoulliFailureMessages.probabilisticTestFailure(context));
 		} else {
-			sb.append(BernoulliFailureMessages.probabilisticTestFailureLegacy(
+			sb.append(BernoulliFailureMessages.probabilisticTestFailureInlineThreshold(
 					context.observedRate(),
 					context.successes(),
 					context.samples(),

@@ -130,7 +130,9 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
                 pacing,
                 transparentStats,
                 resolved.thresholdOrigin(),
-                resolved.contractRef()
+                resolved.contractRef(),
+                resolved.intent(),
+                resolved.resolvedConfidence()
         );
     }
 
@@ -231,29 +233,11 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
                 executionContext.classBudget(),
                 executionContext.methodBudget());
 
-        if (preSampleCheck.shouldTerminate()) {
-            TerminationReason reason = preSampleCheck.terminationReason().get();
-            BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
-                    reason,
-                    executionContext.suiteBudget(),
-                    executionContext.classBudget(),
-                    config.onBudgetExhausted());
-
-            String details = budgetOrchestrator.buildExhaustionMessage(
-                    reason,
-                    executionContext.methodBudget(),
-                    executionContext.classBudget(),
-                    executionContext.suiteBudget());
-
-            aggregator.setTerminated(reason, details);
-            terminated.set(true);
-
-            if (behavior == BudgetExhaustedBehavior.FAIL) {
-                aggregator.setForcedFailure(true);
-            }
-
+        Optional<InterceptResult> preSampleResult = handleBudgetExhaustion(
+                preSampleCheck, executionContext, config, aggregator, terminated);
+        if (preSampleResult.isPresent()) {
             invocation.skip();
-            return InterceptResult.terminate(reason, details);
+            return preSampleResult.get();
         }
 
         // Reset token recorder for new sample
@@ -287,28 +271,10 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
                 executionContext.classBudget(),
                 executionContext.methodBudget());
 
-        if (postSampleCheck.shouldTerminate()) {
-            TerminationReason reason = postSampleCheck.terminationReason().get();
-            BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
-                    reason,
-                    executionContext.suiteBudget(),
-                    executionContext.classBudget(),
-                    config.onBudgetExhausted());
-
-            String details = budgetOrchestrator.buildExhaustionMessage(
-                    reason,
-                    executionContext.methodBudget(),
-                    executionContext.classBudget(),
-                    executionContext.suiteBudget());
-
-            aggregator.setTerminated(reason, details);
-            terminated.set(true);
-
-            if (behavior == BudgetExhaustedBehavior.FAIL) {
-                aggregator.setForcedFailure(true);
-            }
-
-            return InterceptResult.terminate(reason, details);
+        Optional<InterceptResult> postSampleResult = handleBudgetExhaustion(
+                postSampleCheck, executionContext, config, aggregator, terminated);
+        if (postSampleResult.isPresent()) {
+            return postSampleResult.get();
         }
 
         // Check for early termination (impossibility or success guaranteed)
@@ -382,6 +348,45 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
         );
 
         return verdictDecider.buildFailureMessage(aggregator, statisticalContext);
+    }
+
+    /**
+     * Handles budget exhaustion by recording termination and determining the forced-failure behavior.
+     *
+     * @return the termination result, or empty if the budget is not exhausted
+     */
+    private Optional<InterceptResult> handleBudgetExhaustion(
+            BudgetOrchestrator.BudgetCheckResult checkResult,
+            SampleExecutionContext executionContext,
+            BernoulliTrialsConfig config,
+            SampleResultAggregator aggregator,
+            AtomicBoolean terminated) {
+
+        if (!checkResult.shouldTerminate()) {
+            return Optional.empty();
+        }
+
+        TerminationReason reason = checkResult.terminationReason().get();
+        BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
+                reason,
+                executionContext.suiteBudget(),
+                executionContext.classBudget(),
+                config.onBudgetExhausted());
+
+        String details = budgetOrchestrator.buildExhaustionMessage(
+                reason,
+                executionContext.methodBudget(),
+                executionContext.classBudget(),
+                executionContext.suiteBudget());
+
+        aggregator.setTerminated(reason, details);
+        terminated.set(true);
+
+        if (behavior == BudgetExhaustedBehavior.FAIL) {
+            aggregator.setForcedFailure(true);
+        }
+
+        return Optional.of(InterceptResult.terminate(reason, details));
     }
 
     /**

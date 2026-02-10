@@ -62,8 +62,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * void testWithExplicitThreshold() { ... }
  * }</pre>
  *
- * <h2>Legacy Mode (No Spec)</h2>
- * <p>When no spec is provided, the test runs in legacy mode with inline parameters:
+ * <h2>Inline Threshold Mode (No Spec)</h2>
+ * <p>When no spec is provided, the test runs with inline parameters:
  *
  * <pre>{@code
  * @ProbabilisticTest(samples = 100, minPassRate = 0.95)
@@ -108,7 +108,7 @@ public @interface ProbabilisticTest {
      * <ul>
      *   <li>Approach 1 (Sample-Size-First): combined with {@code thresholdConfidence}</li>
      *   <li>Approach 3 (Threshold-First): combined with {@code minPassRate}</li>
-     *   <li>Legacy mode: when no spec is provided</li>
+     *   <li>Inline threshold mode: when no spec is provided</li>
      * </ul>
      *
      * @return the number of samples to execute
@@ -124,7 +124,7 @@ public @interface ProbabilisticTest {
      * <p>Higher confidence means a lower threshold (more tolerant of variance),
      * which reduces false positives but may miss subtle degradations.
      *
-     * <p>Default: {@code Double.NaN} (not set, uses legacy mode or other approach).
+     * <p>Default: {@code Double.NaN} (not set, uses other approach).
      *
      * @return the confidence level for threshold derivation
      */
@@ -193,14 +193,14 @@ public @interface ProbabilisticTest {
      * <ul>
      *   <li>Approach 3 (Threshold-First): when combined with {@code samples},
      *       the framework computes the implied confidence and warns if statistically unsound</li>
-     *   <li>Legacy mode: when no spec is provided, this is the pass/fail threshold</li>
+     *   <li>Inline threshold mode: when no spec is provided, this is the pass/fail threshold</li>
      * </ul>
      *
      * <p>The test passes if and only if:
      * {@code (successes / samplesExecuted) >= minPassRate}
      *
      * <p>Default: {@code Double.NaN} (derive from spec or use other approach).
-     * Legacy default: {@code 1.0} (100% pass rate required).
+     * Inline threshold default: {@code 1.0} (100% pass rate required).
      *
      * @return the minimum required pass rate (0.0 to 1.0)
      */
@@ -350,11 +350,37 @@ public @interface ProbabilisticTest {
      * }
      * }</pre>
      *
-     * @return the use case class, or {@code Void.class} for legacy inline mode
+     * @return the use case class, or {@code Void.class} for inline threshold mode
      * @see UseCaseProvider
      * @see UseCase
      */
     Class<?> useCase() default Void.class;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INTENT DECLARATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Declares the epistemic intent of this probabilistic test.
+     *
+     * <ul>
+     *   <li>{@link TestIntent#VERIFICATION} (default): The test claims evidential
+     *       status. PUnit enforces statistical feasibility — if the configured
+     *       sample size is too small for the declared target and confidence,
+     *       the test fails before any samples execute.</li>
+     *   <li>{@link TestIntent#SMOKE}: The test is a lightweight sentinel check.
+     *       PUnit permits undersized configurations but labels results as
+     *       non-evidential and avoids compliance language.</li>
+     * </ul>
+     *
+     * <p>The default is VERIFICATION to prevent accidental "verification theatre"
+     * — where a small-N test with a normative target silently passes and is
+     * mistaken for compliance evidence.
+     *
+     * @return the declared test intent
+     * @see TestIntent
+     */
+    TestIntent intent() default TestIntent.VERIFICATION;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // THRESHOLD PROVENANCE

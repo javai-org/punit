@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenChargeRecorder;
 
@@ -22,14 +23,14 @@ public class ProbabilisticTestSubjects {
     private ProbabilisticTestSubjects() {}
 
     public static class AlwaysPassingTest {
-        @ProbabilisticTest(samples = 10, minPassRate = 0.8)
+        @ProbabilisticTest(samples = 10, minPassRate = 0.8, intent = TestIntent.SMOKE)
         void alwaysPasses() {
             assertThat(true).isTrue();
         }
     }
 
     public static class AlwaysFailingTest {
-        @ProbabilisticTest(samples = 10, minPassRate = 0.8)
+        @ProbabilisticTest(samples = 10, minPassRate = 0.8, intent = TestIntent.SMOKE)
         void alwaysFails() {
             assertThat(false).isTrue();
         }
@@ -57,7 +58,7 @@ public class ProbabilisticTestSubjects {
             counter.set(0);
         }
         
-        @ProbabilisticTest(samples = 10, minPassRate = 0.8)
+        @ProbabilisticTest(samples = 10, minPassRate = 0.8, intent = TestIntent.SMOKE)
         void passes80Percent() {
             int count = counter.incrementAndGet();
             // Fail on 9, 10 = 80% pass rate (exactly meets threshold)
@@ -72,7 +73,7 @@ public class ProbabilisticTestSubjects {
             counter.set(0);
         }
         
-        @ProbabilisticTest(samples = 10, minPassRate = 0.8)
+        @ProbabilisticTest(samples = 10, minPassRate = 0.8, intent = TestIntent.SMOKE)
         void passes70Percent() {
             int count = counter.incrementAndGet();
             // Fail on 8, 9, 10 = 70% pass rate (below 80% threshold)
@@ -81,7 +82,7 @@ public class ProbabilisticTestSubjects {
     }
 
     public static class ExceptionThrowingTest {
-        @ProbabilisticTest(samples = 5, minPassRate = 1.0)
+        @ProbabilisticTest(samples = 5, minPassRate = 1.0, intent = TestIntent.SMOKE)
         void throwsException() {
             throw new RuntimeException("Unexpected exception");
         }
@@ -95,7 +96,7 @@ public class ProbabilisticTestSubjects {
     }
 
     public static class SingleSampleTest {
-        @ProbabilisticTest(samples = 1, minPassRate = 1.0)
+        @ProbabilisticTest(samples = 1, minPassRate = 1.0, intent = TestIntent.SMOKE)
         void singleSamplePasses() {
             assertThat(true).isTrue();
         }
@@ -230,7 +231,7 @@ public class ProbabilisticTestSubjects {
             return samplesActuallyExecuted;
         }
         
-        @ProbabilisticTest(samples = 100, minPassRate = 1.0)
+        @ProbabilisticTest(samples = 100, minPassRate = 1.0, intent = TestIntent.SMOKE)
         void terminatesOnFirstFailure() {
             samplesActuallyExecuted = counter.incrementAndGet();
             // First sample fails
@@ -295,6 +296,7 @@ public class ProbabilisticTestSubjects {
         @ProbabilisticTest(
             samples = 5,
             minPassRate = 0.8,
+            intent = TestIntent.SMOKE,
             thresholdOrigin = ThresholdOrigin.SLA,
             contractRef = "Acme API SLA v3.2 §2.1"
         )
@@ -310,6 +312,7 @@ public class ProbabilisticTestSubjects {
         @ProbabilisticTest(
             samples = 5,
             minPassRate = 0.8,
+            intent = TestIntent.SMOKE,
             thresholdOrigin = ThresholdOrigin.SLO
         )
         void testWithThresholdOriginOnly() {
@@ -324,6 +327,7 @@ public class ProbabilisticTestSubjects {
         @ProbabilisticTest(
             samples = 5,
             minPassRate = 0.8,
+            intent = TestIntent.SMOKE,
             contractRef = "Internal Policy DOC-001"
         )
         void testWithContractRefOnly() {
@@ -338,6 +342,7 @@ public class ProbabilisticTestSubjects {
         @ProbabilisticTest(
             samples = 5,
             minPassRate = 0.8,
+            intent = TestIntent.SMOKE,
             thresholdOrigin = ThresholdOrigin.UNSPECIFIED
         )
         void testWithUnspecifiedSource() {
@@ -349,29 +354,77 @@ public class ProbabilisticTestSubjects {
      * Test each target source value.
      */
     public static class ProvenanceSlaSourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.SLA)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, intent = TestIntent.SMOKE, thresholdOrigin = ThresholdOrigin.SLA)
         void testSlaSource() {
             assertThat(true).isTrue();
         }
     }
 
     public static class ProvenanceSloSourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.SLO)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, intent = TestIntent.SMOKE, thresholdOrigin = ThresholdOrigin.SLO)
         void testSloSource() {
             assertThat(true).isTrue();
         }
     }
 
     public static class ProvenancePolicySourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.POLICY)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, intent = TestIntent.SMOKE, thresholdOrigin = ThresholdOrigin.POLICY)
         void testPolicySource() {
             assertThat(true).isTrue();
         }
     }
 
     public static class ProvenanceEmpiricalSourceTest {
-        @ProbabilisticTest(samples = 3, minPassRate = 0.6, thresholdOrigin = ThresholdOrigin.EMPIRICAL)
+        @ProbabilisticTest(samples = 3, minPassRate = 0.6, intent = TestIntent.SMOKE, thresholdOrigin = ThresholdOrigin.EMPIRICAL)
         void testEmpiricalSource() {
+            assertThat(true).isTrue();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FEASIBILITY GATE TEST SUBJECTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * VERIFICATION intent with undersized sample: should trigger infeasibility gate.
+     * N=10, p₀=0.95, confidence=0.95 → N_min=52. Gate should prevent execution.
+     */
+    public static class VerificationUndersizedTest {
+        @ProbabilisticTest(samples = 10, minPassRate = 0.95, intent = TestIntent.VERIFICATION)
+        void shouldNotExecute() {
+            assertThat(true).isTrue();
+        }
+    }
+
+    /**
+     * VERIFICATION intent with sufficient sample: should execute normally.
+     * N=55, p₀=0.90, confidence=0.95 → N_min=25. 55 ≥ 25, feasible.
+     */
+    public static class VerificationSizedTest {
+        @ProbabilisticTest(samples = 55, minPassRate = 0.90, intent = TestIntent.VERIFICATION)
+        void shouldExecute() {
+            assertThat(true).isTrue();
+        }
+    }
+
+    /**
+     * SMOKE intent with undersized sample: should execute normally (no gate).
+     * N=10, p₀=0.95 → would be infeasible for VERIFICATION, but SMOKE skips the gate.
+     */
+    public static class SmokeUndersizedTest {
+        @ProbabilisticTest(samples = 10, minPassRate = 0.95, intent = TestIntent.SMOKE)
+        void shouldExecute() {
+            assertThat(true).isTrue();
+        }
+    }
+
+    /**
+     * SMOKE intent with sufficient sample: should execute normally.
+     * N=55, p₀=0.90 → sized for verification, but intent is SMOKE.
+     */
+    public static class SmokeSizedTest {
+        @ProbabilisticTest(samples = 55, minPassRate = 0.90, intent = TestIntent.SMOKE)
+        void shouldExecute() {
             assertThat(true).isTrue();
         }
     }

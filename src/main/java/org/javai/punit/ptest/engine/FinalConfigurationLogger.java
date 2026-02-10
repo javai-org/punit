@@ -1,5 +1,6 @@
 package org.javai.punit.ptest.engine;
 
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.reporting.RateFormat;
@@ -32,8 +33,26 @@ class FinalConfigurationLogger {
             double minPassRate,
             String specId,
             ThresholdOrigin thresholdOrigin,
-            String contractRef
+            String contractRef,
+            TestIntent intent,
+            boolean thresholdDerived
     ) {
+        /**
+         * Backward-compatible constructor without thresholdDerived (defaults to false).
+         */
+        ConfigurationData(int samples, double minPassRate, String specId,
+                          ThresholdOrigin thresholdOrigin, String contractRef,
+                          TestIntent intent) {
+            this(samples, minPassRate, specId, thresholdOrigin, contractRef, intent, false);
+        }
+
+        /**
+         * Backward-compatible constructor without intent or thresholdDerived.
+         */
+        ConfigurationData(int samples, double minPassRate, String specId,
+                          ThresholdOrigin thresholdOrigin, String contractRef) {
+            this(samples, minPassRate, specId, thresholdOrigin, contractRef, TestIntent.VERIFICATION, false);
+        }
         /**
          * Returns true if thresholdOrigin is a normative source (SLA, SLO, or POLICY).
          */
@@ -110,13 +129,16 @@ class FinalConfigurationLogger {
             if (config.hasContractRef()) {
                 sb.append(PUnitReporter.labelValueLn("Contract:", config.contractRef()));
             }
-        } else if (config.hasSpecId()) {
+        } else if (config.hasSpecId() && config.thresholdDerived()) {
             sb.append(PUnitReporter.labelValueLn("Mode:", "SPEC-DRIVEN"));
             sb.append(PUnitReporter.labelValueLn("Spec:", config.specId()));
             sb.append(PUnitReporter.labelValueLn("Threshold:",
                     String.format("%s (derived from baseline)", RateFormat.format(config.minPassRate()))));
         } else {
             sb.append(PUnitReporter.labelValueLn("Mode:", "EXPLICIT THRESHOLD"));
+            if (config.hasSpecId()) {
+                sb.append(PUnitReporter.labelValueLn("Use Case:", config.specId()));
+            }
             String thresholdNote = "";
             if (config.hasThresholdOrigin()) {
                 thresholdNote = " (" + config.thresholdOrigin().name() + ")";
@@ -124,7 +146,10 @@ class FinalConfigurationLogger {
             sb.append(PUnitReporter.labelValueLn("Threshold:",
                     String.format("%s%s", RateFormat.format(config.minPassRate()), thresholdNote)));
         }
-        sb.append(PUnitReporter.labelValue("Samples:", String.valueOf(config.samples())));
+        sb.append(PUnitReporter.labelValueLn("Samples:", String.valueOf(config.samples())));
+        if (config.intent() != null) {
+            sb.append(PUnitReporter.labelValue("Intent:", config.intent().name()));
+        }
 
         return sb.toString();
     }

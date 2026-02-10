@@ -7,6 +7,7 @@ import java.util.Map;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -290,6 +291,11 @@ class ConfigurationResolverTest {
             public String contractRef() {
                 return "";
             }
+
+            @Override
+            public TestIntent intent() {
+                return TestIntent.VERIFICATION;
+            }
         };
     }
 
@@ -394,6 +400,188 @@ class ConfigurationResolverTest {
             public String contractRef() {
                 return "";
             }
+
+            @Override
+            public TestIntent intent() {
+                return TestIntent.VERIFICATION;
+            }
+        };
+    }
+
+    // ========== Intent and Confidence Resolution Tests ==========
+
+    @Test
+    void defaultIntent_isVerification() {
+        ProbabilisticTest annotation = createAnnotation(100, 0.95);
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        assertThat(config.intent()).isEqualTo(TestIntent.VERIFICATION);
+        assertThat(config.isVerification()).isTrue();
+        assertThat(config.isSmoke()).isFalse();
+    }
+
+    @Test
+    void explicitSmokeIntent_isPreserved() {
+        ProbabilisticTest annotation = createAnnotationWithIntent(100, 0.95, TestIntent.SMOKE);
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        assertThat(config.intent()).isEqualTo(TestIntent.SMOKE);
+        assertThat(config.isSmoke()).isTrue();
+        assertThat(config.isVerification()).isFalse();
+    }
+
+    @Test
+    void defaultResolvedConfidence_is095() {
+        ProbabilisticTest annotation = createAnnotation(100, 0.95);
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        assertThat(config.resolvedConfidence()).isEqualTo(0.95);
+    }
+
+    @Test
+    void explicitThresholdConfidence_overridesDefault() {
+        ProbabilisticTest annotation = createAnnotationWithThresholdConfidence(100, 0.95, 0.99);
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        assertThat(config.resolvedConfidence()).isEqualTo(0.99);
+    }
+
+    /**
+     * Creates a mock annotation with a specific intent.
+     */
+    private ProbabilisticTest createAnnotationWithIntent(int samples, double minPassRate, TestIntent intent) {
+        return new ProbabilisticTest() {
+            @Override public Class<? extends java.lang.annotation.Annotation> annotationType() { return ProbabilisticTest.class; }
+            @Override public int samples() { return samples; }
+            @Override public double minPassRate() { return minPassRate; }
+            @Override public long timeBudgetMs() { return 0; }
+            @Override public int tokenCharge() { return 0; }
+            @Override public long tokenBudget() { return 0; }
+            @Override public BudgetExhaustedBehavior onBudgetExhausted() { return BudgetExhaustedBehavior.FAIL; }
+            @Override public ExceptionHandling onException() { return ExceptionHandling.FAIL_SAMPLE; }
+            @Override public int maxExampleFailures() { return 5; }
+            @Override public Class<?> useCase() { return Void.class; }
+            @Override public double thresholdConfidence() { return Double.NaN; }
+            @Override public double confidence() { return Double.NaN; }
+            @Override public double minDetectableEffect() { return Double.NaN; }
+            @Override public double power() { return Double.NaN; }
+            @Override public boolean transparentStats() { return false; }
+            @Override public ThresholdOrigin thresholdOrigin() { return ThresholdOrigin.UNSPECIFIED; }
+            @Override public String contractRef() { return ""; }
+            @Override public TestIntent intent() { return intent; }
+        };
+    }
+
+    /**
+     * Creates a mock annotation with a specific thresholdConfidence.
+     */
+    private ProbabilisticTest createAnnotationWithThresholdConfidence(int samples, double minPassRate, double thresholdConf) {
+        return new ProbabilisticTest() {
+            @Override public Class<? extends java.lang.annotation.Annotation> annotationType() { return ProbabilisticTest.class; }
+            @Override public int samples() { return samples; }
+            @Override public double minPassRate() { return minPassRate; }
+            @Override public long timeBudgetMs() { return 0; }
+            @Override public int tokenCharge() { return 0; }
+            @Override public long tokenBudget() { return 0; }
+            @Override public BudgetExhaustedBehavior onBudgetExhausted() { return BudgetExhaustedBehavior.FAIL; }
+            @Override public ExceptionHandling onException() { return ExceptionHandling.FAIL_SAMPLE; }
+            @Override public int maxExampleFailures() { return 5; }
+            @Override public Class<?> useCase() { return Void.class; }
+            @Override public double thresholdConfidence() { return thresholdConf; }
+            @Override public double confidence() { return Double.NaN; }
+            @Override public double minDetectableEffect() { return Double.NaN; }
+            @Override public double power() { return Double.NaN; }
+            @Override public boolean transparentStats() { return false; }
+            @Override public ThresholdOrigin thresholdOrigin() { return ThresholdOrigin.UNSPECIFIED; }
+            @Override public String contractRef() { return ""; }
+            @Override public TestIntent intent() { return TestIntent.VERIFICATION; }
+        };
+    }
+
+    // ========== Confidence Validation Tests ==========
+
+    @Test
+    void thresholdConfidence_zero_throwsException() {
+        ProbabilisticTest annotation = createAnnotationWithConfidenceValues(100, 0.95, 0.0, Double.NaN);
+        assertThatThrownBy(() -> resolver.resolve(annotation, "testMethod"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("thresholdConfidence")
+                .hasMessageContaining("0.0")
+                .hasMessageContaining("meaningless");
+    }
+
+    @Test
+    void thresholdConfidence_one_throwsException() {
+        ProbabilisticTest annotation = createAnnotationWithConfidenceValues(100, 0.95, 1.0, Double.NaN);
+        assertThatThrownBy(() -> resolver.resolve(annotation, "testMethod"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("thresholdConfidence")
+                .hasMessageContaining("1.0")
+                .hasMessageContaining("vacuous");
+    }
+
+    @Test
+    void thresholdConfidence_negative_throwsException() {
+        ProbabilisticTest annotation = createAnnotationWithConfidenceValues(100, 0.95, -0.5, Double.NaN);
+        assertThatThrownBy(() -> resolver.resolve(annotation, "testMethod"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("thresholdConfidence")
+                .hasMessageContaining("-0.5");
+    }
+
+    @Test
+    void thresholdConfidence_valid_accepted() {
+        ProbabilisticTest annotation = createAnnotationWithConfidenceValues(100, 0.95, 0.5, Double.NaN);
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        assertThat(config.resolvedConfidence()).isEqualTo(0.5);
+    }
+
+    @Test
+    void confidence_zero_throwsException() {
+        ProbabilisticTest annotation = createAnnotationWithConfidenceValues(100, 0.95, Double.NaN, 0.0);
+        assertThatThrownBy(() -> resolver.resolve(annotation, "testMethod"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("confidence")
+                .hasMessageContaining("0.0");
+    }
+
+    @Test
+    void confidence_one_throwsException() {
+        ProbabilisticTest annotation = createAnnotationWithConfidenceValues(100, 0.95, Double.NaN, 1.0);
+        assertThatThrownBy(() -> resolver.resolve(annotation, "testMethod"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("confidence")
+                .hasMessageContaining("1.0");
+    }
+
+    @Test
+    void confidence_nan_accepted() {
+        // NaN means unset — should not throw
+        ProbabilisticTest annotation = createAnnotationWithConfidenceValues(100, 0.95, Double.NaN, Double.NaN);
+        ConfigurationResolver.ResolvedConfiguration config = resolver.resolve(annotation, "testMethod");
+        assertThat(config).isNotNull();
+    }
+
+    /**
+     * Creates a mock annotation with specific thresholdConfidence and confidence values.
+     */
+    private ProbabilisticTest createAnnotationWithConfidenceValues(
+            int samples, double minPassRate, double thresholdConf, double conf) {
+        return new ProbabilisticTest() {
+            @Override public Class<? extends java.lang.annotation.Annotation> annotationType() { return ProbabilisticTest.class; }
+            @Override public int samples() { return samples; }
+            @Override public double minPassRate() { return minPassRate; }
+            @Override public long timeBudgetMs() { return 0; }
+            @Override public int tokenCharge() { return 0; }
+            @Override public long tokenBudget() { return 0; }
+            @Override public BudgetExhaustedBehavior onBudgetExhausted() { return BudgetExhaustedBehavior.FAIL; }
+            @Override public ExceptionHandling onException() { return ExceptionHandling.FAIL_SAMPLE; }
+            @Override public int maxExampleFailures() { return 5; }
+            @Override public Class<?> useCase() { return Void.class; }
+            @Override public double thresholdConfidence() { return thresholdConf; }
+            @Override public double confidence() { return conf; }
+            @Override public double minDetectableEffect() { return Double.NaN; }
+            @Override public double power() { return Double.NaN; }
+            @Override public boolean transparentStats() { return false; }
+            @Override public ThresholdOrigin thresholdOrigin() { return ThresholdOrigin.UNSPECIFIED; }
+            @Override public String contractRef() { return ""; }
+            @Override public TestIntent intent() { return TestIntent.VERIFICATION; }
         };
     }
 

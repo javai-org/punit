@@ -50,7 +50,7 @@ public final class BernoulliFailureMessages {
     }
 
     /**
-     * Builds a failure message for a probabilistic test without spec (legacy mode).
+     * Builds a failure message for a probabilistic test with an inline threshold (no spec).
      *
      * <p>Format:
      * <pre>
@@ -63,7 +63,7 @@ public final class BernoulliFailureMessages {
      * @param threshold the minimum required pass rate
      * @return formatted failure message
      */
-    public static String probabilisticTestFailureLegacy(
+    public static String probabilisticTestFailureInlineThreshold(
             double observedRate,
             int successes,
             int samples,
@@ -163,7 +163,7 @@ public final class BernoulliFailureMessages {
             String specId
     ) {
         /**
-         * Creates a context for spec-less (legacy) mode where baseline data is unavailable.
+         * Creates a context for inline threshold mode where baseline data is unavailable.
          *
          * @param observedRate the observed pass rate
          * @param successes number of successful samples
@@ -171,13 +171,13 @@ public final class BernoulliFailureMessages {
          * @param threshold the minimum required pass rate
          * @return context with placeholder values for baseline fields
          */
-        public static StatisticalContext forLegacyMode(
+        public static StatisticalContext forInlineThreshold(
                 double observedRate,
                 int successes,
                 int samples,
                 double threshold) {
             return new StatisticalContext(
-                    Double.NaN, // No confidence in legacy mode
+                    Double.NaN, // No confidence for inline threshold
                     observedRate,
                     successes,
                     samples,

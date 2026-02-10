@@ -317,6 +317,41 @@ private fun sections(): List<Section> = listOf(
             Part.CodeBlock("VERBOSE", "temporalMismatchShowsCaveatTransparent", BlockType.STATISTICAL_ANALYSIS),
         ),
     ),
+    Section(
+        number = 8,
+        heading = "Intent-governed verdicts (VERIFICATION vs SMOKE)",
+        intro = "PUnit supports two test intents: **VERIFICATION** (evidential — enforces a " +
+                "statistical feasibility gate before any samples execute) and **SMOKE** (sentinel — " +
+                "permits undersized configurations and uses softened language). The intent appears " +
+                "in the verdict banner and influences hypothesis framing and caveats.\n\n" +
+                "A VERIFICATION test with insufficient samples will fail at configuration time " +
+                "(not shown here — see the user guide for the infeasibility message). The examples " +
+                "below show how intent affects the verdict for tests that *do* execute.",
+        parts = listOf(
+            Part.Subheading("Summary"),
+            Part.Subheading("Verification (sized, normative)"),
+            Part.CodeBlock("SUMMARY", "verificationPassSized", BlockType.TEST_CONFIGURATION),
+            Part.CodeBlock("SUMMARY", "verificationPassSized", BlockType.STATISTICAL_ANALYSIS),
+            Part.Prose(
+                "When a test is configured with `intent = SMOKE` and a normative threshold origin " +
+                        "(SLA, SLO, or POLICY), PUnit uses softened language — \"consistent with the " +
+                        "target\" rather than \"meets SLA requirement\". If the sample is undersized " +
+                        "for verification, a sizing note appears."
+            ),
+            Part.Subheading("Smoke undersized (normative)"),
+            Part.CodeBlock("SUMMARY", "smokeUndersizedNormative", BlockType.TEST_CONFIGURATION),
+            Part.CodeBlock("SUMMARY", "smokeUndersizedNormative", BlockType.STATISTICAL_ANALYSIS),
+            Part.Prose(
+                "If the SMOKE sample is already large enough for verification, PUnit suggests " +
+                        "upgrading to `intent = VERIFICATION` for evidential strength."
+            ),
+            Part.Subheading("Smoke sized with hint (normative)"),
+            Part.CodeBlock("SUMMARY", "smokeSizedNormativeHint", BlockType.STATISTICAL_ANALYSIS),
+            Part.Subheading("Verbose"),
+            Part.CodeBlock("VERBOSE", "verificationPassSized", BlockType.STATISTICAL_ANALYSIS),
+            Part.CodeBlock("VERBOSE", "smokeUndersizedNormative", BlockType.STATISTICAL_ANALYSIS),
+        ),
+    ),
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 package org.javai.punit.ptest.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.ptest.engine.FinalConfigurationLogger.ConfigurationData;
 import org.javai.punit.reporting.PUnitReporter;
@@ -77,14 +78,16 @@ class FinalConfigurationLoggerTest {
         }
 
         @Test
-        @DisplayName("Spec without normative origin shows SPEC-DRIVEN mode")
-        void specWithoutNormativeOriginShowsSpecMode() {
+        @DisplayName("Spec with derived threshold shows SPEC-DRIVEN mode")
+        void specWithDerivedThresholdShowsSpecMode() {
             ConfigurationData config = new ConfigurationData(
                     100,
                     0.92,
                     "ShoppingUseCase",
                     ThresholdOrigin.EMPIRICAL,
-                    null
+                    null,
+                    TestIntent.VERIFICATION,
+                    true
             );
 
             String formatted = logger.format(config);
@@ -92,6 +95,29 @@ class FinalConfigurationLoggerTest {
             assertThat(formatted).contains("Mode:");
             assertThat(formatted).contains("SPEC-DRIVEN");
             assertThat(formatted).contains("derived from baseline");
+        }
+
+        @Test
+        @DisplayName("Spec with explicit threshold shows EXPLICIT THRESHOLD mode")
+        void specWithExplicitThresholdShowsExplicitMode() {
+            ConfigurationData config = new ConfigurationData(
+                    100,
+                    0.50,
+                    "ShoppingUseCase",
+                    ThresholdOrigin.UNSPECIFIED,
+                    null,
+                    TestIntent.VERIFICATION,
+                    false
+            );
+
+            String formatted = logger.format(config);
+
+            assertThat(formatted).contains("Mode:");
+            assertThat(formatted).contains("EXPLICIT THRESHOLD");
+            assertThat(formatted).doesNotContain("derived from baseline");
+            assertThat(formatted).doesNotContain("SPEC-DRIVEN");
+            assertThat(formatted).contains("Use Case:");
+            assertThat(formatted).doesNotContain("Spec:");
         }
 
         @Test
@@ -156,7 +182,9 @@ class FinalConfigurationLoggerTest {
                     0.923,
                     "ShoppingUseCase",
                     null,
-                    null
+                    null,
+                    TestIntent.VERIFICATION,
+                    true
             );
 
             String formatted = logger.format(config);
@@ -254,7 +282,7 @@ class FinalConfigurationLoggerTest {
         @Test
         @DisplayName("Contract reference only appears for normative thresholds")
         void contractRefOnlyAppearsForNormativeThresholds() {
-            // Contract ref with EMPIRICAL origin (spec-driven mode)
+            // Contract ref with EMPIRICAL origin and explicit threshold (not derived from baseline)
             ConfigurationData config = new ConfigurationData(
                     100,
                     0.92,
@@ -265,9 +293,9 @@ class FinalConfigurationLoggerTest {
 
             String formatted = logger.format(config);
 
-            // In SPEC-DRIVEN mode, contract ref is not shown
-            // (it would be confusing since threshold is from baseline, not contract)
-            assertThat(formatted).contains("SPEC-DRIVEN");
+            // In EXPLICIT THRESHOLD mode, contract ref is not shown
+            // (it would be confusing since threshold is explicit, not from contract)
+            assertThat(formatted).contains("EXPLICIT THRESHOLD");
             assertThat(formatted).doesNotContain("Contract:");
         }
     }
@@ -301,7 +329,9 @@ class FinalConfigurationLoggerTest {
                     0.92,
                     "ShoppingUseCase",
                     null,
-                    null
+                    null,
+                    TestIntent.VERIFICATION,
+                    true
             );
 
             String formatted = logger.format(config);
@@ -450,6 +480,42 @@ class FinalConfigurationLoggerTest {
         void hasThresholdOriginFalseForNull() {
             ConfigurationData config = new ConfigurationData(100, 0.95, null, null, null);
             assertThat(config.hasThresholdOrigin()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("Intent display")
+    class IntentDisplay {
+
+        @Test
+        @DisplayName("VERIFICATION intent appears in banner")
+        void verificationIntentAppearsInBanner() {
+            ConfigurationData config = new ConfigurationData(
+                    100, 0.95, null, ThresholdOrigin.UNSPECIFIED, null, TestIntent.VERIFICATION);
+            String formatted = logger.format(config);
+            assertThat(formatted).contains("Intent:");
+            assertThat(formatted).contains("VERIFICATION");
+        }
+
+        @Test
+        @DisplayName("SMOKE intent appears in banner")
+        void smokeIntentAppearsInBanner() {
+            ConfigurationData config = new ConfigurationData(
+                    50, 0.90, null, ThresholdOrigin.UNSPECIFIED, null, TestIntent.SMOKE);
+            String formatted = logger.format(config);
+            assertThat(formatted).contains("Intent:");
+            assertThat(formatted).contains("SMOKE");
+        }
+
+        @Test
+        @DisplayName("Intent appears alongside SLA-DRIVEN mode")
+        void intentWithSlaMode() {
+            ConfigurationData config = new ConfigurationData(
+                    100, 0.95, "ShoppingUseCase", ThresholdOrigin.SLA, null, TestIntent.VERIFICATION);
+            String formatted = logger.format(config);
+            assertThat(formatted).contains("SLA-DRIVEN");
+            assertThat(formatted).contains("Intent:");
+            assertThat(formatted).contains("VERIFICATION");
         }
     }
 

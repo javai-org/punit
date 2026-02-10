@@ -2,6 +2,7 @@ package org.javai.punit.ptest.engine;
 
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.pacing.PacingConfiguration;
@@ -26,14 +27,16 @@ import org.javai.punit.statistics.transparent.TransparentStatsConfig;
  * @param onBudgetExhausted Behavior when budget is exhausted
  * @param onException How to handle exceptions during sample execution
  * @param maxExampleFailures Maximum failures to show in output
- * @param confidence Statistical confidence level (null for legacy mode)
- * @param baselineRate Baseline success rate (null for legacy mode)
- * @param baselineSamples Number of samples in baseline (null for legacy mode)
- * @param specId Specification identifier (null for legacy mode)
+ * @param confidence Statistical confidence level (null for inline threshold mode)
+ * @param baselineRate Baseline success rate (null for inline threshold mode)
+ * @param baselineSamples Number of samples in baseline (null for inline threshold mode)
+ * @param specId Specification identifier (null for inline threshold mode)
  * @param pacing Pacing configuration for rate limiting
  * @param transparentStats Configuration for transparent statistics output
  * @param thresholdOrigin Origin of the threshold (SLA, SLO, POLICY, etc.)
  * @param contractRef Reference to external contract document
+ * @param intent The declared test intent (VERIFICATION or SMOKE)
+ * @param resolvedConfidence The confidence level for feasibility evaluation
  */
 record TestConfiguration(
         int samples,
@@ -46,7 +49,7 @@ record TestConfiguration(
         BudgetExhaustedBehavior onBudgetExhausted,
         ExceptionHandling onException,
         int maxExampleFailures,
-        // Statistical context for failure messages (null for legacy/spec-less mode)
+        // Statistical context for failure messages (null for inline threshold mode)
         Double confidence,
         Double baselineRate,
         Integer baselineSamples,
@@ -57,7 +60,10 @@ record TestConfiguration(
         TransparentStatsConfig transparentStats,
         // Provenance metadata
         ThresholdOrigin thresholdOrigin,
-        String contractRef
+        String contractRef,
+        // Intent declaration
+        TestIntent intent,
+        double resolvedConfidence
 ) {
     /**
      * Returns true if a sample multiplier was applied.
@@ -132,7 +138,8 @@ record TestConfiguration(
                 samples, newMinPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
                 tokenMode, onBudgetExhausted, onException, maxExampleFailures,
                 confidence, baselineRate, baselineSamples, specId,
-                pacing, transparentStats, thresholdOrigin, contractRef
+                pacing, transparentStats, thresholdOrigin, contractRef,
+                intent, resolvedConfidence
         );
     }
 
@@ -153,7 +160,7 @@ record TestConfiguration(
                     specId
             );
         } else {
-            return BernoulliFailureMessages.StatisticalContext.forLegacyMode(
+            return BernoulliFailureMessages.StatisticalContext.forInlineThreshold(
                     observedRate,
                     successes,
                     samplesExecuted,

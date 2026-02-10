@@ -4,6 +4,7 @@ import java.util.stream.Stream;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
@@ -25,7 +26,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  *
  * <h2>Verdict Dimensions Covered</h2>
  * <ul>
- *   <li><b>Normal completion</b> — pass and fail, legacy and transparent</li>
+ *   <li><b>Normal completion</b> — pass and fail, summary and transparent</li>
  *   <li><b>Early termination</b> — impossibility and success-guaranteed</li>
  *   <li><b>Budget exhaustion</b> — FAIL and EVALUATE_PARTIAL behaviours</li>
  *   <li><b>Threshold origin framing</b> — SLA, SLO, POLICY, EMPIRICAL hypothesis text</li>
@@ -111,7 +112,8 @@ public class VerdictCatalogueTest {
         @ProbabilisticTest(
                 useCase = ShoppingBasketUseCase.class,
                 samples = 50,
-                minPassRate = 0.95
+                minPassRate = 0.95,
+                intent = TestIntent.SMOKE
         )
         @InputSource("standardInstructions")
         void serviceFailsNarrowly(ShoppingBasketUseCase useCase, String instruction) {
@@ -135,7 +137,8 @@ public class VerdictCatalogueTest {
                 useCase = ShoppingBasketUseCase.class,
                 samples = 50,
                 minPassRate = 0.95,
-                transparentStats = true
+                transparentStats = true,
+                intent = TestIntent.SMOKE
         )
         @InputSource("standardInstructions")
         void serviceFailsNarrowlyTransparent(ShoppingBasketUseCase useCase, String instruction) {
@@ -159,7 +162,8 @@ public class VerdictCatalogueTest {
         @ProbabilisticTest(
                 useCase = ShoppingBasketUseCase.class,
                 samples = 30,
-                minPassRate = 0.95
+                minPassRate = 0.95,
+                intent = TestIntent.SMOKE
         )
         @InputSource("standardInstructions")
         void failsEarlyWhenThresholdUnreachable(ShoppingBasketUseCase useCase, String instruction) {
@@ -182,7 +186,8 @@ public class VerdictCatalogueTest {
                 useCase = ShoppingBasketUseCase.class,
                 samples = 30,
                 minPassRate = 0.95,
-                transparentStats = true
+                transparentStats = true,
+                intent = TestIntent.SMOKE
         )
         @InputSource("standardInstructions")
         void failsEarlyWhenThresholdUnreachableTransparent(ShoppingBasketUseCase useCase, String instruction) {
@@ -411,7 +416,8 @@ public class VerdictCatalogueTest {
                 minPassRate = 0.9999,
                 thresholdOrigin = ThresholdOrigin.SLA,
                 contractRef = "Acme Payment SLA v3.2 §4.1",
-                transparentStats = true
+                transparentStats = true,
+                intent = TestIntent.SMOKE
         )
         @InputSource("standardInstructions")
         void complianceUndersizedSmokeTestOnly(ShoppingBasketUseCase useCase, String instruction) {
@@ -462,6 +468,76 @@ public class VerdictCatalogueTest {
         )
         @InputSource("standardInstructions")
         void temporalMismatchShowsCaveatTransparent(ShoppingBasketUseCase useCase, String instruction) {
+            useCase.translateInstruction(instruction).assertAll();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 7. INTENT-GOVERNED VERDICTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("Intent-Governed Verdicts")
+    class IntentGovernedVerdicts {
+
+        static Stream<String> standardInstructions() {
+            return VerdictCatalogueTest.standardInstructions();
+        }
+
+        @ProbabilisticTest(
+                useCase = ShoppingBasketUseCase.class,
+                samples = 50,
+                minPassRate = 0.50,
+                intent = TestIntent.VERIFICATION,
+                thresholdOrigin = ThresholdOrigin.SLA,
+                contractRef = "Acme Payment SLA v3.2 §4.1",
+                transparentStats = true
+        )
+        @InputSource("standardInstructions")
+        void verificationPassSized(ShoppingBasketUseCase useCase, String instruction) {
+            useCase.setTemperature(0.0);
+            useCase.translateInstruction(instruction).assertAll();
+        }
+
+        @ProbabilisticTest(
+                useCase = ShoppingBasketUseCase.class,
+                samples = 30,
+                minPassRate = 0.95,
+                intent = TestIntent.SMOKE,
+                thresholdOrigin = ThresholdOrigin.SLA,
+                transparentStats = true
+        )
+        @InputSource("standardInstructions")
+        void smokeUndersizedNormative(ShoppingBasketUseCase useCase, String instruction) {
+            useCase.setTemperature(0.0);
+            useCase.translateInstruction(instruction).assertAll();
+        }
+
+        @ProbabilisticTest(
+                useCase = ShoppingBasketUseCase.class,
+                samples = 50,
+                minPassRate = 0.50,
+                intent = TestIntent.SMOKE,
+                thresholdOrigin = ThresholdOrigin.SLA,
+                transparentStats = true
+        )
+        @InputSource("standardInstructions")
+        void smokeSizedNormativeHint(ShoppingBasketUseCase useCase, String instruction) {
+            useCase.setTemperature(0.0);
+            useCase.translateInstruction(instruction).assertAll();
+        }
+
+        @ProbabilisticTest(
+                useCase = ShoppingBasketUseCase.class,
+                samples = 50,
+                minPassRate = 0.50,
+                intent = TestIntent.SMOKE,
+                thresholdOrigin = ThresholdOrigin.EMPIRICAL,
+                transparentStats = true
+        )
+        @InputSource("standardInstructions")
+        void smokeNonNormative(ShoppingBasketUseCase useCase, String instruction) {
+            useCase.setTemperature(0.0);
             useCase.translateInstruction(instruction).assertAll();
         }
     }

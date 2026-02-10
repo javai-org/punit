@@ -155,9 +155,10 @@ class ProvenanceTest {
                 org.javai.punit.api.ExceptionHandling.FAIL_SAMPLE,
                 5,
                 null, null, null, null,
-                ThresholdOrigin.SLA, "Test Contract"
+                ThresholdOrigin.SLA, "Test Contract",
+                org.javai.punit.api.TestIntent.VERIFICATION, 0.95
             );
-        
+
         assertThat(config.hasProvenance()).isTrue();
         assertThat(config.hasThresholdOrigin()).isTrue();
         assertThat(config.hasContractRef()).isTrue();
@@ -189,7 +190,8 @@ class ProvenanceTest {
                 org.javai.punit.api.ExceptionHandling.FAIL_SAMPLE,
                 5,
                 null, null, null, null,
-                ThresholdOrigin.SLA, ""
+                ThresholdOrigin.SLA, "",
+                org.javai.punit.api.TestIntent.VERIFICATION, 0.95
             );
         
         assertThat(config.hasProvenance()).isTrue();  // has thresholdOrigin

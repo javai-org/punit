@@ -33,8 +33,8 @@ package org.javai.punit.statistics;
  */
 public final class ComplianceEvidenceEvaluator {
 
-    /** Default significance level for the evidence threshold. */
-    public static final double DEFAULT_ALPHA = 0.001;
+    /** Default significance level for the evidence threshold (α = 1 − confidence). */
+    public static final double DEFAULT_ALPHA = StatisticalDefaults.DEFAULT_ALPHA;
 
     /** The exact phrase that appears in reports when sample size is insufficient for compliance. */
     public static final String SIZING_NOTE = "sample not sized for compliance verification";
@@ -60,7 +60,7 @@ public final class ComplianceEvidenceEvaluator {
     /**
      * Returns true if the sample size is too small to contribute to a compliance
      * determination at the given significance level.
-     *
+     *Probabili
      * <p>A sample is undersized when even a perfect observation (all successes)
      * would produce a one-sided lower confidence bound below the target.
      *

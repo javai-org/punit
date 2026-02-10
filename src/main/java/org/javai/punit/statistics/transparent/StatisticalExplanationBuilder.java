@@ -7,6 +7,8 @@ import org.javai.punit.reporting.RateFormat;
 import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
 import org.javai.punit.statistics.ProportionEstimate;
+import org.javai.punit.statistics.StatisticalDefaults;
+import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 
 /**
  * Builds statistical explanations from test execution context.
@@ -53,7 +55,7 @@ public class StatisticalExplanationBuilder {
      * @param testName The name of the test
      * @param samples Number of samples executed
      * @param successes Number of successful samples
-     * @param baseline The baseline data (may be null or empty for legacy tests)
+     * @param baseline The baseline data (may be null or empty for inline threshold tests)
      * @param threshold The pass/fail threshold
      * @param passed Whether the test passed
      * @param confidenceLevel The confidence level used (e.g., 0.95)
@@ -77,7 +79,7 @@ public class StatisticalExplanationBuilder {
      * @param testName The name of the test
      * @param samples Number of samples executed
      * @param successes Number of successful samples
-     * @param baseline The baseline data (may be null or empty for legacy tests)
+     * @param baseline The baseline data (may be null or empty for inline threshold tests)
      * @param threshold The pass/fail threshold
      * @param passed Whether the test passed
      * @param confidenceLevel The confidence level used (e.g., 0.95)
@@ -105,7 +107,7 @@ public class StatisticalExplanationBuilder {
      * @param testName The name of the test
      * @param samples Number of samples executed
      * @param successes Number of successful samples
-     * @param baseline The baseline data (may be null or empty for legacy tests)
+     * @param baseline The baseline data (may be null or empty for inline threshold tests)
      * @param threshold The pass/fail threshold
      * @param passed Whether the test passed
      * @param confidenceLevel The confidence level used (e.g., 0.95)
@@ -125,6 +127,38 @@ public class StatisticalExplanationBuilder {
             String thresholdOriginName,
             String contractRef,
             List<CovariateMisalignment> misalignments) {
+        return build(testName, samples, successes, baseline, threshold, passed, confidenceLevel,
+                thresholdOriginName, contractRef, misalignments, false);
+    }
+
+    /**
+     * Builds a complete statistical explanation with provenance, covariate misalignment, and intent.
+     *
+     * @param testName The name of the test
+     * @param samples Number of samples executed
+     * @param successes Number of successful samples
+     * @param baseline The baseline data (may be null or empty for inline threshold tests)
+     * @param threshold The pass/fail threshold
+     * @param passed Whether the test passed
+     * @param confidenceLevel The confidence level used (e.g., 0.95)
+     * @param thresholdOriginName The name of the threshold origin (e.g., "SLA", "SLO")
+     * @param contractRef Human-readable reference to the source document
+     * @param misalignments List of covariate misalignments (may be empty)
+     * @param isSmoke true if the test intent is SMOKE (softened language, no compliance assertions)
+     * @return A complete statistical explanation
+     */
+    public StatisticalExplanation build(
+            String testName,
+            int samples,
+            int successes,
+            BaselineData baseline,
+            double threshold,
+            boolean passed,
+            double confidenceLevel,
+            String thresholdOriginName,
+            String contractRef,
+            List<CovariateMisalignment> misalignments,
+            boolean isSmoke) {
 
         BaselineData effectiveBaseline = baseline != null ? baseline : BaselineData.empty();
         StatisticalExplanation.Provenance provenance = new StatisticalExplanation.Provenance(
@@ -132,17 +166,17 @@ public class StatisticalExplanationBuilder {
                 contractRef != null ? contractRef : ""
         );
         List<CovariateMisalignment> effectiveMisalignments = misalignments != null ? misalignments : Collections.emptyList();
-        
+
         String effectiveContractRef = contractRef != null ? contractRef : "";
 
         return new StatisticalExplanation(
                 testName,
-                buildHypothesis(threshold, thresholdOriginName),
+                buildHypothesis(threshold, thresholdOriginName, isSmoke),
                 buildObservedData(samples, successes),
                 buildBaselineReference(effectiveBaseline, threshold, confidenceLevel),
                 buildInference(samples, successes, confidenceLevel),
                 buildVerdict(passed, samples, successes, threshold, effectiveBaseline, confidenceLevel,
-                        thresholdOriginName, effectiveContractRef, effectiveMisalignments),
+                        thresholdOriginName, effectiveContractRef, effectiveMisalignments, isSmoke),
                 provenance
         );
     }
@@ -186,8 +220,34 @@ public class StatisticalExplanationBuilder {
             boolean passed,
             String thresholdOriginName,
             String contractRef) {
+        return buildWithInlineThreshold(testName, samples, successes, threshold, passed,
+                thresholdOriginName, contractRef, false);
+    }
 
-        double confidenceLevel = 0.95; // Default confidence for legacy mode
+    /**
+     * Builds a statistical explanation for inline threshold mode with provenance and intent.
+     *
+     * @param testName The name of the test
+     * @param samples Number of samples executed
+     * @param successes Number of successful samples
+     * @param threshold The pass/fail threshold
+     * @param passed Whether the test passed
+     * @param thresholdOriginName The name of the threshold origin (e.g., "SLA", "SLO")
+     * @param contractRef Human-readable reference to the source document
+     * @param isSmoke true if the test intent is SMOKE (softened language, no compliance assertions)
+     * @return A complete statistical explanation
+     */
+    public StatisticalExplanation buildWithInlineThreshold(
+            String testName,
+            int samples,
+            int successes,
+            double threshold,
+            boolean passed,
+            String thresholdOriginName,
+            String contractRef,
+            boolean isSmoke) {
+
+        double confidenceLevel = StatisticalDefaults.DEFAULT_CONFIDENCE;
         String effectiveContractRef = contractRef != null ? contractRef : "";
         StatisticalExplanation.Provenance provenance = new StatisticalExplanation.Provenance(
                 thresholdOriginName != null ? thresholdOriginName : "UNSPECIFIED",
@@ -196,12 +256,12 @@ public class StatisticalExplanationBuilder {
 
         return new StatisticalExplanation(
                 testName,
-                buildHypothesis(threshold, thresholdOriginName),
+                buildHypothesis(threshold, thresholdOriginName, isSmoke),
                 buildObservedData(samples, successes),
                 buildInlineThresholdBaselineReference(threshold),
                 buildInference(samples, successes, confidenceLevel),
                 buildInlineThresholdVerdict(passed, samples, successes, threshold,
-                        thresholdOriginName, effectiveContractRef),
+                        thresholdOriginName, effectiveContractRef, isSmoke),
                 provenance
         );
     }
@@ -211,9 +271,14 @@ public class StatisticalExplanationBuilder {
     // ═══════════════════════════════════════════════════════════════════════════
 
     private StatisticalExplanation.HypothesisStatement buildHypothesis(double threshold, String thresholdOriginName) {
-        // Adapt hypothesis framing based on threshold origin (per STATISTICAL-COMPANION Section 7.4)
-        HypothesisFraming framing = getHypothesisFraming(thresholdOriginName);
-        
+        return buildHypothesis(threshold, thresholdOriginName, false);
+    }
+
+    private StatisticalExplanation.HypothesisStatement buildHypothesis(
+            double threshold, String thresholdOriginName, boolean isSmoke) {
+        // Adapt hypothesis framing based on threshold origin and intent
+        HypothesisFraming framing = getHypothesisFraming(thresholdOriginName, isSmoke);
+
         String nullHypothesis = String.format(
                 "True success rate %s %s %s (%s)",
                 StatisticalVocabulary.PI, StatisticalVocabulary.GEQ, RateFormat.format(threshold), framing.h0Text);
@@ -221,7 +286,7 @@ public class StatisticalExplanationBuilder {
         String alternativeHypothesis = String.format(
                 "True success rate %s < %s (%s)",
                 StatisticalVocabulary.PI, RateFormat.format(threshold), framing.h1Text);
-        
+
         return new StatisticalExplanation.HypothesisStatement(
                 nullHypothesis,
                 alternativeHypothesis,
@@ -230,22 +295,33 @@ public class StatisticalExplanationBuilder {
     }
 
     /**
-     * Returns hypothesis framing text based on the threshold origin.
-     * 
-     * <p>This implements the framing described in STATISTICAL-COMPANION Section 7.4:
-     * <ul>
-     *   <li>SLA: "System meets SLA requirement" / "System violates SLA"</li>
-     *   <li>SLO: "System meets SLO target" / "System falls short of SLO"</li>
-     *   <li>POLICY: "System meets policy requirement" / "System violates policy"</li>
-     *   <li>EMPIRICAL: "No degradation from baseline" / "Degradation from baseline"</li>
-     *   <li>UNSPECIFIED: "Success rate meets threshold" / "Success rate below threshold"</li>
-     * </ul>
+     * Returns hypothesis framing text based on the threshold origin and intent.
+     *
+     * <p>For VERIFICATION intent, this implements the framing described in
+     * STATISTICAL-COMPANION Section 7.4. For SMOKE intent, the framing is softened
+     * to avoid compliance language (Req 11).
      */
-    private HypothesisFraming getHypothesisFraming(String thresholdOriginName) {
+    private HypothesisFraming getHypothesisFraming(String thresholdOriginName, boolean isSmoke) {
         if (thresholdOriginName == null) {
             thresholdOriginName = "UNSPECIFIED";
         }
-        
+
+        // SMOKE intent uses softened language — no compliance assertions
+        if (isSmoke) {
+            return switch (thresholdOriginName.toUpperCase()) {
+                case "SLA", "SLO", "POLICY" -> new HypothesisFraming(
+                        "observed rate consistent with target",
+                        "observed rate inconsistent with target");
+                case "EMPIRICAL" -> new HypothesisFraming(
+                        "no degradation from baseline",
+                        "degradation from baseline");
+                default -> new HypothesisFraming(
+                        "observed rate meets threshold",
+                        "observed rate below threshold");
+            };
+        }
+
+        // VERIFICATION intent (or null) — full compliance framing
         return switch (thresholdOriginName.toUpperCase()) {
             case "SLA" -> new HypothesisFraming(
                     "system meets SLA requirement",
@@ -370,15 +446,29 @@ public class StatisticalExplanationBuilder {
             String thresholdOriginName,
             String contractRef,
             List<CovariateMisalignment> misalignments) {
+        return buildVerdict(passed, samples, successes, threshold, baseline, confidenceLevel,
+                thresholdOriginName, contractRef, misalignments, false);
+    }
+
+    private StatisticalExplanation.VerdictInterpretation buildVerdict(
+            boolean passed,
+            int samples,
+            int successes,
+            double threshold,
+            BaselineData baseline,
+            double confidenceLevel,
+            String thresholdOriginName,
+            String contractRef,
+            List<CovariateMisalignment> misalignments,
+            boolean isSmoke) {
 
         double observedRate = samples > 0 ? (double) successes / samples : 0.0;
         String technicalResult = passed ? "PASS" : "FAIL";
-        VerdictFraming framing = getVerdictFraming(thresholdOriginName);
+        VerdictFraming framing = getVerdictFraming(thresholdOriginName, isSmoke);
 
         String plainEnglish;
         if (passed) {
             if (baseline != null && baseline.hasEmpiricalData()) {
-                // Have empirical baseline data - can reference baseline expectation
                 plainEnglish = String.format(
                         "The observed success rate of %s is consistent with the baseline expectation of %s. " +
                         "%s",
@@ -386,7 +476,6 @@ public class StatisticalExplanationBuilder {
                         RateFormat.format(baseline.baselineRate()),
                         framing.passText);
             } else {
-                // No empirical data (inline threshold or baseline without empirical basis)
                 plainEnglish = String.format(
                         "The observed success rate of %s meets the required threshold of %s. %s",
                         RateFormat.format(observedRate),
@@ -403,6 +492,7 @@ public class StatisticalExplanationBuilder {
 
         List<String> caveats = buildCaveats(samples, observedRate, threshold, misalignments);
         appendComplianceEvidenceCaveat(caveats, samples, threshold, thresholdOriginName, contractRef);
+        appendSmokeIntentCaveats(caveats, samples, threshold, confidenceLevel, thresholdOriginName, isSmoke);
 
         return new StatisticalExplanation.VerdictInterpretation(
                 passed,
@@ -419,10 +509,22 @@ public class StatisticalExplanationBuilder {
             double threshold,
             String thresholdOriginName,
             String contractRef) {
+        return buildInlineThresholdVerdict(passed, samples, successes, threshold,
+                thresholdOriginName, contractRef, false);
+    }
+
+    private StatisticalExplanation.VerdictInterpretation buildInlineThresholdVerdict(
+            boolean passed,
+            int samples,
+            int successes,
+            double threshold,
+            String thresholdOriginName,
+            String contractRef,
+            boolean isSmoke) {
 
         double observedRate = samples > 0 ? (double) successes / samples : 0.0;
         String technicalResult = passed ? "PASS" : "FAIL";
-        VerdictFraming framing = getVerdictFraming(thresholdOriginName);
+        VerdictFraming framing = getVerdictFraming(thresholdOriginName, isSmoke);
 
         String plainEnglish;
         if (passed) {
@@ -450,6 +552,7 @@ public class StatisticalExplanationBuilder {
         }
 
         appendComplianceEvidenceCaveat(caveats, samples, threshold, thresholdOriginName, contractRef);
+        appendSmokeIntentCaveats(caveats, samples, threshold, StatisticalDefaults.DEFAULT_CONFIDENCE, thresholdOriginName, isSmoke);
 
         return new StatisticalExplanation.VerdictInterpretation(
                 passed,
@@ -460,13 +563,32 @@ public class StatisticalExplanationBuilder {
     }
 
     /**
-     * Returns verdict framing text based on the threshold origin.
+     * Returns verdict framing text based on the threshold origin and intent.
+     *
+     * <p>SMOKE intent avoids compliance language (Req 11): "inconsistent with target"
+     * instead of "not meeting SLA obligation".
      */
-    private VerdictFraming getVerdictFraming(String thresholdOriginName) {
+    private VerdictFraming getVerdictFraming(String thresholdOriginName, boolean isSmoke) {
         if (thresholdOriginName == null) {
             thresholdOriginName = "UNSPECIFIED";
         }
-        
+
+        // SMOKE intent uses softened language
+        if (isSmoke) {
+            return switch (thresholdOriginName.toUpperCase()) {
+                case "SLA", "SLO", "POLICY" -> new VerdictFraming(
+                        "The observed rate is consistent with the target.",
+                        "The observed rate is inconsistent with the target.");
+                case "EMPIRICAL" -> new VerdictFraming(
+                        "No degradation from baseline detected.",
+                        "This suggests potential degradation from the established baseline.");
+                default -> new VerdictFraming(
+                        "The test passes.",
+                        "The observed rate does not meet the threshold.");
+            };
+        }
+
+        // VERIFICATION intent (or null) — full compliance framing
         return switch (thresholdOriginName.toUpperCase()) {
             case "SLA" -> new VerdictFraming(
                     "The system meets its SLA requirement.",
@@ -546,6 +668,45 @@ public class StatisticalExplanationBuilder {
         }
 
         return caveats;
+    }
+
+    /**
+     * Appends intent-specific caveats for SMOKE tests with normative thresholds.
+     *
+     * <p>When a SMOKE test has a normative threshold (SLA/SLO/POLICY), PUnit checks
+     * whether the sample size would be sufficient for VERIFICATION and adds an
+     * appropriate caveat.
+     */
+    private void appendSmokeIntentCaveats(List<String> caveats, int samples,
+            double threshold, double confidenceLevel,
+            String thresholdOriginName, boolean isSmoke) {
+        if (!isSmoke) {
+            return;
+        }
+        // Only add sizing caveats for normative thresholds
+        if (thresholdOriginName == null) {
+            return;
+        }
+        boolean isNormative = thresholdOriginName.equalsIgnoreCase("SLA")
+                || thresholdOriginName.equalsIgnoreCase("SLO")
+                || thresholdOriginName.equalsIgnoreCase("POLICY");
+        if (!isNormative) {
+            return;
+        }
+        // Check feasibility for verification
+        if (Double.isNaN(threshold) || threshold <= 0.0 || threshold >= 1.0) {
+            return;
+        }
+        var result = VerificationFeasibilityEvaluator.evaluate(samples, threshold, confidenceLevel);
+        if (!result.feasible()) {
+            caveats.add(String.format(
+                    "Sample not sized for verification (N=%d, need %d). " +
+                    "This is a smoke-test-level observation, not a compliance determination.",
+                    samples, result.minimumSamples()));
+        } else {
+            caveats.add("Sample is sized for verification. " +
+                    "Consider setting intent = VERIFICATION for stronger statistical guarantees.");
+        }
     }
 
     /**

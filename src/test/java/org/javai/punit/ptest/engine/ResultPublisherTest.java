@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
@@ -395,6 +396,113 @@ class ResultPublisherTest {
                     BaselineData.empty(), List.of(), null
             );
         }
+    }
+
+    @Nested
+    @DisplayName("Intent-aware PublishContext")
+    class IntentAwarePublishContext {
+
+        @Test
+        @DisplayName("isSmoke returns true for SMOKE intent")
+        void isSmokeReturnsTrueForSmoke() {
+            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
+                    100, 0.90, ThresholdOrigin.SLA);
+            assertThat(ctx.isSmoke()).isTrue();
+            assertThat(ctx.isVerification()).isFalse();
+        }
+
+        @Test
+        @DisplayName("isVerification returns true for VERIFICATION intent")
+        void isVerificationReturnsTrueForVerification() {
+            PublishContext ctx = createIntentContext(true, TestIntent.VERIFICATION,
+                    100, 0.90, ThresholdOrigin.SLA);
+            assertThat(ctx.isVerification()).isTrue();
+            assertThat(ctx.isSmoke()).isFalse();
+        }
+
+        @Test
+        @DisplayName("backward-compatible constructor defaults to VERIFICATION")
+        void backwardCompatConstructorDefaultsToVerification() {
+            PublishContext ctx = createContext(true);
+            assertThat(ctx.isVerification()).isTrue();
+            assertThat(ctx.intent()).isEqualTo(TestIntent.VERIFICATION);
+            assertThat(ctx.resolvedConfidence()).isEqualTo(0.95);
+        }
+    }
+
+    @Nested
+    @DisplayName("appendSmokeIntentNote")
+    class AppendSmokeIntentNote {
+
+        @Test
+        @DisplayName("appends undersized note for SMOKE + normative + undersized")
+        void appendsUndersizedNoteForSmokeNormativeUndersized() {
+            // N=10, p₀=0.95 → N_min=52 → undersized
+            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
+                    10, 0.95, ThresholdOrigin.SLA);
+            StringBuilder sb = new StringBuilder();
+
+            publisher.appendSmokeIntentNote(sb, ctx);
+
+            assertThat(sb.toString()).contains("Sample not sized for verification");
+            assertThat(sb.toString()).contains("N=10");
+        }
+
+        @Test
+        @DisplayName("appends sized hint for SMOKE + normative + sized")
+        void appendsSizedHintForSmokeNormativeSized() {
+            // N=100, p₀=0.90 → N_min=25 → sized
+            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
+                    100, 0.90, ThresholdOrigin.SLA);
+            StringBuilder sb = new StringBuilder();
+
+            publisher.appendSmokeIntentNote(sb, ctx);
+
+            assertThat(sb.toString()).contains("Sample is sized for verification");
+            assertThat(sb.toString()).contains("intent = VERIFICATION");
+        }
+
+        @Test
+        @DisplayName("does not append note for VERIFICATION intent")
+        void doesNotAppendForVerificationIntent() {
+            PublishContext ctx = createIntentContext(true, TestIntent.VERIFICATION,
+                    10, 0.95, ThresholdOrigin.SLA);
+            StringBuilder sb = new StringBuilder();
+
+            publisher.appendSmokeIntentNote(sb, ctx);
+
+            assertThat(sb.toString()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("does not append note for SMOKE without normative origin")
+        void doesNotAppendForSmokeWithoutNormative() {
+            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
+                    10, 0.95, ThresholdOrigin.UNSPECIFIED);
+            StringBuilder sb = new StringBuilder();
+
+            publisher.appendSmokeIntentNote(sb, ctx);
+
+            assertThat(sb.toString()).isEmpty();
+        }
+    }
+
+    // ========== Helper for intent-aware tests ==========
+
+    private PublishContext createIntentContext(boolean passed, TestIntent intent,
+            int samples, double minPassRate, ThresholdOrigin origin) {
+        int successes = passed ? (int) (samples * 0.95) : (int) (samples * 0.50);
+        int failures = samples - successes;
+        double observedRate = (double) successes / samples;
+        return new PublishContext(
+                "testMethod", samples, samples, successes, failures,
+                minPassRate, observedRate, passed,
+                Optional.empty(), null, 1000, false, 1.0, 0, 0, 0,
+                CostBudgetMonitor.TokenMode.NONE, null, null, null, null,
+                origin, null, null,
+                BaselineData.empty(), List.of(), null,
+                intent, 0.95
+        );
     }
 }
 

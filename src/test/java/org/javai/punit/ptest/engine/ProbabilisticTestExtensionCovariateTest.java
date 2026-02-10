@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.util.HexFormat;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.StandardCovariate;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
@@ -162,11 +163,13 @@ class ProbabilisticTestExtensionCovariateTest {
 
     static class TestSubjects {
         // Note: Using minPassRate to avoid spec lookup (these are unit tests, not integration tests)
-        @ProbabilisticTest(samples = 10, minPassRate = 0.95, useCase = UseCaseWithCovariates.class)
+        @ProbabilisticTest(samples = 10, minPassRate = 0.95, useCase = UseCaseWithCovariates.class,
+                intent = TestIntent.SMOKE)
         public void testWithCovariateUseCase() {
         }
 
-        @ProbabilisticTest(samples = 10, minPassRate = 0.95, useCase = UseCaseWithoutCovariates.class)
+        @ProbabilisticTest(samples = 10, minPassRate = 0.95, useCase = UseCaseWithoutCovariates.class,
+                intent = TestIntent.SMOKE)
         public void testWithoutCovariateUseCase() {
         }
     }

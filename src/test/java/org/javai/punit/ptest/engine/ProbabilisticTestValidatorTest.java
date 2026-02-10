@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.junit.jupiter.api.BeforeEach;
@@ -500,6 +501,11 @@ class ProbabilisticTestValidatorTest {
             public String contractRef() {
                 return "";
             }
+
+            @Override
+            public TestIntent intent() {
+                return TestIntent.VERIFICATION;
+            }
         };
     }
 
@@ -596,6 +602,11 @@ class ProbabilisticTestValidatorTest {
             @Override
             public String contractRef() {
                 return "";
+            }
+
+            @Override
+            public TestIntent intent() {
+                return TestIntent.VERIFICATION;
             }
         };
     }

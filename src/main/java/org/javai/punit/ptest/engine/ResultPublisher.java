@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
 import org.javai.punit.model.ExpirationStatus;
@@ -16,6 +17,7 @@ import org.javai.punit.spec.expiration.ExpirationWarningRenderer;
 import org.javai.punit.spec.expiration.WarningLevel;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
+import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.statistics.transparent.ConsoleExplanationRenderer;
 import org.javai.punit.statistics.transparent.StatisticalExplanation;
@@ -74,8 +76,34 @@ class ResultPublisher {
             Double confidence,
             BaselineData baseline,
             List<CovariateMisalignment> misalignments,
-            String baselineFilename
+            String baselineFilename,
+            TestIntent intent,
+            double resolvedConfidence
     ) {
+        /**
+         * Backward-compatible constructor that defaults to VERIFICATION intent and 0.95 confidence.
+         */
+        PublishContext(
+                String testName, int plannedSamples, int samplesExecuted,
+                int successes, int failures, double minPassRate, double observedPassRate,
+                boolean passed, Optional<TerminationReason> terminationReason,
+                String terminationDetails, long elapsedMs, boolean hasMultiplier,
+                double appliedMultiplier, long timeBudgetMs, long tokenBudget,
+                long methodTokensConsumed, CostBudgetMonitor.TokenMode tokenMode,
+                SharedBudgetMonitor classBudget, SharedBudgetMonitor suiteBudget,
+                ExecutionSpecification spec, TransparentStatsConfig transparentStats,
+                org.javai.punit.api.ThresholdOrigin thresholdOrigin, String contractRef,
+                Double confidence, BaselineData baseline,
+                List<CovariateMisalignment> misalignments, String baselineFilename) {
+            this(testName, plannedSamples, samplesExecuted, successes, failures,
+                    minPassRate, observedPassRate, passed, terminationReason,
+                    terminationDetails, elapsedMs, hasMultiplier, appliedMultiplier,
+                    timeBudgetMs, tokenBudget, methodTokensConsumed, tokenMode,
+                    classBudget, suiteBudget, spec, transparentStats, thresholdOrigin,
+                    contractRef, confidence, baseline, misalignments, baselineFilename,
+                    TestIntent.VERIFICATION, 0.95);
+        }
+
         boolean hasTimeBudget() {
             return timeBudgetMs > 0;
         }
@@ -89,12 +117,20 @@ class ResultPublisher {
         }
 
         boolean hasThresholdOrigin() {
-            return thresholdOrigin != null 
+            return thresholdOrigin != null
                     && thresholdOrigin != org.javai.punit.api.ThresholdOrigin.UNSPECIFIED;
         }
 
         boolean hasContractRef() {
             return contractRef != null && !contractRef.isEmpty();
+        }
+
+        boolean isSmoke() {
+            return intent == TestIntent.SMOKE;
+        }
+
+        boolean isVerification() {
+            return intent == null || intent == TestIntent.VERIFICATION;
         }
     }
 
@@ -191,7 +227,8 @@ class ResultPublisher {
                 .map(TerminationReason::isBudgetExhaustion)
                 .orElse(false);
 
-        String title = ctx.passed() ? "VERDICT: PASS" : "VERDICT: FAIL";
+        String intentLabel = ctx.intent() != null ? ctx.intent().name() : "VERIFICATION";
+        String title = (ctx.passed() ? "VERDICT: PASS" : "VERDICT: FAIL") + " (" + intentLabel + ")";
         StringBuilder sb = new StringBuilder();
         sb.append(ctx.testName()).append("\n");
 
@@ -224,6 +261,9 @@ class ResultPublisher {
         // Append compliance evidence sizing note if applicable
         appendComplianceEvidenceNote(sb, ctx);
 
+        // Append SMOKE-specific sizing notes
+        appendSmokeIntentNote(sb, ctx);
+
         ctx.terminationReason()
                 .filter(r -> r != TerminationReason.COMPLETED)
                 .ifPresent(r -> {
@@ -245,7 +285,7 @@ class ResultPublisher {
         sb.append(String.format("%nElapsed: %dms", ctx.elapsedMs()));
         reporter.reportInfo(title, sb.toString());
 
-        // Print expiration warning if applicable (legacy mode defaults to VERBOSE)
+        // Print expiration warning if applicable (summary mode defaults to VERBOSE)
         TransparentStatsConfig.DetailLevel detailLevel = ctx.transparentStats() != null
                 ? ctx.transparentStats().detailLevel()
                 : TransparentStatsConfig.DetailLevel.VERBOSE;
@@ -295,7 +335,7 @@ class ResultPublisher {
      * Appends a compliance evidence sizing note if the test has a compliance context
      * and the sample size is insufficient for compliance-grade evidence.
      *
-     * <p>This note appears in legacy (non-transparent-stats) mode. In transparent
+     * <p>This note appears in summary (non-transparent-stats) mode. In transparent
      * stats mode, the equivalent information appears as a caveat in the
      * statistical explanation.
      */
@@ -308,6 +348,39 @@ class ResultPublisher {
             return;
         }
         sb.append(String.format("%nNote: %s", ComplianceEvidenceEvaluator.SIZING_NOTE));
+    }
+
+    /**
+     * Appends intent-specific sizing notes for SMOKE tests with normative thresholds.
+     *
+     * <p>When a SMOKE test has a normative threshold origin (SLA/SLO/POLICY), PUnit
+     * checks whether the sample size would be sufficient for VERIFICATION:
+     * <ul>
+     *   <li>Undersized → notes that sample is not sized for verification</li>
+     *   <li>Sized → hints that the test could use intent = VERIFICATION</li>
+     * </ul>
+     */
+    void appendSmokeIntentNote(StringBuilder sb, PublishContext ctx) {
+        if (!ctx.isSmoke() || !ctx.hasThresholdOrigin()) {
+            return;
+        }
+        // Only evaluate feasibility when target is valid for the evaluator
+        double target = ctx.minPassRate();
+        if (Double.isNaN(target) || target <= 0.0 || target >= 1.0) {
+            return;
+        }
+        var result = VerificationFeasibilityEvaluator.evaluate(
+                ctx.samplesExecuted(), target, ctx.resolvedConfidence());
+        if (!result.feasible()) {
+            sb.append(String.format("%nNote: Sample not sized for verification " +
+                    "(N=%d, need %d for %s at %.0f%% confidence).",
+                    ctx.samplesExecuted(), result.minimumSamples(),
+                    RateFormat.format(target), ctx.resolvedConfidence() * 100));
+        } else {
+            sb.append(String.format(
+                    "%nNote: Sample is sized for verification. " +
+                    "Consider setting intent = VERIFICATION for stronger statistical guarantees."));
+        }
     }
 
     /**
@@ -324,6 +397,8 @@ class ResultPublisher {
         boolean hasSelectedBaseline = ctx.spec() != null;
         BaselineData baseline = hasSelectedBaseline ? ctx.baseline() : BaselineData.empty();
 
+        boolean isSmoke = ctx.isSmoke();
+
         if (hasSelectedBaseline && baseline != null && baseline.hasEmpiricalData()) {
             // Spec-driven mode: threshold derived from baseline
             explanation = builder.build(
@@ -336,7 +411,8 @@ class ResultPublisher {
                     ctx.confidence() != null ? ctx.confidence() : 0.95,
                     thresholdOriginName,
                     ctx.contractRef(),
-                    ctx.misalignments()
+                    ctx.misalignments(),
+                    isSmoke
             );
         } else {
             // Inline threshold mode (no baseline spec)
@@ -347,7 +423,8 @@ class ResultPublisher {
                     ctx.minPassRate(),
                     ctx.passed(),
                     thresholdOriginName,
-                    ctx.contractRef()
+                    ctx.contractRef(),
+                    isSmoke
             );
         }
 

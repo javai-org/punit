@@ -2,6 +2,7 @@ package org.javai.punit.ptest.bernoulli;
 
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.pacing.PacingConfiguration;
@@ -33,14 +34,16 @@ import org.javai.punit.statistics.transparent.TransparentStatsConfig;
  * @param onBudgetExhausted behavior when budget is exhausted
  * @param onException how to handle exceptions during sample execution
  * @param maxExampleFailures maximum failures to show in output
- * @param confidence statistical confidence level (null for legacy mode)
- * @param baselineRate baseline success rate (null for legacy mode)
- * @param baselineSamples number of samples in baseline (null for legacy mode)
- * @param specId specification identifier (null for legacy mode)
+ * @param confidence statistical confidence level (null for inline threshold mode)
+ * @param baselineRate baseline success rate (null for inline threshold mode)
+ * @param baselineSamples number of samples in baseline (null for inline threshold mode)
+ * @param specId specification identifier (null for inline threshold mode)
  * @param pacing pacing configuration for rate limiting
  * @param transparentStats configuration for transparent statistics output
  * @param thresholdOrigin origin of the threshold (SLA, SLO, POLICY, etc.)
  * @param contractRef reference to external contract document
+ * @param intent the declared test intent (VERIFICATION or SMOKE)
+ * @param resolvedConfidence the confidence level for feasibility evaluation
  */
 public record BernoulliTrialsConfig(
         int samples,
@@ -60,7 +63,9 @@ public record BernoulliTrialsConfig(
         PacingConfiguration pacing,
         TransparentStatsConfig transparentStats,
         ThresholdOrigin thresholdOrigin,
-        String contractRef
+        String contractRef,
+        TestIntent intent,
+        double resolvedConfidence
 ) implements ProbabilisticTestConfig {
 
     /**
@@ -122,7 +127,8 @@ public record BernoulliTrialsConfig(
                 samples, newMinPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
                 tokenMode, onBudgetExhausted, onException, maxExampleFailures,
                 confidence, baselineRate, baselineSamples, specId,
-                pacing, transparentStats, thresholdOrigin, contractRef
+                pacing, transparentStats, thresholdOrigin, contractRef,
+                intent, resolvedConfidence
         );
     }
 
@@ -143,7 +149,7 @@ public record BernoulliTrialsConfig(
                     specId
             );
         } else {
-            return BernoulliFailureMessages.StatisticalContext.forLegacyMode(
+            return BernoulliFailureMessages.StatisticalContext.forInlineThreshold(
                     observedRate,
                     successes,
                     samplesExecuted,

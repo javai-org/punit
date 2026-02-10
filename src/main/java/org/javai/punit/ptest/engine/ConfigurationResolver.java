@@ -7,12 +7,14 @@ import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.registry.SpecificationIntegrityException;
 import org.javai.punit.spec.registry.SpecificationNotFoundException;
 import org.javai.punit.spec.registry.SpecificationRegistry;
+import org.javai.punit.statistics.StatisticalDefaults;
 
 /**
  * Resolves effective configuration for a probabilistic test by merging values from
@@ -51,12 +53,11 @@ public class ConfigurationResolver {
 
     // Framework defaults
     public static final int DEFAULT_SAMPLES = 100;
-    public static final double DEFAULT_MIN_PASS_RATE = 0.95;
     public static final double DEFAULT_SAMPLES_MULTIPLIER = 1.0;
     public static final long DEFAULT_TIME_BUDGET_MS = 0;
     public static final int DEFAULT_TOKEN_CHARGE = 0;
     public static final long DEFAULT_TOKEN_BUDGET = 0;
-    public static final int DEFAULT_MAX_EXAMPLE_FAILURES = 5;
+    public static final double DEFAULT_THRESHOLD_CONFIDENCE = StatisticalDefaults.DEFAULT_CONFIDENCE;
 
     /**
      * Resolves the effective configuration for a test method.
@@ -182,6 +183,20 @@ public class ConfigurationResolver {
         ThresholdOrigin thresholdOrigin = annotation.thresholdOrigin();
         String contractRef = annotation.contractRef();
 
+        // Resolve intent (annotation-only, no override)
+        TestIntent intent = annotation.intent();
+
+        // Validate confidence parameters early (Req 7b)
+        validateConfidence(annotation.thresholdConfidence(), "thresholdConfidence", contextName);
+        validateConfidence(annotation.confidence(), "confidence", contextName);
+
+        // Resolve confidence for feasibility evaluation:
+        // 1. annotation.thresholdConfidence() if not NaN
+        // 2. framework default: 0.95
+        double resolvedConfidence = !Double.isNaN(annotation.thresholdConfidence())
+                ? annotation.thresholdConfidence()
+                : DEFAULT_THRESHOLD_CONFIDENCE;
+
         return new ResolvedConfiguration(
                 effectiveSamples,
                 minPassRate,
@@ -195,7 +210,9 @@ public class ConfigurationResolver {
                 null, null, null,  // confidence, baselineRate, baselineSamples (not resolved here)
                 specIdOpt.orElse(null),  // specId from use case class
                 thresholdOrigin,
-                contractRef
+                contractRef,
+                intent,
+                resolvedConfidence
         );
     }
 
@@ -297,6 +314,31 @@ public class ConfigurationResolver {
     }
 
     /**
+     * Validates a confidence parameter is in the open interval (0, 1), or NaN (unset).
+     *
+     * @param value the confidence value to validate
+     * @param paramName the parameter name for error messages
+     * @param contextName the test name for error messages
+     */
+    private void validateConfidence(double value, String paramName, String contextName) {
+        if (Double.isNaN(value)) {
+            return; // NaN means unset — valid
+        }
+        if (value <= 0.0) {
+            throw new IllegalArgumentException(String.format(
+                    "%s = %s is invalid for %s: " +
+                    "\u03b1 = 1 renders the test meaningless. Use a value in (0, 1), e.g. 0.95.",
+                    paramName, value, contextName));
+        }
+        if (value >= 1.0) {
+            throw new IllegalArgumentException(String.format(
+                    "%s = %s is invalid for %s: " +
+                    "\u03b1 = 0 makes finite-sample inference vacuous. Use a value in (0, 1), e.g. 0.95.",
+                    paramName, value, contextName));
+        }
+    }
+
+    /**
      * Validates the minPassRate configuration.
      */
     private void validateMinPassRate(double minPassRate, String contextName) {
@@ -341,14 +383,17 @@ public class ConfigurationResolver {
             BudgetExhaustedBehavior onBudgetExhausted,
             ExceptionHandling onException,
             int maxExampleFailures,
-            // Statistical context for failure messages (nullable for legacy mode)
+            // Statistical context for failure messages (nullable for inline threshold mode)
             Double confidence,
             Double baselineRate,
             Integer baselineSamples,
             String specId,
             // Provenance metadata (annotation-only, no override)
             ThresholdOrigin thresholdOrigin,
-            String contractRef
+            String contractRef,
+            // Intent declaration
+            TestIntent intent,
+            double resolvedConfidence
     ) {
         /**
          * Constructor for backward compatibility - creates configuration without statistical context or provenance.
@@ -366,7 +411,22 @@ public class ConfigurationResolver {
             this(samples, minPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
                     onBudgetExhausted, onException, maxExampleFailures,
                     null, null, null, null,
-                    ThresholdOrigin.UNSPECIFIED, "");
+                    ThresholdOrigin.UNSPECIFIED, "",
+                    TestIntent.VERIFICATION, DEFAULT_THRESHOLD_CONFIDENCE);
+        }
+
+        /**
+         * Returns true if the intent is SMOKE.
+         */
+        public boolean isSmoke() {
+            return intent == TestIntent.SMOKE;
+        }
+
+        /**
+         * Returns true if the intent is VERIFICATION.
+         */
+        public boolean isVerification() {
+            return intent == TestIntent.VERIFICATION;
         }
 
         /**

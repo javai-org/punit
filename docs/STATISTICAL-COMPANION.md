@@ -721,6 +721,89 @@ In the **Confidence-First approach**, developers must specify `minDetectableEffe
 
 Without `minDetectableEffect`, PUnit cannot compute a finite sample size and will use the default sample count instead.
 
+### 5.7 Test Intent: VERIFICATION vs SMOKE
+
+PUnit distinguishes between two epistemic intentions when running a probabilistic test. The choice of intent governs whether the framework enforces a statistical feasibility gate and how verdicts are framed.
+
+| Intent           | Purpose                                              | Feasibility gate | Verdict language              |
+|------------------|------------------------------------------------------|------------------|-------------------------------|
+| **VERIFICATION** | Evidential — produce statistically defensible verdict | Enforced         | Full compliance framing       |
+| **SMOKE**        | Sentinel — detect gross regressions cheaply          | Bypassed         | Softened, exploratory framing |
+
+The default intent is **VERIFICATION**. Developers may opt into SMOKE via the annotation:
+
+```java
+@ProbabilisticTest(
+    samples = 20,
+    minPassRate = 0.95,
+    intent = TestIntent.SMOKE,
+    thresholdOrigin = ThresholdOrigin.SLA
+)
+```
+
+#### 5.7.1 The Feasibility Gate (VERIFICATION only)
+
+Before any samples execute, PUnit checks whether the configured sample size is **sufficient** for the test to produce a meaningful PASS verdict. The criterion uses the Wilson score one-sided lower bound (the same method used throughout PUnit for confidence bounds — see Section 4.3.1):
+
+> For a perfect observation ($k = n$), the Wilson lower bound is $n / (n + z^2)$. The sample is feasible if this bound $\geq p_0$.
+
+Solving for the minimum sample size:
+
+$$N_{\min} = \left\lceil \frac{p_0 \cdot z^2}{1 - p_0} \right\rceil$$
+
+where $z = \Phi^{-1}(1 - \alpha)$ and $\alpha = 1 - \text{confidence}$.
+
+**Reference table: $N_{\min}$ at default confidence (0.95, $\alpha = 0.05$, $z \approx 1.645$)**
+
+| Target ($p_0$) | $N_{\min}$ | Interpretation                                         |
+|-----------------|------------|--------------------------------------------------------|
+| 0.50            | 3          | Almost any sample size suffices                        |
+| 0.80            | 14         | Low bar                                                |
+| 0.90            | 25         | Moderate                                               |
+| 0.95            | 52         | Common threshold — needs at least 52 samples           |
+| 0.99            | 268        | High reliability — needs substantial samples           |
+| 0.999           | 2,704      | Very high reliability                                  |
+| 0.9999          | 27,054     | Extreme reliability — impractical for most test suites |
+
+**What happens when infeasible**: A VERIFICATION test with $N < N_{\min}$ fails immediately with `ExtensionConfigurationException`. The failure message includes:
+- The configured sample size and target
+- The minimum required sample size
+- A suggestion to set `intent = SMOKE` if the test is a sentinel check
+
+This failure is **distinct from a SUT failure** — it indicates a configuration problem, not a system defect. It is non-ignorable in CI.
+
+#### 5.7.2 SMOKE Intent: When and Why
+
+SMOKE tests are appropriate when:
+
+- **Quick feedback** is more valuable than statistical defensibility (e.g. pre-commit hooks, nightly canaries)
+- **The sample budget is fixed** by cost constraints and falls below $N_{\min}$
+- **The test is exploratory** — developers are still discovering the system's performance characteristics
+- **The target is aspirational** — the threshold expresses an SLA that will later be verified with a properly sized test
+
+#### 5.7.3 FAIL Asymmetry for SMOKE Tests
+
+A key statistical insight governs how SMOKE verdicts should be interpreted:
+
+> A **FAIL** verdict from an undersized test is directionally reliable — the observed rate fell below the threshold, and the direction of the evidence is clear even if the magnitude is uncertain. A **PASS** verdict from an undersized test provides weak evidence — the confidence interval is too wide to exclude values below the threshold.
+
+In other words: small samples can reliably detect gross failures but cannot provide strong evidence of compliance. PUnit's output reflects this asymmetry:
+
+- **SMOKE PASS**: Softened language — "The observed rate is consistent with the target."
+- **SMOKE FAIL**: Still clear — "The observed rate is inconsistent with the target."
+- **VERIFICATION PASS**: Full compliance language — "The system meets its SLA requirement."
+
+#### 5.7.4 Intent-Aware Caveats
+
+When a SMOKE test runs against a normative threshold (SLA, SLO, or POLICY):
+
+| Condition | Caveat |
+|-----------|--------|
+| $N < N_{\min}$ | "Sample not sized for verification ($N = x$, need $y$). A PASS is a directional signal, not a compliance determination." |
+| $N \geq N_{\min}$ | "Sample is sized for verification. Consider setting `intent = VERIFICATION` for evidential strength." |
+
+These caveats appear in both summary and verbose output modes.
+
 ---
 
 ## 6. The Three Operational Approaches: Mathematical Formulation

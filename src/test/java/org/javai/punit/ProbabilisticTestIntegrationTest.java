@@ -15,8 +15,12 @@ import org.javai.punit.testsubjects.ProbabilisticTestSubjects.MinPassRateZeroTes
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.PartiallyFailingTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.PassesWithSomeFailuresTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.SingleSampleTest;
+import org.javai.punit.testsubjects.ProbabilisticTestSubjects.SmokeSizedTest;
+import org.javai.punit.testsubjects.ProbabilisticTestSubjects.SmokeUndersizedTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.SuccessGuaranteedEarlyTerminationTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.TerminateOnFirstFailureTest;
+import org.javai.punit.testsubjects.ProbabilisticTestSubjects.VerificationSizedTest;
+import org.javai.punit.testsubjects.ProbabilisticTestSubjects.VerificationUndersizedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineTestKit;
@@ -385,6 +389,81 @@ class ProbabilisticTestIntegrationTest {
                 .as("At least one failure should show the assertion reason or PUnit verdict")
                 .isTrue();
     }
+
+    // ========== Feasibility Gate Tests ==========
+
+    @Test
+    void verificationUndersizedTriggersInfeasibilityGate() {
+        // VERIFICATION + N=10, p₀=0.95, confidence=0.95 → N_min=52 → infeasible
+        // Should fail with ExtensionConfigurationException, no samples execute
+        var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .selectors(DiscoverySelectors.selectClass(VerificationUndersizedTest.class))
+                .execute()
+                .allEvents()
+                .list();
+
+        // The container (test template) should report a failure
+        var failures = events.stream()
+                .filter(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class)
+                        .map(r -> r.getStatus() == org.junit.platform.engine.TestExecutionResult.Status.FAILED)
+                        .orElse(false))
+                .toList();
+
+        assertThat(failures).isNotEmpty();
+
+        // The failure message should contain infeasibility information
+        var failureMessage = failures.stream()
+                .map(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class).orElseThrow())
+                .map(r -> r.getThrowable().orElseThrow())
+                .map(Throwable::getMessage)
+                .filter(msg -> msg != null && msg.contains("INFEASIBLE"))
+                .findFirst();
+
+        assertThat(failureMessage)
+                .as("Should contain INFEASIBLE VERIFICATION message")
+                .isPresent();
+
+        assertThat(failureMessage.get())
+                .contains("Minimum N:")
+                .contains("intent = SMOKE");
+    }
+
+    @Test
+    void verificationSizedExecutesNormally() {
+        // VERIFICATION + N=55, p₀=0.90, confidence=0.95 → N_min=25 → feasible
+        // Should execute samples normally and pass (always passes)
+        EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .selectors(DiscoverySelectors.selectClass(VerificationSizedTest.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats
+                        .failed(0));
+    }
+
+    @Test
+    void smokeUndersizedExecutesNormally() {
+        // SMOKE + N=10, p₀=0.95 → would be infeasible for VERIFICATION, but SMOKE skips gate
+        // Should execute samples normally
+        EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .selectors(DiscoverySelectors.selectClass(SmokeUndersizedTest.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats
+                        .failed(0));
+    }
+
+    @Test
+    void smokeSizedExecutesNormally() {
+        // SMOKE + N=55, p₀=0.90 → sized, but intent is SMOKE
+        EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .selectors(DiscoverySelectors.selectClass(SmokeSizedTest.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats
+                        .failed(0));
+    }
+
+    // ========== Sample Failure Message Tests ==========
 
     @Test
     void sampleFailureHasNoSuppressedExceptions() {

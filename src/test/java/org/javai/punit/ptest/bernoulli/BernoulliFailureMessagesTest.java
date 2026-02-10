@@ -68,10 +68,10 @@ class BernoulliFailureMessagesTest {
     }
 
     @Test
-    @DisplayName("Legacy failure message works without statistical context")
-    void probabilisticTestFailureLegacy_worksWithoutStatisticalContext() {
+    @DisplayName("Inline threshold failure message works without statistical context")
+    void probabilisticTestFailureInlineThreshold_worksWithoutStatisticalContext() {
         // When
-        String message = BernoulliFailureMessages.probabilisticTestFailureLegacy(
+        String message = BernoulliFailureMessages.probabilisticTestFailureInlineThreshold(
                 0.87,  // observedRate
                 87,    // successes
                 100,   // samples
@@ -146,11 +146,11 @@ class BernoulliFailureMessagesTest {
     }
 
     @Test
-    @DisplayName("StatisticalContext forLegacyMode creates context with placeholder values")
-    void statisticalContext_forLegacyMode_createsPlaceholderContext() {
+    @DisplayName("StatisticalContext forInlineThreshold creates context with placeholder values")
+    void statisticalContext_forInlineThreshold_createsPlaceholderContext() {
         // When
         BernoulliFailureMessages.StatisticalContext context =
-                BernoulliFailureMessages.StatisticalContext.forLegacyMode(0.87, 87, 100, 0.90);
+                BernoulliFailureMessages.StatisticalContext.forInlineThreshold(0.87, 87, 100, 0.90);
 
         // Then
         assertThat(context.isSpecDriven()).isFalse();
