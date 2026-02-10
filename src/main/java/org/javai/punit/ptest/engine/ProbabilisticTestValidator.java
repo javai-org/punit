@@ -210,12 +210,43 @@ public final class ProbabilisticTestValidator {
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // RULE 5: Partial Confidence-First = INCOMPLETE
+        // RULE 5: Over-specification (all three key variables pinned)
+        // ═══════════════════════════════════════════════════════════════════
+        // Statistical basis: Sample size, confidence, and threshold are
+        // linked by mathematics. You choose two; the third is derived.
+        // Pinning all three creates an over-determined system.
+        // ═══════════════════════════════════════════════════════════════════
+        boolean isOverSpecified = isOverSpecified(annotation);
+        if (isOverSpecified) {
+            errors.add(String.format("""
+                OVER-SPECIFIED: All three key variables are pinned.
+
+                Test: %s
+
+                You have specified both a confidence parameter (%s) and a threshold
+                (minPassRate = %.4f), along with samples = %d.
+
+                Statistical testing requires that you choose TWO of {sample size,
+                confidence, threshold} and let mathematics derive the third.
+
+                Pick one approach:
+                  • Sample-Size-First: samples + thresholdConfidence (remove minPassRate)
+                  • Confidence-First: confidence + MDE + power (remove minPassRate)
+                  • Threshold-First: samples + minPassRate (remove confidence params)""",
+                    testName,
+                    describeConfidenceParam(annotation),
+                    annotation.minPassRate(),
+                    annotation.samples()));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // RULE 6: Partial Confidence-First = INCOMPLETE
         // ═══════════════════════════════════════════════════════════════════
         // Statistical basis: Power analysis requires all three parameters
         // (confidence, effect size, power) to compute sample size.
+        // Guard: skip if already over-specified (avoids duplicate diagnostics).
         // ═══════════════════════════════════════════════════════════════════
-        if (hasPartialConfidenceFirst) {
+        if (hasPartialConfidenceFirst && !isOverSpecified) {
             List<String> present = new ArrayList<>();
             List<String> missing = new ArrayList<>();
             
@@ -265,6 +296,20 @@ public final class ProbabilisticTestValidator {
 
         int count = (hasConfidence ? 1 : 0) + (hasEffect ? 1 : 0) + (hasPower ? 1 : 0);
         return count > 0 && count < 3;
+    }
+
+    private boolean isOverSpecified(ProbabilisticTest annotation) {
+        boolean hasAnyConfidence = !Double.isNaN(annotation.confidence())
+                || !Double.isNaN(annotation.thresholdConfidence());
+        boolean hasThreshold = !Double.isNaN(annotation.minPassRate());
+        return hasAnyConfidence && hasThreshold;
+    }
+
+    private String describeConfidenceParam(ProbabilisticTest annotation) {
+        if (!Double.isNaN(annotation.confidence())) {
+            return "confidence = " + annotation.confidence();
+        }
+        return "thresholdConfidence = " + annotation.thresholdConfidence();
     }
 }
 

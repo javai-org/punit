@@ -15,12 +15,13 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for {@link ProbabilisticTestValidator}.
  *
- * <p>These tests verify the five validation rules:
+ * <p>These tests verify the six validation rules:
  * <ol>
  *   <li>Baseline + explicit minPassRate = CONFLICT</li>
  *   <li>No baseline + no threshold = UNDEFINED</li>
  *   <li>thresholdConfidence requires baseline</li>
  *   <li>Confidence-First requires baseline</li>
+ *   <li>Over-specification (all three key variables pinned)</li>
  *   <li>Partial Confidence-First = INCOMPLETE</li>
  * </ol>
  */
@@ -265,34 +266,34 @@ class ProbabilisticTestValidatorTest {
         }
 
         @Test
-        @DisplayName("should accept Confidence-First with explicit minPassRate (no baseline)")
-        void acceptsConfidenceFirstWithExplicitMinPassRate() {
-            // This is the SLA-driven Confidence-First scenario:
-            // - minPassRate comes from an SLA (not baseline)
-            // - Confidence-First parameters compute sample size
+        @DisplayName("should reject Confidence-First with explicit minPassRate as over-specified")
+        void rejectsConfidenceFirstWithExplicitMinPassRateAsOverSpecified() {
+            // confidence + minPassRate pins all three key variables.
+            // The full pipeline already rejected this via the resolver's conflicting
+            // approaches check; the validator was inconsistent by allowing it.
             ProbabilisticTest annotation = createAnnotation(
-                    100,        // samples (will be overridden by power analysis)
-                    0.95,       // minPassRate - explicit SLA threshold
+                    100,        // samples
+                    0.95,       // minPassRate - explicit
                     Double.NaN, // thresholdConfidence
                     0.95,       // confidence
                     0.02,       // minDetectableEffect
                     0.80        // power
             );
 
-            // No baseline provided - minPassRate serves as the baseline rate
             var result = validator.validate(annotation, null, "testMethod");
 
-            assertThat(result.valid()).isTrue();
+            assertThat(result.valid()).isFalse();
+            assertThat(result.errors()).anyMatch(e -> e.contains("OVER-SPECIFIED"));
         }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // RULE 5: Partial Confidence-First = INCOMPLETE
+    // RULE 6: Partial Confidence-First = INCOMPLETE
     // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
-    @DisplayName("Rule 5: Partial Confidence-First")
-    class Rule5_PartialConfidenceFirst {
+    @DisplayName("Rule 6: Partial Confidence-First")
+    class Rule6_PartialConfidenceFirst {
 
         @Test
         @DisplayName("should reject when only confidence is specified")
@@ -332,6 +333,68 @@ class ProbabilisticTestValidatorTest {
             assertThat(result.errors().stream().anyMatch(e -> 
                     e.contains("INCOMPLETE") && e.contains("Missing: power")))
                     .isTrue();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // RULE 5: Over-specification (all three key variables pinned)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("Rule 5: Over-specification")
+    class Rule5_OverSpecification {
+
+        @Test
+        @DisplayName("should reject confidence + minPassRate as over-specified")
+        void rejectsConfidencePlusMinPassRate() {
+            ProbabilisticTest annotation = createAnnotation(
+                    100,        // samples
+                    0.95,       // minPassRate - pins threshold
+                    Double.NaN, // thresholdConfidence
+                    0.99,       // confidence - pins confidence
+                    Double.NaN, // minDetectableEffect
+                    Double.NaN  // power
+            );
+
+            var result = validator.validate(annotation, mockBaseline, "testMethod");
+
+            assertThat(result.valid()).isFalse();
+            assertThat(result.errors()).anyMatch(e -> e.contains("OVER-SPECIFIED"));
+        }
+
+        @Test
+        @DisplayName("should reject thresholdConfidence + minPassRate as over-specified")
+        void rejectsThresholdConfidencePlusMinPassRate() {
+            ProbabilisticTest annotation = createAnnotation(
+                    100,        // samples
+                    0.90,       // minPassRate - pins threshold
+                    0.95,       // thresholdConfidence - pins confidence
+                    Double.NaN, // confidence
+                    Double.NaN, // minDetectableEffect
+                    Double.NaN  // power
+            );
+
+            var result = validator.validate(annotation, mockBaseline, "testMethod");
+
+            assertThat(result.valid()).isFalse();
+            assertThat(result.errors()).anyMatch(e -> e.contains("OVER-SPECIFIED"));
+        }
+
+        @Test
+        @DisplayName("should NOT flag confidence alone (no minPassRate) as over-specified")
+        void confidenceAloneIsNotOverSpecified() {
+            ProbabilisticTest annotation = createAnnotation(
+                    100,        // samples
+                    Double.NaN, // minPassRate - NOT set
+                    Double.NaN, // thresholdConfidence
+                    0.99,       // confidence - partial CF, but no threshold
+                    Double.NaN, // minDetectableEffect
+                    Double.NaN  // power
+            );
+
+            var result = validator.validate(annotation, mockBaseline, "testMethod");
+
+            assertThat(result.errors()).noneMatch(e -> e.contains("OVER-SPECIFIED"));
         }
     }
 

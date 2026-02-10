@@ -135,35 +135,93 @@ class OperationalApproachResolverTest {
     }
 
     @Nested
+    @DisplayName("Over-Specification Detection")
+    class OverSpecificationDetectionTests {
+
+        @Test
+        @DisplayName("rejects confidence + minPassRate as over-specified (partial CF)")
+        void rejectsConfidencePlusMinPassRate() {
+            ProbabilisticTest annotation = createAnnotation(
+                    "my-spec:v1", 100, 0.9999, Double.NaN,
+                    0.99, Double.NaN, Double.NaN  // confidence set, but MDE/power missing
+            );
+
+            assertThatThrownBy(() -> resolver.resolve(annotation, true))
+                    .isInstanceOf(ProbabilisticTestConfigurationException.class)
+                    .hasMessageContaining("Over-Specified");
+        }
+
+        @Test
+        @DisplayName("rejects confidence + MDE + power + minPassRate as over-specified")
+        void rejectsFullConfidenceFirstPlusMinPassRate() {
+            ProbabilisticTest annotation = createAnnotation(
+                    "my-spec:v1", 100, 0.9999, Double.NaN,
+                    0.99, 0.05, 0.80  // full confidence-first + minPassRate
+            );
+
+            assertThatThrownBy(() -> resolver.resolve(annotation, true))
+                    .isInstanceOf(ProbabilisticTestConfigurationException.class)
+                    .hasMessageContaining("Over-Specified");
+        }
+
+        @Test
+        @DisplayName("rejects thresholdConfidence + minPassRate as over-specified")
+        void rejectsThresholdConfidencePlusMinPassRate() {
+            ProbabilisticTest annotation = createAnnotation(
+                    "my-spec:v1", 100, 0.90, 0.95,  // both thresholdConfidence and minPassRate
+                    Double.NaN, Double.NaN, Double.NaN
+            );
+
+            assertThatThrownBy(() -> resolver.resolve(annotation, true))
+                    .isInstanceOf(ProbabilisticTestConfigurationException.class)
+                    .hasMessageContaining("Over-Specified");
+        }
+
+        @Test
+        @DisplayName("partial Confidence-First WITHOUT minPassRate is NOT over-specified")
+        void partialConfidenceFirstWithoutMinPassRateIsNotOverSpecified() {
+            ProbabilisticTest annotation = createAnnotation(
+                    "my-spec:v1", 100, Double.NaN, Double.NaN,
+                    0.99, Double.NaN, Double.NaN  // partial CF, no minPassRate
+            );
+
+            assertThatThrownBy(() -> resolver.resolve(annotation, true))
+                    .isInstanceOf(ProbabilisticTestConfigurationException.class)
+                    .hasMessageContaining("Incomplete Confidence-First")
+                    .hasMessageNotContaining("Over-Specified");
+        }
+    }
+
+    @Nested
     @DisplayName("Conflict Detection")
     class ConflictDetectionTests {
 
         @Test
-        @DisplayName("rejects when both Sample-Size-First and Threshold-First parameters are set")
+        @DisplayName("rejects when both Sample-Size-First and Threshold-First parameters are set (over-specified)")
         void rejectsConflict_sampleSizeFirstAndThresholdFirst() {
             ProbabilisticTest annotation = createAnnotation(
                     "my-spec:v1", 100, 0.95, 0.95,  // Both minPassRate AND thresholdConfidence
                     Double.NaN, Double.NaN, Double.NaN
             );
 
+            // Over-specification fires first: thresholdConfidence + minPassRate = all three pinned
             assertThatThrownBy(() -> resolver.resolve(annotation, true))
                     .isInstanceOf(ProbabilisticTestConfigurationException.class)
-                    .hasMessageContaining("Conflicting Approaches")
-                    .hasMessageContaining("Sample-Size-First")
-                    .hasMessageContaining("Threshold-First");
+                    .hasMessageContaining("Over-Specified");
         }
 
         @Test
-        @DisplayName("rejects when all three approaches have parameters set")
+        @DisplayName("rejects when all three approaches have parameters set (over-specified)")
         void rejectsConflict_allThreeApproaches() {
             ProbabilisticTest annotation = createAnnotation(
                     "my-spec:v1", 100, 0.95, 0.95,  // minPassRate + thresholdConfidence
                     0.99, 0.05, 0.80               // confidence-first params
             );
 
+            // Over-specification fires first: confidence params + minPassRate = all three pinned
             assertThatThrownBy(() -> resolver.resolve(annotation, true))
                     .isInstanceOf(ProbabilisticTestConfigurationException.class)
-                    .hasMessageContaining("Conflicting Approaches");
+                    .hasMessageContaining("Over-Specified");
         }
     }
 

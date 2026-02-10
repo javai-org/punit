@@ -139,11 +139,18 @@ public class OperationalApproachResolver {
      * Internal resolution logic (shared by both resolve methods).
      */
     private ResolvedApproach resolveInternal(ProbabilisticTest annotation, boolean hasSpec) {
+        // Over-specification check must fire FIRST: the user pinned all three
+        // key variables (sample size, confidence, and threshold), which is
+        // mathematically impossible — you choose two, the third is derived.
+        if (isOverSpecified(annotation)) {
+            throw createOverSpecificationError(annotation);
+        }
+
         // Detect which approach parameters are set
         boolean hasSampleSizeFirst = isValidDouble(annotation.thresholdConfidence());
         boolean hasConfidenceFirst = isConfidenceFirstComplete(annotation);
         boolean hasThresholdFirst = isValidDouble(annotation.minPassRate());
-        
+
         // Check for partial Confidence-First (common mistake)
         // Note: Also validated by ProbabilisticTestValidator, but kept here for
         // backward compatibility with the deprecated resolve(annotation, hasSpec) method
@@ -289,6 +296,20 @@ public class OperationalApproachResolver {
 
     // ==================== Validation Helpers ====================
 
+    /**
+     * Detects over-specification: the user pinned all three key variables
+     * (sample size, confidence, and threshold).
+     *
+     * <p>Since {@code samples} always has a default value (100), over-specification
+     * occurs when any confidence parameter is set AND a threshold is set.
+     */
+    boolean isOverSpecified(ProbabilisticTest annotation) {
+        boolean hasAnyConfidence = isValidDouble(annotation.confidence())
+                || isValidDouble(annotation.thresholdConfidence());
+        boolean hasThreshold = isValidDouble(annotation.minPassRate());
+        return hasAnyConfidence && hasThreshold;
+    }
+
     private boolean isValidDouble(double value) {
         return !Double.isNaN(value);
     }
@@ -317,6 +338,58 @@ public class OperationalApproachResolver {
     }
 
     // ==================== Error Message Factory ====================
+
+    private ProbabilisticTestConfigurationException createOverSpecificationError(ProbabilisticTest annotation) {
+        List<String> pinned = new ArrayList<>();
+        pinned.add("samples = " + annotation.samples());
+        if (isValidDouble(annotation.confidence())) {
+            pinned.add("confidence = " + annotation.confidence());
+        }
+        if (isValidDouble(annotation.thresholdConfidence())) {
+            pinned.add("thresholdConfidence = " + annotation.thresholdConfidence());
+        }
+        pinned.add("minPassRate = " + annotation.minPassRate());
+
+        return new ProbabilisticTestConfigurationException(String.format("""
+
+            ═══════════════════════════════════════════════════════════════════════════
+            ❌ PROBABILISTIC TEST CONFIGURATION ERROR: Over-Specified
+            ═══════════════════════════════════════════════════════════════════════════
+
+            You have pinned all three key variables:
+
+            %s
+
+            ───────────────────────────────────────────────────────────────────────────
+            WHY THIS IS INVALID
+            ───────────────────────────────────────────────────────────────────────────
+
+            Statistical hypothesis testing has a fundamental constraint: sample size,
+            confidence, and threshold are linked by mathematics. You choose TWO; the
+            third must be derived. Specifying all three creates an over-determined
+            system that is almost certainly inconsistent.
+
+            ───────────────────────────────────────────────────────────────────────────
+            HOW TO FIX
+            ───────────────────────────────────────────────────────────────────────────
+
+            Pick ONE of the three valid approaches:
+
+            • Sample-Size-First: keep 'samples' and 'thresholdConfidence', remove 'minPassRate'
+            • Confidence-First: keep 'confidence', 'minDetectableEffect', 'power', remove 'minPassRate'
+            • Threshold-First: keep 'samples' and 'minPassRate', remove confidence params
+
+            ═══════════════════════════════════════════════════════════════════════════
+            """, formatPinnedValues(pinned)));
+    }
+
+    private String formatPinnedValues(List<String> values) {
+        StringBuilder sb = new StringBuilder();
+        for (String value : values) {
+            sb.append("      • ").append(value).append("\n");
+        }
+        return sb.toString().stripTrailing();
+    }
 
     private ProbabilisticTestConfigurationException createNoApproachError(boolean hasSpec) {
         if (hasSpec) {
