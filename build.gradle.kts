@@ -1,5 +1,3 @@
-import org.gradle.kotlin.dsl.internal.relocated.kotlin.metadata.internal.metadata.deserialization.VersionRequirementTable.Companion.create
-
 plugins {
     id("java-library")
     id("maven-publish")
@@ -83,11 +81,8 @@ dependencies {
 // ═══════════════════════════════════════════════════════════════════════════
 // SCRIPTS source set — Kotlin utility scripts (e.g. verdict catalogue generator)
 // ═══════════════════════════════════════════════════════════════════════════
-sourceSets {
-    create("scripts") {
-        kotlin.srcDir("src/scripts/kotlin")
-    }
-}
+val scriptsSourceSet: SourceSet = sourceSets.create("scripts")
+scriptsSourceSet.kotlin.srcDir("src/scripts/kotlin")
 
 dependencies {
     "scriptsImplementation"(kotlin("stdlib"))
