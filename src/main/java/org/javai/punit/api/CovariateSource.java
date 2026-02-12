@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @UseCase(
  *     value = "ProductSearch",
- *     categorizedCovariates = {
+ *     covariates = {
  *         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
  *         @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)
  *     }
@@ -71,7 +71,7 @@ import java.lang.annotation.Target;
  *
  * @see Covariate
  * @see CovariateCategory
- * @see UseCase#categorizedCovariates()
+ * @see UseCase#covariates()
  */
 @Documented
 @Target(ElementType.METHOD)

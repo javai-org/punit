@@ -1,8 +1,6 @@
 package org.javai.punit.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,7 +19,7 @@ class CovariateProfileTest {
         @DisplayName("empty() should create an empty profile")
         void emptyShouldCreateEmptyProfile() {
             var profile = CovariateProfile.empty();
-            
+
             assertThat(profile.isEmpty()).isTrue();
             assertThat(profile.size()).isEqualTo(0);
             assertThat(profile.orderedKeys()).isEmpty();
@@ -31,13 +29,13 @@ class CovariateProfileTest {
         @DisplayName("builder should preserve insertion order")
         void builderShouldPreserveInsertionOrder() {
             var profile = CovariateProfile.builder()
-                .put("weekday_vs_weekend", "Mo-Fr")
+                .put("day_of_week", "WEEKEND")
                 .put("timezone", "Europe/London")
                 .put("region", "EU")
                 .build();
-            
+
             assertThat(profile.orderedKeys())
-                .containsExactly("weekday_vs_weekend", "timezone", "region");
+                .containsExactly("day_of_week", "timezone", "region");
         }
 
         @Test
@@ -46,7 +44,7 @@ class CovariateProfileTest {
             var profile = CovariateProfile.builder()
                 .put("key1", "value1")
                 .build();
-            
+
             assertThat(profile.asMap()).isUnmodifiable();
             assertThat(profile.orderedKeys()).isUnmodifiable();
         }
@@ -62,7 +60,7 @@ class CovariateProfileTest {
             var profile = CovariateProfile.builder()
                 .put("region", "EU")
                 .build();
-            
+
             assertThat(profile.get("region")).isEqualTo(new CovariateValue.StringValue("EU"));
         }
 
@@ -70,7 +68,7 @@ class CovariateProfileTest {
         @DisplayName("should return null for missing key")
         void shouldReturnNullForMissingKey() {
             var profile = CovariateProfile.empty();
-            
+
             assertThat(profile.get("nonexistent")).isNull();
         }
     }
@@ -83,7 +81,7 @@ class CovariateProfileTest {
         @DisplayName("should return empty string for empty profile")
         void shouldReturnEmptyStringForEmptyProfile() {
             var profile = CovariateProfile.empty();
-            
+
             assertThat(profile.computeHash()).isEmpty();
         }
 
@@ -91,13 +89,13 @@ class CovariateProfileTest {
         @DisplayName("hash should be stable across calls")
         void hashShouldBeStableAcrossCalls() {
             var profile = CovariateProfile.builder()
-                .put("weekday_vs_weekend", "Mo-Fr")
+                .put("day_of_week", "WEEKEND")
                 .put("region", "EU")
                 .build();
-            
+
             var hash1 = profile.computeHash();
             var hash2 = profile.computeHash();
-            
+
             assertThat(hash1).isEqualTo(hash2);
         }
 
@@ -107,7 +105,7 @@ class CovariateProfileTest {
             var profile = CovariateProfile.builder()
                 .put("key", "value")
                 .build();
-            
+
             assertThat(profile.computeHash()).hasSize(8);
         }
 
@@ -120,7 +118,7 @@ class CovariateProfileTest {
             var profile2 = CovariateProfile.builder()
                 .put("region", "US")
                 .build();
-            
+
             assertThat(profile1.computeHash()).isNotEqualTo(profile2.computeHash());
         }
 
@@ -133,7 +131,7 @@ class CovariateProfileTest {
             var profile2 = CovariateProfile.builder()
                 .put("zone", "EU")
                 .build();
-            
+
             assertThat(profile1.computeHash()).isNotEqualTo(profile2.computeHash());
         }
 
@@ -148,7 +146,7 @@ class CovariateProfileTest {
                 .put("b", "2")
                 .put("a", "1")
                 .build();
-            
+
             // Different ordering = different hash
             assertThat(profile1.computeHash()).isNotEqualTo(profile2.computeHash());
         }
@@ -162,7 +160,7 @@ class CovariateProfileTest {
         @DisplayName("should return empty list for empty profile")
         void shouldReturnEmptyListForEmptyProfile() {
             var profile = CovariateProfile.empty();
-            
+
             assertThat(profile.computeValueHashes()).isEmpty();
         }
 
@@ -174,7 +172,7 @@ class CovariateProfileTest {
                 .put("b", "2")
                 .put("c", "3")
                 .build();
-            
+
             assertThat(profile.computeValueHashes()).hasSize(3);
         }
 
@@ -184,7 +182,7 @@ class CovariateProfileTest {
             var profile = CovariateProfile.builder()
                 .put("key", "value")
                 .build();
-            
+
             assertThat(profile.computeValueHashes().get(0)).hasSize(4);
         }
 
@@ -192,12 +190,12 @@ class CovariateProfileTest {
         @DisplayName("hashes should be stable")
         void hashesShouldBeStable() {
             var profile = CovariateProfile.builder()
-                .put("weekday_vs_weekend", "Mo-Fr")
+                .put("day_of_week", "WEEKEND")
                 .build();
-            
+
             var hashes1 = profile.computeValueHashes();
             var hashes2 = profile.computeValueHashes();
-            
+
             assertThat(hashes1).isEqualTo(hashes2);
         }
     }
@@ -228,7 +226,7 @@ class CovariateProfileTest {
                 .put("a", "1")
                 .put("b", "2")
                 .build();
-            
+
             assertThat(profile1).isEqualTo(profile2);
             assertThat(profile1.hashCode()).isEqualTo(profile2.hashCode());
         }
@@ -242,7 +240,7 @@ class CovariateProfileTest {
             var profile2 = CovariateProfile.builder()
                 .put("a", "2")
                 .build();
-            
+
             assertThat(profile1).isNotEqualTo(profile2);
         }
 
@@ -257,31 +255,37 @@ class CovariateProfileTest {
                 .put("b", "2")
                 .put("a", "1")
                 .build();
-            
+
             assertThat(profile1).isNotEqualTo(profile2);
         }
     }
 
     @Nested
-    @DisplayName("TimeWindowValue support")
-    class TimeWindowValueSupportTests {
+    @DisplayName("StringValue support")
+    class StringValueSupportTests {
 
         @Test
-        @DisplayName("should handle TimeWindowValue correctly")
-        void shouldHandleTimeWindowValueCorrectly() {
-            var timeWindow = new CovariateValue.TimeWindowValue(
-                LocalTime.of(14, 30),
-                LocalTime.of(14, 45),
-                ZoneId.of("Europe/London")
-            );
-            
+        @DisplayName("should handle time period labels as StringValue")
+        void shouldHandleTimePeriodLabelsAsStringValue() {
             var profile = CovariateProfile.builder()
-                .put("time_of_day", timeWindow)
+                .put("time_of_day", "MORNING")
                 .build();
-            
-            assertThat(profile.get("time_of_day")).isEqualTo(timeWindow);
+
+            assertThat(profile.get("time_of_day"))
+                    .isEqualTo(new CovariateValue.StringValue("MORNING"));
+            assertThat(profile.computeHash()).isNotEmpty();
+        }
+
+        @Test
+        @DisplayName("should handle day group labels as StringValue")
+        void shouldHandleDayGroupLabelsAsStringValue() {
+            var profile = CovariateProfile.builder()
+                .put("day_of_week", "WEEKEND")
+                .build();
+
+            assertThat(profile.get("day_of_week"))
+                    .isEqualTo(new CovariateValue.StringValue("WEEKEND"));
             assertThat(profile.computeHash()).isNotEmpty();
         }
     }
 }
-

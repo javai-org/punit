@@ -3,13 +3,13 @@ package org.javai.punit.spec.baseline.covariate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import org.javai.punit.api.StandardCovariate;
+import org.javai.punit.model.CovariateDeclaration;
 
 /**
  * Registry mapping covariate keys to their matchers.
  *
- * <p>Standard covariates have specialized matchers. Custom covariates
- * default to {@link ExactStringMatcher}.
+ * <p>All covariates use {@link ExactStringMatcher} by default.
+ * Region gets a case-insensitive matcher.
  */
 public final class CovariateMatcherRegistry {
 
@@ -22,16 +22,16 @@ public final class CovariateMatcherRegistry {
     }
 
     /**
-     * Creates a registry with standard covariate matchers.
+     * Creates a registry with default matchers.
      *
-     * @return a new registry with standard matchers
+     * <p>Region uses a case-insensitive matcher; all others use the default
+     * case-sensitive exact string matcher.
+     *
+     * @return a new registry with default matchers
      */
-    public static CovariateMatcherRegistry withStandardMatchers() {
+    public static CovariateMatcherRegistry withDefaultMatchers() {
         return builder()
-            .register(StandardCovariate.WEEKDAY_VERSUS_WEEKEND, new WeekdayVsWeekendMatcher())
-            .register(StandardCovariate.TIME_OF_DAY, new TimeOfDayMatcher())
-            .register(StandardCovariate.TIMEZONE, new ExactStringMatcher())
-            .register(StandardCovariate.REGION, new ExactStringMatcher(false)) // Case-insensitive
+            .register(CovariateDeclaration.KEY_REGION, new ExactStringMatcher(false))
             .build();
     }
 
@@ -78,21 +78,7 @@ public final class CovariateMatcherRegistry {
         }
 
         /**
-         * Registers a matcher for a standard covariate.
-         *
-         * @param covariate the standard covariate
-         * @param matcher the matcher
-         * @return this builder
-         */
-        public Builder register(StandardCovariate covariate, CovariateMatcher matcher) {
-            Objects.requireNonNull(covariate, "covariate must not be null");
-            Objects.requireNonNull(matcher, "matcher must not be null");
-            matchers.put(covariate.key(), matcher);
-            return this;
-        }
-
-        /**
-         * Registers a matcher for a custom covariate key.
+         * Registers a matcher for a covariate key.
          *
          * @param key the covariate key
          * @param matcher the matcher
@@ -126,4 +112,3 @@ public final class CovariateMatcherRegistry {
         }
     }
 }
-

@@ -298,7 +298,7 @@ public final class SpecificationLoader {
 							(value.startsWith("'") && value.endsWith("'"))) {
 						value = value.substring(1, value.length() - 1);
 					}
-					// Try to parse as TimeWindowValue, fall back to StringValue
+					// Parse covariate value
 					CovariateValue covValue = parseCovariateValue(value);
 					covariateProfileBuilder.put(key, covValue);
 				}
@@ -377,14 +377,6 @@ public final class SpecificationLoader {
 	 * Parses a covariate value from its YAML string representation.
 	 */
 	private static CovariateValue parseCovariateValue(String value) {
-		// Try to parse as TimeWindowValue (format: "HH:mm-HH:mm Timezone")
-		if (value.contains("-") && value.contains(" ")) {
-			try {
-				return CovariateValue.TimeWindowValue.parse(value);
-			} catch (Exception e) {
-				// Fall through to StringValue
-			}
-		}
 		return new CovariateValue.StringValue(value);
 	}
 

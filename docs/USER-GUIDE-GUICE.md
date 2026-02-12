@@ -61,7 +61,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.CovariateSource;
-import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.contract.ServiceContract;
@@ -70,8 +69,8 @@ import org.javai.outcome.Outcome;
 
 @UseCase(
     value = "ProductSearch",
-    covariates = { StandardCovariate.TIME_OF_DAY },
-    categorizedCovariates = {
+    covariateTimeOfDay = {"08:00/4h", "16:00/4h"},
+    covariates = {
         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION)
     }
 )

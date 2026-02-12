@@ -3,12 +3,8 @@ package org.javai.punit.spec.baseline;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
 
 /**
@@ -22,11 +18,8 @@ import org.javai.punit.model.CovariateProfile;
  *   <li>Experiment method name</li>
  *   <li>Timestamp (for chronological ordering when sorted alphabetically)</li>
  *   <li>Footprint hash (factors + covariate declaration)</li>
- *   <li>Covariate value hashes (excluding INFORMATIONAL)</li>
+ *   <li>Covariate value hashes</li>
  * </ul>
- *
- * <p>INFORMATIONAL covariates are excluded from the filename hash because they
- * are for traceability only and should not create distinct baseline files.
  *
  * <p>Examples:
  * <ul>
@@ -37,7 +30,7 @@ public final class BaselineFileNamer {
 
     private static final Pattern UNSAFE_CHARS = Pattern.compile("[^a-zA-Z0-9_-]");
     private static final int HASH_LENGTH = 4;
-    private static final DateTimeFormatter TIMESTAMP_FORMAT = 
+    private static final DateTimeFormatter TIMESTAMP_FORMAT =
         DateTimeFormatter.ofPattern("yyyyMMdd-HHmm").withZone(ZoneId.systemDefault());
 
     /**
@@ -45,15 +38,11 @@ public final class BaselineFileNamer {
      *
      * <p>Format: {@code {UseCaseName}.{MethodName}-{YYYYMMDD-HHMM}-{footprintHash}-{covHashes}.yaml}
      *
-     * <p>INFORMATIONAL covariates are excluded from the hash because they should
-     * not create distinct baseline files.
-     *
      * @param useCaseName the use case name (will be sanitized)
      * @param methodName the experiment method name
      * @param timestamp the timestamp for ordering
      * @param footprintHash the footprint hash (8 chars)
      * @param covariateProfile the covariate profile with resolved values
-     * @param declaration the covariate declaration (for category info)
      * @return the filename
      */
     public String generateFilename(
@@ -61,15 +50,13 @@ public final class BaselineFileNamer {
             String methodName,
             Instant timestamp,
             String footprintHash,
-            CovariateProfile covariateProfile,
-            CovariateDeclaration declaration) {
-        
+            CovariateProfile covariateProfile) {
+
         Objects.requireNonNull(useCaseName, "useCaseName must not be null");
         Objects.requireNonNull(methodName, "methodName must not be null");
         Objects.requireNonNull(timestamp, "timestamp must not be null");
         Objects.requireNonNull(footprintHash, "footprintHash must not be null");
         Objects.requireNonNull(covariateProfile, "covariateProfile must not be null");
-        Objects.requireNonNull(declaration, "declaration must not be null");
 
         var sb = new StringBuilder();
         sb.append(sanitize(useCaseName));
@@ -77,9 +64,7 @@ public final class BaselineFileNamer {
         sb.append("-").append(TIMESTAMP_FORMAT.format(timestamp));
         sb.append("-").append(truncateHash(footprintHash));
 
-        // Compute hashes excluding INFORMATIONAL covariates
-        List<String> hashes = computeNonInformationalHashes(covariateProfile, declaration);
-        for (String hash : hashes) {
+        for (String hash : covariateProfile.computeValueHashes()) {
             sb.append("-").append(truncateHash(hash));
         }
 
@@ -108,7 +93,7 @@ public final class BaselineFileNamer {
             String useCaseName,
             String footprintHash,
             CovariateProfile covariateProfile) {
-        
+
         Objects.requireNonNull(useCaseName, "useCaseName must not be null");
         Objects.requireNonNull(footprintHash, "footprintHash must not be null");
         Objects.requireNonNull(covariateProfile, "covariateProfile must not be null");
@@ -135,28 +120,6 @@ public final class BaselineFileNamer {
      */
     public String generateFilename(String useCaseName, String footprintHash) {
         return generateFilename(useCaseName, footprintHash, CovariateProfile.empty());
-    }
-
-    private List<String> computeNonInformationalHashes(
-            CovariateProfile profile, 
-            CovariateDeclaration declaration) {
-        List<String> hashes = new ArrayList<>();
-        
-        for (String key : profile.orderedKeys()) {
-            CovariateCategory category = declaration.getCategory(key);
-            
-            // Skip INFORMATIONAL covariates
-            if (category == CovariateCategory.INFORMATIONAL) {
-                continue;
-            }
-            
-            var value = profile.get(key);
-            if (value != null) {
-                hashes.add(profile.computeSingleValueHash(key, value));
-            }
-        }
-        
-        return hashes;
     }
 
     /**
@@ -226,4 +189,3 @@ public final class BaselineFileNamer {
         }
     }
 }
-

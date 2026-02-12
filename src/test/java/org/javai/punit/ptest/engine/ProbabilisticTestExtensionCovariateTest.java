@@ -1,26 +1,22 @@
 package org.javai.punit.ptest.engine;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.HexFormat;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
 import org.javai.punit.spec.baseline.BaselineRepository;
 import org.javai.punit.spec.baseline.NoCompatibleBaselineException;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -34,126 +30,143 @@ import org.junit.jupiter.api.io.TempDir;
  *   <li>Throws appropriate exceptions when no matching baseline found</li>
  * </ul>
  */
+@DisplayName("ProbabilisticTestExtension covariate integration")
 class ProbabilisticTestExtensionCovariateTest {
 
     @TempDir
     Path tempDir;
 
-    @Test
-    void baselineRepository_findsCandidatesWithMatchingFootprint() throws IOException {
-        // Create baseline files with different footprints
-        writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "weekday");
-        writeSpec("TestUseCase-def98765.yaml", "TestUseCase", "def98765", "weekend");
-        
-        BaselineRepository repository = new BaselineRepository(tempDir);
-        
-        var candidates = repository.findCandidates("TestUseCase", "abc12345");
-        
-        assertEquals(1, candidates.size());
-        assertEquals("abc12345", candidates.get(0).footprint());
-        assertEquals("weekday", candidates.get(0).covariateProfile().get("weekday_vs_weekend").toCanonicalString());
+    @Nested
+    @DisplayName("BaselineRepository candidate lookup")
+    class BaselineRepositoryCandidateLookup {
+
+        @Test
+        @DisplayName("should find candidates with matching footprint")
+        void baselineRepository_findsCandidatesWithMatchingFootprint() throws IOException {
+            writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "WEEKDAY");
+            writeSpec("TestUseCase-def98765.yaml", "TestUseCase", "def98765", "WEEKEND");
+
+            BaselineRepository repository = new BaselineRepository(tempDir);
+
+            var candidates = repository.findCandidates("TestUseCase", "abc12345");
+
+            assertThat(candidates).hasSize(1);
+            assertThat(candidates.get(0).footprint()).isEqualTo("abc12345");
+            assertThat(candidates.get(0).covariateProfile().get("day_of_week").toCanonicalString())
+                    .isEqualTo("WEEKDAY");
+        }
+
+        @Test
+        @DisplayName("should return empty when no matching footprint")
+        void baselineRepository_returnsEmptyWhenNoMatchingFootprint() throws IOException {
+            writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "WEEKDAY");
+
+            BaselineRepository repository = new BaselineRepository(tempDir);
+
+            var candidates = repository.findCandidates("TestUseCase", "xyz99999");
+
+            assertThat(candidates).isEmpty();
+        }
+
+        @Test
+        @DisplayName("should return all candidates when finding all")
+        void baselineRepository_findAllCandidatesReturnsAll() throws IOException {
+            writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "WEEKDAY");
+            writeSpec("TestUseCase-def98765.yaml", "TestUseCase", "def98765", "WEEKEND");
+
+            BaselineRepository repository = new BaselineRepository(tempDir);
+
+            var candidates = repository.findAllCandidates("TestUseCase");
+
+            assertThat(candidates).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("should find available footprints")
+        void baselineRepository_findAvailableFootprints() throws IOException {
+            writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "WEEKDAY");
+            writeSpec("TestUseCase-def98765.yaml", "TestUseCase", "def98765", "WEEKEND");
+
+            BaselineRepository repository = new BaselineRepository(tempDir);
+
+            var footprints = repository.findAvailableFootprints("TestUseCase");
+
+            assertThat(footprints).hasSize(2);
+            assertThat(footprints).contains("abc12345", "def98765");
+        }
     }
 
-    @Test
-    void baselineRepository_returnsEmptyWhenNoMatchingFootprint() throws IOException {
-        writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "weekday");
-        
-        BaselineRepository repository = new BaselineRepository(tempDir);
-        
-        var candidates = repository.findCandidates("TestUseCase", "xyz99999");
-        
-        assertTrue(candidates.isEmpty());
+    @Nested
+    @DisplayName("NoCompatibleBaselineException")
+    class NoCompatibleBaselineExceptionTests {
+
+        @Test
+        @DisplayName("should contain useful information")
+        void noCompatibleBaselineException_containsUsefulInformation() {
+            NoCompatibleBaselineException ex = new NoCompatibleBaselineException(
+                    "MyUseCase",
+                    "expected123",
+                    java.util.List.of("actual456", "actual789"));
+
+            assertThat(ex.getUseCaseId()).isEqualTo("MyUseCase");
+            assertThat(ex.getExpectedFootprint()).isEqualTo("expected123");
+            assertThat(ex.getAvailableFootprints()).containsExactly("actual456", "actual789");
+
+            String message = ex.getMessage();
+            assertThat(message)
+                    .contains("MyUseCase")
+                    .contains("expected123")
+                    .contains("actual456")
+                    .contains("actual789")
+                    .contains("MEASURE experiment");
+        }
+
+        @Test
+        @DisplayName("should handle empty available footprints")
+        void noCompatibleBaselineException_handlesEmptyAvailableFootprints() {
+            NoCompatibleBaselineException ex = new NoCompatibleBaselineException(
+                    "MyUseCase",
+                    "expected123",
+                    java.util.List.of());
+
+            assertThat(ex.getMessage()).contains("No baselines found");
+        }
     }
 
-    @Test
-    void baselineRepository_findAllCandidatesReturnsAll() throws IOException {
-        writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "weekday");
-        writeSpec("TestUseCase-def98765.yaml", "TestUseCase", "def98765", "weekend");
-        
-        BaselineRepository repository = new BaselineRepository(tempDir);
-        
-        var candidates = repository.findAllCandidates("TestUseCase");
-        
-        assertEquals(2, candidates.size());
-    }
+    @Nested
+    @DisplayName("Covariate profile loading from spec")
+    class CovariateProfileLoadingTests {
 
-    @Test
-    void baselineRepository_findAvailableFootprints() throws IOException {
-        writeSpec("TestUseCase-abc12345.yaml", "TestUseCase", "abc12345", "weekday");
-        writeSpec("TestUseCase-def98765.yaml", "TestUseCase", "def98765", "weekend");
-        
-        BaselineRepository repository = new BaselineRepository(tempDir);
-        
-        var footprints = repository.findAvailableFootprints("TestUseCase");
-        
-        assertEquals(2, footprints.size());
-        assertTrue(footprints.contains("abc12345"));
-        assertTrue(footprints.contains("def98765"));
-    }
+        @Test
+        @DisplayName("should load covariate profile with time_of_day and day_of_week")
+        void baselineRepository_loadsCovariateProfileFromSpec() throws IOException {
+            String content = createSpecContentWithTimeOfDay("TestUseCase", "abc12345",
+                    "08:00/2h", "WEEKDAY");
+            Files.writeString(tempDir.resolve("TestUseCase-abc12345.yaml"), content);
 
-    @Test
-    void noCompatibleBaselineException_containsUsefulInformation() {
-        NoCompatibleBaselineException ex = new NoCompatibleBaselineException(
-                "MyUseCase",
-                "expected123",
-                java.util.List.of("actual456", "actual789"));
-        
-        assertEquals("MyUseCase", ex.getUseCaseId());
-        assertEquals("expected123", ex.getExpectedFootprint());
-        assertEquals(java.util.List.of("actual456", "actual789"), ex.getAvailableFootprints());
-        
-        String message = ex.getMessage();
-        assertTrue(message.contains("MyUseCase"));
-        assertTrue(message.contains("expected123"));
-        assertTrue(message.contains("actual456"));
-        assertTrue(message.contains("actual789"));
-        assertTrue(message.contains("MEASURE experiment"));
-    }
+            BaselineRepository repository = new BaselineRepository(tempDir);
+            var candidates = repository.findCandidates("TestUseCase", "abc12345");
 
-    @Test
-    void noCompatibleBaselineException_handlesEmptyAvailableFootprints() {
-        NoCompatibleBaselineException ex = new NoCompatibleBaselineException(
-                "MyUseCase",
-                "expected123",
-                java.util.List.of());
-        
-        String message = ex.getMessage();
-        assertTrue(message.contains("No baselines found"));
-    }
+            assertThat(candidates).hasSize(1);
+            CovariateProfile profile = candidates.get(0).covariateProfile();
+            assertThat(profile).isNotNull();
 
-    @Test
-    void baselineRepository_loadsCovariateProfileFromSpec() throws IOException {
-        // Create a spec with time_of_day covariate
-        String content = createSpecContentWithTimeOfDay("TestUseCase", "abc12345", 
-                "10:00-11:00 Europe/London", "weekday");
-        Files.writeString(tempDir.resolve("TestUseCase-abc12345.yaml"), content);
-        
-        BaselineRepository repository = new BaselineRepository(tempDir);
-        var candidates = repository.findCandidates("TestUseCase", "abc12345");
-        
-        assertEquals(1, candidates.size());
-        CovariateProfile profile = candidates.get(0).covariateProfile();
-        assertNotNull(profile);
-        
-        // Verify time_of_day was parsed as TimeWindowValue
-        CovariateValue timeOfDay = profile.get("time_of_day");
-        assertNotNull(timeOfDay);
-        assertInstanceOf(CovariateValue.TimeWindowValue.class, timeOfDay);
-        
-        CovariateValue.TimeWindowValue twv = (CovariateValue.TimeWindowValue) timeOfDay;
-        assertEquals(LocalTime.of(10, 0), twv.start());
-        assertEquals(LocalTime.of(11, 0), twv.end());
-        assertEquals(ZoneId.of("Europe/London"), twv.timezone());
-        
-        // Verify weekday_vs_weekend
-        CovariateValue weekday = profile.get("weekday_vs_weekend");
-        assertNotNull(weekday);
-        assertEquals("weekday", weekday.toCanonicalString());
+            // Verify time_of_day was parsed as StringValue
+            CovariateValue timeOfDay = profile.get("time_of_day");
+            assertThat(timeOfDay).isNotNull();
+            assertThat(timeOfDay).isInstanceOf(CovariateValue.StringValue.class);
+            assertThat(timeOfDay.toCanonicalString()).isEqualTo("08:00/2h");
+
+            // Verify day_of_week
+            CovariateValue dayOfWeek = profile.get("day_of_week");
+            assertThat(dayOfWeek).isNotNull();
+            assertThat(dayOfWeek.toCanonicalString()).isEqualTo("WEEKDAY");
+        }
     }
 
     // ========== Test Subjects (for future integration testing) ==========
 
-    @UseCase(value = "UseCaseWithCovariates", covariates = {StandardCovariate.TIME_OF_DAY})
+    @UseCase(value = "UseCaseWithCovariates", covariateTimeOfDay = {"08:00/4h"})
     static class UseCaseWithCovariates {
     }
 
@@ -176,20 +189,20 @@ class ProbabilisticTestExtensionCovariateTest {
 
     // ========== Helper Methods ==========
 
-    private void writeSpec(String filename, String useCaseId, String footprint, String weekdayValue)
+    private void writeSpec(String filename, String useCaseId, String footprint, String dayOfWeekValue)
             throws IOException {
-        String content = createSpecContent(useCaseId, footprint, weekdayValue);
+        String content = createSpecContent(useCaseId, footprint, dayOfWeekValue);
         Files.writeString(tempDir.resolve(filename), content);
     }
 
-    private String createSpecContent(String useCaseId, String footprint, String weekdayValue) {
+    private String createSpecContent(String useCaseId, String footprint, String dayOfWeekValue) {
         StringBuilder sb = new StringBuilder();
         sb.append("schemaVersion: punit-spec-2\n");
         sb.append("useCaseId: ").append(useCaseId).append("\n");
         sb.append("generatedAt: 2024-01-15T10:30:00Z\n");
         sb.append("footprint: ").append(footprint).append("\n");
         sb.append("covariates:\n");
-        sb.append("  weekday_vs_weekend: \"").append(weekdayValue).append("\"\n");
+        sb.append("  day_of_week: \"").append(dayOfWeekValue).append("\"\n");
         sb.append("\n");
         sb.append("execution:\n");
         sb.append("  samplesPlanned: 100\n");
@@ -225,9 +238,9 @@ class ProbabilisticTestExtensionCovariateTest {
 
         return sb.toString();
     }
-    
-    private String createSpecContentWithTimeOfDay(String useCaseId, String footprint, 
-                                                   String timeOfDay, String weekdayValue) {
+
+    private String createSpecContentWithTimeOfDay(String useCaseId, String footprint,
+                                                   String timeOfDay, String dayOfWeekValue) {
         StringBuilder sb = new StringBuilder();
         sb.append("schemaVersion: punit-spec-2\n");
         sb.append("useCaseId: ").append(useCaseId).append("\n");
@@ -235,7 +248,7 @@ class ProbabilisticTestExtensionCovariateTest {
         sb.append("footprint: ").append(footprint).append("\n");
         sb.append("covariates:\n");
         sb.append("  time_of_day: \"").append(timeOfDay).append("\"\n");
-        sb.append("  weekday_vs_weekend: \"").append(weekdayValue).append("\"\n");
+        sb.append("  day_of_week: \"").append(dayOfWeekValue).append("\"\n");
         sb.append("\n");
         sb.append("execution:\n");
         sb.append("  samplesPlanned: 100\n");

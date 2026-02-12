@@ -3,7 +3,6 @@ package org.javai.punit.spec.baseline;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
@@ -27,10 +26,9 @@ import org.javai.punit.spec.baseline.covariate.CovariateMatcherRegistry;
  *
  * <h3>Phase 2: Soft Matching</h3>
  * <ol>
- *   <li>Score remaining candidates by TEMPORAL, INFRASTRUCTURE, etc. covariates</li>
+ *   <li>Score remaining candidates by non-hard-gate covariates</li>
  *   <li>Rank by match count (more matches is better)</li>
  *   <li>Break ties using category priority, declaration order, recency</li>
- *   <li>INFORMATIONAL covariates are ignored</li>
  * </ol>
  */
 public final class BaselineSelector {
@@ -41,7 +39,7 @@ public final class BaselineSelector {
      * Creates a selector with the standard matcher registry.
      */
     public BaselineSelector() {
-        this(CovariateMatcherRegistry.withStandardMatchers());
+        this(CovariateMatcherRegistry.withDefaultMatchers());
     }
 
     /**
@@ -75,9 +73,9 @@ public final class BaselineSelector {
             return SelectionResult.noMatch();
         }
 
-        // Phase 1: Hard gate - filter by CONFIGURATION covariates
+        // Phase 1: Hard gate - filter by hard-gate covariates
         var configKeys = declaration.allKeys().stream()
-            .filter(key -> declaration.getCategory(key) == CovariateCategory.CONFIGURATION)
+            .filter(key -> declaration.getCategory(key).isHardGate())
             .toList();
         
         List<BaselineCandidate> configMatches = candidates;
@@ -175,17 +173,12 @@ public final class BaselineSelector {
         // This ensures we only consider covariates that were explicitly declared
         for (String key : declaration.allKeys()) {
             var category = declaration.getCategory(key);
-            
-            // Skip INFORMATIONAL covariates in scoring
-            if (category == CovariateCategory.INFORMATIONAL) {
-                continue;
-            }
 
             var baselineValue = baseline.get(key);
             var testValue = test.get(key);
-            
-            // Skip CONFIGURATION covariates (already filtered in phase 1)
-            if (category == CovariateCategory.CONFIGURATION) {
+
+            // Skip hard-gate covariates (already filtered in phase 1)
+            if (category.isHardGate()) {
                 // Add as CONFORMS since we already filtered
                 details.add(new ConformanceDetail(key, baselineValue, testValue, 
                     CovariateMatcher.MatchResult.CONFORMS));

@@ -1,12 +1,14 @@
 package org.javai.punit.examples.usecases;
 
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.CovariateSource;
+import org.javai.punit.api.DayGroup;
 import org.javai.punit.api.FactorGetter;
 import org.javai.punit.api.FactorSetter;
-import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
@@ -49,8 +51,8 @@ import org.jspecify.annotations.NonNull;
  * <h2>Covariates</h2>
  * <p>This use case tracks covariates that may affect LLM behavior:
  * <ul>
- *   <li>{@code WEEKDAY_VERSUS_WEEKEND} - Temporal context (TEMPORAL)</li>
- *   <li>{@code TIME_OF_DAY} - Temporal context (TEMPORAL)</li>
+ *   <li>{@code day_of_week} - Day-of-week partitioning (weekend vs weekday)</li>
+ *   <li>{@code time_of_day} - Time-of-day partitioning</li>
  *   <li>{@code llm_model} - Which model is being used (CONFIGURATION)</li>
  *   <li>{@code temperature} - Temperature setting (CONFIGURATION)</li>
  * </ul>
@@ -60,8 +62,9 @@ import org.jspecify.annotations.NonNull;
  */
 @UseCase(
         description = "Translate natural language shopping instructions to structured actions",
-        covariates = {StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIME_OF_DAY},
-        categorizedCovariates = {
+        covariateDayOfWeek = {@DayGroup({SATURDAY, SUNDAY})},
+        covariateTimeOfDay = {"08:00/4h", "16:00/4h"},
+        covariates = {
                 @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
                 @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)
         }
@@ -152,9 +155,9 @@ public class ShoppingBasketUseCase {
         this.llm = llm;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ===============================================================================
     // FACTOR GETTERS AND COVARIATE SOURCES
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ===============================================================================
 
     @FactorGetter
     @CovariateSource("llm_model")
@@ -173,9 +176,9 @@ public class ShoppingBasketUseCase {
         return systemPrompt;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ===============================================================================
     // FACTOR SETTERS
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ===============================================================================
 
     @FactorSetter("llm_model")
     public void setModel(String model) {
@@ -208,9 +211,9 @@ public class ShoppingBasketUseCase {
         llm.resetTokenCount();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ===============================================================================
     // USE CASE METHODS
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ===============================================================================
 
     /**
      * Translates a natural language shopping instruction to a structured action.

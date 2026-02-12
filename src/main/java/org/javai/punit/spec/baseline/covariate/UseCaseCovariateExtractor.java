@@ -1,28 +1,43 @@
 package org.javai.punit.spec.baseline.covariate;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.api.StandardCovariate;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.DayGroupDefinition;
+import org.javai.punit.model.RegionGroupDefinition;
+import org.javai.punit.model.TimePeriodDefinition;
 
 /**
  * Extracts covariate declarations from use case classes.
+ *
+ * <p>Parses the five covariate attributes on {@link UseCase}:
+ * <ul>
+ *   <li>{@code covariateDayOfWeek} &rarr; day-of-week partition groups</li>
+ *   <li>{@code covariateTimeOfDay} &rarr; time-of-day periods</li>
+ *   <li>{@code covariateRegion} &rarr; region partition groups</li>
+ *   <li>{@code covariateTimezone} &rarr; timezone identity flag</li>
+ *   <li>{@code covariates} &rarr; custom covariates with categories</li>
+ * </ul>
+ *
+ * <p>All validation errors throw {@link CovariateValidationException}.
  */
 public final class UseCaseCovariateExtractor {
+
+    private final DayGroupExtractor dayGroupExtractor = new DayGroupExtractor();
+    private final TimePeriodExtractor timePeriodExtractor = new TimePeriodExtractor();
+    private final RegionGroupExtractor regionGroupExtractor = new RegionGroupExtractor();
 
     /**
      * Extracts the covariate declaration from a use case class.
      *
-     * <p>Legacy {@code customCovariates} (String[]) are automatically assigned
-     * the {@link CovariateCategory#OPERATIONAL} category. All covariates in the
-     * returned declaration have an explicit category.
-     *
      * @param useCaseClass the use case class
      * @return the covariate declaration (empty if no covariates declared)
+     * @throws CovariateValidationException if declarations are invalid
      */
     public CovariateDeclaration extractDeclaration(Class<?> useCaseClass) {
         Objects.requireNonNull(useCaseClass, "useCaseClass must not be null");
@@ -32,27 +47,29 @@ public final class UseCaseCovariateExtractor {
             return CovariateDeclaration.EMPTY;
         }
 
-        StandardCovariate[] standard = annotation.covariates();
-        String[] legacyCustom = annotation.customCovariates();
-        Covariate[] categorized = annotation.categorizedCovariates();
+        List<DayGroupDefinition> dayGroups = dayGroupExtractor.extract(annotation.covariateDayOfWeek());
+        List<TimePeriodDefinition> timePeriods = timePeriodExtractor.extract(annotation.covariateTimeOfDay());
+        List<RegionGroupDefinition> regionGroups = regionGroupExtractor.extract(annotation.covariateRegion());
+        boolean timezoneEnabled = annotation.covariateTimezone();
+        Map<String, CovariateCategory> customCovariates = extractCustomCovariates(annotation.covariates());
 
-        if (standard.length == 0 && legacyCustom.length == 0 && categorized.length == 0) {
+        if (dayGroups.isEmpty() && timePeriods.isEmpty() && regionGroups.isEmpty()
+                && !timezoneEnabled && customCovariates.isEmpty()) {
             return CovariateDeclaration.EMPTY;
         }
 
-        // Convert all custom covariates to categorized map
-        // Legacy customCovariates get OPERATIONAL as their category
-        Map<String, CovariateCategory> categorizedMap = new HashMap<>();
-        
-        for (String legacyKey : legacyCustom) {
-            categorizedMap.put(legacyKey, CovariateCategory.OPERATIONAL);
-        }
-        
-        for (Covariate cov : categorized) {
-            categorizedMap.put(cov.key(), cov.category());
+        return new CovariateDeclaration(dayGroups, timePeriods, regionGroups, timezoneEnabled, customCovariates);
+    }
+
+    private Map<String, CovariateCategory> extractCustomCovariates(Covariate[] covariates) {
+        if (covariates.length == 0) {
+            return Map.of();
         }
 
-        return CovariateDeclaration.of(standard, categorizedMap);
+        Map<String, CovariateCategory> result = new LinkedHashMap<>();
+        for (Covariate cov : covariates) {
+            result.put(cov.key(), cov.category());
+        }
+        return result;
     }
 }
-

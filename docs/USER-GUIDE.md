@@ -419,8 +419,9 @@ The full implementation demonstrates key PUnit concepts:
 ```java
 @UseCase(
     description = "Translate natural language shopping instructions to structured actions",
-    covariates = {StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIME_OF_DAY},
-    categorizedCovariates = {
+    covariateDayOfWeek = {@DayGroup({SATURDAY, SUNDAY})},
+    covariateTimeOfDay = {"08:00/4h", "16:00/4h"},
+    covariates = {
         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
         @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)
     }
@@ -1098,7 +1099,7 @@ empiricalBasis:
 covariates:
   llm_model: gpt-4o
   temperature: 0.3
-  weekday_vs_weekend: WEEKDAY
+  day_of_week: WEEKDAY
 extendedStatistics:
   confidenceInterval: { lower: 0.919, upper: 0.949 }
 ```
@@ -1186,7 +1187,7 @@ PUnit PASSED: testInstructionTranslation
 
   ⚠️  COVARIATE NON-CONFORMANCE
   The test is running under different conditions than the baseline:
-    • weekday_vs_weekend: baseline=WEEKDAY, current=WEEKEND
+    • day_of_week: baseline=WEEKDAY, current=WEEKEND
     • time_of_day: baseline=MORNING, current=EVENING
 
   Statistical inference may be less reliable. Consider whether
@@ -1203,8 +1204,8 @@ PUnit PASSED: testInstructionTranslation
 
 ```java
 @UseCase(
-    covariates = {StandardCovariate.WEEKDAY_VERSUS_WEEKEND},
-    categorizedCovariates = {
+    covariateDayOfWeek = {@DayGroup({SATURDAY, SUNDAY})},
+    covariates = {
         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION)
     }
 )
@@ -1496,7 +1497,7 @@ empiricalBasis:
 covariates:
   llm_model: gpt-4o
   temperature: 0.3
-  weekday_vs_weekend: WEEKDAY
+  day_of_week: WEEKDAY
 
 extendedStatistics:
   standardError: 0.0078
@@ -1529,7 +1530,7 @@ results:
   successRate: 0.95
 
 covariates:
-  weekday_vs_weekend: WEEKDAY
+  day_of_week: WEEKDAY
 ```
 
 #### OPTIMIZE Output

@@ -7,7 +7,6 @@ import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
-
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
@@ -23,8 +22,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  *
  * <h2>What This Demonstrates</h2>
  * <ul>
- *   <li>{@code StandardCovariate.WEEKDAY_VERSUS_WEEKEND} - Built-in temporal covariate</li>
- *   <li>{@code StandardCovariate.TIME_OF_DAY} - Built-in temporal covariate</li>
+ *   <li>{@code covariateDayOfWeek} - Day-of-week partitioning via {@code @DayGroup}</li>
+ *   <li>{@code covariateTimeOfDay} - Time-of-day partitioning</li>
  *   <li>Custom covariates via {@code @Covariate} in {@code @UseCase}</li>
  *   <li>{@code @CovariateSource} methods for custom covariate values</li>
  *   <li>{@code CovariateCategory} - How covariates affect baseline matching</li>
@@ -32,17 +31,18 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  *
  * <h2>Covariate Categories</h2>
  * <ul>
- *   <li><b>TEMPORAL</b> - Time-based (weekday/weekend, time of day)</li>
+ *   <li><b>TEMPORAL</b> - Time-based (day of week, time of day)</li>
  *   <li><b>CONFIGURATION</b> - System configuration (model, temperature)</li>
- *   <li><b>OPERATIONAL</b> - Operational context (region, environment)</li>
+ *   <li><b>OPERATIONAL</b> - Operational context (region, timezone)</li>
  * </ul>
  *
  * <h2>How ShoppingBasketUseCase Uses Covariates</h2>
  * <p>The use case is annotated with:
  * <pre>{@code
  * @UseCase(
- *     covariates = {WEEKDAY_VERSUS_WEEKEND, TIME_OF_DAY},
- *     categorizedCovariates = {
+ *     covariateDayOfWeek = { @DayGroup({SATURDAY, SUNDAY}) },
+ *     covariateTimeOfDay = { "08:00/4h", "16:00/4h" },
+ *     covariates = {
  *         @Covariate(key = "llm_model", category = CONFIGURATION),
  *         @Covariate(key = "temperature", category = CONFIGURATION)
  *     }
@@ -81,7 +81,7 @@ public class ShoppingBasketCovariateTest {
      *
      * <p>When this test runs:
      * <ul>
-     *   <li>PUnit captures current temporal covariates (weekday/weekend, time of day)</li>
+     *   <li>PUnit captures current temporal covariates (day of week, time of day)</li>
      *   <li>Retrieves configuration covariates from use case methods</li>
      *   <li>Records all covariates in the test results</li>
      *   <li>Uses covariates to find matching baseline</li>

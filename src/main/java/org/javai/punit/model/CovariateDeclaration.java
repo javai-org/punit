@@ -4,24 +4,24 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.api.StandardCovariate;
 
 /**
  * The set of covariates declared by a use case.
  *
  * <p>A covariate declaration captures which covariates are relevant for a use case:
  * <ul>
- *   <li>Standard covariates (from {@link StandardCovariate}) — have built-in categories</li>
- *   <li>Custom covariates — user-defined with explicit categories</li>
+ *   <li>Standard covariates with typed definitions (day groups, time periods, region groups, timezone)</li>
+ *   <li>Custom covariates with explicit categories</li>
  * </ul>
  *
- * <p><strong>Every covariate has a category.</strong> There are no uncategorized covariates.
+ * <p><strong>Every covariate has a category.</strong> Standard covariate keys map to
+ * hardcoded categories; custom covariates have explicit categories in the map.
  *
  * <p>The declaration is used for:
  * <ul>
@@ -31,31 +31,65 @@ import org.javai.punit.api.StandardCovariate;
  *   <li>Category-aware matching (CONFIGURATION = hard gate, others = soft match)</li>
  * </ul>
  *
- * @param standardCovariates the standard covariates in declaration order
- * @param customCovariates map of custom covariate key to category (all have explicit categories)
+ * @param dayGroups the day-of-week partition groups
+ * @param timePeriods the time-of-day partition periods
+ * @param regionGroups the region partition groups
+ * @param timezoneEnabled whether timezone identity covariate is active
+ * @param customCovariates map of custom covariate key to category
  */
 public record CovariateDeclaration(
-        List<StandardCovariate> standardCovariates,
+        List<DayGroupDefinition> dayGroups,
+        List<TimePeriodDefinition> timePeriods,
+        List<RegionGroupDefinition> regionGroups,
+        boolean timezoneEnabled,
         Map<String, CovariateCategory> customCovariates
 ) {
 
+    /** Standard covariate key for day-of-week. */
+    public static final String KEY_DAY_OF_WEEK = "day_of_week";
+
+    /** Standard covariate key for time-of-day. */
+    public static final String KEY_TIME_OF_DAY = "time_of_day";
+
+    /** Standard covariate key for region. */
+    public static final String KEY_REGION = "region";
+
+    /** Standard covariate key for timezone. */
+    public static final String KEY_TIMEZONE = "timezone";
+
     /** An empty covariate declaration. */
-    public static final CovariateDeclaration EMPTY = new CovariateDeclaration(List.of(), Map.of());
+    public static final CovariateDeclaration EMPTY = new CovariateDeclaration(
+            List.of(), List.of(), List.of(), false, Map.of());
 
     public CovariateDeclaration {
-        standardCovariates = List.copyOf(standardCovariates);
-        // Use LinkedHashMap to preserve insertion order, then wrap in unmodifiable map
-        customCovariates = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(customCovariates));
+        dayGroups = List.copyOf(dayGroups);
+        timePeriods = List.copyOf(timePeriods);
+        regionGroups = List.copyOf(regionGroups);
+        customCovariates = Collections.unmodifiableMap(new LinkedHashMap<>(customCovariates));
     }
 
     /**
-     * Returns all covariate keys in declaration order (standard first, then custom).
+     * Returns all covariate keys in declaration order (standard first in fixed order, then custom).
+     *
+     * <p>Standard covariates appear in this fixed order when present:
+     * day_of_week, time_of_day, region, timezone.
      *
      * @return list of all covariate keys
      */
     public List<String> allKeys() {
         var keys = new ArrayList<String>();
-        standardCovariates.forEach(sc -> keys.add(sc.key()));
+        if (!dayGroups.isEmpty()) {
+            keys.add(KEY_DAY_OF_WEEK);
+        }
+        if (!timePeriods.isEmpty()) {
+            keys.add(KEY_TIME_OF_DAY);
+        }
+        if (!regionGroups.isEmpty()) {
+            keys.add(KEY_REGION);
+        }
+        if (timezoneEnabled) {
+            keys.add(KEY_TIMEZONE);
+        }
         keys.addAll(customCovariates.keySet());
         return keys;
     }
@@ -84,49 +118,72 @@ public record CovariateDeclaration(
     /**
      * Returns true if no covariates are declared.
      *
-     * @return true if both standard and custom collections are empty
+     * @return true if all standard covariates are inactive and no custom covariates exist
      */
     public boolean isEmpty() {
-        return standardCovariates.isEmpty() && customCovariates.isEmpty();
+        return dayGroups.isEmpty()
+                && timePeriods.isEmpty()
+                && regionGroups.isEmpty()
+                && !timezoneEnabled
+                && customCovariates.isEmpty();
     }
 
     /**
      * Returns the total number of declared covariates.
      *
-     * @return count of all covariates
+     * @return count of active standard covariates plus custom covariates
      */
     public int size() {
-        return standardCovariates.size() + customCovariates.size();
+        int count = 0;
+        if (!dayGroups.isEmpty()) count++;
+        if (!timePeriods.isEmpty()) count++;
+        if (!regionGroups.isEmpty()) count++;
+        if (timezoneEnabled) count++;
+        count += customCovariates.size();
+        return count;
     }
 
     /**
      * Returns the category for a covariate key.
      *
-     * <p>Every covariate in this declaration has a category:
+     * <p>Standard covariate keys return hardcoded categories:
      * <ul>
-     *   <li>Standard covariates get their category from the enum</li>
-     *   <li>Custom covariates have explicit categories in the map</li>
+     *   <li>{@code day_of_week} &rarr; TEMPORAL</li>
+     *   <li>{@code time_of_day} &rarr; TEMPORAL</li>
+     *   <li>{@code region} &rarr; OPERATIONAL</li>
+     *   <li>{@code timezone} &rarr; OPERATIONAL</li>
      * </ul>
+     * Custom covariates return their declared category.
      *
      * @param key the covariate key
      * @return the category
      * @throws IllegalArgumentException if the key is not in this declaration
      */
     public CovariateCategory getCategory(String key) {
-        // Check standard covariates
-        for (StandardCovariate sc : standardCovariates) {
-            if (sc.key().equals(key)) {
-                return sc.category();
+        return switch (key) {
+            case KEY_DAY_OF_WEEK -> {
+                if (dayGroups.isEmpty()) throwNotDeclared(key);
+                yield CovariateCategory.TEMPORAL;
             }
-        }
-        
-        // Check custom covariates
-        if (customCovariates.containsKey(key)) {
-            return customCovariates.get(key);
-        }
-
-        throw new IllegalArgumentException(
-            "Covariate '" + key + "' is not declared. Declared covariates: " + allKeys());
+            case KEY_TIME_OF_DAY -> {
+                if (timePeriods.isEmpty()) throwNotDeclared(key);
+                yield CovariateCategory.TEMPORAL;
+            }
+            case KEY_REGION -> {
+                if (regionGroups.isEmpty()) throwNotDeclared(key);
+                yield CovariateCategory.OPERATIONAL;
+            }
+            case KEY_TIMEZONE -> {
+                if (!timezoneEnabled) throwNotDeclared(key);
+                yield CovariateCategory.OPERATIONAL;
+            }
+            default -> {
+                if (!customCovariates.containsKey(key)) {
+                    throwNotDeclared(key);
+                }
+                yield customCovariates.get(key);
+            }
+        };
     }
 
     /**
@@ -136,12 +193,13 @@ public record CovariateDeclaration(
      * @return true if declared
      */
     public boolean contains(String key) {
-        for (StandardCovariate sc : standardCovariates) {
-            if (sc.key().equals(key)) {
-                return true;
-            }
-        }
-        return customCovariates.containsKey(key);
+        return switch (key) {
+            case KEY_DAY_OF_WEEK -> !dayGroups.isEmpty();
+            case KEY_TIME_OF_DAY -> !timePeriods.isEmpty();
+            case KEY_REGION -> !regionGroups.isEmpty();
+            case KEY_TIMEZONE -> timezoneEnabled;
+            default -> customCovariates.containsKey(key);
+        };
     }
 
     /**
@@ -153,42 +211,9 @@ public record CovariateDeclaration(
         return new ArrayList<>(customCovariates.keySet());
     }
 
-    /**
-     * Creates a declaration with standard covariates only.
-     *
-     * @param standard array of standard covariates
-     * @return the covariate declaration
-     */
-    public static CovariateDeclaration of(StandardCovariate[] standard) {
-        Objects.requireNonNull(standard, "standard must not be null");
-        
-        if (standard.length == 0) {
-            return EMPTY;
-        }
-        
-        return new CovariateDeclaration(List.of(standard), Map.of());
-    }
-
-    /**
-     * Creates a declaration with standard and custom covariates.
-     *
-     * <p>Every custom covariate must have an explicit category in the map.
-     *
-     * @param standard array of standard covariates
-     * @param custom map of custom covariate key to category
-     * @return the covariate declaration
-     */
-    public static CovariateDeclaration of(
-            StandardCovariate[] standard, 
-            Map<String, CovariateCategory> custom) {
-        Objects.requireNonNull(standard, "standard must not be null");
-        Objects.requireNonNull(custom, "custom must not be null");
-        
-        if (standard.length == 0 && custom.isEmpty()) {
-            return EMPTY;
-        }
-        
-        return new CovariateDeclaration(List.of(standard), custom);
+    private void throwNotDeclared(String key) {
+        throw new IllegalArgumentException(
+                "Covariate '" + key + "' is not declared. Declared covariates: " + allKeys());
     }
 
     private static String sha256(String input) {
@@ -205,4 +230,3 @@ public record CovariateDeclaration(
         return hash.substring(0, Math.min(8, hash.length()));
     }
 }
-

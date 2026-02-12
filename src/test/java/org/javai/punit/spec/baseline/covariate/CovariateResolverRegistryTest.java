@@ -1,8 +1,9 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import org.javai.punit.api.StandardCovariate;
+import java.util.List;
 import org.javai.punit.model.CovariateValue;
+import org.javai.punit.model.RegionGroupDefinition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,47 +15,52 @@ import org.junit.jupiter.api.Test;
 class CovariateResolverRegistryTest {
 
     @Nested
-    @DisplayName("withStandardResolvers()")
-    class WithStandardResolversTests {
+    @DisplayName("builder()")
+    class BuilderTests {
 
         @Test
-        @DisplayName("should have resolver for WEEKDAY_VERSUS_WEEKEND")
-        void shouldHaveResolverForWeekdayVsWeekend() {
-            var registry = CovariateResolverRegistry.withStandardResolvers();
-            
-            assertThat(registry.hasResolver(StandardCovariate.WEEKDAY_VERSUS_WEEKEND.key())).isTrue();
-            assertThat(registry.getResolver(StandardCovariate.WEEKDAY_VERSUS_WEEKEND.key()))
-                .isInstanceOf(WeekdayVsWeekendResolver.class);
+        @DisplayName("should build registry with registered resolvers")
+        void shouldBuildRegistryWithRegisteredResolvers() {
+            var registry = CovariateResolverRegistry.builder()
+                .register("region", new RegionResolver(List.of()))
+                .build();
+
+            assertThat(registry.hasResolver("region")).isTrue();
+            assertThat(registry.getResolver("region")).isInstanceOf(RegionResolver.class);
         }
 
         @Test
-        @DisplayName("should have resolver for TIME_OF_DAY")
-        void shouldHaveResolverForTimeOfDay() {
-            var registry = CovariateResolverRegistry.withStandardResolvers();
-            
-            assertThat(registry.hasResolver(StandardCovariate.TIME_OF_DAY.key())).isTrue();
-            assertThat(registry.getResolver(StandardCovariate.TIME_OF_DAY.key()))
-                .isInstanceOf(TimeOfDayResolver.class);
+        @DisplayName("should support multiple resolver registrations")
+        void shouldSupportMultipleResolverRegistrations() {
+            var registry = CovariateResolverRegistry.builder()
+                .register("region", new RegionResolver(List.of()))
+                .register("timezone", new TimezoneResolver())
+                .build();
+
+            assertThat(registry.hasResolver("region")).isTrue();
+            assertThat(registry.hasResolver("timezone")).isTrue();
         }
 
         @Test
-        @DisplayName("should have resolver for TIMEZONE")
-        void shouldHaveResolverForTimezone() {
-            var registry = CovariateResolverRegistry.withStandardResolvers();
-            
-            assertThat(registry.hasResolver(StandardCovariate.TIMEZONE.key())).isTrue();
-            assertThat(registry.getResolver(StandardCovariate.TIMEZONE.key()))
-                .isInstanceOf(TimezoneResolver.class);
+        @DisplayName("later registration should override earlier for same key")
+        void laterRegistrationShouldOverrideEarlier() {
+            var customResolver = (CovariateResolver) ctx ->
+                new CovariateValue.StringValue("overridden");
+
+            var registry = CovariateResolverRegistry.builder()
+                .register("region", new RegionResolver(List.of()))
+                .register("region", customResolver)
+                .build();
+
+            assertThat(registry.getResolver("region")).isSameAs(customResolver);
         }
 
         @Test
-        @DisplayName("should have resolver for REGION")
-        void shouldHaveResolverForRegion() {
-            var registry = CovariateResolverRegistry.withStandardResolvers();
-            
-            assertThat(registry.hasResolver(StandardCovariate.REGION.key())).isTrue();
-            assertThat(registry.getResolver(StandardCovariate.REGION.key()))
-                .isInstanceOf(RegionResolver.class);
+        @DisplayName("should build empty registry")
+        void shouldBuildEmptyRegistry() {
+            var registry = CovariateResolverRegistry.builder().build();
+
+            assertThat(registry.hasResolver("anything")).isFalse();
         }
     }
 
@@ -63,12 +69,25 @@ class CovariateResolverRegistryTest {
     class GetResolverTests {
 
         @Test
+        @DisplayName("should return registered resolver for known key")
+        void shouldReturnRegisteredResolverForKnownKey() {
+            var regionGroups = List.of(
+                new RegionGroupDefinition(java.util.Set.of("US"), "US")
+            );
+            var registry = CovariateResolverRegistry.builder()
+                .register("region", new RegionResolver(regionGroups))
+                .build();
+
+            assertThat(registry.getResolver("region")).isInstanceOf(RegionResolver.class);
+        }
+
+        @Test
         @DisplayName("should return CustomCovariateResolver for unknown keys")
         void shouldReturnCustomCovariateResolverForUnknownKeys() {
-            var registry = CovariateResolverRegistry.withStandardResolvers();
-            
+            var registry = CovariateResolverRegistry.builder().build();
+
             var resolver = registry.getResolver("unknown_custom_key");
-            
+
             assertThat(resolver).isInstanceOf(CustomCovariateResolver.class);
             assertThat(((CustomCovariateResolver) resolver).getKey()).isEqualTo("unknown_custom_key");
         }
@@ -76,13 +95,13 @@ class CovariateResolverRegistryTest {
         @Test
         @DisplayName("should return registered resolver for custom keys")
         void shouldReturnRegisteredResolverForCustomKeys() {
-            var customResolver = (CovariateResolver) ctx -> 
+            var customResolver = (CovariateResolver) ctx ->
                 new CovariateValue.StringValue("custom-value");
-            
+
             var registry = CovariateResolverRegistry.builder()
                 .register("my_custom_key", customResolver)
                 .build();
-            
+
             assertThat(registry.getResolver("my_custom_key")).isSameAs(customResolver);
         }
     }
@@ -94,39 +113,23 @@ class CovariateResolverRegistryTest {
         @Test
         @DisplayName("should return true for registered keys")
         void shouldReturnTrueForRegisteredKeys() {
-            var registry = CovariateResolverRegistry.withStandardResolvers();
-            
-            assertThat(registry.hasResolver("weekday_vs_weekend")).isTrue();
-            assertThat(registry.hasResolver("time_of_day")).isTrue();
+            var registry = CovariateResolverRegistry.builder()
+                .register("region", new RegionResolver(List.of()))
+                .register("timezone", new TimezoneResolver())
+                .build();
+
+            assertThat(registry.hasResolver("region")).isTrue();
+            assertThat(registry.hasResolver("timezone")).isTrue();
         }
 
         @Test
         @DisplayName("should return false for unregistered keys")
         void shouldReturnFalseForUnregisteredKeys() {
-            var registry = CovariateResolverRegistry.withStandardResolvers();
-            
+            var registry = CovariateResolverRegistry.builder()
+                .register("region", new RegionResolver(List.of()))
+                .build();
+
             assertThat(registry.hasResolver("unknown_key")).isFalse();
         }
     }
-
-    @Nested
-    @DisplayName("Builder")
-    class BuilderTests {
-
-        @Test
-        @DisplayName("custom registration should override standard")
-        void customRegistrationShouldOverrideStandard() {
-            var customResolver = (CovariateResolver) ctx -> 
-                new CovariateValue.StringValue("overridden");
-            
-            var registry = CovariateResolverRegistry.builder()
-                .register(StandardCovariate.REGION, new RegionResolver())
-                .register(StandardCovariate.REGION, customResolver)
-                .build();
-            
-            assertThat(registry.getResolver(StandardCovariate.REGION.key()))
-                .isSameAs(customResolver);
-        }
-    }
 }
-

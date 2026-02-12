@@ -4,9 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import org.javai.punit.api.StandardCovariate;
+import java.util.Set;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.model.RegionGroupDefinition;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.spec.baseline.covariate.CovariateMatcher.MatchResult;
 import org.javai.punit.spec.model.ExecutionSpecification;
@@ -21,6 +22,9 @@ import org.junit.jupiter.api.Test;
 class BaselineSelectorTest {
 
     private final BaselineSelector selector = new BaselineSelector();
+
+    private static final RegionGroupDefinition EU_REGION = new RegionGroupDefinition(
+            Set.of("DE", "FR", "IT"), "EU");
 
     private ExecutionSpecification minimalSpec() {
         return ExecutionSpecification.builder()
@@ -42,16 +46,22 @@ class BaselineSelectorTest {
     // Declaration for tests that use "region" covariate
     private CovariateDeclaration regionDeclaration() {
         return new CovariateDeclaration(
-            List.of(StandardCovariate.REGION),
-            Map.of()
+                List.of(),
+                List.of(),
+                List.of(EU_REGION),
+                false,
+                Map.of()
         );
     }
 
     // Declaration for tests that use "region" and "timezone" covariates
     private CovariateDeclaration regionAndTimezoneDeclaration() {
         return new CovariateDeclaration(
-            List.of(StandardCovariate.REGION, StandardCovariate.TIMEZONE),
-            Map.of()
+                List.of(),
+                List.of(),
+                List.of(EU_REGION),
+                true,
+                Map.of()
         );
     }
 
@@ -63,7 +73,7 @@ class BaselineSelectorTest {
         @DisplayName("should return noMatch for empty candidate list")
         void shouldReturnNoMatchForEmptyCandidateList() {
             var result = selector.select(List.of(), CovariateProfile.empty(), CovariateDeclaration.EMPTY);
-            
+
             assertThat(result.hasSelection()).isFalse();
             assertThat(result.candidateCount()).isEqualTo(0);
         }
@@ -82,11 +92,11 @@ class BaselineSelectorTest {
             var testProfile = CovariateProfile.builder()
                 .put("region", "EU")
                 .build();
-            
+
             var candidate = candidate("baseline1", candidateProfile, Instant.now());
-            
+
             var result = selector.select(List.of(candidate), testProfile, regionDeclaration());
-            
+
             assertThat(result.hasSelection()).isTrue();
             assertThat(result.selected()).isEqualTo(candidate);
             assertThat(result.ambiguous()).isFalse();
@@ -101,7 +111,7 @@ class BaselineSelectorTest {
         @DisplayName("should prefer candidate with more matching covariates")
         void shouldPreferCandidateWithMoreMatchingCovariates() {
             var now = Instant.now();
-            
+
             var profile1 = CovariateProfile.builder()
                 .put("region", "EU")
                 .put("timezone", "Europe/Paris") // Doesn't match
@@ -110,17 +120,17 @@ class BaselineSelectorTest {
                 .put("region", "EU")
                 .put("timezone", "Europe/London") // Matches
                 .build();
-            
+
             var testProfile = CovariateProfile.builder()
                 .put("region", "EU")
                 .put("timezone", "Europe/London")
                 .build();
-            
+
             var candidate1 = candidate("baseline1", profile1, now);
             var candidate2 = candidate("baseline2", profile2, now);
-            
+
             var result = selector.select(List.of(candidate1, candidate2), testProfile, regionAndTimezoneDeclaration());
-            
+
             assertThat(result.selected().filename()).isEqualTo("baseline2.yaml");
             assertThat(result.hasNonConformance()).isFalse();
         }
@@ -134,11 +144,11 @@ class BaselineSelectorTest {
             var testProfile = CovariateProfile.builder()
                 .put("region", "US")
                 .build();
-            
+
             var candidate = candidate("baseline1", baselineProfile, Instant.now());
-            
+
             var result = selector.select(List.of(candidate), testProfile, regionDeclaration());
-            
+
             assertThat(result.hasSelection()).isTrue();
             assertThat(result.hasNonConformance()).isTrue();
             assertThat(result.nonConformingDetails()).hasSize(1);
@@ -156,16 +166,16 @@ class BaselineSelectorTest {
         void shouldPreferMoreRecentBaselineInTies() {
             var older = Instant.parse("2026-01-01T00:00:00Z");
             var newer = Instant.parse("2026-01-10T00:00:00Z");
-            
+
             var profile = CovariateProfile.builder()
                 .put("region", "EU")
                 .build();
-            
+
             var candidate1 = candidate("older", profile, older);
             var candidate2 = candidate("newer", profile, newer);
-            
+
             var result = selector.select(List.of(candidate1, candidate2), profile, regionDeclaration());
-            
+
             assertThat(result.selected().filename()).isEqualTo("newer.yaml");
         }
     }
@@ -178,17 +188,17 @@ class BaselineSelectorTest {
         @DisplayName("should detect ambiguous selection")
         void shouldDetectAmbiguousSelection() {
             var now = Instant.now();
-            
+
             // Same profile, same timestamp = ambiguous
             var profile = CovariateProfile.builder()
                 .put("region", "EU")
                 .build();
-            
+
             var candidate1 = candidate("baseline1", profile, now);
             var candidate2 = candidate("baseline2", profile, now);
-            
+
             var result = selector.select(List.of(candidate1, candidate2), profile, regionDeclaration());
-            
+
             assertThat(result.ambiguous()).isTrue();
         }
 
@@ -196,23 +206,23 @@ class BaselineSelectorTest {
         @DisplayName("should not flag as ambiguous when candidates differ")
         void shouldNotFlagAsAmbiguousWhenCandidatesDiffer() {
             var now = Instant.now();
-            
+
             var profile1 = CovariateProfile.builder()
                 .put("region", "EU")
                 .build();
             var profile2 = CovariateProfile.builder()
                 .put("region", "US")
                 .build();
-            
+
             var testProfile = CovariateProfile.builder()
                 .put("region", "EU")
                 .build();
-            
+
             var candidate1 = candidate("baseline1", profile1, now);
             var candidate2 = candidate("baseline2", profile2, now);
-            
+
             var result = selector.select(List.of(candidate1, candidate2), testProfile, regionDeclaration());
-            
+
             assertThat(result.ambiguous()).isFalse();
         }
     }
@@ -232,11 +242,11 @@ class BaselineSelectorTest {
                 .put("region", "EU")
                 .put("timezone", "America/New_York")
                 .build();
-            
+
             var candidate = candidate("baseline1", baselineProfile, Instant.now());
-            
+
             var result = selector.select(List.of(candidate), testProfile, regionAndTimezoneDeclaration());
-            
+
             assertThat(result.conformanceDetails()).hasSize(2);
             assertThat(result.conformanceDetails().get(0).covariateKey()).isEqualTo("region");
             assertThat(result.conformanceDetails().get(0).result()).isEqualTo(MatchResult.CONFORMS);
@@ -253,7 +263,7 @@ class BaselineSelectorTest {
         @DisplayName("with empty declaration all candidates are equal (first wins)")
         void withEmptyDeclarationAllCandidatesAreEqual() {
             var now = Instant.now();
-            
+
             // Profile values don't matter when declaration is empty
             var profile1 = CovariateProfile.builder()
                 .put("region", "EU")
@@ -261,13 +271,13 @@ class BaselineSelectorTest {
             var profile2 = CovariateProfile.builder()
                 .put("region", "US")
                 .build();
-            
+
             var candidate1 = candidate("first", profile1, now);
             var candidate2 = candidate("second", profile2, now);
-            
+
             // With EMPTY declaration, no scoring happens - all candidates are equivalent
             var result = selector.select(List.of(candidate1, candidate2), CovariateProfile.empty(), CovariateDeclaration.EMPTY);
-            
+
             // All candidates are ambiguous since none can be distinguished
             assertThat(result.hasSelection()).isTrue();
             assertThat(result.ambiguous()).isTrue();

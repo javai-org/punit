@@ -1204,8 +1204,9 @@ This is a violation of the **stationarity assumption**: the success probability 
 ```java
 @UseCase(
     value = "shopping.product.search",
-    covariates = { StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.TIME_OF_DAY },
-    customCovariates = { "region" }
+    covariateDayOfWeek = {@DayGroup({SATURDAY, SUNDAY})},
+    covariateTimeOfDay = {"08:00/4h", "16:00/4h"},
+    covariateRegion = {@RegionGroup({"FR", "DE"})}
 )
 public class ShoppingUseCase { ... }
 ```
@@ -1224,7 +1225,7 @@ This declaration is an explicit statement: "These factors may affect performance
 ⚠️ COVARIATE NON-CONFORMANCE
 Statistical inference may be less reliable.
 
-  • weekday_vs_weekend: baseline=Mo-Fr, test=Sa-So
+  • day_of_week: baseline=WEEKDAY, test=WEEKEND
   • time_of_day: baseline=09:03-09:25, test=14:30-14:45
 
 The baseline was created under different conditions than the current test.
@@ -1304,7 +1305,7 @@ BASELINE REFERENCE
   Generated:   2026-01-10 14:45 UTC
   Samples:     1000
   Observed rate: 95.1%
-  Covariates:  weekday_vs_weekend=Mo-Fr, time_of_day=09:03-09:25, region=EU
+  Covariates:  day_of_week=WEEKDAY, time_of_day=08:00/4h, region=EU_CORE
   Expiration:  2026-02-09 (27 days remaining)
 ```
 

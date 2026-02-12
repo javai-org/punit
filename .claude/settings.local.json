@@ -74,7 +74,8 @@
       "Bash(/tmp/FieldTest3.java << 'EOFJ'\nimport java.lang.reflect.Field;\n\npublic class FieldTest3 {\n    String outerField = \"hello\";\n    \n    class InnerNoRef {\n        // Does NOT reference outerField\n    }\n    \n    class InnerWithRef {\n        void doSomething\\(\\) {\n            System.out.println\\(outerField\\); // References outer field\n        }\n    }\n    \n    public static void main\\(String[] args\\) {\n        FieldTest3 outer = new FieldTest3\\(\\);\n        FieldTest3.InnerNoRef noRef = outer.new InnerNoRef\\(\\);\n        FieldTest3.InnerWithRef withRef = outer.new InnerWithRef\\(\\);\n        \n        System.out.println\\(\"=== InnerNoRef getDeclaredFields\\(\\) ===\"\\);\n        for \\(Field f : noRef.getClass\\(\\).getDeclaredFields\\(\\)\\) {\n            System.out.println\\(\"  \" + f.getName\\(\\) + \" synthetic=\" + f.isSynthetic\\(\\)\\);\n        }\n        \n        System.out.println\\(\"=== InnerWithRef getDeclaredFields\\(\\) ===\"\\);\n        for \\(Field f : withRef.getClass\\(\\).getDeclaredFields\\(\\)\\) {\n            System.out.println\\(\"  \" + f.getName\\(\\) + \" synthetic=\" + f.isSynthetic\\(\\)\\);\n        }\n    }\n}\nEOFJ)",
       "Bash(.githooks/pre-commit)",
       "mcp__ide__getDiagnostics",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git -C /Users/mikemannion/workspace/punit diff --stat HEAD~1)"
     ]
   }
 }

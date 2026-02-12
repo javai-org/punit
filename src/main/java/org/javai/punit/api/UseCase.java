@@ -132,67 +132,81 @@ public @interface UseCase {
     int diffableContentMaxLineLength() default 60;
 
     /**
-     * Standard covariates that may influence this use case's performance.
+     * Day-of-week partitioning covariate.
      *
-     * <p>Declared covariates:
-     * <ul>
-     *   <li>Are captured during MEASURE experiments</li>
-     *   <li>Contribute to the invocation footprint (by name)</li>
-     *   <li>Participate in baseline selection and conformance checking</li>
-     * </ul>
-     *
-     * <p>Order matters: earlier covariates are prioritized during matching.
+     * <p>Each {@link DayGroup} declares a set of days forming a single partition.
+     * Days not covered by any group form an implicit remainder partition.
      *
      * <h3>Example</h3>
      * <pre>{@code
      * @UseCase(
      *     value = "shopping.product.search",
-     *     covariates = {
-     *         StandardCovariate.WEEKDAY_VERSUS_WEEKEND,
-     *         StandardCovariate.TIME_OF_DAY
+     *     covariateDayOfWeek = {
+     *         @DayGroup({SATURDAY, SUNDAY}),
+     *         @DayGroup(MONDAY)
      *     }
      * )
      * public class ShoppingUseCase { }
      * }</pre>
      *
-     * @return array of standard covariates (empty by default)
-     * @see StandardCovariate
+     * @return array of day groups (empty by default)
+     * @see DayGroup
      */
-    StandardCovariate[] covariates() default {};
+    DayGroup[] covariateDayOfWeek() default {};
 
     /**
-     * Custom covariate keys for user-defined contextual factors (legacy).
+     * Time-of-day partitioning covariate.
      *
-     * <p><strong>Deprecated:</strong> Use {@link #categorizedCovariates()} instead
-     * to specify both key and category.
-     *
-     * <p>Covariates declared here are treated as having {@link CovariateCategory#INFRASTRUCTURE}
-     * category (soft match with warning on mismatch).
-     *
-     * <p>Custom covariates are resolved from (in order):
-     * <ol>
-     *   <li>System property: {@code -D{key}=value}</li>
-     *   <li>Environment variable: {@code KEY=value} (uppercased)</li>
-     *   <li>PUnit environment map (programmatic)</li>
-     * </ol>
-     *
-     * <p>If a custom covariate is not found in the environment, its value
-     * is recorded as "undefined". Values of "undefined" never match, even if
-     * both baseline and test have "undefined".
+     * <p>Each string declares a time period in {@code "HH:mm/Nh"} format
+     * (start time / duration in hours). Periods must not cross midnight
+     * and must not overlap.
      *
      * <h3>Example</h3>
      * <pre>{@code
      * @UseCase(
      *     value = "shopping.product.search",
-     *     customCovariates = { "hosting_environment", "feature_flag_new_ranking" }
+     *     covariateTimeOfDay = { "08:00/2h", "16:00/3h" }
      * )
      * public class ShoppingUseCase { }
      * }</pre>
      *
-     * @return array of custom covariate keys (empty by default)
-     * @see #categorizedCovariates()
+     * @return array of time period strings (empty by default)
      */
-    String[] customCovariates() default {};
+    String[] covariateTimeOfDay() default {};
+
+    /**
+     * Region partitioning covariate.
+     *
+     * <p>Each {@link RegionGroup} declares a set of ISO 3166-1 alpha-2 country
+     * codes forming a single partition. Unmatched regions form an implicit
+     * remainder partition.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * @UseCase(
+     *     value = "shopping.product.search",
+     *     covariateRegion = {
+     *         @RegionGroup({"FR", "DE"}),
+     *         @RegionGroup({"GB", "IE"})
+     *     }
+     * )
+     * public class ShoppingUseCase { }
+     * }</pre>
+     *
+     * @return array of region groups (empty by default)
+     * @see RegionGroup
+     */
+    RegionGroup[] covariateRegion() default {};
+
+    /**
+     * Timezone identity covariate.
+     *
+     * <p>When true, the system timezone is captured and matched as an
+     * identity covariate (exact string match, no partitioning).
+     *
+     * @return true to enable timezone covariate (default: false)
+     */
+    boolean covariateTimezone() default false;
 
     /**
      * Custom covariates with explicit categories.
@@ -205,27 +219,23 @@ public @interface UseCase {
      *   <li>{@link CovariateCategory#OPERATIONAL}: Soft match with operational warning</li>
      *   <li>{@link CovariateCategory#EXTERNAL_DEPENDENCY}: Soft match for external services</li>
      *   <li>{@link CovariateCategory#DATA_STATE}: Soft match for data context</li>
-     *   <li>{@link CovariateCategory#INFORMATIONAL}: Ignored in matching, for traceability only</li>
      * </ul>
      *
      * <h3>Example</h3>
      * <pre>{@code
      * @UseCase(
      *     value = "shopping.product.search",
-     *     covariates = { StandardCovariate.TIME_OF_DAY },
-     *     categorizedCovariates = {
+     *     covariates = {
      *         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
-     *         @Covariate(key = "prompt_version", category = CovariateCategory.CONFIGURATION),
-     *         @Covariate(key = "run_id", category = CovariateCategory.INFORMATIONAL)
+     *         @Covariate(key = "prompt_version", category = CovariateCategory.CONFIGURATION)
      *     }
      * )
      * public class ShoppingUseCase { }
      * }</pre>
      *
-     * @return array of categorized covariates (empty by default)
+     * @return array of custom covariates (empty by default)
      * @see Covariate
      * @see CovariateCategory
      */
-    Covariate[] categorizedCovariates() default {};
+    Covariate[] covariates() default {};
 }
-

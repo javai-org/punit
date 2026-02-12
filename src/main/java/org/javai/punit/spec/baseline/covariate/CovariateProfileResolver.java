@@ -21,7 +21,7 @@ import org.javai.punit.model.CovariateValue;
  *   <li>{@code @CovariateSource} method on use case instance (if available)</li>
  *   <li>System property: {@code org.javai.punit.covariate.<key>}</li>
  *   <li>Environment variable: {@code ORG_JAVAI_PUNIT_COVARIATE_<KEY>}</li>
- *   <li>Default resolver (from registry)</li>
+ *   <li>Default resolver (built from declaration data for standard keys, or custom resolver)</li>
  * </ol>
  */
 public final class CovariateProfileResolver {
@@ -29,22 +29,10 @@ public final class CovariateProfileResolver {
     private static final String SYS_PROP_PREFIX = "org.javai.punit.covariate.";
     private static final String ENV_VAR_PREFIX = "ORG_JAVAI_PUNIT_COVARIATE_";
 
-    private final CovariateResolverRegistry registry;
-
     /**
-     * Creates a resolver with standard resolvers.
+     * Creates a resolver.
      */
     public CovariateProfileResolver() {
-        this(CovariateResolverRegistry.withStandardResolvers());
-    }
-
-    /**
-     * Creates a resolver with a custom registry.
-     *
-     * @param registry the resolver registry
-     */
-    public CovariateProfileResolver(CovariateResolverRegistry registry) {
-        this.registry = Objects.requireNonNull(registry, "registry must not be null");
     }
 
     /**
@@ -66,9 +54,9 @@ public final class CovariateProfileResolver {
         Map<String, Method> sourceMethods = discoverCovariateSourceMethods(context);
 
         var builder = CovariateProfile.builder();
-        
+
         for (String key : declaration.allKeys()) {
-            var value = resolveValue(key, context, sourceMethods);
+            var value = resolveValue(key, declaration, context, sourceMethods);
             builder.put(key, value);
         }
 
@@ -96,10 +84,11 @@ public final class CovariateProfileResolver {
     }
 
     private CovariateValue resolveValue(
-            String key, 
+            String key,
+            CovariateDeclaration declaration,
             CovariateResolutionContext context,
             Map<String, Method> sourceMethods) {
-        
+
         // 1. Try @CovariateSource method
         Method sourceMethod = sourceMethods.get(key);
         if (sourceMethod != null) {
@@ -130,8 +119,14 @@ public final class CovariateProfileResolver {
             return new CovariateValue.StringValue(envVarValue.get());
         }
 
-        // 4. Fall back to registry resolver
-        var resolver = registry.getResolver(key);
+        // 4. Build resolver from declaration data for standard keys
+        CovariateResolver resolver = switch (key) {
+            case CovariateDeclaration.KEY_DAY_OF_WEEK -> new DayOfWeekResolver(declaration.dayGroups());
+            case CovariateDeclaration.KEY_TIME_OF_DAY -> new TimeOfDayResolver(declaration.timePeriods());
+            case CovariateDeclaration.KEY_REGION -> new RegionResolver(declaration.regionGroups());
+            case CovariateDeclaration.KEY_TIMEZONE -> new TimezoneResolver();
+            default -> new CustomCovariateResolver(key);
+        };
         return resolver.resolve(context);
     }
 
@@ -145,4 +140,3 @@ public final class CovariateProfileResolver {
         return new CovariateValue.StringValue(result.toString());
     }
 }
-

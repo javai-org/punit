@@ -8,20 +8,18 @@ import java.lang.annotation.Target;
 /**
  * Declares a custom covariate with its category.
  *
- * <p>Use this annotation within {@link UseCase#customCovariates()} to define
- * contextual factors that may influence use case behavior, along with their
- * matching semantics.
+ * <p>Use this annotation within {@link UseCase#covariates()} to define
+ * custom contextual factors that may influence use case behavior, along
+ * with their matching semantics.
  *
  * <h2>Example</h2>
  * <pre>{@code
  * @UseCase(
  *     value = "ProductSearch",
- *     covariates = { StandardCovariate.TIME_OF_DAY },
- *     customCovariates = {
+ *     covariates = {
  *         @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
  *         @Covariate(key = "prompt_version", category = CovariateCategory.CONFIGURATION),
- *         @Covariate(key = "cache_warm", category = CovariateCategory.DATA_STATE),
- *         @Covariate(key = "run_id", category = CovariateCategory.INFORMATIONAL)
+ *         @Covariate(key = "cache_warm", category = CovariateCategory.DATA_STATE)
  *     }
  * )
  * public class ProductSearchUseCase { }
@@ -30,17 +28,16 @@ import java.lang.annotation.Target;
  * <h2>Category Effects</h2>
  * <ul>
  *   <li><strong>CONFIGURATION:</strong> Hard gate — baseline selection fails if no match</li>
- *   <li><strong>TEMPORAL, INFRASTRUCTURE, EXTERNAL_DEPENDENCY, DATA_STATE:</strong> 
+ *   <li><strong>TEMPORAL, INFRASTRUCTURE, EXTERNAL_DEPENDENCY, DATA_STATE, OPERATIONAL:</strong>
  *       Soft match — test proceeds with category-specific warning</li>
- *   <li><strong>INFORMATIONAL:</strong> Ignored in matching, excluded from filename hash</li>
  * </ul>
  *
  * @see CovariateCategory
- * @see UseCase#customCovariates()
+ * @see UseCase#covariates()
  * @see CovariateSource
  */
 @Documented
-@Target({})  // Only usable inside other annotations
+@Target({})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Covariate {
 
@@ -65,11 +62,10 @@ public @interface Covariate {
      * <ul>
      *   <li>Use CONFIGURATION for deliberate choices that explain behavior differences</li>
      *   <li>Use TEMPORAL/INFRASTRUCTURE for environmental factors</li>
-     *   <li>Use INFORMATIONAL for audit/traceability only</li>
+     *   <li>Use DATA_STATE for data context factors</li>
      * </ul>
      *
      * @return the covariate category
      */
     CovariateCategory category();
 }
-

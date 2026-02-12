@@ -1,7 +1,7 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import org.javai.punit.api.StandardCovariate;
+import org.javai.punit.model.CovariateValue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -13,47 +13,41 @@ import org.junit.jupiter.api.Test;
 class CovariateMatcherRegistryTest {
 
     @Nested
-    @DisplayName("withStandardMatchers()")
-    class WithStandardMatchersTests {
+    @DisplayName("withDefaultMatchers()")
+    class WithDefaultMatchersTests {
 
         @Test
-        @DisplayName("should have matcher for WEEKDAY_VERSUS_WEEKEND")
-        void shouldHaveMatcherForWeekdayVsWeekend() {
-            var registry = CovariateMatcherRegistry.withStandardMatchers();
-            
-            assertThat(registry.hasMatcher(StandardCovariate.WEEKDAY_VERSUS_WEEKEND.key())).isTrue();
-            assertThat(registry.getMatcher(StandardCovariate.WEEKDAY_VERSUS_WEEKEND.key()))
-                .isInstanceOf(WeekdayVsWeekendMatcher.class);
+        @DisplayName("should have case-insensitive ExactStringMatcher for region")
+        void shouldHaveCaseInsensitiveMatcherForRegion() {
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
+
+            assertThat(registry.hasMatcher("region")).isTrue();
+            assertThat(registry.getMatcher("region")).isInstanceOf(ExactStringMatcher.class);
+
+            // Verify case-insensitivity: "us" should match "US"
+            var matcher = registry.getMatcher("region");
+            var result = matcher.match(
+                new CovariateValue.StringValue("US"),
+                new CovariateValue.StringValue("us")
+            );
+            assertThat(result).isEqualTo(CovariateMatcher.MatchResult.CONFORMS);
         }
 
         @Test
-        @DisplayName("should have matcher for TIME_OF_DAY")
-        void shouldHaveMatcherForTimeOfDay() {
-            var registry = CovariateMatcherRegistry.withStandardMatchers();
-            
-            assertThat(registry.hasMatcher(StandardCovariate.TIME_OF_DAY.key())).isTrue();
-            assertThat(registry.getMatcher(StandardCovariate.TIME_OF_DAY.key()))
-                .isInstanceOf(TimeOfDayMatcher.class);
+        @DisplayName("should not have explicit matchers for day_of_week or time_of_day")
+        void shouldNotHaveExplicitMatchersForDayOrTime() {
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
+
+            assertThat(registry.hasMatcher("day_of_week")).isFalse();
+            assertThat(registry.hasMatcher("time_of_day")).isFalse();
         }
 
         @Test
-        @DisplayName("should have matcher for TIMEZONE")
-        void shouldHaveMatcherForTimezone() {
-            var registry = CovariateMatcherRegistry.withStandardMatchers();
-            
-            assertThat(registry.hasMatcher(StandardCovariate.TIMEZONE.key())).isTrue();
-            assertThat(registry.getMatcher(StandardCovariate.TIMEZONE.key()))
-                .isInstanceOf(ExactStringMatcher.class);
-        }
+        @DisplayName("should not have explicit matcher for timezone")
+        void shouldNotHaveExplicitMatcherForTimezone() {
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
 
-        @Test
-        @DisplayName("should have matcher for REGION")
-        void shouldHaveMatcherForRegion() {
-            var registry = CovariateMatcherRegistry.withStandardMatchers();
-            
-            assertThat(registry.hasMatcher(StandardCovariate.REGION.key())).isTrue();
-            assertThat(registry.getMatcher(StandardCovariate.REGION.key()))
-                .isInstanceOf(ExactStringMatcher.class);
+            assertThat(registry.hasMatcher("timezone")).isFalse();
         }
     }
 
@@ -62,13 +56,41 @@ class CovariateMatcherRegistryTest {
     class GetMatcherTests {
 
         @Test
-        @DisplayName("should return ExactStringMatcher for custom covariates")
-        void shouldReturnExactStringMatcherForCustomCovariates() {
-            var registry = CovariateMatcherRegistry.withStandardMatchers();
-            
+        @DisplayName("should return ExactStringMatcher for unknown keys")
+        void shouldReturnExactStringMatcherForUnknownKeys() {
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
+
             var matcher = registry.getMatcher("custom_covariate");
-            
+
             assertThat(matcher).isInstanceOf(ExactStringMatcher.class);
+        }
+
+        @Test
+        @DisplayName("default matcher should be case-sensitive")
+        void defaultMatcherShouldBeCaseSensitive() {
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
+
+            var matcher = registry.getMatcher("some_unknown_key");
+            var result = matcher.match(
+                new CovariateValue.StringValue("Value"),
+                new CovariateValue.StringValue("value")
+            );
+
+            assertThat(result).isEqualTo(CovariateMatcher.MatchResult.DOES_NOT_CONFORM);
+        }
+
+        @Test
+        @DisplayName("default matcher should match identical strings")
+        void defaultMatcherShouldMatchIdenticalStrings() {
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
+
+            var matcher = registry.getMatcher("day_of_week");
+            var result = matcher.match(
+                new CovariateValue.StringValue("WEEKEND"),
+                new CovariateValue.StringValue("WEEKEND")
+            );
+
+            assertThat(result).isEqualTo(CovariateMatcher.MatchResult.CONFORMS);
         }
     }
 
@@ -79,19 +101,33 @@ class CovariateMatcherRegistryTest {
         @Test
         @DisplayName("should return true for registered keys")
         void shouldReturnTrueForRegisteredKeys() {
-            var registry = CovariateMatcherRegistry.withStandardMatchers();
-            
-            assertThat(registry.hasMatcher("weekday_vs_weekend")).isTrue();
-            assertThat(registry.hasMatcher("time_of_day")).isTrue();
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
+
+            assertThat(registry.hasMatcher("region")).isTrue();
         }
 
         @Test
         @DisplayName("should return false for unregistered keys")
         void shouldReturnFalseForUnregisteredKeys() {
-            var registry = CovariateMatcherRegistry.withStandardMatchers();
-            
+            var registry = CovariateMatcherRegistry.withDefaultMatchers();
+
             assertThat(registry.hasMatcher("unknown_key")).isFalse();
         }
     }
-}
 
+    @Nested
+    @DisplayName("Builder")
+    class BuilderTests {
+
+        @Test
+        @DisplayName("should support custom matcher registration")
+        void shouldSupportCustomMatcherRegistration() {
+            var registry = CovariateMatcherRegistry.builder()
+                .register("custom_key", new ExactStringMatcher(false))
+                .build();
+
+            assertThat(registry.hasMatcher("custom_key")).isTrue();
+            assertThat(registry.getMatcher("custom_key")).isInstanceOf(ExactStringMatcher.class);
+        }
+    }
+}

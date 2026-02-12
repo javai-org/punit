@@ -1,56 +1,39 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Objects;
 import org.javai.punit.model.CovariateValue;
+import org.javai.punit.model.TimePeriodDefinition;
 
 /**
- * Resolver for {@link org.javai.punit.api.StandardCovariate#TIME_OF_DAY}.
+ * Resolves the time-of-day covariate to a partition label.
  *
- * <p>Resolves to a {@link CovariateValue.TimeWindowValue} representing the
- * experiment execution window (start to end time in the system timezone).
- *
- * <p>Times are truncated to minute precision to ensure stable covariate values
- * across an experiment run. Millisecond/nanosecond differences should not
- * produce different baselines.
- *
- * <p>This resolver requires experiment timing context to be available.
- * During probabilistic tests (not experiments), it uses the current time
- * as a point-in-time for matching against baseline windows.
+ * <p>Gets the current time from the context, finds the matching declared period,
+ * and returns that period's label. Times not in any declared period resolve to "OTHER".
  */
 public final class TimeOfDayResolver implements CovariateResolver {
 
+    static final String REMAINDER_LABEL = "OTHER";
+
+    private final List<TimePeriodDefinition> periods;
+
+    public TimeOfDayResolver(List<TimePeriodDefinition> periods) {
+        this.periods = Objects.requireNonNull(periods, "periods must not be null");
+    }
+
     @Override
     public CovariateValue resolve(CovariateResolutionContext context) {
-        var zone = context.systemTimezone();
+        LocalTime currentTime = context.now()
+                .atZone(context.systemTimezone())
+                .toLocalTime();
 
-        // For experiments: use the full experiment window
-        if (context.experimentStartTime().isPresent() && context.experimentEndTime().isPresent()) {
-            var start = context.experimentStartTime().get();
-            var end = context.experimentEndTime().get();
-
-            var startTime = truncateToMinute(start.atZone(zone).toLocalTime());
-            var endTime = truncateToMinute(end.atZone(zone).toLocalTime());
-
-            return new CovariateValue.TimeWindowValue(startTime, endTime, zone);
+        for (TimePeriodDefinition period : periods) {
+            if (period.contains(currentTime)) {
+                return new CovariateValue.StringValue(period.label());
+            }
         }
 
-        // For tests without experiment context: use current time as both start and end
-        // This creates a point-in-time that will be matched against baseline windows
-        var now = context.now();
-        var currentTime = truncateToMinute(now.atZone(zone).toLocalTime());
-
-        return new CovariateValue.TimeWindowValue(currentTime, currentTime, zone);
-    }
-
-    /**
-     * Truncates a LocalTime to minute precision.
-     *
-     * <p>This ensures that times like 07:54:22.988 and 07:54:23.379 both become 07:54,
-     * producing stable covariate values for hashing and filename generation.
-     */
-    private static LocalTime truncateToMinute(LocalTime time) {
-        return time.truncatedTo(ChronoUnit.MINUTES);
+        return new CovariateValue.StringValue(REMAINDER_LABEL);
     }
 }
-

@@ -7,18 +7,16 @@ package org.javai.punit.api;
  * <ul>
  *   <li>How mismatches are handled (hard fail vs soft warning)</li>
  *   <li>The language used in statistical reports</li>
- *   <li>Whether the covariate participates in baseline filename hashing</li>
  * </ul>
  *
  * @see Covariate
- * @see StandardCovariate#category()
  */
 public enum CovariateCategory {
 
     /**
      * Temporal and cyclical factors affecting system behavior.
      *
-     * <p>Examples: time_of_day, weekday_vs_weekend
+     * <p>Examples: day_of_week, time_of_day
      *
      * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
      * <p><strong>Report language:</strong> "Temporal factors may influence system behavior"
@@ -77,21 +75,7 @@ public enum CovariateCategory {
      * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
      * <p><strong>Report language:</strong> "Data volume or distribution may affect performance"
      */
-    DATA_STATE,
-
-    /**
-     * Traceability metadata with no impact on matching.
-     *
-     * <p>Examples: run_id, operator_tag, experiment_label, branch_name
-     *
-     * <p><strong>Matching:</strong> Ignored — not considered in baseline selection
-     * <p><strong>Report language:</strong> Not displayed in conformance section
-     * <p><strong>Filename hash:</strong> Excluded from filename hash
-     *
-     * <p>INFORMATIONAL covariates are recorded in the baseline for audit trails
-     * and debugging, but do not affect which baseline is selected.
-     */
-    INFORMATIONAL;
+    DATA_STATE;
 
     /**
      * Returns true if this category requires exact match (hard gate).
@@ -102,22 +86,4 @@ public enum CovariateCategory {
         return this == CONFIGURATION;
     }
 
-    /**
-     * Returns true if this category is ignored during matching.
-     *
-     * @return true for INFORMATIONAL, false for all others
-     */
-    public boolean isIgnoredInMatching() {
-        return this == INFORMATIONAL;
-    }
-
-    /**
-     * Returns true if this category participates in soft matching.
-     *
-     * @return true for TEMPORAL, EXTERNAL_DEPENDENCY, INFRASTRUCTURE, DATA_STATE
-     */
-    public boolean isSoftMatch() {
-        return this != CONFIGURATION && this != INFORMATIONAL;
-    }
 }
-

@@ -1,10 +1,14 @@
 package org.javai.punit.spec.baseline.covariate;
 
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.api.Covariate;
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.api.StandardCovariate;
+import org.javai.punit.api.DayGroup;
+import org.javai.punit.api.RegionGroup;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.model.CovariateDeclaration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,14 +22,14 @@ class UseCaseCovariateExtractorTest {
     private final UseCaseCovariateExtractor extractor = new UseCaseCovariateExtractor();
 
     @Nested
-    @DisplayName("extractDeclaration()")
-    class ExtractDeclarationTests {
+    @DisplayName("no covariates")
+    class NoCovariatesTests {
 
         @Test
         @DisplayName("should return EMPTY for class without @UseCase")
         void shouldReturnEmptyForClassWithoutUseCase() {
             var declaration = extractor.extractDeclaration(ClassWithoutUseCase.class);
-            
+
             assertThat(declaration.isEmpty()).isTrue();
         }
 
@@ -33,67 +37,75 @@ class UseCaseCovariateExtractorTest {
         @DisplayName("should return EMPTY for @UseCase without covariates")
         void shouldReturnEmptyForUseCaseWithoutCovariates() {
             var declaration = extractor.extractDeclaration(UseCaseWithoutCovariates.class);
-            
+
             assertThat(declaration.isEmpty()).isTrue();
-        }
-
-        @Test
-        @DisplayName("should extract standard covariates")
-        void shouldExtractStandardCovariates() {
-            var declaration = extractor.extractDeclaration(UseCaseWithStandardCovariates.class);
-            
-            assertThat(declaration.standardCovariates())
-                .containsExactly(StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.REGION);
-            assertThat(declaration.customCovariates()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("should extract legacy custom covariates as OPERATIONAL")
-        void shouldExtractLegacyCustomCovariatesAsOperational() {
-            var declaration = extractor.extractDeclaration(UseCaseWithLegacyCustomCovariates.class);
-            
-            assertThat(declaration.standardCovariates()).isEmpty();
-            assertThat(declaration.customCovariates()).hasSize(2);
-            assertThat(declaration.getCategory("feature_flag")).isEqualTo(CovariateCategory.OPERATIONAL);
-            assertThat(declaration.getCategory("environment")).isEqualTo(CovariateCategory.OPERATIONAL);
-        }
-
-        @Test
-        @DisplayName("should extract categorized custom covariates")
-        void shouldExtractCategorizedCustomCovariates() {
-            var declaration = extractor.extractDeclaration(UseCaseWithCategorizedCovariates.class);
-            
-            assertThat(declaration.standardCovariates()).isEmpty();
-            assertThat(declaration.customCovariates()).hasSize(2);
-            assertThat(declaration.getCategory("llm_model")).isEqualTo(CovariateCategory.CONFIGURATION);
-            assertThat(declaration.getCategory("run_id")).isEqualTo(CovariateCategory.INFORMATIONAL);
-        }
-
-        @Test
-        @DisplayName("should extract both standard and custom covariates")
-        void shouldExtractBothStandardAndCustomCovariates() {
-            var declaration = extractor.extractDeclaration(UseCaseWithBothCovariates.class);
-            
-            assertThat(declaration.standardCovariates())
-                .containsExactly(StandardCovariate.TIME_OF_DAY);
-            assertThat(declaration.customCovariates()).hasSize(1);
-            assertThat(declaration.allKeys())
-                .containsExactly("time_of_day", "custom1");
-            // Legacy custom covariates get OPERATIONAL category
-            assertThat(declaration.getCategory("custom1")).isEqualTo(CovariateCategory.OPERATIONAL);
-        }
-
-        @Test
-        @DisplayName("categorized covariates should override legacy covariates with same key")
-        void categorizedShouldOverrideLegacy() {
-            var declaration = extractor.extractDeclaration(UseCaseWithOverlappingCovariates.class);
-            
-            // The categorized covariate should win
-            assertThat(declaration.getCategory("shared_key")).isEqualTo(CovariateCategory.CONFIGURATION);
         }
     }
 
-    // Test fixtures
+    @Nested
+    @DisplayName("covariateTimezone")
+    class TimezoneTests {
+
+        @Test
+        @DisplayName("should enable timezone when true")
+        void shouldEnableTimezoneWhenTrue() {
+            var declaration = extractor.extractDeclaration(UseCaseWithTimezone.class);
+
+            assertThat(declaration.timezoneEnabled()).isTrue();
+            assertThat(declaration.contains(CovariateDeclaration.KEY_TIMEZONE)).isTrue();
+        }
+
+        @Test
+        @DisplayName("should not enable timezone by default")
+        void shouldNotEnableTimezoneByDefault() {
+            var declaration = extractor.extractDeclaration(UseCaseWithoutCovariates.class);
+
+            assertThat(declaration.timezoneEnabled()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("custom covariates")
+    class CustomCovariateTests {
+
+        @Test
+        @DisplayName("should extract custom covariates with categories")
+        void shouldExtractCustomCovariatesWithCategories() {
+            var declaration = extractor.extractDeclaration(UseCaseWithCustomCovariates.class);
+
+            assertThat(declaration.customCovariates()).hasSize(2);
+            assertThat(declaration.getCategory("llm_model")).isEqualTo(CovariateCategory.CONFIGURATION);
+            assertThat(declaration.getCategory("cache_state")).isEqualTo(CovariateCategory.DATA_STATE);
+        }
+    }
+
+    @Nested
+    @DisplayName("combined covariates")
+    class CombinedCovariateTests {
+
+        @Test
+        @DisplayName("should extract all covariate types together")
+        void shouldExtractAllCovariateTypesTogether() {
+            var declaration = extractor.extractDeclaration(UseCaseWithAllCovariates.class);
+
+            assertThat(declaration.dayGroups()).isNotEmpty();
+            assertThat(declaration.timePeriods()).isNotEmpty();
+            assertThat(declaration.regionGroups()).isNotEmpty();
+            assertThat(declaration.timezoneEnabled()).isTrue();
+            assertThat(declaration.customCovariates()).isNotEmpty();
+        }
+
+        @Test
+        @DisplayName("should order keys as standard first then custom")
+        void shouldOrderKeysAsStandardFirstThenCustom() {
+            var declaration = extractor.extractDeclaration(UseCaseWithAllCovariates.class);
+
+            assertThat(declaration.allKeys())
+                .containsExactly("day_of_week", "time_of_day", "region", "timezone", "llm_model");
+        }
+    }
+
+    // -- Test fixtures --
 
     static class ClassWithoutUseCase {
     }
@@ -103,44 +115,36 @@ class UseCaseCovariateExtractorTest {
     }
 
     @UseCase(
-        value = "test.standard.covariates",
-        covariates = { StandardCovariate.WEEKDAY_VERSUS_WEEKEND, StandardCovariate.REGION }
+        value = "test.timezone",
+        covariateTimezone = true
     )
-    static class UseCaseWithStandardCovariates {
+    static class UseCaseWithTimezone {
     }
 
     @UseCase(
-        value = "test.legacy.custom.covariates",
-        customCovariates = { "feature_flag", "environment" }
-    )
-    static class UseCaseWithLegacyCustomCovariates {
-    }
-
-    @UseCase(
-        value = "test.categorized.covariates",
-        categorizedCovariates = {
+        value = "test.custom.covariates",
+        covariates = {
             @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
-            @Covariate(key = "run_id", category = CovariateCategory.INFORMATIONAL)
+            @Covariate(key = "cache_state", category = CovariateCategory.DATA_STATE)
         }
     )
-    static class UseCaseWithCategorizedCovariates {
+    static class UseCaseWithCustomCovariates {
     }
 
     @UseCase(
-        value = "test.both.covariates",
-        covariates = { StandardCovariate.TIME_OF_DAY },
-        customCovariates = { "custom1" }
-    )
-    static class UseCaseWithBothCovariates {
-    }
-
-    @UseCase(
-        value = "test.overlapping.covariates",
-        customCovariates = { "shared_key" },
-        categorizedCovariates = {
-            @Covariate(key = "shared_key", category = CovariateCategory.CONFIGURATION)
+        value = "test.all.covariates",
+        covariateDayOfWeek = {
+            @DayGroup({SATURDAY, SUNDAY})
+        },
+        covariateTimeOfDay = { "08:00/2h" },
+        covariateRegion = {
+            @RegionGroup({"US"})
+        },
+        covariateTimezone = true,
+        covariates = {
+            @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION)
         }
     )
-    static class UseCaseWithOverlappingCovariates {
+    static class UseCaseWithAllCovariates {
     }
 }
