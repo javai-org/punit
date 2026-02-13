@@ -42,6 +42,7 @@ All attribution licensing is ARL.
   - [Conformance Testing with Specs](#conformance-testing-with-specs)
   - [Baseline Expiration](#baseline-expiration)
   - [Covariate-Aware Baseline Selection](#covariate-aware-baseline-selection)
+    - [Automatic Complement Labels](#automatic-complement-labels)
 - [Part 5: Resource Management](#part-5-resource-management)
   - [Budget Control](#budget-control)
   - [Pacing Constraints](#pacing-constraints)
@@ -1213,6 +1214,26 @@ public class ShoppingBasketUseCase { }
 ```
 
 *Source: `org.javai.punit.examples.tests.ShoppingBasketCovariateTest`*
+
+#### Automatic Complement Labels
+
+When you declare day-of-week or time-of-day partitions, you typically only list the groups you care about distinguishing. PUnit automatically derives a descriptive label for the complement — the remaining days or time intervals not covered by any declared partition.
+
+**Day of week:** Given `@DayGroup({SATURDAY, SUNDAY})`, PUnit computes the complement as the five remaining weekdays and labels it `WEEKDAY`. The labelling uses the same conventions as declared groups: `WEEKEND` and `WEEKDAY` for the well-known sets, or joined day names (e.g. `MONDAY_TUESDAY_WEDNESDAY`) for arbitrary subsets. A baseline recorded on a Wednesday will show:
+
+```yaml
+covariates:
+  day_of_week: WEEKDAY
+```
+
+**Time of day:** Given `covariateTimeOfDay = {"08:00/4h", "16:00/4h"}`, PUnit computes the uncovered intervals — `[00:00, 08:00)`, `[12:00, 16:00)`, and `[20:00, 24:00)` — and joins them into a single remainder label. A baseline recorded at 14:00 will show:
+
+```yaml
+covariates:
+  time_of_day: 00:00/8h, 12:00/4h, 20:00/4h
+```
+
+This means you only need to declare the partitions you want to distinguish. Everything else is captured automatically with a self-describing label, so spec files remain readable without referring back to the use case declaration.
 
 ---
 

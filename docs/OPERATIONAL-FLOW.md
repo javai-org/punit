@@ -415,11 +415,11 @@ OPTIMIZE iteratively refines a **control factor** through mutation and evaluatio
 
 ## Summary
 
-| Step            | Command             | Output                       |
-|-----------------|---------------------|------------------------------|
-| Define use case | —                   | `@UseCase` class             |
-| Run experiment  | `./gradlew measure` | Spec file                    |
-| Commit spec     | `git commit`        | Version-controlled baseline  |
+| Step            | Command             | Output                                  |
+|-----------------|---------------------|-----------------------------------------|
+| Define use case | —                   | `@UseCase` class                        |
+| Run experiment  | `./gradlew measure` | Spec file                               |
+| Commit spec     | `git commit`        | Version-controlled baseline             |
 | Run tests       | `./gradlew test`    | Qualified verdicts (VERIFICATION/SMOKE) |
 
 **The key insight:** PUnit doesn't eliminate uncertainty—it quantifies it. Every verdict comes with statistical context and a clear statement of intent, enabling informed decisions about whether to act on test results.

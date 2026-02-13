@@ -75,7 +75,8 @@
       "Bash(.githooks/pre-commit)",
       "mcp__ide__getDiagnostics",
       "Bash(gh api:*)",
-      "Bash(git -C /Users/mikemannion/workspace/punit diff --stat HEAD~1)"
+      "Bash(git -C /Users/mikemannion/workspace/punit diff --stat HEAD~1)",
+      "Bash(git stash:*)"
     ]
   }
 }

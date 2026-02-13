@@ -1,13 +1,11 @@
 package org.javai.punit.experiment.measure;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.javai.punit.api.ExperimentMode;
-import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
@@ -18,6 +16,7 @@ import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
+import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorResolver;
@@ -150,29 +149,8 @@ public class MeasureStrategy implements ExperimentModeStrategy {
                 });
     }
 
-    /**
-     * Finds the input parameter type from method parameters.
-     *
-     * <p>The input parameter is the first parameter that is:
-     * <ul>
-     *   <li>Not OutcomeCaptor</li>
-     *   <li>Not annotated with @Factor</li>
-     * </ul>
-     */
     private Class<?> findInputParameterType(Method method) {
-        for (Parameter param : method.getParameters()) {
-            Class<?> type = param.getType();
-            if (type == OutcomeCaptor.class) {
-                continue;
-            }
-            if (param.isAnnotationPresent(Factor.class)) {
-                continue;
-            }
-            return type;
-        }
-        throw new ExtensionConfigurationException(
-                "@InputSource requires a method parameter to inject the input value. " +
-                "The parameter must not be OutcomeCaptor or @Factor-annotated.");
+        return InputParameterDetector.findInputParameterType(method);
     }
 
     @SuppressWarnings("unchecked")

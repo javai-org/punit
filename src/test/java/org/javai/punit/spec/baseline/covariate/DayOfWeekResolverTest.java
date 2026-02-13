@@ -1,12 +1,10 @@
 package org.javai.punit.spec.baseline.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
 import org.javai.punit.model.CovariateValue;
@@ -77,8 +75,8 @@ class DayOfWeekResolverTest {
     class RemainderTests {
 
         @Test
-        @DisplayName("resolves unmatched day to OTHER")
-        void resolvesUnmatchedDayToOther() {
+        @DisplayName("resolves unmatched day to WEEKDAY when only WEEKEND declared")
+        void resolvesUnmatchedDayToWeekday() {
             var groups = List.of(
                     new DayGroupDefinition(Set.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), "WEEKEND")
             );
@@ -88,7 +86,62 @@ class DayOfWeekResolverTest {
             var context = contextForDate(wednesday);
 
             var result = resolver.resolve(context);
-            assertThat(result).isEqualTo(new CovariateValue.StringValue("OTHER"));
+            assertThat(result).isEqualTo(new CovariateValue.StringValue("WEEKDAY"));
+        }
+
+        @Test
+        @DisplayName("resolves unmatched day to joined name when non-standard grouping")
+        void resolvesUnmatchedDayToJoinedName() {
+            var groups = List.of(
+                    new DayGroupDefinition(Set.of(DayOfWeek.MONDAY), "MONDAY")
+            );
+            var resolver = new DayOfWeekResolver(groups);
+
+            var tuesday = findNextDay(DayOfWeek.TUESDAY);
+            var context = contextForDate(tuesday);
+
+            var result = resolver.resolve(context);
+            assertThat(result).isEqualTo(new CovariateValue.StringValue(
+                    "TUESDAY_WEDNESDAY_THURSDAY_FRIDAY_SATURDAY_SUNDAY"));
+        }
+
+        @Test
+        @DisplayName("resolves to WEEKEND when only weekdays declared")
+        void resolvesRemainderToWeekend() {
+            var groups = List.of(
+                    new DayGroupDefinition(
+                            Set.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY),
+                            "WEEKDAY")
+            );
+            var resolver = new DayOfWeekResolver(groups);
+
+            var saturday = findNextDay(DayOfWeek.SATURDAY);
+            var context = contextForDate(saturday);
+
+            var result = resolver.resolve(context);
+            assertThat(result).isEqualTo(new CovariateValue.StringValue("WEEKEND"));
+        }
+
+        @Test
+        @DisplayName("fully covered days has no remainder path reachable")
+        void fullyCoveredDaysHasNoRemainderReachable() {
+            var groups = List.of(
+                    new DayGroupDefinition(Set.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), "WEEKEND"),
+                    new DayGroupDefinition(
+                            Set.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY),
+                            "WEEKDAY")
+            );
+            var resolver = new DayOfWeekResolver(groups);
+
+            // Every day maps to a declared group — remainder is never reached
+            for (DayOfWeek day : DayOfWeek.values()) {
+                var date = findNextDay(day);
+                var context = contextForDate(date);
+                var result = resolver.resolve(context);
+                assertThat(result.toCanonicalString()).isIn("WEEKEND", "WEEKDAY");
+            }
         }
     }
 
@@ -121,7 +174,7 @@ class DayOfWeekResolverTest {
             if (dayInPacific == DayOfWeek.SATURDAY || dayInPacific == DayOfWeek.SUNDAY) {
                 assertThat(result).isEqualTo(new CovariateValue.StringValue("WEEKEND"));
             } else {
-                assertThat(result).isEqualTo(new CovariateValue.StringValue("OTHER"));
+                assertThat(result).isEqualTo(new CovariateValue.StringValue("WEEKDAY"));
             }
         }
     }
