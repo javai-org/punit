@@ -49,27 +49,40 @@ class TimePeriodDefinitionTest {
         }
 
         @Test
-        @DisplayName("rejects zero duration")
+        @DisplayName("rejects zero duration with format guidance")
         void rejectsZeroDuration() {
             assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(8, 0), 0))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("positive");
+                    .hasMessageContaining("positive")
+                    .hasMessageContaining("got: 0")
+                    .hasMessageContaining("HH:mm/Nh")
+                    .hasMessageContaining("HH:mm/Nm")
+                    .hasMessageContaining("HH:mm/NhMm");
         }
 
         @Test
-        @DisplayName("rejects negative duration")
+        @DisplayName("rejects negative duration with format guidance")
         void rejectsNegativeDuration() {
             assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(8, 0), -1))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("positive");
+                    .hasMessageContaining("positive")
+                    .hasMessageContaining("got: -1")
+                    .hasMessageContaining("HH:mm/Nh")
+                    .hasMessageContaining("HH:mm/Nm")
+                    .hasMessageContaining("HH:mm/NhMm");
         }
 
         @Test
-        @DisplayName("rejects midnight crossing")
+        @DisplayName("rejects midnight crossing with format guidance")
         void rejectsMidnightCrossing() {
             assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(23, 0), 120))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("midnight");
+                    .hasMessageContaining("midnight")
+                    .hasMessageContaining("23:00")
+                    .hasMessageContaining("120m")
+                    .hasMessageContaining("HH:mm/Nh")
+                    .hasMessageContaining("HH:mm/Nm")
+                    .hasMessageContaining("HH:mm/NhMm");
         }
 
         @Test

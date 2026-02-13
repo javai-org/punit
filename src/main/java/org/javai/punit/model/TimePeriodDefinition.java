@@ -20,12 +20,18 @@ public record TimePeriodDefinition(LocalTime start, int durationMinutes) {
     public TimePeriodDefinition {
         Objects.requireNonNull(start, "start must not be null");
         if (durationMinutes <= 0) {
-            throw new IllegalArgumentException("durationMinutes must be positive, got: " + durationMinutes);
+            throw new IllegalArgumentException(
+                    "durationMinutes must be positive, got: " + durationMinutes
+                            + ". Expected format: 'HH:mm/Nh', 'HH:mm/Nm', or 'HH:mm/NhMm'"
+                            + " (e.g., '08:00/2h', '08:00/30m', '08:00/2h30m')");
         }
         int startMinutes = start.getHour() * 60 + start.getMinute();
         if (startMinutes + durationMinutes > 24 * 60) {
             throw new IllegalArgumentException(
-                    "Period must not cross midnight: " + start + " + " + durationMinutes + "m exceeds 24:00");
+                    "Period must not cross midnight: " + start + " + " + durationMinutes
+                            + "m exceeds 24:00. Expected format: 'HH:mm/Nh', 'HH:mm/Nm', or 'HH:mm/NhMm'"
+                            + " (e.g., '08:00/2h', '08:00/30m', '08:00/2h30m')."
+                            + " Reduce the duration or adjust the start time.");
         }
     }
 
