@@ -24,8 +24,8 @@ class TimeOfDayResolverTest {
         @DisplayName("should return period label when time falls within period")
         void shouldReturnPeriodLabelWhenTimeMatchesPeriod() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(8, 0), 2, "morning"),
-                new TimePeriodDefinition(LocalTime.of(16, 0), 3, "evening")
+                new TimePeriodDefinition(LocalTime.of(8, 0), 120),
+                new TimePeriodDefinition(LocalTime.of(16, 0), 180)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -37,15 +37,15 @@ class TimeOfDayResolverTest {
 
             var result = resolver.resolve(context);
 
-            assertThat(result.toCanonicalString()).isEqualTo("morning");
+            assertThat(result.toCanonicalString()).isEqualTo("08:00/2h");
         }
 
         @Test
         @DisplayName("should return correct label for second period")
         void shouldReturnCorrectLabelForSecondPeriod() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(8, 0), 2, "morning"),
-                new TimePeriodDefinition(LocalTime.of(16, 0), 3, "evening")
+                new TimePeriodDefinition(LocalTime.of(8, 0), 120),
+                new TimePeriodDefinition(LocalTime.of(16, 0), 180)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -57,14 +57,14 @@ class TimeOfDayResolverTest {
 
             var result = resolver.resolve(context);
 
-            assertThat(result.toCanonicalString()).isEqualTo("evening");
+            assertThat(result.toCanonicalString()).isEqualTo("16:00/3h");
         }
 
         @Test
         @DisplayName("should match at period start boundary (inclusive)")
         void shouldMatchAtPeriodStartBoundary() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(14, 0), 2, "afternoon")
+                new TimePeriodDefinition(LocalTime.of(14, 0), 120)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -76,7 +76,7 @@ class TimeOfDayResolverTest {
 
             var result = resolver.resolve(context);
 
-            assertThat(result.toCanonicalString()).isEqualTo("afternoon");
+            assertThat(result.toCanonicalString()).isEqualTo("14:00/2h");
         }
     }
 
@@ -88,8 +88,8 @@ class TimeOfDayResolverTest {
         @DisplayName("should return remainder label combining all gaps")
         void shouldReturnRemainderLabelCombiningAllGaps() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(8, 0), 2, "morning"),
-                new TimePeriodDefinition(LocalTime.of(16, 0), 3, "evening")
+                new TimePeriodDefinition(LocalTime.of(8, 0), 120),
+                new TimePeriodDefinition(LocalTime.of(16, 0), 180)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -108,8 +108,8 @@ class TimeOfDayResolverTest {
         @DisplayName("should return same remainder label regardless of which gap time falls in")
         void shouldReturnSameRemainderLabelRegardlessOfGap() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(8, 0), 2, "morning"),
-                new TimePeriodDefinition(LocalTime.of(16, 0), 3, "evening")
+                new TimePeriodDefinition(LocalTime.of(8, 0), 120),
+                new TimePeriodDefinition(LocalTime.of(16, 0), 180)
             );
             var resolver = new TimeOfDayResolver(periods);
             var expected = "00:00/8h, 10:00/6h, 19:00/5h";
@@ -140,7 +140,7 @@ class TimeOfDayResolverTest {
         @DisplayName("should return remainder label at period end boundary (exclusive)")
         void shouldReturnRemainderLabelAtPeriodEndBoundary() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(14, 0), 2, "afternoon")
+                new TimePeriodDefinition(LocalTime.of(14, 0), 120)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -174,7 +174,7 @@ class TimeOfDayResolverTest {
         @DisplayName("should return remainder with two gaps for single period")
         void shouldReturnRemainderWithTwoGapsForSinglePeriod() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(10, 0), 4, "midday")
+                new TimePeriodDefinition(LocalTime.of(10, 0), 240)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -199,9 +199,9 @@ class TimeOfDayResolverTest {
         @DisplayName("should produce no gaps when periods cover full day")
         void shouldProduceNoGapsWhenFullDayCovered() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(0, 0), 8, "00:00/8h"),
-                new TimePeriodDefinition(LocalTime.of(8, 0), 8, "08:00/8h"),
-                new TimePeriodDefinition(LocalTime.of(16, 0), 8, "16:00/8h")
+                new TimePeriodDefinition(LocalTime.of(0, 0), 480),
+                new TimePeriodDefinition(LocalTime.of(8, 0), 480),
+                new TimePeriodDefinition(LocalTime.of(16, 0), 480)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -212,6 +212,50 @@ class TimeOfDayResolverTest {
                 .build();
 
             assertThat(resolver.resolve(context).toCanonicalString()).isEqualTo("00:00/8h");
+        }
+
+        @Test
+        @DisplayName("should format sub-hour gap using NhMm format")
+        void shouldFormatSubHourGapUsingMinuteFormat() {
+            // Period from 08:00 for 90 minutes (08:00-09:30), then 10:00 for 60 minutes (10:00-11:00)
+            // Gap between them: 09:30-10:00 = 30m
+            var periods = List.of(
+                new TimePeriodDefinition(LocalTime.of(8, 0), 90),
+                new TimePeriodDefinition(LocalTime.of(10, 0), 60)
+            );
+            var resolver = new TimeOfDayResolver(periods);
+
+            var context = DefaultCovariateResolutionContext.builder()
+                .now(Instant.parse("2026-01-10T09:45:00Z"))
+                .systemTimezone(ZoneId.of("UTC"))
+                .build();
+
+            var result = resolver.resolve(context);
+
+            // Gaps: 00:00/8h, 09:30/30m, 11:00/13h
+            assertThat(result.toCanonicalString()).isEqualTo("00:00/8h, 09:30/30m, 11:00/13h");
+        }
+
+        @Test
+        @DisplayName("should format mixed hours-and-minutes gap using NhMm format")
+        void shouldFormatMixedGapUsingNhMmFormat() {
+            // Period from 08:00 for 30 minutes (08:00-08:30), then 10:00 for 60 minutes (10:00-11:00)
+            // Gap between them: 08:30-10:00 = 1h30m
+            var periods = List.of(
+                new TimePeriodDefinition(LocalTime.of(8, 0), 30),
+                new TimePeriodDefinition(LocalTime.of(10, 0), 60)
+            );
+            var resolver = new TimeOfDayResolver(periods);
+
+            var context = DefaultCovariateResolutionContext.builder()
+                .now(Instant.parse("2026-01-10T09:00:00Z"))
+                .systemTimezone(ZoneId.of("UTC"))
+                .build();
+
+            var result = resolver.resolve(context);
+
+            // Gaps: 00:00/8h, 08:30/1h30m, 11:00/13h
+            assertThat(result.toCanonicalString()).isEqualTo("00:00/8h, 08:30/1h30m, 11:00/13h");
         }
     }
 
@@ -225,7 +269,7 @@ class TimeOfDayResolverTest {
             // 14:30 UTC = 15:30 in Europe/Paris (winter time, UTC+1)
             // Period covers 15:00-17:00 local time
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(15, 0), 2, "paris_afternoon")
+                new TimePeriodDefinition(LocalTime.of(15, 0), 120)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -236,7 +280,7 @@ class TimeOfDayResolverTest {
 
             var result = resolver.resolve(context);
 
-            assertThat(result.toCanonicalString()).isEqualTo("paris_afternoon");
+            assertThat(result.toCanonicalString()).isEqualTo("15:00/2h");
         }
 
         @Test
@@ -246,7 +290,7 @@ class TimeOfDayResolverTest {
             // 09:00 UTC = 04:00 in America/New_York (EST, UTC-5) -- outside period
             // Remainder is the complement: 00:00/8h, 10:00/14h
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(8, 0), 2, "morning")
+                new TimePeriodDefinition(LocalTime.of(8, 0), 120)
             );
             var resolver = new TimeOfDayResolver(periods);
 
@@ -269,7 +313,7 @@ class TimeOfDayResolverTest {
         @DisplayName("should return StringValue for matched period")
         void shouldReturnStringValueForMatchedPeriod() {
             var periods = List.of(
-                new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h")
+                new TimePeriodDefinition(LocalTime.of(8, 0), 120)
             );
             var resolver = new TimeOfDayResolver(periods);
 

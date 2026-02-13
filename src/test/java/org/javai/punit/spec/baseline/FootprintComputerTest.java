@@ -155,7 +155,7 @@ class FootprintComputerTest {
             );
             var declaration2 = new CovariateDeclaration(
                     List.of(),
-                    List.of(new TimePeriodDefinition(LocalTime.of(8, 0), 4, "MORNING")),
+                    List.of(new TimePeriodDefinition(LocalTime.of(8, 0), 240)),
                     List.of(),
                     false,
                     Map.of()

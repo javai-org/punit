@@ -6,29 +6,36 @@ import java.util.Objects;
 /**
  * A named time-of-day period forming a single partition.
  *
- * <p>Periods use half-open intervals {@code [start, start+durationHours)}.
- * The period must not cross midnight: {@code start + durationHours <= 24:00}.
+ * <p>Periods use half-open intervals {@code [start, start+durationMinutes)}.
+ * The period must not cross midnight: {@code start + durationMinutes <= 24:00}.
+ *
+ * <p>The partition label is derived automatically from the start time and duration
+ * (e.g., {@code "08:00/2h"}, {@code "08:00/30m"}, {@code "08:00/2h30m"}).
  *
  * @param start the start time (inclusive)
- * @param durationHours the duration in hours (positive, no midnight crossing)
- * @param label the partition label (non-blank)
+ * @param durationMinutes the duration in minutes (positive, no midnight crossing)
  */
-public record TimePeriodDefinition(LocalTime start, int durationHours, String label) {
+public record TimePeriodDefinition(LocalTime start, int durationMinutes) {
 
     public TimePeriodDefinition {
         Objects.requireNonNull(start, "start must not be null");
-        Objects.requireNonNull(label, "label must not be null");
-        if (durationHours <= 0) {
-            throw new IllegalArgumentException("durationHours must be positive, got: " + durationHours);
-        }
-        if (label.isBlank()) {
-            throw new IllegalArgumentException("label must not be blank");
+        if (durationMinutes <= 0) {
+            throw new IllegalArgumentException("durationMinutes must be positive, got: " + durationMinutes);
         }
         int startMinutes = start.getHour() * 60 + start.getMinute();
-        if (startMinutes + durationHours * 60 > 24 * 60) {
+        if (startMinutes + durationMinutes > 24 * 60) {
             throw new IllegalArgumentException(
-                    "Period must not cross midnight: " + start + " + " + durationHours + "h exceeds 24:00");
+                    "Period must not cross midnight: " + start + " + " + durationMinutes + "m exceeds 24:00");
         }
+    }
+
+    /**
+     * Returns the canonical label for this period (e.g., {@code "08:00/2h"}).
+     *
+     * @return the formatted label
+     */
+    public String label() {
+        return formatDuration(start, durationMinutes);
     }
 
     /**
@@ -37,7 +44,7 @@ public record TimePeriodDefinition(LocalTime start, int durationHours, String la
      * @return the end time
      */
     public LocalTime end() {
-        return start.plusHours(durationHours);
+        return start.plusMinutes(durationMinutes);
     }
 
     /**
@@ -48,5 +55,25 @@ public record TimePeriodDefinition(LocalTime start, int durationHours, String la
      */
     public boolean contains(LocalTime time) {
         return !time.isBefore(start) && time.isBefore(end());
+    }
+
+    /**
+     * Formats a time and duration into the canonical period label.
+     *
+     * @param start the start time
+     * @param durationMinutes the duration in minutes
+     * @return the formatted label (e.g., "08:00/2h", "08:00/30m", "08:00/2h30m")
+     */
+    public static String formatDuration(LocalTime start, int durationMinutes) {
+        String timeStr = String.format("%02d:%02d", start.getHour(), start.getMinute());
+        int hrs = durationMinutes / 60;
+        int mins = durationMinutes % 60;
+        if (mins == 0) {
+            return String.format("%s/%dh", timeStr, hrs);
+        }
+        if (hrs == 0) {
+            return String.format("%s/%dm", timeStr, mins);
+        }
+        return String.format("%s/%dh%dm", timeStr, hrs, mins);
     }
 }

@@ -128,8 +128,8 @@ class CovariateProfileResolverTest {
         @DisplayName("should resolve time-of-day covariate using time periods")
         void shouldResolveTimeOfDayCovariateUsingTimePeriods() {
             var timePeriods = List.of(
-                new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h"),
-                new TimePeriodDefinition(LocalTime.of(16, 0), 3, "16:00/3h")
+                new TimePeriodDefinition(LocalTime.of(8, 0), 120),
+                new TimePeriodDefinition(LocalTime.of(16, 0), 180)
             );
             var declaration = new CovariateDeclaration(
                 List.of(), timePeriods, List.of(), false, Map.of()

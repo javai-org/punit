@@ -29,7 +29,7 @@ class CovariateDeclarationTest {
             "WEEKEND");
 
     private static final TimePeriodDefinition MORNING_PERIOD = new TimePeriodDefinition(
-            LocalTime.of(8, 0), 4, "MORNING");
+            LocalTime.of(8, 0), 240);
 
     private static final RegionGroupDefinition EU_REGION = new RegionGroupDefinition(
             Set.of("DE", "FR", "IT"), "EU");

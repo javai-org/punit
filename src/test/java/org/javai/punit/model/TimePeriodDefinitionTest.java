@@ -2,7 +2,6 @@ package org.javai.punit.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.time.LocalTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,26 +15,43 @@ class TimePeriodDefinitionTest {
     class ConstructionTests {
 
         @Test
-        @DisplayName("creates with valid parameters")
-        void createsWithValidParameters() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h");
+        @DisplayName("creates with valid parameters in hours")
+        void createsWithValidParametersInHours() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
 
             assertThat(period.start()).isEqualTo(LocalTime.of(8, 0));
-            assertThat(period.durationHours()).isEqualTo(2);
-            assertThat(period.label()).isEqualTo("08:00/2h");
+            assertThat(period.durationMinutes()).isEqualTo(120);
+        }
+
+        @Test
+        @DisplayName("creates with sub-hour duration")
+        void createsWithSubHourDuration() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 30);
+
+            assertThat(period.start()).isEqualTo(LocalTime.of(8, 0));
+            assertThat(period.durationMinutes()).isEqualTo(30);
+        }
+
+        @Test
+        @DisplayName("creates with mixed hours and minutes duration")
+        void createsWithMixedDuration() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 150);
+
+            assertThat(period.start()).isEqualTo(LocalTime.of(8, 0));
+            assertThat(period.durationMinutes()).isEqualTo(150);
         }
 
         @Test
         @DisplayName("rejects null start")
         void rejectsNullStart() {
-            assertThatThrownBy(() -> new TimePeriodDefinition(null, 2, "label"))
+            assertThatThrownBy(() -> new TimePeriodDefinition(null, 120))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         @DisplayName("rejects zero duration")
         void rejectsZeroDuration() {
-            assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(8, 0), 0, "label"))
+            assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(8, 0), 0))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("positive");
         }
@@ -43,7 +59,7 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("rejects negative duration")
         void rejectsNegativeDuration() {
-            assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(8, 0), -1, "label"))
+            assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(8, 0), -1))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("positive");
         }
@@ -51,7 +67,7 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("rejects midnight crossing")
         void rejectsMidnightCrossing() {
-            assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(23, 0), 2, "label"))
+            assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(23, 0), 120))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("midnight");
         }
@@ -59,17 +75,54 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("accepts period ending exactly at midnight")
         void acceptsPeriodEndingAtMidnight() {
-            var period = new TimePeriodDefinition(LocalTime.of(23, 0), 1, "23:00/1h");
+            var period = new TimePeriodDefinition(LocalTime.of(23, 0), 60);
 
             assertThat(period.end()).isEqualTo(LocalTime.MIDNIGHT);
         }
+    }
+
+    @Nested
+    @DisplayName("label()")
+    class LabelTests {
 
         @Test
-        @DisplayName("rejects blank label")
-        void rejectsBlankLabel() {
-            assertThatThrownBy(() -> new TimePeriodDefinition(LocalTime.of(8, 0), 2, " "))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("blank");
+        @DisplayName("formats whole hours")
+        void formatsWholeHours() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
+
+            assertThat(period.label()).isEqualTo("08:00/2h");
+        }
+
+        @Test
+        @DisplayName("formats minutes only")
+        void formatsMinutesOnly() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 30);
+
+            assertThat(period.label()).isEqualTo("08:00/30m");
+        }
+
+        @Test
+        @DisplayName("formats mixed hours and minutes")
+        void formatsMixedHoursAndMinutes() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 150);
+
+            assertThat(period.label()).isEqualTo("08:00/2h30m");
+        }
+
+        @Test
+        @DisplayName("formats non-zero start minutes")
+        void formatsNonZeroStartMinutes() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 30), 90);
+
+            assertThat(period.label()).isEqualTo("08:30/1h30m");
+        }
+
+        @Test
+        @DisplayName("formats midnight start")
+        void formatsMidnightStart() {
+            var period = new TimePeriodDefinition(LocalTime.of(0, 0), 480);
+
+            assertThat(period.label()).isEqualTo("00:00/8h");
         }
     }
 
@@ -78,17 +131,33 @@ class TimePeriodDefinitionTest {
     class EndTests {
 
         @Test
-        @DisplayName("computes end time from start + duration")
-        void computesEndTime() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h");
+        @DisplayName("computes end time from start + duration in hours")
+        void computesEndTimeFromHours() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
 
             assertThat(period.end()).isEqualTo(LocalTime.of(10, 0));
         }
 
         @Test
-        @DisplayName("handles non-zero minutes")
+        @DisplayName("computes end time from start + sub-hour duration")
+        void computesEndTimeFromMinutes() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 30);
+
+            assertThat(period.end()).isEqualTo(LocalTime.of(8, 30));
+        }
+
+        @Test
+        @DisplayName("computes end time from start + mixed duration")
+        void computesEndTimeFromMixedDuration() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 150);
+
+            assertThat(period.end()).isEqualTo(LocalTime.of(10, 30));
+        }
+
+        @Test
+        @DisplayName("handles non-zero start minutes")
         void handlesNonZeroMinutes() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 30), 3, "08:30/3h");
+            var period = new TimePeriodDefinition(LocalTime.of(8, 30), 180);
 
             assertThat(period.end()).isEqualTo(LocalTime.of(11, 30));
         }
@@ -101,7 +170,7 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("start is inclusive")
         void startIsInclusive() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h");
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
 
             assertThat(period.contains(LocalTime.of(8, 0))).isTrue();
         }
@@ -109,7 +178,7 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("end is exclusive")
         void endIsExclusive() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h");
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
 
             assertThat(period.contains(LocalTime.of(10, 0))).isFalse();
         }
@@ -117,7 +186,7 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("time within period matches")
         void timeWithinPeriodMatches() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h");
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
 
             assertThat(period.contains(LocalTime.of(9, 30))).isTrue();
         }
@@ -125,7 +194,7 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("time before period does not match")
         void timeBeforePeriodDoesNotMatch() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h");
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
 
             assertThat(period.contains(LocalTime.of(7, 59))).isFalse();
         }
@@ -133,9 +202,18 @@ class TimePeriodDefinitionTest {
         @Test
         @DisplayName("time after period does not match")
         void timeAfterPeriodDoesNotMatch() {
-            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 2, "08:00/2h");
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 120);
 
             assertThat(period.contains(LocalTime.of(10, 1))).isFalse();
+        }
+
+        @Test
+        @DisplayName("time within sub-hour period matches")
+        void timeWithinSubHourPeriodMatches() {
+            var period = new TimePeriodDefinition(LocalTime.of(8, 0), 30);
+
+            assertThat(period.contains(LocalTime.of(8, 15))).isTrue();
+            assertThat(period.contains(LocalTime.of(8, 30))).isFalse();
         }
     }
 }

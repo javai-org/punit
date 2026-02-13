@@ -75,10 +75,10 @@ public final class TimeOfDayResolver implements CovariateResolver {
             minutes = Duration.between(start, end).toMinutes();
         }
 
-        if (minutes > 0 && minutes % 60 == 0) {
-            return String.format("%s/%dh", format(start), minutes / 60);
+        if (minutes <= 0) {
+            return String.format("%s-%s", format(start), format(end));
         }
-        return String.format("%s-%s", format(start), format(end));
+        return TimePeriodDefinition.formatDuration(start, (int) minutes);
     }
 
     private static String format(LocalTime time) {
