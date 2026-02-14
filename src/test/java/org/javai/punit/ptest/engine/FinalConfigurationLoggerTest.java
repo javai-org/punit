@@ -481,6 +481,38 @@ class FinalConfigurationLoggerTest {
             ConfigurationData config = new ConfigurationData(100, 0.95, null, null, null);
             assertThat(config.hasThresholdOrigin()).isFalse();
         }
+
+        @Test
+        @DisplayName("isSpecDriven returns true when spec with derived non-normative threshold")
+        void isSpecDrivenWhenDerivedFromBaseline() {
+            ConfigurationData config = new ConfigurationData(
+                    100, 0.92, "ShoppingUseCase", ThresholdOrigin.EMPIRICAL, null, TestIntent.VERIFICATION, true);
+            assertThat(config.isSpecDriven()).isTrue();
+        }
+
+        @Test
+        @DisplayName("isSpecDriven returns false when normative threshold")
+        void isSpecDrivenFalseWhenNormative() {
+            ConfigurationData config = new ConfigurationData(
+                    100, 0.95, "ShoppingUseCase", ThresholdOrigin.SLA, null, TestIntent.VERIFICATION, true);
+            assertThat(config.isSpecDriven()).isFalse();
+        }
+
+        @Test
+        @DisplayName("isSpecDriven returns false when threshold not derived")
+        void isSpecDrivenFalseWhenNotDerived() {
+            ConfigurationData config = new ConfigurationData(
+                    100, 0.80, "ShoppingUseCase", ThresholdOrigin.EMPIRICAL, null, TestIntent.VERIFICATION, false);
+            assertThat(config.isSpecDriven()).isFalse();
+        }
+
+        @Test
+        @DisplayName("isSpecDriven returns false when no specId")
+        void isSpecDrivenFalseWhenNoSpec() {
+            ConfigurationData config = new ConfigurationData(
+                    100, 0.92, null, ThresholdOrigin.EMPIRICAL, null, TestIntent.VERIFICATION, true);
+            assertThat(config.isSpecDriven()).isFalse();
+        }
     }
 
     @Nested
@@ -488,27 +520,30 @@ class FinalConfigurationLoggerTest {
     class IntentDisplay {
 
         @Test
-        @DisplayName("VERIFICATION intent appears in banner")
+        @DisplayName("VERIFICATION intent appears in banner after Mode")
         void verificationIntentAppearsInBanner() {
             ConfigurationData config = new ConfigurationData(
                     100, 0.95, null, ThresholdOrigin.UNSPECIFIED, null, TestIntent.VERIFICATION);
             String formatted = logger.format(config);
             assertThat(formatted).contains("Intent:");
             assertThat(formatted).contains("VERIFICATION");
+            assertThat(formatted.indexOf("Mode:")).isLessThan(formatted.indexOf("Intent:"));
+            assertThat(formatted.indexOf("Intent:")).isLessThan(formatted.indexOf("Threshold:"));
         }
 
         @Test
-        @DisplayName("SMOKE intent appears in banner")
+        @DisplayName("SMOKE intent appears in banner after Mode")
         void smokeIntentAppearsInBanner() {
             ConfigurationData config = new ConfigurationData(
                     50, 0.90, null, ThresholdOrigin.UNSPECIFIED, null, TestIntent.SMOKE);
             String formatted = logger.format(config);
             assertThat(formatted).contains("Intent:");
             assertThat(formatted).contains("SMOKE");
+            assertThat(formatted.indexOf("Intent:")).isLessThan(formatted.indexOf("Threshold:"));
         }
 
         @Test
-        @DisplayName("Intent appears alongside SLA-DRIVEN mode")
+        @DisplayName("Intent appears between Mode and Threshold for SLA-DRIVEN")
         void intentWithSlaMode() {
             ConfigurationData config = new ConfigurationData(
                     100, 0.95, "ShoppingUseCase", ThresholdOrigin.SLA, null, TestIntent.VERIFICATION);
@@ -516,6 +551,17 @@ class FinalConfigurationLoggerTest {
             assertThat(formatted).contains("SLA-DRIVEN");
             assertThat(formatted).contains("Intent:");
             assertThat(formatted).contains("VERIFICATION");
+            assertThat(formatted.indexOf("Mode:")).isLessThan(formatted.indexOf("Intent:"));
+            assertThat(formatted.indexOf("Intent:")).isLessThan(formatted.indexOf("Threshold:"));
+        }
+
+        @Test
+        @DisplayName("Null intent is omitted from banner")
+        void nullIntentOmitted() {
+            ConfigurationData config = new ConfigurationData(
+                    50, 0.80, null, ThresholdOrigin.UNSPECIFIED, null, null, false);
+            String formatted = logger.format(config);
+            assertThat(formatted).doesNotContain("Intent:");
         }
     }
 

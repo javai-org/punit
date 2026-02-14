@@ -82,6 +82,14 @@ class FinalConfigurationLogger {
         boolean hasThresholdOrigin() {
             return thresholdOrigin != null && thresholdOrigin != ThresholdOrigin.UNSPECIFIED;
         }
+
+        /**
+         * Returns true when the threshold was derived from a baseline spec
+         * (as opposed to being normative or explicitly set).
+         */
+        boolean isSpecDriven() {
+            return hasSpecId() && thresholdDerived() && !isNormativeThreshold();
+        }
     }
 
     /**
@@ -118,40 +126,57 @@ class FinalConfigurationLogger {
         }
 
         StringBuilder sb = new StringBuilder();
-
-        if (config.isNormativeThreshold()) {
-            sb.append(PUnitReporter.labelValueLn("Mode:", config.thresholdOrigin().name() + "-DRIVEN"));
-            if (config.hasSpecId()) {
-                sb.append(PUnitReporter.labelValueLn("Use Case:", config.specId()));
-            }
-            sb.append(PUnitReporter.labelValueLn("Threshold:",
-                    String.format("%s (%s)", RateFormat.format(config.minPassRate()), config.thresholdOrigin().name())));
-            if (config.hasContractRef()) {
-                sb.append(PUnitReporter.labelValueLn("Contract:", config.contractRef()));
-            }
-        } else if (config.hasSpecId() && config.thresholdDerived()) {
-            sb.append(PUnitReporter.labelValueLn("Mode:", "SPEC-DRIVEN"));
-            sb.append(PUnitReporter.labelValueLn("Spec:", config.specId()));
-            sb.append(PUnitReporter.labelValueLn("Threshold:",
-                    String.format("%s (derived from baseline)", RateFormat.format(config.minPassRate()))));
-        } else {
-            sb.append(PUnitReporter.labelValueLn("Mode:", "EXPLICIT THRESHOLD"));
-            if (config.hasSpecId()) {
-                sb.append(PUnitReporter.labelValueLn("Use Case:", config.specId()));
-            }
-            String thresholdNote = "";
-            if (config.hasThresholdOrigin()) {
-                thresholdNote = " (" + config.thresholdOrigin().name() + ")";
-            }
-            sb.append(PUnitReporter.labelValueLn("Threshold:",
-                    String.format("%s%s", RateFormat.format(config.minPassRate()), thresholdNote)));
-        }
-        sb.append(PUnitReporter.labelValueLn("Samples:", String.valueOf(config.samples())));
-        if (config.intent() != null) {
-            sb.append(PUnitReporter.labelValue("Intent:", config.intent().name()));
-        }
-
+        sb.append(PUnitReporter.labelValueLn("Mode:", modeLabel(config)));
+        appendIntent(sb, config);
+        appendIdentifier(sb, config);
+        sb.append(PUnitReporter.labelValueLn("Threshold:", thresholdText(config)));
+        appendContractRef(sb, config);
+        sb.append(PUnitReporter.labelValue("Samples:", String.valueOf(config.samples())));
         return sb.toString();
+    }
+
+    private String modeLabel(ConfigurationData config) {
+        if (config.isNormativeThreshold()) {
+            return config.thresholdOrigin().name() + "-DRIVEN";
+        }
+        if (config.isSpecDriven()) {
+            return "SPEC-DRIVEN";
+        }
+        return "EXPLICIT THRESHOLD";
+    }
+
+    private void appendIntent(StringBuilder sb, ConfigurationData config) {
+        if (config.intent() != null) {
+            sb.append(PUnitReporter.labelValueLn("Intent:", config.intent().name()));
+        }
+    }
+
+    private void appendIdentifier(StringBuilder sb, ConfigurationData config) {
+        if (config.isSpecDriven()) {
+            sb.append(PUnitReporter.labelValueLn("Spec:", config.specId()));
+        } else if (config.hasSpecId()) {
+            sb.append(PUnitReporter.labelValueLn("Use Case:", config.specId()));
+        }
+    }
+
+    private String thresholdText(ConfigurationData config) {
+        String rate = RateFormat.format(config.minPassRate());
+        if (config.isNormativeThreshold()) {
+            return String.format("%s (%s)", rate, config.thresholdOrigin().name());
+        }
+        if (config.isSpecDriven()) {
+            return String.format("%s (derived from baseline)", rate);
+        }
+        if (config.hasThresholdOrigin()) {
+            return String.format("%s (%s)", rate, config.thresholdOrigin().name());
+        }
+        return rate;
+    }
+
+    private void appendContractRef(StringBuilder sb, ConfigurationData config) {
+        if (config.isNormativeThreshold() && config.hasContractRef()) {
+            sb.append(PUnitReporter.labelValueLn("Contract:", config.contractRef()));
+        }
     }
 }
 
