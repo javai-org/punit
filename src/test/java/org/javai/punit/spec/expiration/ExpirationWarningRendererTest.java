@@ -69,7 +69,7 @@ class ExpirationWarningRendererTest {
             assertThat(result)
                 .contains("BASELINE EXPIRING IMMINENTLY")
                 .contains("2 days")
-                .contains("Schedule a MEASURE experiment");
+                .contains("Consider scheduling a MEASURE experiment");
         }
 
         @Test
@@ -84,7 +84,7 @@ class ExpirationWarningRendererTest {
             
             assertThat(result.title()).isEqualTo("BASELINE EXPIRED");
             assertThat(result.body())
-                .contains("Validity period:    30 days")
+                .contains("Validity period:     30 days")
                 .contains("5 days ago")
                 .contains("potentially stale empirical data");
         }

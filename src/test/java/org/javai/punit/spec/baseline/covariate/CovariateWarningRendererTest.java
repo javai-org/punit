@@ -22,11 +22,11 @@ class CovariateWarningRendererTest {
     class RenderTests {
 
         @Test
-        @DisplayName("should return empty string for full conformance")
-        void shouldReturnEmptyStringForFullConformance() {
+        @DisplayName("should return empty content for full conformance")
+        void shouldReturnEmptyContentForFullConformance() {
             var result = renderer.render(List.of(), false);
-            
-            assertThat(result).isEmpty();
+
+            assertThat(result.isEmpty()).isTrue();
         }
 
         @Test
@@ -40,11 +40,11 @@ class CovariateWarningRendererTest {
             );
             
             var result = renderer.render(List.of(detail), false);
-            
-            assertThat(result).contains("COVARIATE NON-CONFORMANCE");
-            assertThat(result).contains("region");
-            assertThat(result).contains("baseline=EU");
-            assertThat(result).contains("test=US");
+
+            assertThat(result.title()).isEqualTo("COVARIATE NON-CONFORMANCE");
+            assertThat(result.body()).contains("region");
+            assertThat(result.body()).contains("baseline=EU");
+            assertThat(result.body()).contains("test=US");
         }
 
         @Test
@@ -64,17 +64,17 @@ class CovariateWarningRendererTest {
             );
             
             var result = renderer.render(List.of(detail1, detail2), false);
-            
-            assertThat(result).contains("region");
-            assertThat(result).contains("timezone");
+
+            assertThat(result.body()).contains("region");
+            assertThat(result.body()).contains("timezone");
         }
 
         @Test
         @DisplayName("should render ambiguity warning")
         void shouldRenderAmbiguityWarning() {
             var result = renderer.render(List.of(), true);
-            
-            assertThat(result).contains("equally-suitable baselines");
+
+            assertThat(result.body()).contains("equally-suitable baselines");
         }
 
         @Test
@@ -88,9 +88,9 @@ class CovariateWarningRendererTest {
             );
             
             var result = renderer.render(List.of(detail), true);
-            
-            assertThat(result).contains("NON-CONFORMANCE");
-            assertThat(result).contains("equally-suitable baselines");
+
+            assertThat(result.title()).contains("NON-CONFORMANCE");
+            assertThat(result.body()).contains("equally-suitable baselines");
         }
     }
 

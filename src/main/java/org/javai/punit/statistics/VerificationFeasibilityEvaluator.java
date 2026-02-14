@@ -89,59 +89,53 @@ public final class VerificationFeasibilityEvaluator {
 
     private static String buildSummaryMessage(String testName, FeasibilityResult result) {
         String targetPercent = formatTargetAsPercentage(result.target());
-        return String.format("""
-
-                INFEASIBLE VERIFICATION
-
-                  Test:       %s
-
-                  The configured sample size (%d) is too small to verify a %s
-                  pass rate. At least %d samples are required.
-
-                  To fix:
-                    - Increase samples to at least %d, or
-                    - Set intent = SMOKE to run as a sentinel test""",
-                testName,
-                result.configuredSamples(),
-                targetPercent,
-                result.minimumSamples(),
-                result.minimumSamples());
+        StringBuilder sb = new StringBuilder();
+        sb.append("\nINFEASIBLE VERIFICATION\n\n");
+        sb.append(testName).append("\n\n");
+        sb.append(String.format(
+                "The configured sample size (%d) is too small to verify a %s\n",
+                result.configuredSamples(), targetPercent));
+        sb.append(String.format("pass rate. At least %d samples are required.\n\n", result.minimumSamples()));
+        sb.append("REMEDIATION\n");
+        sb.append("  • Increase samples to at least ").append(result.minimumSamples()).append("\n");
+        sb.append("  • Set intent = SMOKE to run as a sentinel test");
+        return sb.toString();
     }
 
     private static String buildVerboseMessage(String testName, FeasibilityResult result) {
-        return String.format("""
-
-                INFEASIBLE VERIFICATION
-
-                  Test:              %s
-                  Intent:            VERIFICATION
-
-                  The configured sample size (N=%d) is insufficient for verification
-                  at the declared confidence level.
-
-                  Configuration:
-                    Target (p₀):     %.4f
-                    Confidence:       %.2f (α = %.2f)
-                    Samples:          %d
-
-                  Feasibility:
-                    Criterion:        %s
-                    Minimum N:        %d
-                    Assumption:       %s
-
-                  Remediation:
-                    - Increase samples to at least %d, or
-                    - Set intent = SMOKE to run as a sentinel test""",
-                testName,
-                result.configuredSamples(),
-                result.target(),
-                1.0 - result.configuredAlpha(), result.configuredAlpha(),
-                result.configuredSamples(),
-                result.criterion(),
-                result.minimumSamples(),
-                FeasibilityResult.ASSUMPTION,
-                result.minimumSamples());
+        StringBuilder sb = new StringBuilder();
+        sb.append("\nINFEASIBLE VERIFICATION\n\n");
+        sb.append(testName).append("\n\n");
+        sb.append(String.format(
+                "The configured sample size (N=%d) is insufficient for verification\n",
+                result.configuredSamples()));
+        sb.append("at the declared confidence level.\n\n");
+        sb.append("CONFIGURATION\n");
+        sb.append("  ").append(labelValueLn("Target (p₀):", String.format("%.4f", result.target())));
+        sb.append("  ").append(labelValueLn("Confidence:",
+                String.format("%.2f (α = %.2f)", 1.0 - result.configuredAlpha(), result.configuredAlpha())));
+        sb.append("  ").append(labelValueLn("Samples:", String.valueOf(result.configuredSamples())));
+        sb.append("\nFEASIBILITY\n");
+        sb.append("  ").append(labelValueLn("Criterion:", result.criterion()));
+        sb.append("  ").append(labelValueLn("Minimum N:", String.valueOf(result.minimumSamples())));
+        sb.append("  ").append(labelValueLn("Assumption:", FeasibilityResult.ASSUMPTION));
+        sb.append("\nREMEDIATION\n");
+        sb.append("  • Increase samples to at least ").append(result.minimumSamples()).append("\n");
+        sb.append("  • Set intent = SMOKE to run as a sentinel test");
+        return sb.toString();
     }
+
+    private static String labelValueLn(String label, String value) {
+        return String.format("%-" + LABEL_WIDTH + "s%s\n", label, value);
+    }
+
+    /**
+     * Label width for infeasibility messages, matching the standard PUnit label alignment.
+     *
+     * <p>Note: This duplicates the value from PUnitReporter.LABEL_WIDTH because the
+     * statistics package cannot depend on the reporting package (architecture constraint).
+     */
+    private static final int LABEL_WIDTH = 21;
 
     private static String formatTargetAsPercentage(double target) {
         double percent = target * 100.0;

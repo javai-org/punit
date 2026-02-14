@@ -1,6 +1,7 @@
 package org.javai.punit.controls.pacing;
 
 import java.time.Instant;
+import org.javai.punit.reporting.DurationFormat;
 import org.javai.punit.reporting.PUnitReporter;
 
 /**
@@ -50,10 +51,10 @@ public class PacingReporter {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(testName).append("\n");
-        sb.append("Samples requested: ").append(samples).append("\n\n");
+        sb.append(testName).append("\n\n");
+        sb.append(PUnitReporter.labelValueLn("Samples:", String.valueOf(samples)));
 
-        sb.append("Pacing constraints:\n");
+        sb.append("\nPACING CONSTRAINTS\n");
         if (pacing.maxRequestsPerMinute() > 0) {
             sb.append("  • Max requests/min: ").append(formatNumber(pacing.maxRequestsPerMinute())).append(" RPM\n");
         }
@@ -72,28 +73,27 @@ public class PacingReporter {
             sb.append("  • Min delay/sample: ").append(pacing.effectiveMinDelayMs()).append("ms (").append(pacing.delaySource()).append(")\n");
         }
 
-        sb.append("\nComputed execution plan:\n");
+        sb.append("\nCOMPUTED PLAN\n");
         if (pacing.isConcurrent()) {
-            sb.append("  • Concurrency: ").append(pacing.effectiveConcurrency()).append(" workers\n");
+            sb.append("  ").append(PUnitReporter.labelValueLn("Concurrency:", pacing.effectiveConcurrency() + " workers"));
         } else {
-            sb.append("  • Concurrency: sequential\n");
+            sb.append("  ").append(PUnitReporter.labelValueLn("Concurrency:", "sequential"));
         }
         if (pacing.effectiveMinDelayMs() > 0) {
             if (pacing.isConcurrent()) {
                 long perWorkerDelay = pacing.effectiveMinDelayMs() * pacing.effectiveConcurrency();
-                sb.append("  • Inter-request delay: ").append(perWorkerDelay).append("ms per worker (staggered)\n");
+                sb.append("  ").append(PUnitReporter.labelValueLn("Inter-request delay:", perWorkerDelay + "ms per worker (staggered)"));
             } else {
-                sb.append("  • Inter-request delay: ").append(pacing.effectiveMinDelayMs()).append("ms\n");
+                sb.append("  ").append(PUnitReporter.labelValueLn("Inter-request delay:", pacing.effectiveMinDelayMs() + "ms"));
             }
         }
-        sb.append("  • Effective throughput: ").append(pacing.formattedThroughput()).append("\n");
-        sb.append("  • Estimated duration: ").append(pacing.formattedDuration()).append("\n");
+        sb.append("  ").append(PUnitReporter.labelValueLn("Effective throughput:", pacing.formattedThroughput()));
+        sb.append("  ").append(PUnitReporter.labelValueLn("Estimated duration:", pacing.formattedDuration()));
 
         Instant completionTime = pacing.estimatedCompletionTime(startTime);
-        sb.append("  • Estimated completion: ").append(pacing.formatTime(completionTime)).append("\n");
+        sb.append("  ").append(PUnitReporter.labelValueLn("Estimated completion:", pacing.formatTime(completionTime)));
 
-        sb.append("\nStarted: ").append(pacing.formatTime(startTime)).append("\n");
-        sb.append("Proceeding with execution...");
+        sb.append("\n").append(PUnitReporter.labelValue("Started:", pacing.formatTime(startTime)));
 
         reporter.reportInfo("EXECUTION PLAN", sb.toString());
     }
@@ -112,19 +112,22 @@ public class PacingReporter {
 
         if (pacing.estimatedDurationMs() > timeBudgetMs) {
             StringBuilder sb = new StringBuilder();
-            sb.append("• ").append(samples).append(" samples at current pacing would take ~")
-              .append(pacing.formattedDuration()).append("\n");
-            sb.append("• Time budget is ").append(formatDuration(timeBudgetMs))
-              .append(" (timeBudgetMs = ").append(timeBudgetMs).append(")\n\n");
-            sb.append("Options:\n");
+            sb.append(samples).append(" samples at current pacing would take ~")
+              .append(pacing.formattedDuration())
+              .append(", but the time budget is ")
+              .append(DurationFormat.execution(timeBudgetMs))
+              .append(" (timeBudgetMs = ").append(timeBudgetMs).append(").\n");
 
+            sb.append("\nREMEDIATION\n");
+
+            int optionNumber = 1;
             long estimatedPerSampleMs = pacing.estimatedDurationMs() / samples;
             if (estimatedPerSampleMs > 0) {
                 int maxSamples = (int) (timeBudgetMs / estimatedPerSampleMs);
-                sb.append("  1. Reduce sample count to ~").append(maxSamples).append("\n");
+                sb.append("  ").append(optionNumber++).append(". Reduce sample count to ~").append(maxSamples).append("\n");
             }
-            sb.append("  2. Increase time budget to ").append(formatDuration(pacing.estimatedDurationMs() + 10000)).append("\n");
-            sb.append("  3. Relax pacing constraints (increase rate limits)");
+            sb.append("  ").append(optionNumber++).append(". Increase time budget to ").append(DurationFormat.execution(pacing.estimatedDurationMs() + 10000)).append("\n");
+            sb.append("  ").append(optionNumber).append(". Relax pacing constraints (increase rate limits)");
 
             reporter.reportWarn("PACING CONFLICT", sb.toString());
         }
@@ -138,23 +141,5 @@ public class PacingReporter {
             return String.format("%d", (long) value);
         }
         return String.format("%.1f", value);
-    }
-
-    /**
-     * Formats a duration in milliseconds as a human-readable string.
-     */
-    private String formatDuration(long ms) {
-        long totalSeconds = ms / 1000;
-        long hours = totalSeconds / 3600;
-        long minutes = (totalSeconds % 3600) / 60;
-        long seconds = totalSeconds % 60;
-
-        if (hours > 0) {
-            return String.format("%dh %dm", hours, minutes);
-        } else if (minutes > 0) {
-            return String.format("%dm %ds", minutes, seconds);
-        } else {
-            return String.format("%ds", seconds);
-        }
     }
 }

@@ -109,7 +109,7 @@ class FinalConfigurationLogger {
         if (config == null) {
             return;
         }
-        reporter.reportInfo("TEST CONFIGURATION FOR: " + testName, format(config));
+        reporter.reportInfo("TEST CONFIGURATION", format(testName, config));
     }
 
     /**
@@ -117,15 +117,17 @@ class FinalConfigurationLogger {
      *
      * <p>Useful for testing the formatting logic independently of the reporter.
      *
+     * @param testName the name of the test method (subject line)
      * @param config the configuration data to format
      * @return the formatted configuration string
      */
-    String format(ConfigurationData config) {
+    String format(String testName, ConfigurationData config) {
         if (config == null) {
             return "";
         }
 
         StringBuilder sb = new StringBuilder();
+        sb.append(testName).append("\n\n");
         sb.append(PUnitReporter.labelValueLn("Mode:", modeLabel(config)));
         appendIntent(sb, config);
         appendIdentifier(sb, config);

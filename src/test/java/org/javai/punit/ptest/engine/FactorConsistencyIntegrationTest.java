@@ -197,7 +197,7 @@ class FactorConsistencyIntegrationTest {
             ValidationResult result = FactorConsistencyValidator.validate(source, spec);
             String formatted = result.formatForLog();
 
-            assertThat(formatted).startsWith("✓");
+            assertThat(formatted).isEqualTo(result.message());
         }
 
         @Test
@@ -216,7 +216,6 @@ class FactorConsistencyIntegrationTest {
             String formatted = result.formatForLog();
 
             assertThat(formatted)
-                    .contains("⚠️")
                     .contains("FACTOR CONSISTENCY WARNING")
                     .contains("Statistical conclusions may be less reliable");
         }

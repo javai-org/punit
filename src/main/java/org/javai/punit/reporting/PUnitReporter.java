@@ -23,6 +23,21 @@ public final class PUnitReporter {
     private static final int DEFAULT_WIDTH = 78;
     private static final String SUFFIX = " PUnit ═";
 
+    /**
+     * Title and body content for a framed warning report.
+     *
+     * <p>Produced by renderers (expiration, covariate, factor consistency) and
+     * routed through {@link #reportWarn(String, String)} by the caller.
+     *
+     * @param title the warning title for the PUnit header
+     * @param body the warning body content
+     */
+    public record WarningContent(String title, String body) {
+        public boolean isEmpty() {
+            return title == null || title.isEmpty();
+        }
+    }
+
     private final int width;
 
     public PUnitReporter() {
@@ -115,29 +130,44 @@ public final class PUnitReporter {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Default label width for aligned label-value formatting.
-     *
-     * <p>Used by most reports (CONFIGURATION, BASELINE, VERDICT).
+     * Reference label line — defines the column at which values align in standard
+     * PUnit reports. {@link #LABEL_WIDTH} is derived from this reference so that
+     * text blocks and programmatic {@link #labelValueLn} calls always agree on
+     * alignment.
      */
-    public static final int DEFAULT_LABEL_WIDTH = 18;
+    private static final String LABEL_REFERENCE = "Mode:                ";
+
+    /**
+     * Standard label width for aligned label-value formatting.
+     *
+     * <p>Derived from {@link #LABEL_REFERENCE}. Used by most reports
+     * (CONFIGURATION, VERDICT, BASELINE, EXPIRATION, PACING).
+     */
+    public static final int LABEL_WIDTH = LABEL_REFERENCE.length();
+
+    /**
+     * Detail label reference — for statistical analysis sections with longer
+     * labels like "Threshold derivation:" and "Confidence interval:".
+     */
+    private static final String DETAIL_LABEL_REFERENCE = "Threshold derivation:  ";
 
     /**
      * Label width for detailed statistical analysis sections.
      *
-     * <p>Used by STATISTICAL ANALYSIS reports where labels like
-     * "Sample size (n):" need more space.
+     * <p>Derived from {@link #DETAIL_LABEL_REFERENCE}. Used only within
+     * statistical analysis sections where labels are inherently longer.
      */
-    public static final int STATS_LABEL_WIDTH = 21;
+    public static final int DETAIL_LABEL_WIDTH = DETAIL_LABEL_REFERENCE.length();
 
     /**
      * Formats a label-value line with consistent alignment.
      *
-     * <p>The label is left-aligned and padded to 18 characters by default,
+     * <p>The label is left-aligned and padded to {@link #LABEL_WIDTH} characters,
      * ensuring values line up across multiple lines:
      * <pre>
-     * Mode:              SPEC-DRIVEN
-     * Spec:              ShoppingUseCase
-     * Threshold:         95.0% (derived from baseline)
+     * Mode:                SPEC-DRIVEN
+     * Spec:                ShoppingUseCase
+     * Threshold:           0.9500 (derived from baseline)
      * </pre>
      *
      * @param label the label (e.g., "Mode:", "Threshold:")
@@ -145,7 +175,7 @@ public final class PUnitReporter {
      * @return formatted line without trailing newline
      */
     public static String labelValue(String label, String value) {
-        return labelValue(label, value, DEFAULT_LABEL_WIDTH);
+        return labelValue(label, value, LABEL_WIDTH);
     }
 
     /**

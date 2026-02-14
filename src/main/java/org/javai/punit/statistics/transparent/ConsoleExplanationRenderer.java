@@ -115,9 +115,9 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
 
     private void renderHypothesisSection(StringBuilder sb, StatisticalExplanation.HypothesisStatement hypothesis) {
         sb.append("HYPOTHESIS TEST\n");
-        sb.append(String.format("  %s (null):        %s%n", symbols.h0(), hypothesis.nullHypothesis()));
-        sb.append(String.format("  %s (alternative): %s%n", symbols.h1(), hypothesis.alternativeHypothesis()));
-        sb.append(String.format("  Test type:        %s%n", hypothesis.testType()));
+        sb.append(statLabel(symbols.h0() + " (null):", hypothesis.nullHypothesis()));
+        sb.append(statLabel(symbols.h1() + " (alternative):", hypothesis.alternativeHypothesis()));
+        sb.append(statLabel("Test type:", hypothesis.testType()));
         sb.append("\n");
     }
 
@@ -153,32 +153,32 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
         StatisticalExplanation.StatisticalInference inference = explanation.inference();
         StatisticalExplanation.ObservedData observed = explanation.observed();
         StatisticalExplanation.BaselineReference baseline = explanation.baseline();
-        
+
         sb.append("STATISTICAL INFERENCE\n");
-        
+
         // Standard error with formula
         double pHat = observed.observedRate();
         int n = observed.sampleSize();
-        sb.append(String.format("  Standard error:      SE = %s(%s(1-%s)/n) = %s(%.2f %s %.2f / %d) = %.4f%n",
-                symbols.sqrt(), symbols.pHat(), symbols.pHat(),
-                symbols.sqrt(), pHat, symbols.times(), (1 - pHat), n,
-                inference.standardError()));
+        sb.append(statLabel("Standard error:",
+                String.format("SE = %s(%s(1-%s)/n) = %s(%.2f %s %.2f / %d) = %.4f",
+                        symbols.sqrt(), symbols.pHat(), symbols.pHat(),
+                        symbols.sqrt(), pHat, symbols.times(), (1 - pHat), n,
+                        inference.standardError())));
 
         // Confidence interval
-        sb.append(String.format("  %.0f%% Confidence interval: [%.3f, %.3f]%n",
-                inference.confidencePercent(),
-                inference.ciLower(),
-                inference.ciUpper()));
+        sb.append(statLabel("Confidence interval:",
+                String.format("%.0f%% [%.3f, %.3f]",
+                        inference.confidencePercent(), inference.ciLower(), inference.ciUpper())));
 
         renderZTestCalculation(sb, observed, baseline);
 
         sb.append("\n");
     }
 
-    private void renderZTestCalculation(StringBuilder sb, 
+    private void renderZTestCalculation(StringBuilder sb,
             StatisticalExplanation.ObservedData observed,
             StatisticalExplanation.BaselineReference baseline) {
-        
+
         if (observed.sampleSize() == 0) {
             return;
         }
@@ -186,75 +186,70 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
         double pHat = observed.observedRate();
         double pi0 = baseline.threshold();
         int n = observed.sampleSize();
-        
+
         // Calculate z-score
         double se = Math.sqrt(pi0 * (1 - pi0) / n);
         double z = se > 0 ? (pHat - pi0) / se : 0;
-        
-        sb.append("  \n");
-        sb.append(String.format("  Test statistic:      z = (%s - %s%s) / %s(%s%s(1-%s%s)/n)%n",
-                symbols.pHat(), symbols.pi(), StatisticalVocabulary.SUB_ZERO,
-                symbols.sqrt(), symbols.pi(), StatisticalVocabulary.SUB_ZERO,
-                symbols.pi(), StatisticalVocabulary.SUB_ZERO));
-        sb.append(String.format("                       z = (%.2f - %.2f) / %s(%.2f %s %.2f / %d)%n",
-                pHat, pi0, symbols.sqrt(), pi0, symbols.times(), (1 - pi0), n));
-        sb.append(String.format("                       z = %.2f%n", z));
-        
+
+        String valueIndent = " ".repeat(PUnitReporter.DETAIL_LABEL_WIDTH);
+        sb.append("\n");
+        sb.append(statLabel("Test statistic:",
+                String.format("z = (%s - %s%s) / %s(%s%s(1-%s%s)/n)",
+                        symbols.pHat(), symbols.pi(), StatisticalVocabulary.SUB_ZERO,
+                        symbols.sqrt(), symbols.pi(), StatisticalVocabulary.SUB_ZERO,
+                        symbols.pi(), StatisticalVocabulary.SUB_ZERO)));
+        sb.append(String.format("  %sz = (%.2f - %.2f) / %s(%.2f %s %.2f / %d)%n",
+                valueIndent, pHat, pi0, symbols.sqrt(), pi0, symbols.times(), (1 - pi0), n));
+        sb.append(String.format("  %sz = %.2f%n", valueIndent, z));
+
         // P-value (approximate using standard normal)
         // For one-sided test: P(Z > z)
         double pValue = 1 - normalCDF(z);
-        sb.append(String.format("  \n"));
-        sb.append(String.format("  p-value:             P(Z > %.2f) = %.3f%n", z, pValue));
+        sb.append("\n");
+        sb.append(statLabel("p-value:", String.format("P(Z > %.2f) = %.3f", z, pValue)));
     }
 
     private void renderVerdictSection(StringBuilder sb, StatisticalExplanation.VerdictInterpretation verdict) {
         sb.append("VERDICT\n");
         sb.append(statLabel("Result:", verdict.technicalResult()));
-        
+
+        // Indentation for wrapped content: 2 (section indent) + DETAIL_LABEL_WIDTH
+        String wrapIndent = "  " + " ".repeat(PUnitReporter.DETAIL_LABEL_WIDTH);
+        int wrapIndentLen = wrapIndent.length();
+
         // Wrap plain English interpretation
-        sb.append("  Interpretation:      ");
-        String[] words = verdict.plainEnglish().split(" ");
-        int lineLength = 19; // Length of "  Interpretation:      "
+        appendWrappedLabel(sb, "Interpretation:", verdict.plainEnglish(), wrapIndent, wrapIndentLen);
+
+        // Caveats
+        if (!verdict.caveats().isEmpty()) {
+            sb.append("\n");
+            for (String caveat : verdict.caveats()) {
+                appendWrappedLabel(sb, "Caveat:", caveat, wrapIndent, wrapIndentLen);
+            }
+        }
+
+        sb.append("\n");
+    }
+
+    private void appendWrappedLabel(StringBuilder sb, String label, String text,
+            String wrapIndent, int wrapIndentLen) {
+        sb.append("  ").append(String.format("%-" + PUnitReporter.DETAIL_LABEL_WIDTH + "s", label));
+        String[] words = text.split(" ");
+        int lineLength = wrapIndentLen;
         StringBuilder line = new StringBuilder();
         for (String word : words) {
-            if (lineLength + word.length() + 1 > LINE_WIDTH && line.length() > 0) {
+            if (lineLength + word.length() + 1 > LINE_WIDTH && !line.isEmpty()) {
                 sb.append(line.toString().trim()).append("\n");
-                sb.append("                       ");
+                sb.append(wrapIndent);
                 line = new StringBuilder();
-                lineLength = 23;
+                lineLength = wrapIndentLen;
             }
             line.append(word).append(" ");
             lineLength += word.length() + 1;
         }
-        if (line.length() > 0) {
+        if (!line.isEmpty()) {
             sb.append(line.toString().trim()).append("\n");
         }
-        
-        // Caveats
-        if (!verdict.caveats().isEmpty()) {
-            sb.append("                       \n");
-            for (String caveat : verdict.caveats()) {
-                sb.append("  Caveat:              ");
-                String[] caveatWords = caveat.split(" ");
-                lineLength = 23;
-                line = new StringBuilder();
-                for (String word : caveatWords) {
-                    if (lineLength + word.length() + 1 > LINE_WIDTH && line.length() > 0) {
-                        sb.append(line.toString().trim()).append("\n");
-                        sb.append("                       ");
-                        line = new StringBuilder();
-                        lineLength = 23;
-                    }
-                    line.append(word).append(" ");
-                    lineLength += word.length() + 1;
-                }
-                if (line.length() > 0) {
-                    sb.append(line.toString().trim()).append("\n");
-                }
-            }
-        }
-        
-        sb.append("\n");
     }
 
     private void renderProvenanceSection(StringBuilder sb, StatisticalExplanation.Provenance provenance) {
@@ -268,7 +263,7 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
             sb.append(statLabel("Threshold origin:", provenance.thresholdOriginName()));
         }
         if (provenance.hasContractRef()) {
-            sb.append(String.format("  Contract ref:        %s%n", provenance.contractRef()));
+            sb.append(statLabel("Contract:", provenance.contractRef()));
         }
         sb.append("\n");
     }
@@ -286,8 +281,8 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
     }
 
     /**
-     * Approximates the error function using Horner's method.
-     * Abramowitz and Stegun approximation 7.1.26
+     * Avoid numerical integration by approximating the error function using Horner's method.
+     * Widely documented as the Abramowitz and Stegun approximation 7.1.26
      */
     private static double erf(double x) {
         // Constants
@@ -312,7 +307,7 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
     /**
      * Formats a label-value line for statistical analysis sections.
      *
-     * <p>Uses {@link PUnitReporter#STATS_LABEL_WIDTH} for consistent alignment
+     * <p>Uses {@link PUnitReporter#DETAIL_LABEL_WIDTH} for consistent alignment
      * across all statistical analysis output.
      *
      * @param label the label (e.g., "Sample size (n):")
@@ -320,7 +315,7 @@ public class ConsoleExplanationRenderer implements ExplanationRenderer {
      * @return formatted line with newline
      */
     private String statLabel(String label, String value) {
-        return "  " + PUnitReporter.labelValueLn(label, value, PUnitReporter.STATS_LABEL_WIDTH);
+        return "  " + PUnitReporter.labelValueLn(label, value, PUnitReporter.DETAIL_LABEL_WIDTH);
     }
 }
 

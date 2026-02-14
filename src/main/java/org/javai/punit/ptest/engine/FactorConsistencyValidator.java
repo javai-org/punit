@@ -2,6 +2,7 @@ package org.javai.punit.ptest.engine;
 
 import java.util.Objects;
 import org.javai.punit.api.HashableFactorSource;
+import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.model.ExecutionSpecification.FactorSourceMetadata;
 
@@ -123,13 +124,13 @@ public final class FactorConsistencyValidator {
     private static String buildMismatchMessage(String testHash, String testSourceName, FactorSourceMetadata baseline) {
         StringBuilder sb = new StringBuilder();
         sb.append("Factor source mismatch detected.\n");
-        sb.append("  Baseline: hash=").append(truncateHash(baseline.sourceHash()));
-        sb.append(", source=").append(baseline.sourceName());
-        sb.append(", samples=").append(baseline.samplesUsed()).append("\n");
-        sb.append("  Test:     hash=").append(truncateHash(testHash));
-        sb.append(", source=").append(testSourceName).append("\n");
-        sb.append("Statistical conclusions may be less reliable.\n");
-        sb.append("Ensure the same @FactorSource is used for experiments and tests.");
+        sb.append("Statistical conclusions may be less reliable.\n\n");
+        sb.append(PUnitReporter.labelValueLn("Baseline hash:", truncateHash(baseline.sourceHash())));
+        sb.append(PUnitReporter.labelValueLn("Baseline source:", baseline.sourceName()));
+        sb.append(PUnitReporter.labelValueLn("Baseline samples:", String.valueOf(baseline.samplesUsed())));
+        sb.append(PUnitReporter.labelValueLn("Test hash:", truncateHash(testHash)));
+        sb.append(PUnitReporter.labelValueLn("Test source:", testSourceName));
+        sb.append("\nEnsure the same @FactorSource is used for experiments and tests.");
         return sb.toString();
     }
 
@@ -190,10 +191,21 @@ public final class FactorConsistencyValidator {
          */
         public String formatForLog() {
             return switch (status) {
-                case MATCH -> "✓ " + message;
-                case MISMATCH -> "⚠️ FACTOR CONSISTENCY WARNING\n" + message;
-                case NOT_APPLICABLE -> "ℹ️ " + message;
+                case MATCH, NOT_APPLICABLE -> message;
+                case MISMATCH -> "FACTOR CONSISTENCY WARNING\n" + message;
             };
+        }
+
+        /**
+         * Returns warning content for routing through {@link PUnitReporter#reportWarn(String, String)}.
+         *
+         * <p>Only meaningful for {@link ValidationStatus#MISMATCH}; returns empty content otherwise.
+         */
+        public PUnitReporter.WarningContent toWarningContent() {
+            if (status != ValidationStatus.MISMATCH) {
+                return new PUnitReporter.WarningContent("", "");
+            }
+            return new PUnitReporter.WarningContent("FACTOR CONSISTENCY WARNING", message);
         }
     }
 }

@@ -108,7 +108,7 @@ class PacingReporterTest {
             assertThat(output).contains("═ EXECUTION PLAN");
             assertThat(output).contains("PUnit ═");
             assertThat(output).contains("testMethod");
-            assertThat(output).contains("Samples requested:");
+            assertThat(output).contains("Samples:");
             assertThat(output).contains("200");
         }
 

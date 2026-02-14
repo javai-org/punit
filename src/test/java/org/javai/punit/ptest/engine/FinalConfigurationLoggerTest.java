@@ -39,7 +39,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Mode:");
             assertThat(formatted).contains("SLA-DRIVEN");
@@ -56,7 +56,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("SLO-DRIVEN");
         }
@@ -72,7 +72,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("POLICY-DRIVEN");
         }
@@ -90,7 +90,7 @@ class FinalConfigurationLoggerTest {
                     true
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Mode:");
             assertThat(formatted).contains("SPEC-DRIVEN");
@@ -110,7 +110,7 @@ class FinalConfigurationLoggerTest {
                     false
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Mode:");
             assertThat(formatted).contains("EXPLICIT THRESHOLD");
@@ -131,7 +131,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("EXPLICIT THRESHOLD");
         }
@@ -147,7 +147,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("EXPLICIT THRESHOLD");
         }
@@ -168,7 +168,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Threshold:");
             assertThat(formatted).contains("0.9500 (SLA)");
@@ -187,7 +187,7 @@ class FinalConfigurationLoggerTest {
                     true
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("0.9230 (derived from baseline)");
         }
@@ -203,7 +203,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("0.8500 (EMPIRICAL)");
         }
@@ -219,7 +219,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("0.8000");
             assertThat(formatted).doesNotContain("(UNSPECIFIED)");
@@ -241,7 +241,7 @@ class FinalConfigurationLoggerTest {
                     "SLA-2024-SHOP-001"
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Contract:");
             assertThat(formatted).contains("SLA-2024-SHOP-001");
@@ -258,7 +258,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).doesNotContain("Contract:");
         }
@@ -274,7 +274,7 @@ class FinalConfigurationLoggerTest {
                     ""
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).doesNotContain("Contract:");
         }
@@ -291,7 +291,7 @@ class FinalConfigurationLoggerTest {
                     "SLA-2024-SHOP-001"
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             // In EXPLICIT THRESHOLD mode, contract ref is not shown
             // (it would be confusing since threshold is explicit, not from contract)
@@ -315,7 +315,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Use Case:");
             assertThat(formatted).contains("ShoppingUseCase");
@@ -334,7 +334,7 @@ class FinalConfigurationLoggerTest {
                     true
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Spec:");
             assertThat(formatted).contains("ShoppingUseCase");
@@ -351,7 +351,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).doesNotContain("Use Case:");
             assertThat(formatted).doesNotContain("Spec:");
@@ -373,7 +373,7 @@ class FinalConfigurationLoggerTest {
                     null
             );
 
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
 
             assertThat(formatted).contains("Samples:");
             assertThat(formatted).contains("150");
@@ -524,7 +524,7 @@ class FinalConfigurationLoggerTest {
         void verificationIntentAppearsInBanner() {
             ConfigurationData config = new ConfigurationData(
                     100, 0.95, null, ThresholdOrigin.UNSPECIFIED, null, TestIntent.VERIFICATION);
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
             assertThat(formatted).contains("Intent:");
             assertThat(formatted).contains("VERIFICATION");
             assertThat(formatted.indexOf("Mode:")).isLessThan(formatted.indexOf("Intent:"));
@@ -536,7 +536,7 @@ class FinalConfigurationLoggerTest {
         void smokeIntentAppearsInBanner() {
             ConfigurationData config = new ConfigurationData(
                     50, 0.90, null, ThresholdOrigin.UNSPECIFIED, null, TestIntent.SMOKE);
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
             assertThat(formatted).contains("Intent:");
             assertThat(formatted).contains("SMOKE");
             assertThat(formatted.indexOf("Intent:")).isLessThan(formatted.indexOf("Threshold:"));
@@ -547,7 +547,7 @@ class FinalConfigurationLoggerTest {
         void intentWithSlaMode() {
             ConfigurationData config = new ConfigurationData(
                     100, 0.95, "ShoppingUseCase", ThresholdOrigin.SLA, null, TestIntent.VERIFICATION);
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
             assertThat(formatted).contains("SLA-DRIVEN");
             assertThat(formatted).contains("Intent:");
             assertThat(formatted).contains("VERIFICATION");
@@ -560,8 +560,24 @@ class FinalConfigurationLoggerTest {
         void nullIntentOmitted() {
             ConfigurationData config = new ConfigurationData(
                     50, 0.80, null, ThresholdOrigin.UNSPECIFIED, null, null, false);
-            String formatted = logger.format(config);
+            String formatted = logger.format("testMethod", config);
             assertThat(formatted).doesNotContain("Intent:");
+        }
+    }
+
+    @Nested
+    @DisplayName("Subject line")
+    class SubjectLine {
+
+        @Test
+        @DisplayName("Test name appears as subject line followed by blank line")
+        void testNameAppearsAsSubjectLine() {
+            ConfigurationData config = new ConfigurationData(
+                    100, 0.95, null, ThresholdOrigin.UNSPECIFIED, null);
+
+            String formatted = logger.format("shouldReturnValidJson", config);
+
+            assertThat(formatted).startsWith("shouldReturnValidJson\n\n");
         }
     }
 
@@ -572,7 +588,7 @@ class FinalConfigurationLoggerTest {
         @Test
         @DisplayName("Null config returns empty string")
         void nullConfigReturnsEmptyString() {
-            String formatted = logger.format(null);
+            String formatted = logger.format("testMethod", null);
             assertThat(formatted).isEmpty();
         }
 

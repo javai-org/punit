@@ -77,72 +77,73 @@ class ProvenanceTest {
     @Test
     void noProvenanceSet_verdictDoesNotIncludeProvenance() {
         String output = captureTestOutput(AlwaysPassingTest.class);
-        
+
         assertThat(output).doesNotContain("Threshold origin:");
-        assertThat(output).doesNotContain("Contract ref:");
+        assertThat(output).doesNotContain("Contract:");
     }
 
     @Test
     void provenanceUnspecified_verdictDoesNotIncludeProvenance() {
         String output = captureTestOutput(ProvenanceUnspecifiedTest.class);
-        
+
         assertThat(output).doesNotContain("Threshold origin:");
-        assertThat(output).doesNotContain("Contract ref:");
+        assertThat(output).doesNotContain("Contract:");
     }
 
     @Test
     void thresholdOriginOnly_includedInVerdict() {
         String output = captureTestOutput(ProvenanceThresholdOriginOnlyTest.class);
-        
-        assertThat(output).contains("Threshold origin: SLO");
-        assertThat(output).doesNotContain("Contract ref:");
+
+        assertThat(output).contains("Threshold origin:").contains("SLO");
+        assertThat(output).doesNotContain("Contract:");
     }
 
     @Test
     void contractRefOnly_includedInVerdict() {
         String output = captureTestOutput(ProvenanceContractRefOnlyTest.class);
-        
-        assertThat(output).contains("Contract ref: Internal Policy DOC-001");
+
+        assertThat(output).contains("Contract:").contains("Internal Policy DOC-001");
         assertThat(output).doesNotContain("Threshold origin:");
     }
 
     @Test
     void bothSet_includedInCorrectOrder() {
         String output = captureTestOutput(ProvenanceWithBothTest.class);
-        
-        assertThat(output).contains("Threshold origin: SLA");
-        assertThat(output).contains("Contract ref: Acme API SLA v3.2 §2.1");
-        
-        // Verify order: thresholdOrigin before contractRef
-        int thresholdOriginIndex = output.indexOf("Threshold origin:");
-        int contractRefIndex = output.indexOf("Contract ref:");
+
+        assertThat(output).contains("Threshold origin:").contains("SLA");
+        assertThat(output).contains("Contract:").contains("Acme API SLA v3.2 §2.1");
+
+        // Verify order within verdict: thresholdOrigin before contract
+        // Use lastIndexOf to match the verdict section (config section may also contain "Contract:")
+        int thresholdOriginIndex = output.lastIndexOf("Threshold origin:");
+        int contractIndex = output.lastIndexOf("Contract:");
         assertThat(thresholdOriginIndex)
-                .as("Threshold origin should appear before Contract ref")
-                .isLessThan(contractRefIndex);
+                .as("Threshold origin should appear before Contract in verdict")
+                .isLessThan(contractIndex);
     }
 
     @Test
     void slaSource_renderedCorrectly() {
         String output = captureTestOutput(ProvenanceSlaSourceTest.class);
-        assertThat(output).contains("Threshold origin: SLA");
+        assertThat(output).contains("Threshold origin:").contains("SLA");
     }
 
     @Test
     void sloSource_renderedCorrectly() {
         String output = captureTestOutput(ProvenanceSloSourceTest.class);
-        assertThat(output).contains("Threshold origin: SLO");
+        assertThat(output).contains("Threshold origin:").contains("SLO");
     }
 
     @Test
     void policySource_renderedCorrectly() {
         String output = captureTestOutput(ProvenancePolicySourceTest.class);
-        assertThat(output).contains("Threshold origin: POLICY");
+        assertThat(output).contains("Threshold origin:").contains("POLICY");
     }
 
     @Test
     void empiricalSource_renderedCorrectly() {
         String output = captureTestOutput(ProvenanceEmpiricalSourceTest.class);
-        assertThat(output).contains("Threshold origin: EMPIRICAL");
+        assertThat(output).contains("Threshold origin:").contains("EMPIRICAL");
     }
 
     @Test

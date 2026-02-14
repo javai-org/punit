@@ -180,30 +180,52 @@ class FactorConsistencyValidatorTest {
     class ValidationResultTests {
 
         @Test
-        @DisplayName("formatForLog() should format MATCH with checkmark")
-        void formatForLogShouldFormatMatchWithCheckmark() {
+        @DisplayName("formatForLog() should return message for MATCH")
+        void formatForLogShouldReturnMessageForMatch() {
             ValidationResult result = new ValidationResult(
                     ValidationStatus.MATCH, "Sources match.", "a", "s", "a", "s", 100);
 
-            assertThat(result.formatForLog()).startsWith("✓");
+            assertThat(result.formatForLog()).isEqualTo("Sources match.");
         }
 
         @Test
-        @DisplayName("formatForLog() should format MISMATCH with warning")
-        void formatForLogShouldFormatMismatchWithWarning() {
+        @DisplayName("formatForLog() should include title for MISMATCH")
+        void formatForLogShouldIncludeTitleForMismatch() {
             ValidationResult result = new ValidationResult(
                     ValidationStatus.MISMATCH, "Sources differ.", "a", "s", "b", "t", 100);
 
-            assertThat(result.formatForLog()).contains("⚠️ FACTOR CONSISTENCY WARNING");
+            assertThat(result.formatForLog()).contains("FACTOR CONSISTENCY WARNING");
         }
 
         @Test
-        @DisplayName("formatForLog() should format NOT_APPLICABLE with info")
-        void formatForLogShouldFormatNotApplicableWithInfo() {
+        @DisplayName("formatForLog() should return message for NOT_APPLICABLE")
+        void formatForLogShouldReturnMessageForNotApplicable() {
             ValidationResult result = new ValidationResult(
                     ValidationStatus.NOT_APPLICABLE, "Skipped.", null, null, null, null, null);
 
-            assertThat(result.formatForLog()).startsWith("ℹ️");
+            assertThat(result.formatForLog()).isEqualTo("Skipped.");
+        }
+
+        @Test
+        @DisplayName("toWarningContent() should return content for MISMATCH")
+        void toWarningContentShouldReturnContentForMismatch() {
+            ValidationResult result = new ValidationResult(
+                    ValidationStatus.MISMATCH, "Sources differ.", "a", "s", "b", "t", 100);
+
+            var content = result.toWarningContent();
+
+            assertThat(content.title()).isEqualTo("FACTOR CONSISTENCY WARNING");
+            assertThat(content.body()).isEqualTo("Sources differ.");
+            assertThat(content.isEmpty()).isFalse();
+        }
+
+        @Test
+        @DisplayName("toWarningContent() should return empty for MATCH")
+        void toWarningContentShouldReturnEmptyForMatch() {
+            ValidationResult result = new ValidationResult(
+                    ValidationStatus.MATCH, "Sources match.", "a", "s", "a", "s", 100);
+
+            assertThat(result.toWarningContent().isEmpty()).isTrue();
         }
     }
 
@@ -223,11 +245,11 @@ class FactorConsistencyValidatorTest {
             ValidationResult result = FactorConsistencyValidator.validate(testSource, spec);
 
             assertThat(result.message())
-                    .contains("Baseline:")
-                    .contains("Test:")
+                    .contains("Baseline source:")
+                    .contains("Test source:")
                     .contains("baselineQueries")
                     .contains("testQueries")
-                    .contains("samples=500");
+                    .contains("500");
         }
 
         @Test

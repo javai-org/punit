@@ -23,6 +23,7 @@ import org.javai.punit.controls.pacing.PacingConfiguration;
 import org.javai.punit.controls.pacing.PacingResolver;
 import org.javai.punit.experiment.engine.FactorSourceAdapter;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
 import org.javai.punit.ptest.engine.FactorConsistencyValidator;
 import org.javai.punit.ptest.engine.ProbabilisticTestConfigurationException;
@@ -427,7 +428,8 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
                 testFactorSource, optionalSpec.get(), testSamples);
 
         if (result.shouldWarn()) {
-            logger.warn(result.formatForLog());
+            var content = result.toWarningContent();
+            new PUnitReporter().reportWarn(content.title(), content.body());
         }
     }
 

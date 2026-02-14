@@ -300,7 +300,7 @@ class ResultPublisherTest {
 
             publisher.appendProvenance(sb, ctx);
 
-            assertThat(sb.toString()).contains("Threshold origin: SLA");
+            assertThat(sb.toString()).contains("Threshold origin:").contains("SLA");
         }
 
         @Test
@@ -311,7 +311,7 @@ class ResultPublisherTest {
 
             publisher.appendProvenance(sb, ctx);
 
-            assertThat(sb.toString()).contains("Contract ref: SLA-2024-001");
+            assertThat(sb.toString()).contains("Contract:").contains("SLA-2024-001");
         }
 
         @Test

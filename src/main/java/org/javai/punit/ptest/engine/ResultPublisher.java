@@ -230,59 +230,61 @@ class ResultPublisher {
         String intentLabel = ctx.intent() != null ? ctx.intent().name() : "VERIFICATION";
         String title = (ctx.passed() ? "VERDICT: PASS" : "VERDICT: FAIL") + " (" + intentLabel + ")";
         StringBuilder sb = new StringBuilder();
-        sb.append(ctx.testName()).append("\n");
+        sb.append(ctx.testName()).append("\n\n");
 
         if (ctx.passed()) {
-            sb.append(String.format("Observed pass rate: %s (%d/%d) >= min pass rate: %s",
-                    RateFormat.format(ctx.observedPassRate()),
-                    ctx.successes(),
-                    ctx.samplesExecuted(),
-                    RateFormat.format(ctx.minPassRate())));
+            sb.append(PUnitReporter.labelValueLn("Observed pass rate:",
+                    String.format("%s (%d/%d) >= required: %s",
+                            RateFormat.format(ctx.observedPassRate()),
+                            ctx.successes(), ctx.samplesExecuted(),
+                            RateFormat.format(ctx.minPassRate()))));
         } else if (isBudgetExhausted) {
-            sb.append(String.format("Samples executed: %d of %d (budget exhausted before completion)%n",
-                    ctx.samplesExecuted(),
-                    ctx.plannedSamples()));
-            sb.append(String.format("Pass rate at termination: %s (%d/%d), required: %s",
-                    RateFormat.format(ctx.observedPassRate()),
-                    ctx.successes(),
-                    ctx.samplesExecuted(),
-                    RateFormat.format(ctx.minPassRate())));
+            sb.append(PUnitReporter.labelValueLn("Samples executed:",
+                    String.format("%d of %d (budget exhausted)", ctx.samplesExecuted(), ctx.plannedSamples())));
+            sb.append(PUnitReporter.labelValueLn("Pass rate:",
+                    String.format("%s (%d/%d), required: %s",
+                            RateFormat.format(ctx.observedPassRate()),
+                            ctx.successes(), ctx.samplesExecuted(),
+                            RateFormat.format(ctx.minPassRate()))));
         } else {
-            sb.append(String.format("Observed pass rate: %s (%d/%d) < min pass rate: %s",
-                    RateFormat.format(ctx.observedPassRate()),
-                    ctx.successes(),
-                    ctx.samplesExecuted(),
-                    RateFormat.format(ctx.minPassRate())));
+            sb.append(PUnitReporter.labelValueLn("Observed pass rate:",
+                    String.format("%s (%d/%d) < required: %s",
+                            RateFormat.format(ctx.observedPassRate()),
+                            ctx.successes(), ctx.samplesExecuted(),
+                            RateFormat.format(ctx.minPassRate()))));
         }
 
         // Append provenance if configured
         appendProvenance(sb, ctx);
 
-        // Append compliance evidence sizing note if applicable
-        appendComplianceEvidenceNote(sb, ctx);
-
-        // Append SMOKE-specific sizing notes
-        appendSmokeIntentNote(sb, ctx);
-
+        // Append termination details
         ctx.terminationReason()
                 .filter(r -> r != TerminationReason.COMPLETED)
                 .ifPresent(r -> {
-                    sb.append(String.format("%nTermination: %s", r.getDescription()));
+                    sb.append(PUnitReporter.labelValueLn("Termination:", r.getDescription()));
                     String details = ctx.terminationDetails();
                     if (details != null && !details.isEmpty()) {
-                        sb.append(String.format("%nDetails: %s", details));
+                        sb.append(PUnitReporter.labelValueLn("Details:", details));
                     }
-                    // For IMPOSSIBILITY, show what was needed
                     if (r == TerminationReason.IMPOSSIBILITY) {
                         int required = (int) Math.ceil(ctx.plannedSamples() * ctx.minPassRate());
                         int remaining = ctx.plannedSamples() - ctx.samplesExecuted();
                         int maxPossible = ctx.successes() + remaining;
-                        sb.append(String.format("%nAnalysis: Needed %d successes, maximum possible is %d",
-                                required, maxPossible));
+                        sb.append(PUnitReporter.labelValueLn("Analysis:",
+                                String.format("Needed %d successes, maximum possible is %d", required, maxPossible)));
                     }
                 });
 
-        sb.append(String.format("%nElapsed: %dms", ctx.elapsedMs()));
+        sb.append(PUnitReporter.labelValue("Elapsed:", ctx.elapsedMs() + "ms"));
+
+        // Append notes (with blank line separator)
+        StringBuilder notes = new StringBuilder();
+        appendComplianceEvidenceNote(notes, ctx);
+        appendSmokeIntentNote(notes, ctx);
+        if (!notes.isEmpty()) {
+            sb.append("\n\n").append(notes);
+        }
+
         reporter.reportInfo(title, sb.toString());
 
         // Print expiration warning if applicable (summary mode defaults to VERBOSE)
@@ -324,10 +326,10 @@ class ResultPublisher {
      */
     void appendProvenance(StringBuilder sb, PublishContext ctx) {
         if (ctx.hasThresholdOrigin()) {
-            sb.append(String.format("%n  Threshold origin: %s", ctx.thresholdOrigin().name()));
+            sb.append(PUnitReporter.labelValueLn("Threshold origin:", ctx.thresholdOrigin().name()));
         }
         if (ctx.hasContractRef()) {
-            sb.append(String.format("%n  Contract ref: %s", ctx.contractRef()));
+            sb.append(PUnitReporter.labelValueLn("Contract:", ctx.contractRef()));
         }
     }
 
@@ -352,7 +354,7 @@ class ResultPublisher {
         if (!ComplianceEvidenceEvaluator.isUndersized(ctx.samplesExecuted(), ctx.minPassRate())) {
             return;
         }
-        sb.append(String.format("%nNote: %s", ComplianceEvidenceEvaluator.SIZING_NOTE));
+        sb.append(PUnitReporter.labelValue("Note:", ComplianceEvidenceEvaluator.SIZING_NOTE));
     }
 
     /**
@@ -377,14 +379,13 @@ class ResultPublisher {
         var result = VerificationFeasibilityEvaluator.evaluate(
                 ctx.samplesExecuted(), target, ctx.resolvedConfidence());
         if (!result.feasible()) {
-            sb.append(String.format("%nNote: Sample not sized for verification " +
-                    "(N=%d, need %d for %s at %.0f%% confidence).",
-                    ctx.samplesExecuted(), result.minimumSamples(),
-                    RateFormat.format(target), ctx.resolvedConfidence() * 100));
+            sb.append(PUnitReporter.labelValue("Note:",
+                    String.format("Sample not sized for verification (N=%d, need %d for %s at %.0f%% confidence).",
+                            ctx.samplesExecuted(), result.minimumSamples(),
+                            RateFormat.format(target), ctx.resolvedConfidence() * 100)));
         } else {
-            sb.append(String.format(
-                    "%nNote: Sample is sized for verification. " +
-                    "Consider setting intent = VERIFICATION for stronger statistical guarantees."));
+            sb.append(PUnitReporter.labelValue("Note:",
+                    "Sample is sized for verification. Consider setting intent = VERIFICATION for stronger statistical guarantees."));
         }
     }
 

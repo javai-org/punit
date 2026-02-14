@@ -92,7 +92,7 @@ class ConsoleExplanationRendererTest {
             String output = renderer.render(explanation);
             
             assertThat(output).contains("VERDICT");
-            assertThat(output).contains("Result:              PASS");
+            assertThat(output).contains("Result:                PASS");
             assertThat(output).contains("Interpretation:");
         }
 
@@ -103,7 +103,7 @@ class ConsoleExplanationRendererTest {
             
             String output = renderer.render(explanation);
             
-            assertThat(output).contains("Result:              FAIL");
+            assertThat(output).contains("Result:                FAIL");
         }
 
         @Test
