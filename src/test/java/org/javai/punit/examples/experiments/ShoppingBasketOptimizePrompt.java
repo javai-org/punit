@@ -6,6 +6,8 @@ import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.examples.experiments.optimize.ShoppingBasketPromptMutator;
+import org.javai.punit.examples.experiments.optimize.ShoppingBasketSuccessRateScorer;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.javai.punit.experiment.optimize.OptimizationObjective;
 import org.junit.jupiter.api.BeforeEach;

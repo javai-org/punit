@@ -8,9 +8,9 @@ import org.javai.punit.api.RegionGroup;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
-import org.javai.punit.examples.infrastructure.payment.MockPaymentGateway;
-import org.javai.punit.examples.infrastructure.payment.PaymentGateway;
-import org.javai.punit.examples.infrastructure.payment.PaymentResult;
+import org.javai.punit.examples.app.payment.MockPaymentGateway;
+import org.javai.punit.examples.app.payment.PaymentGateway;
+import org.javai.punit.examples.app.payment.PaymentResult;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -32,7 +32,7 @@ import org.jspecify.annotations.NonNull;
  * the contract. Tests verify that the gateway meets its contractual obligations
  * for both correctness and timing.
  *
- * @see org.javai.punit.examples.tests.PaymentGatewaySlaTest
+ * @see org.javai.punit.examples.probabilistictests.PaymentGatewaySlaTest
  */
 @UseCase(description = "Process payment transactions through a payment gateway",
 		covariateRegion = @RegionGroup("us-east-1"))

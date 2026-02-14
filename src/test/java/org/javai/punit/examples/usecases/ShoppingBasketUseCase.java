@@ -13,9 +13,11 @@ import org.javai.punit.api.UseCase;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.contract.match.JsonMatcher;
-import org.javai.punit.examples.infrastructure.llm.ChatLlm;
-import org.javai.punit.examples.infrastructure.llm.ChatLlmProvider;
-import org.javai.punit.examples.infrastructure.llm.ChatResponse;
+import org.javai.punit.examples.app.llm.ChatLlm;
+import org.javai.punit.examples.app.llm.ChatLlmProvider;
+import org.javai.punit.examples.app.llm.ChatResponse;
+import org.javai.punit.examples.app.shopping.ShoppingAction;
+import org.javai.punit.examples.app.shopping.ShoppingActionValidator;
 import org.jspecify.annotations.NonNull;
 
 /**

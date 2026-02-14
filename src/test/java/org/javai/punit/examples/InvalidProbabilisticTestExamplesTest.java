@@ -44,7 +44,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(samples = 100)
 	void noApproach_samplesOnly() {
-		// must never execute
+		// body never executed
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -65,7 +65,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(confidence = 0.99, power = 0.80) // forgot minDetectableEffect
 	void incompleteConfidenceFirst_missingMinDetectableEffect() {
-		// must never execute
+		// body never executed
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -85,7 +85,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(samples = 5, minPassRate = 0.95)
 	void infeasibleVerification() {
-		// must never execute
+		// body never executed
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -107,7 +107,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(confidence = 0.99, samples = 10, minPassRate = 0.9999)
 	void approachMixing_thresholdFirstPlusConfidence() {
-		// must never execute
+		// body never executed
 	}
 
 	/**
@@ -123,7 +123,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(thresholdConfidence = 0.95, minPassRate = 0.90, samples = 50)
 	void conflictingApproaches_twoActiveApproaches() {
-		// must never execute
+		// body never executed
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -141,7 +141,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(thresholdConfidence = 0.95)
 	void sampleSizeFirstWithoutSpec() {
-		// must never execute
+		// body never executed
 	}
 
 	/**
@@ -155,7 +155,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(confidence = 0.99, minDetectableEffect = 0.05, power = 0.80)
 	void confidenceFirstWithoutSpec() {
-		// must never execute
+		// body never executed
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -176,7 +176,7 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(confidence = 1.0, samples = 10, minPassRate = 0.5)
 	void confidenceAtBoundary() {
-		// must never execute
+		// body never executed
 	}
 
 	/**
@@ -188,6 +188,6 @@ class InvalidProbabilisticTestExamplesTest {
 	 */
 	@ProbabilisticTest(confidence = 0.99, samples = 10, minPassRate = -0.1)
 	void minPassRateBelowZero() {
-		// must never execute
+		// body never executed
 	}
 }

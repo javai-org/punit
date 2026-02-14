@@ -9,7 +9,6 @@ import org.javai.punit.api.Input;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.examples.usecases.ShoppingInstructionInput;
 import org.javai.punit.examples.usecases.ShoppingBasketUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -107,6 +106,21 @@ public class ShoppingBasketExplore {
         useCase.setTemperature(0.1);
         captor.record(useCase.translateInstruction(inputData.instruction()));
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INPUT TYPES
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Input data for the {@link #exploreInputVariations} experiment.
+     *
+     * <p>Deserialized from JSON via {@code @InputSource}. The fields can be
+     * whatever the experiment needs — the framework is agnostic about the shape.
+     *
+     * @param instruction the natural language instruction
+     * @param expected the expected JSON response
+     */
+    public record ShoppingInstructionInput(String instruction, String expected) {}
 
     // ═══════════════════════════════════════════════════════════════════════════
     // FACTOR PROVIDERS - Configuration options to explore

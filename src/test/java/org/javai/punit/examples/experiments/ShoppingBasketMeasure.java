@@ -48,7 +48,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  *
  * @see ShoppingBasketUseCase
  * @see #basketInstructions()
- * @see org.javai.punit.examples.tests.ShoppingBasketTest
+ * @see org.javai.punit.examples.probabilistictests.ShoppingBasketTest
  */
 @Disabled("Example experiment - run with ./gradlew exp -Prun=ShoppingBasketMeasure")
 public class ShoppingBasketMeasure {
