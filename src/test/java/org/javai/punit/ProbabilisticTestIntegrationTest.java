@@ -424,7 +424,7 @@ class ProbabilisticTestIntegrationTest {
                 .isPresent();
 
         assertThat(failureMessage.get())
-                .contains("Minimum N:")
+                .contains("samples are required")
                 .contains("intent = SMOKE");
     }
 

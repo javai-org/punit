@@ -17,13 +17,13 @@ By comparison, conventional testing has just **2 artifacts** (service + test).
 
 The Measure and Test classes share significant ceremony:
 
-| Duplicated element           | `ShoppingBasketMeasure`        | `ShoppingBasketTest`           |
-|------------------------------|--------------------------------|--------------------------------|
-| `@RegisterExtension`        | `UseCaseProvider provider`     | `UseCaseProvider provider`     |
-| `@BeforeEach`               | `register(…, ::new)`          | `register(…, ::new)`          |
-| Input source                 | `basketInstructions()`         | `standardInstructions()`       |
-| Method body                  | `captor.record(useCase.…)`    | `useCase.….assertAll()`        |
-| `useCase =`                  | `ShoppingBasketUseCase.class`  | `ShoppingBasketUseCase.class`  |
+| Duplicated element   | `ShoppingBasketMeasure`       | `ShoppingBasketTest`          |
+|----------------------|-------------------------------|-------------------------------|
+| `@RegisterExtension` | `UseCaseProvider provider`    | `UseCaseProvider provider`    |
+| `@BeforeEach`        | `register(…, ::new)`          | `register(…, ::new)`          |
+| Input source         | `basketInstructions()`        | `standardInstructions()`      |
+| Method body          | `captor.record(useCase.…)`    | `useCase.….assertAll()`       |
+| `useCase =`          | `ShoppingBasketUseCase.class` | `ShoppingBasketUseCase.class` |
 
 The input sources are often near-identical or outright duplicated. The developer must maintain two classes, two sets of imports, and two sets of setup code that test the same use case.
 
@@ -71,12 +71,12 @@ This is undesirable because:
 
 Two options were evaluated:
 
-| Criterion                    | Option A: JUnit 5 Tags (meta-annotation) | Option B: System property in extensions |
-|------------------------------|-------------------------------------------|-----------------------------------------|
-| Framework code changes       | None (annotations only)                   | Extension logic changes required        |
-| IDE compatibility            | Native support (IntelliJ, Eclipse)        | Requires run config setup               |
-| JUnit idiom                  | Standard mechanism                        | Custom mechanism                        |
-| Gradle integration           | `includeTags` / `excludeTags`             | `systemProperty` checks                 |
+| Criterion              | Option A: JUnit 5 Tags (meta-annotation) | Option B: System property in extensions |
+|------------------------|------------------------------------------|-----------------------------------------|
+| Framework code changes | None (annotations only)                  | Extension logic changes required        |
+| IDE compatibility      | Native support (IntelliJ, Eclipse)       | Requires run config setup               |
+| JUnit idiom            | Standard mechanism                       | Custom mechanism                        |
+| Gradle integration     | `includeTags` / `excludeTags`            | `systemProperty` checks                 |
 
 **Option A (JUnit 5 Tags)** is chosen — it is idiomatic, requires zero extension code changes, and works natively with IDE test runners.
 
@@ -213,11 +213,11 @@ Key benefits of the unified class:
 
 ## Backward Compatibility
 
-| Scenario | Impact |
-|----------|--------|
-| Existing separate experiment classes (e.g., `ShoppingBasketMeasure`) | **No change.** They have `@Disabled` (which `exp` deactivates) and their methods carry the experiment tag via the annotation. `includeTags("punit-experiment")` selects them correctly. |
-| Existing test-only classes (e.g., `ShoppingBasketTest`) | **No change.** They have no experiment-tagged methods, so `excludeTags` has no effect. |
-| `exp` task's `@Disabled` deactivation | **Still needed** for standalone experiment classes that use `@Disabled`. The tag filter and the disabled deactivation work orthogonally — tags filter which methods are candidates, then conditions (like `@Disabled`) are evaluated on those candidates. |
+| Scenario                                                             | Impact                                                                                                                                                                                                                                                    |
+|----------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Existing separate experiment classes (e.g., `ShoppingBasketMeasure`) | **No change.** They have `@Disabled` (which `exp` deactivates) and their methods carry the experiment tag via the annotation. `includeTags("punit-experiment")` selects them correctly.                                                                   |
+| Existing test-only classes (e.g., `ShoppingBasketTest`)              | **No change.** They have no experiment-tagged methods, so `excludeTags` has no effect.                                                                                                                                                                    |
+| `exp` task's `@Disabled` deactivation                                | **Still needed** for standalone experiment classes that use `@Disabled`. The tag filter and the disabled deactivation work orthogonally — tags filter which methods are candidates, then conditions (like `@Disabled`) are evaluated on those candidates. |
 
 ## Files Summary
 
