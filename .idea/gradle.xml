@@ -21,6 +21,7 @@
           <set>
             <option value="$PROJECT_DIR$/../outcome" />
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/punit-gradle-plugin" />
           </set>
         </option>
       </GradleProjectSettings>

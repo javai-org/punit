@@ -25,6 +25,9 @@ PUnit is a JUnit 5 extension framework for probabilistic unit testing of non-det
 ./gradlew exp -Prun=ExperimentClassName
 ./gradlew exp -Prun=ExperimentClassName.methodName
 
+# Run plugin functional tests
+./gradlew :punit-gradle-plugin:functionalTest
+
 # Publish to local Maven repository
 ./gradlew publishLocal
 
@@ -65,11 +68,22 @@ System property → Environment variable → Annotation value → Framework defa
 
 Example: `-Dpunit.samples=50` overrides `@ProbabilisticTest(samples=100)`
 
+### Gradle Plugin (`punit-gradle-plugin/`)
+
+The `punit-gradle-plugin` subproject provides an `org.javai.punit` Gradle plugin that:
+- Configures the `test` task to exclude `punit-experiment` tags, forward `punit.*` system properties, support `-Prun=` filter, and exclude `testsubjects/`
+- Registers `experiment` and `exp` tasks for running experiments
+
+Consumer usage: `plugins { id("org.javai.punit") }`. Customizable via `punit { }` extension block.
+
+The plugin is a standalone build included via `pluginManagement { includeBuild("punit-gradle-plugin") }` in settings.gradle.kts. For Maven users, see `docs/MAVEN-CONFIGURATION.md`.
+
 ### Source Sets
 
 - `src/main/java` - Framework code (published artifact)
 - `src/test/java` - Unit tests (test subjects under `testsubjects/` are excluded from direct discovery, run via TestKit)
-- `src/experiment/java` - Experiment examples (shopping use case)
+- `punit-gradle-plugin/` - Gradle plugin (Kotlin, standalone build)
+- Examples (shopping basket, payment gateway, LLM integration) live in the sibling `punitexamples` project
 
 ### Workflow: Experiments → Specs → Tests
 

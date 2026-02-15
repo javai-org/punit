@@ -31,11 +31,15 @@ The two are connected: experiments generate the empirical data that powers **spe
 
 ## Installation
 
-PUnit is available on [Maven Central](https://central.sonatype.com/artifact/org.javai/punit). Add it to your project:
+PUnit is available on [Maven Central](https://central.sonatype.com/artifact/org.javai/punit). Add the dependency and the Gradle plugin to your project:
 
 ### Gradle (Kotlin DSL)
 
 ```kotlin
+plugins {
+    id("org.javai.punit") version "0.1.0"
+}
+
 repositories {
     mavenCentral()
 }
@@ -48,6 +52,10 @@ dependencies {
 ### Gradle (Groovy DSL)
 
 ```groovy
+plugins {
+    id 'org.javai.punit' version '0.1.0'
+}
+
 repositories {
     mavenCentral()
 }
@@ -56,6 +64,12 @@ dependencies {
     testImplementation 'org.javai:punit:0.1.0'
 }
 ```
+
+The `org.javai.punit` Gradle plugin automatically:
+- Registers `experiment` and `exp` tasks for running experiments (see [Your First Experiment](#your-first-experiment))
+- Configures the `test` task to exclude experiment-tagged tests from normal test runs
+- Forwards `punit.*` system properties to the test JVM
+- Supports `-Prun=` shorthand for filtering tests and experiments
 
 ### Maven
 
@@ -67,6 +81,8 @@ dependencies {
     <scope>test</scope>
 </dependency>
 ```
+
+Maven users need manual Surefire/Failsafe configuration for experiment tasks. See [MAVEN-CONFIGURATION.md](MAVEN-CONFIGURATION.md) for complete setup instructions.
 
 ---
 
@@ -112,7 +128,8 @@ PUnit will:
 
 ## Your First Experiment
 
-Before writing tests, you often need to **discover** how your system behaves. PUnit's experiment modes help you explore and measure:
+Before writing tests, you often need to **discover** how your system behaves under different configurations before you
+find a configuration which you can test against. PUnit's experiment modes help you explore the configuration space:
 
 ### EXPLORE: Compare Configurations
 

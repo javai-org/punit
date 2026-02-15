@@ -1,3 +1,7 @@
+pluginManagement {
+    includeBuild("punit-gradle-plugin")
+}
+
 rootProject.name = "punit"
 
 // Include the outcome library from the local filesystem when available (sibling folder).

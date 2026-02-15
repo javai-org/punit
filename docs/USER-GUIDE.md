@@ -134,14 +134,20 @@ PUnit supports two distinct testing scenarios. These are not alternative approac
 
 Before diving into the code, remember the PUnit philosophy: we define a **Use Case** and its **Service Contract** once, then use it for both experiments and tests.
 
-**Dependency setup:**
+**Gradle setup:**
 
 ```kotlin
 // build.gradle.kts
+plugins {
+    id("org.javai.punit") version "0.1.0"
+}
+
 dependencies {
     testImplementation("org.javai:punit:0.1.0")
 }
 ```
+
+The `org.javai.punit` plugin automatically registers `experiment` and `exp` tasks for running experiments, configures the `test` task to exclude experiment-tagged tests, and supports `-Prun=` shorthand for filtering. Maven users should configure Surefire/Failsafe manually — see [MAVEN-CONFIGURATION.md](MAVEN-CONFIGURATION.md).
 
 **1) Define a contract for your use case:**
 
@@ -535,7 +541,7 @@ configs    factor     baseline   testing
 
 ### Running Experiments
 
-All experiments use the unified `exp` Gradle task:
+The `exp` task is provided by the PUnit Gradle plugin (see [Gradle setup](#quick-start)). It includes only tests tagged with `punit-experiment`, deactivates `@Disabled` so experiments can run, and sets `ignoreFailures = true` since experiments are exploratory.
 
 ```bash
 # Run all experiments in a class
@@ -549,6 +555,8 @@ All experiments use the unified `exp` Gradle task:
 ```
 
 Experiments are `@Disabled` by default to prevent accidental execution during normal test runs. The `exp` task deactivates this condition.
+
+For Maven, use a dedicated profile with `<groups>punit-experiment</groups>` — see [MAVEN-CONFIGURATION.md](MAVEN-CONFIGURATION.md).
 
 **Running with real LLMs:**
 

@@ -1,6 +1,5 @@
 package org.javai.punit.architecture;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -263,45 +262,4 @@ class ArchitectureTest {
         }
     }
 
-    @Nested
-    @DisplayName("Example Test Rules")
-    class ExampleTestRules {
-
-        /**
-         * Example tests in the examples package are designed to fail (for learning purposes).
-         * They must always have @Disabled to prevent CI failures.
-         *
-         * <p>This rule catches the common mistake of commenting out @Disabled during
-         * local development and forgetting to restore it before commit.
-         */
-        @Test
-        @DisplayName("All example test classes must be @Disabled")
-        void exampleTestClassesMustBeDisabled() {
-            // Import test classes (examples package is in test sources)
-            JavaClasses exampleClasses = new ClassFileImporter()
-                    .withImportOption(ImportOption.Predefined.ONLY_INCLUDE_TESTS)
-                    .importPackages("org.javai.punit.examples");
-
-            // Check classes ending with "Test" (except infrastructure and optimize support tests which are real unit tests)
-            ArchRule testRule = classes()
-                    .that().resideInAnyPackage("org.javai.punit.examples..")
-                    .and().resideOutsideOfPackage("org.javai.punit.examples.app..")
-                    .and().resideOutsideOfPackage("org.javai.punit.examples.experiments.optimize..")
-                    .and().areTopLevelClasses()
-                    .and().haveSimpleNameEndingWith("Test")
-                    .should().beAnnotatedWith(org.junit.jupiter.api.Disabled.class)
-                    .because("example tests are designed to fail and must be @Disabled to prevent CI failures");
-
-            // Check classes for experiments (Measure, Explore, Optimize)
-            ArchRule experimentRule = classes()
-                    .that().resideInAnyPackage("org.javai.punit.examples..")
-                    .and().areTopLevelClasses()
-                    .and().haveSimpleNameContaining("Measure").or().haveSimpleNameContaining("Explore").or().haveSimpleNameContaining("Optimize")
-                    .should().beAnnotatedWith(org.junit.jupiter.api.Disabled.class)
-                    .because("example experiments are designed to fail and must be @Disabled to prevent CI failures");
-
-            testRule.check(exampleClasses);
-            experimentRule.check(exampleClasses);
-        }
-    }
 }
