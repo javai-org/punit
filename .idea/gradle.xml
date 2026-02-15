@@ -12,6 +12,11 @@
                   <project path="$PROJECT_DIR$/../outcome" />
                 </projects>
               </build>
+              <build path="$PROJECT_DIR$/punit-gradle-plugin" name="punit-gradle-plugin">
+                <projects>
+                  <project path="$PROJECT_DIR$/punit-gradle-plugin" />
+                </projects>
+              </build>
             </builds>
           </compositeBuild>
         </compositeConfiguration>
