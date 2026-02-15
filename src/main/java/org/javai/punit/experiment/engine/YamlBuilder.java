@@ -43,6 +43,7 @@ public class YamlBuilder {
 
     private final DumperOptions options;
     private final Yaml yaml;
+    private int rawLineCounter = 0;
 
     private YamlBuilder() {
         this.options = new DumperOptions();
@@ -361,6 +362,22 @@ public class YamlBuilder {
     }
 
     /**
+     * Inserts a raw text line at the current position in the YAML output.
+     *
+     * <p>The line is emitted exactly as provided, with no indentation or
+     * formatting applied. This is used for YAML comments that must appear
+     * at specific positions (e.g. diff anchor lines).
+     *
+     * @param text the raw line to emit (typically a YAML comment)
+     * @return this builder
+     */
+    public YamlBuilder rawLine(String text) {
+        String syntheticKey = "\0raw:" + (rawLineCounter++);
+        currentMap().put(syntheticKey, new RawLine(text));
+        return this;
+    }
+
+    /**
      * Builds the final YAML string.
      *
      * @return the complete YAML document
@@ -398,6 +415,11 @@ public class YamlBuilder {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
+
+            if (value instanceof RawLine rl) {
+                sb.append(rl.text()).append("\n");
+                continue;
+            }
 
             sb.append(prefix).append(key).append(":");
             appendValue(sb, value, indent, key);
@@ -512,4 +534,6 @@ public class YamlBuilder {
     private record InlineArray(List<Object> values) {}
 
     private record BlockScalar(String text) {}
+
+    private record RawLine(String text) {}
 }

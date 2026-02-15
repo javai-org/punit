@@ -398,7 +398,7 @@ public class UseCaseProvider implements ParameterResolver {
      * Returns the last created instance of a use case class.
      *
      * <p>This is useful for checking if the instance implements specific interfaces
-     * (e.g., {@code DiffableContentProvider}) without creating a new instance.
+     * without creating a new instance.
      *
      * @param useCaseClass the use case class
      * @return the last created instance, or null if none exists

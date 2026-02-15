@@ -8,6 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import org.javai.punit.experiment.engine.YamlBuilder;
 import org.javai.punit.experiment.engine.output.DescriptiveStatistics;
+import org.javai.punit.experiment.engine.output.DiffAnchorGenerator;
 import org.javai.punit.experiment.engine.output.OutputUtilities;
 import org.javai.punit.experiment.engine.output.OutputUtilities.OutputHeader;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
@@ -177,6 +178,8 @@ public class ExploreOutputWriter {
         }
         builder.startObject("resultProjection");
         for (ResultProjection projection : baseline.getResultProjections()) {
+            String anchorLine = DiffAnchorGenerator.anchorLine(projection.sampleIndex());
+            builder.rawLine(anchorLine);
             writeResultProjection(builder, projection);
         }
         builder.endObject();
@@ -198,12 +201,17 @@ public class ExploreOutputWriter {
             builder.endObject();
         }
 
-        builder.field("executionTimeMs", projection.executionTimeMs())
-            .startList("diffableContent");
-        for (String line : projection.diffableLines()) {
-            builder.listItem(line);
+        builder.field("executionTimeMs", projection.executionTimeMs());
+
+        if (projection.content() != null && !projection.content().isEmpty()) {
+            builder.blockScalar("content", projection.content());
         }
-        builder.endList().endObject();
+
+        if (projection.failureDetail() != null) {
+            builder.field("failureDetail", projection.failureDetail());
+        }
+
+        builder.endObject();
     }
 
     private void writeExpiration(YamlBuilder builder, EmpiricalBaseline baseline) {

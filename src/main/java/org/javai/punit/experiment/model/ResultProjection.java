@@ -1,29 +1,18 @@
 package org.javai.punit.experiment.model;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.javai.punit.experiment.engine.ResultProjectionBuilder;
 
 /**
  * A diff-optimized projection of a {@link org.javai.punit.contract.UseCaseOutcome}.
  *
- * <p>Designed for line-by-line comparison in diff tools. All projections
- * for the same use case have identical structure regardless of actual
- * content, using placeholders for missing or excess values.
+ * <p>Designed for side-by-side comparison in diff tools. Each projection captures
+ * the key observable aspects of a single sample execution: postcondition results,
+ * the full content of the result, and optional failure detail.
  *
- * <h2>Structure Guarantees</h2>
- * <ul>
- *   <li>Results with fewer lines than max: padded with {@link #ABSENT}</li>
- *   <li>Results with exactly max lines: no placeholders</li>
- *   <li>Results with more than max lines: max content lines + truncation notice</li>
- * </ul>
- *
- * <p>Note: The truncation notice does not count toward {@code maxDiffableLines}.
- *
- * <p>Note: Timestamp is intentionally excluded from the projection because it
- * always differs between samples, creating noise in diffs. The timestamp remains
- * available in the underlying outcome for debugging purposes.
+ * <p>When used with diff anchor lines, projections may vary in length between
+ * samples — the anchors provide alignment at sample boundaries.
  *
  * @see ResultProjectionBuilder
  */
@@ -32,7 +21,8 @@ public record ResultProjection(
     String input,
     Map<String, String> postconditions,
     long executionTimeMs,
-    List<String> diffableLines
+    String content,
+    String failureDetail
 ) {
     /** Status value for postconditions that passed. */
     public static final String PASSED = "passed";
@@ -51,11 +41,6 @@ public record ResultProjection(
     public boolean success() {
         return postconditions.values().stream().noneMatch(FAILED::equals);
     }
-    /**
-     * Placeholder for values that don't exist in this result
-     * but are expected based on maxDiffableLines configuration.
-     */
-    public static final String ABSENT = "<absent>";
 
     /**
      * Compact constructor for validation and defensive copying.
@@ -66,7 +51,5 @@ public record ResultProjection(
         }
         // Preserve insertion order with defensive copy
         postconditions = Map.copyOf(new LinkedHashMap<>(postconditions));
-        diffableLines = List.copyOf(diffableLines);
     }
 }
-

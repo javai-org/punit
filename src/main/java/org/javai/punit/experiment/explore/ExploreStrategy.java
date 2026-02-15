@@ -8,14 +8,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
-import org.javai.punit.api.DiffableContentProvider;
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
@@ -287,9 +285,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
             }
         });
 
-        // Get use case class for projection settings
-        Class<?> useCaseClass = config.useCaseClass();
-        ResultProjectionBuilder projectionBuilder = createProjectionBuilder(useCaseClass, providerOpt.orElse(null));
+        ResultProjectionBuilder projectionBuilder = new ResultProjectionBuilder();
 
         try {
             invocation.proceed();
@@ -353,29 +349,6 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         List<FactorArguments> argsList = FactorResolver.resolveFactorArguments(
                 testMethod, factorSource, exploreConfig.useCaseClass());
         return samplesPerConfig * argsList.size();
-    }
-
-    private ResultProjectionBuilder createProjectionBuilder(Class<?> useCaseClass, UseCaseProvider provider) {
-        int maxDiffableLines = 5;
-        int maxLineLength = 60;
-        DiffableContentProvider customProvider = null;
-
-        if (useCaseClass != null && useCaseClass != Void.class) {
-            UseCase annotation = useCaseClass.getAnnotation(UseCase.class);
-            if (annotation != null) {
-                maxDiffableLines = annotation.maxDiffableLines();
-                maxLineLength = annotation.diffableContentMaxLineLength();
-            }
-
-            if (provider != null) {
-                Object instance = provider.getCurrentInstance(useCaseClass);
-                if (instance instanceof DiffableContentProvider dcp) {
-                    customProvider = dcp;
-                }
-            }
-        }
-
-        return new ResultProjectionBuilder(maxDiffableLines, maxLineLength, customProvider);
     }
 
     private Optional<UseCaseProvider> findUseCaseProvider(ExtensionContext context) {

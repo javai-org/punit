@@ -206,12 +206,17 @@ public class MeasureOutputWriter {
             builder.endObject();
         }
 
-        builder.field("executionTimeMs", projection.executionTimeMs())
-            .startList("diffableContent");
-        for (String line : projection.diffableLines()) {
-            builder.listItem(line);
+        builder.field("executionTimeMs", projection.executionTimeMs());
+
+        if (projection.content() != null && !projection.content().isEmpty()) {
+            builder.blockScalar("content", projection.content());
         }
-        builder.endList().endObject();
+
+        if (projection.failureDetail() != null) {
+            builder.field("failureDetail", projection.failureDetail());
+        }
+
+        builder.endObject();
     }
 
     private void writeExpiration(YamlBuilder builder, EmpiricalBaseline baseline) {
