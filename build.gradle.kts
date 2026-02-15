@@ -187,7 +187,20 @@ tasks.register("release") {
             )
         }
 
-        // 2. Validate clean git state
+        // 2. Validate CHANGELOG.md has an entry for this version
+        val changelog = file("CHANGELOG.md")
+        if (!changelog.exists()) {
+            throw GradleException("CHANGELOG.md not found. Create it before releasing.")
+        }
+        val changelogText = changelog.readText()
+        if (!changelogText.contains("## [$ver]")) {
+            throw GradleException(
+                "CHANGELOG.md has no entry for version $ver. " +
+                "Add a '## [$ver]' section before releasing."
+            )
+        }
+
+        // 3. Validate clean git state
         val statusOutput = runCommandAndCapture("git", "status", "--porcelain")
         if (statusOutput.isNotEmpty()) {
             throw GradleException(
@@ -195,12 +208,12 @@ tasks.register("release") {
             )
         }
 
-        // 3. Create annotated tag locally (before publish, so a successful publish always has a tag)
+        // 4. Create annotated tag locally (before publish, so a successful publish always has a tag)
         val tag = "v$ver"
         logger.lifecycle("Creating tag $tag...")
         runCommand("git", "tag", "-a", tag, "-m", "Release $ver")
 
-        // 4. Publish to Maven Central (delete local tag if this fails)
+        // 5. Publish to Maven Central (delete local tag if this fails)
         logger.lifecycle("Publishing $ver to Maven Central...")
         try {
             runCommand("./gradlew", "publishAndReleaseToMavenCentral")
@@ -210,11 +223,11 @@ tasks.register("release") {
             throw e
         }
 
-        // 5. Push tag (artifact is published, so the tag must reach the remote)
+        // 6. Push tag (artifact is published, so the tag must reach the remote)
         logger.lifecycle("Pushing tag $tag to origin...")
         runCommand("git", "push", "origin", tag)
 
-        // 6. Bump to next SNAPSHOT
+        // 7. Bump to next SNAPSHOT
         val parts = ver.split(".")
         val nextPatch = parts[2].toInt() + 1
         val nextVersion = "${parts[0]}.${parts[1]}.$nextPatch-SNAPSHOT"
