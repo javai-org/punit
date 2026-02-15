@@ -20,7 +20,7 @@ signing {
 }
 
 group = "org.javai"
-version = "0.2.0-SNAPSHOT"
+version = property("punitVersion") as String
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -148,6 +148,106 @@ tasks.register("publishLocal") {
     dependsOn(tasks.publishToMavenLocal)
 }
 
+
+// ========== Release Lifecycle ==========
+
+fun runCommand(vararg args: String) {
+    val process = ProcessBuilder(*args)
+        .directory(projectDir)
+        .inheritIO()
+        .start()
+    val exitCode = process.waitFor()
+    if (exitCode != 0) {
+        throw GradleException("Command failed (exit $exitCode): ${args.joinToString(" ")}")
+    }
+}
+
+fun runCommandAndCapture(vararg args: String): String {
+    val process = ProcessBuilder(*args)
+        .directory(projectDir)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().readText()
+    process.waitFor()
+    return output.trim()
+}
+
+tasks.register("release") {
+    description = "Validates, publishes to Maven Central, tags the release, and bumps to next SNAPSHOT"
+    group = "publishing"
+
+    doLast {
+        val ver = project.property("punitVersion") as String
+
+        // 1. Validate not a SNAPSHOT
+        if (ver.endsWith("-SNAPSHOT")) {
+            throw GradleException(
+                "Cannot release a SNAPSHOT version ($ver). " +
+                "Set the release version in gradle.properties first, e.g. punitVersion=0.2.0"
+            )
+        }
+
+        // 2. Validate clean git state
+        val statusOutput = runCommandAndCapture("git", "status", "--porcelain")
+        if (statusOutput.isNotEmpty()) {
+            throw GradleException(
+                "Cannot release with uncommitted changes. Commit or stash them first.\n$statusOutput"
+            )
+        }
+
+        // 3. Publish to Maven Central
+        logger.lifecycle("Publishing $ver to Maven Central...")
+        runCommand("./gradlew", "publishAndReleaseToMavenCentral")
+
+        // 4. Create annotated tag
+        val tag = "v$ver"
+        logger.lifecycle("Creating tag $tag...")
+        runCommand("git", "tag", "-a", tag, "-m", "Release $ver")
+
+        // 5. Push tag
+        logger.lifecycle("Pushing tag $tag to origin...")
+        runCommand("git", "push", "origin", tag)
+
+        // 6. Bump to next SNAPSHOT
+        val parts = ver.split(".")
+        val nextPatch = parts[2].toInt() + 1
+        val nextVersion = "${parts[0]}.${parts[1]}.$nextPatch-SNAPSHOT"
+        logger.lifecycle("Bumping version to $nextVersion...")
+
+        val rootProps = file("gradle.properties")
+        rootProps.writeText(rootProps.readText().replace("punitVersion=$ver", "punitVersion=$nextVersion"))
+
+        val pluginProps = file("punit-gradle-plugin/gradle.properties")
+        pluginProps.writeText(pluginProps.readText().replace("punitVersion=$ver", "punitVersion=$nextVersion"))
+
+        runCommand("git", "add", "gradle.properties", "punit-gradle-plugin/gradle.properties")
+        runCommand("git", "commit", "-m", "Bump version to $nextVersion")
+        runCommand("git", "push")
+
+        logger.lifecycle("Release $ver complete. Version bumped to $nextVersion.")
+    }
+}
+
+tasks.register("tagRelease") {
+    description = "Creates and pushes a release tag for a given version (e.g. -PreleaseVersion=0.1.0)"
+    group = "publishing"
+
+    doLast {
+        val ver = project.findProperty("releaseVersion") as String?
+            ?: throw GradleException("Specify -PreleaseVersion=<version>, e.g. ./gradlew tagRelease -PreleaseVersion=0.1.0")
+
+        val tag = "v$ver"
+        val commitish = (project.findProperty("commitish") as String?) ?: "HEAD"
+
+        logger.lifecycle("Creating tag $tag at $commitish...")
+        runCommand("git", "tag", "-a", tag, commitish, "-m", "Release $ver")
+
+        logger.lifecycle("Pushing tag $tag to origin...")
+        runCommand("git", "push", "origin", tag)
+
+        logger.lifecycle("Tag $tag created and pushed.")
+    }
+}
 
 // ========== Code Coverage (JaCoCo) ==========
 
