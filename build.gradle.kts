@@ -195,16 +195,22 @@ tasks.register("release") {
             )
         }
 
-        // 3. Publish to Maven Central
-        logger.lifecycle("Publishing $ver to Maven Central...")
-        runCommand("./gradlew", "publishAndReleaseToMavenCentral")
-
-        // 4. Create annotated tag
+        // 3. Create annotated tag locally (before publish, so a successful publish always has a tag)
         val tag = "v$ver"
         logger.lifecycle("Creating tag $tag...")
         runCommand("git", "tag", "-a", tag, "-m", "Release $ver")
 
-        // 5. Push tag
+        // 4. Publish to Maven Central (delete local tag if this fails)
+        logger.lifecycle("Publishing $ver to Maven Central...")
+        try {
+            runCommand("./gradlew", "publishAndReleaseToMavenCentral")
+        } catch (e: Exception) {
+            logger.lifecycle("Publishing failed — removing local tag $tag")
+            runCommand("git", "tag", "-d", tag)
+            throw e
+        }
+
+        // 5. Push tag (artifact is published, so the tag must reach the remote)
         logger.lifecycle("Pushing tag $tag to origin...")
         runCommand("git", "push", "origin", tag)
 
