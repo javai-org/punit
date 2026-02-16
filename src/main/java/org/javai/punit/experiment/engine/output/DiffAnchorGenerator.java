@@ -52,6 +52,6 @@ public final class DiffAnchorGenerator {
      * @return the complete anchor comment line (no trailing newline)
      */
     public static String anchorLine(int sampleIndex) {
-        return "# \u2500\u2500\u2500\u2500\u2500\u2500 anchor:" + anchorFor(sampleIndex) + " \u2500\u2500\u2500\u2500\u2500\u2500";
+        return "# ────── anchor:" + anchorFor(sampleIndex) + " ──────";
     }
 }
