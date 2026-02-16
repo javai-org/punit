@@ -46,12 +46,12 @@ public final class DiffAnchorGenerator {
     /**
      * Returns the full anchor comment line for a sample.
      *
-     * <p>Format: {@code # ──── sample[N] ──── anchor:XXXXXXXX ────}
+     * <p>Format: {@code # ────── anchor:XXXXXXXX ──────}
      *
      * @param sampleIndex the zero-based sample index
      * @return the complete anchor comment line (no trailing newline)
      */
     public static String anchorLine(int sampleIndex) {
-        return "# \u2500\u2500\u2500\u2500 sample[" + sampleIndex + "] \u2500\u2500\u2500\u2500 anchor:" + anchorFor(sampleIndex) + " \u2500\u2500\u2500\u2500";
+        return "# \u2500\u2500\u2500\u2500\u2500\u2500 anchor:" + anchorFor(sampleIndex) + " \u2500\u2500\u2500\u2500\u2500\u2500";
     }
 }

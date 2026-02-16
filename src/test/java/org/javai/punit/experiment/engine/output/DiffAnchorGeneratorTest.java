@@ -2,7 +2,6 @@ package org.javai.punit.experiment.engine.output;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -68,14 +67,7 @@ class DiffAnchorGeneratorTest {
         void formatsAnchorLineWithSampleIndexAndHexValue() {
             String line = DiffAnchorGenerator.anchorLine(0);
 
-            assertThat(line).isEqualTo("# \u2500\u2500\u2500\u2500 sample[0] \u2500\u2500\u2500\u2500 anchor:0dfe8af7 \u2500\u2500\u2500\u2500");
-        }
-
-        @Test
-        @DisplayName("includes correct sample index")
-        void includesCorrectSampleIndex() {
-            assertThat(DiffAnchorGenerator.anchorLine(5)).contains("sample[5]");
-            assertThat(DiffAnchorGenerator.anchorLine(42)).contains("sample[42]");
+            assertThat(line).isEqualTo("# \u2500\u2500\u2500\u2500\u2500\u2500 anchor:0dfe8af7 \u2500\u2500\u2500\u2500\u2500\u2500");
         }
 
         @Test
