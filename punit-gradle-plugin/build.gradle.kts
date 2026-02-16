@@ -35,7 +35,7 @@ val functionalTestRuntimeOnly by configurations.getting {
 }
 
 dependencies {
-    functionalTestImplementation("org.junit.jupiter:junit-jupiter:5.14.2")
+    functionalTestImplementation("org.junit.jupiter:junit-jupiter:5.14.3")
     functionalTestRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
