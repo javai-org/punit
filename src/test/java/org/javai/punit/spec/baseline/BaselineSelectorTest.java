@@ -1,12 +1,15 @@
 package org.javai.punit.spec.baseline;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.model.DayGroupDefinition;
 import org.javai.punit.model.RegionGroupDefinition;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.spec.baseline.covariate.CovariateMatcher.MatchResult;
@@ -252,6 +255,88 @@ class BaselineSelectorTest {
             assertThat(result.conformanceDetails().get(0).result()).isEqualTo(MatchResult.CONFORMS);
             assertThat(result.conformanceDetails().get(1).covariateKey()).isEqualTo("timezone");
             assertThat(result.conformanceDetails().get(1).result()).isEqualTo(MatchResult.DOES_NOT_CONFORM);
+        }
+    }
+
+    @Nested
+    @DisplayName("implied remainder partition matching")
+    class ImpliedRemainderPartitionTests {
+
+        private static final DayGroupDefinition WEEKEND_GROUP = new DayGroupDefinition(
+                EnumSet.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), "WEEKEND");
+
+        private CovariateDeclaration weekendOnlyDeclaration() {
+            return new CovariateDeclaration(
+                    List.of(WEEKEND_GROUP),
+                    List.of(),
+                    List.of(),
+                    false,
+                    Map.of()
+            );
+        }
+
+        @Test
+        @DisplayName("should select baseline with derived remainder label when test resolves to same remainder")
+        void shouldSelectBaselineWithDerivedRemainderLabel() {
+            var now = Instant.now();
+
+            // Experiment run on Saturday produces a baseline with the explicit group label
+            var weekendBaseline = CovariateProfile.builder()
+                    .put("day_of_week", "WEEKEND")
+                    .build();
+
+            // Experiment run on Monday produces a baseline with the derived remainder label.
+            // "WEEKDAY" is never declared explicitly — it is computed as the complement of {SAT, SUN}.
+            var weekdayBaseline = CovariateProfile.builder()
+                    .put("day_of_week", "WEEKDAY")
+                    .build();
+
+            // Test runs on Tuesday — the resolver would also derive "WEEKDAY" from the complement
+            var tuesdayTestProfile = CovariateProfile.builder()
+                    .put("day_of_week", "WEEKDAY")
+                    .build();
+
+            var weekendCandidate = candidate("weekend-baseline", weekendBaseline, now);
+            var weekdayCandidate = candidate("weekday-baseline", weekdayBaseline, now);
+
+            var result = selector.select(
+                    List.of(weekendCandidate, weekdayCandidate),
+                    tuesdayTestProfile,
+                    weekendOnlyDeclaration()
+            );
+
+            assertThat(result.hasSelection()).isTrue();
+            assertThat(result.selected().filename()).isEqualTo("weekday-baseline.yaml");
+            assertThat(result.hasNonConformance()).isFalse();
+            assertThat(result.ambiguous()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should report non-conformance when only the explicit group baseline exists and test runs outside it")
+        void shouldReportNonConformanceWhenOnlyExplicitGroupBaselineExists() {
+            // Only the WEEKEND baseline exists — no experiment was ever run on a weekday
+            var weekendBaseline = CovariateProfile.builder()
+                    .put("day_of_week", "WEEKEND")
+                    .build();
+
+            // Test runs on a weekday — resolves to derived "WEEKDAY"
+            var weekdayTestProfile = CovariateProfile.builder()
+                    .put("day_of_week", "WEEKDAY")
+                    .build();
+
+            var weekendCandidate = candidate("weekend-baseline", weekendBaseline, Instant.now());
+
+            var result = selector.select(
+                    List.of(weekendCandidate),
+                    weekdayTestProfile,
+                    weekendOnlyDeclaration()
+            );
+
+            assertThat(result.hasSelection()).isTrue();
+            assertThat(result.hasNonConformance()).isTrue();
+            assertThat(result.nonConformingDetails()).hasSize(1);
+            assertThat(result.nonConformingDetails().get(0).covariateKey()).isEqualTo("day_of_week");
+            assertThat(result.nonConformingDetails().get(0).result()).isEqualTo(MatchResult.DOES_NOT_CONFORM);
         }
     }
 
