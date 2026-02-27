@@ -21,7 +21,47 @@ public enum CovariateCategory {
      * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
      * <p><strong>Report language:</strong> "Temporal factors may influence system behavior"
      */
-    TEMPORAL,
+    TEMPORAL(false),
+
+    /**
+     * External services and dependencies outside our control.
+     *
+     * <p>Examples: third_party_api_version, upstream_service
+     *
+     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
+     * <p><strong>Report language:</strong> "Third-party service behavior may have changed"
+     */
+    EXTERNAL_DEPENDENCY(false),
+
+    /**
+     * Execution environment characteristics.
+     *
+     * <p>Examples: cloud_provider, instance_type
+     *
+     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
+     * <p><strong>Report language:</strong> "Resource availability and latency characteristics may vary"
+     */
+    INFRASTRUCTURE(false),
+
+    /**
+     * Execution operational characteristics.
+     *
+     * <p>Examples: region, timezone
+     *
+     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
+     * <p><strong>Report language:</strong> "Resource availability and latency characteristics may vary"
+     */
+    OPERATIONAL(false),
+
+    /**
+     * Data state affecting behavior.
+     *
+     * <p>Examples: cache_state, index_version, training_data_version, catalog_size
+     *
+     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
+     * <p><strong>Report language:</strong> "Data volume or distribution may affect performance"
+     */
+    DATA_STATE(false),
 
     /**
      * Deliberate system configuration choices.
@@ -35,47 +75,13 @@ public enum CovariateCategory {
      * use EXPLORE mode to compare configurations, or MEASURE to establish a
      * new baseline with the current configuration.
      */
-    CONFIGURATION,
+    CONFIGURATION(true);
 
-    /**
-     * External services and dependencies outside our control.
-     *
-     * <p>Examples: third_party_api_version, upstream_service
-     *
-     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
-     * <p><strong>Report language:</strong> "Third-party service behavior may have changed"
-     */
-    EXTERNAL_DEPENDENCY,
+    private final boolean hardGate;
 
-    /**
-     * Execution environment characteristics.
-     *
-     * <p>Examples: cloud_provider, instance_type
-     *
-     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
-     * <p><strong>Report language:</strong> "Resource availability and latency characteristics may vary"
-     */
-    INFRASTRUCTURE,
-
-    /**
-     * Execution operational characteristics.
-     *
-     * <p>Examples: region, timezone
-     *
-     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
-     * <p><strong>Report language:</strong> "Resource availability and latency characteristics may vary"
-     */
-    OPERATIONAL,
-
-    /**
-     * Data state affecting behavior.
-     *
-     * <p>Examples: cache_state, index_version, training_data_version, catalog_size
-     *
-     * <p><strong>Matching:</strong> Soft match — test proceeds with warning on mismatch
-     * <p><strong>Report language:</strong> "Data volume or distribution may affect performance"
-     */
-    DATA_STATE;
+    CovariateCategory(boolean hardGate) {
+        this.hardGate = hardGate;
+    }
 
     /**
      * Returns true if this category requires exact match (hard gate).
@@ -83,7 +89,6 @@ public enum CovariateCategory {
      * @return true for CONFIGURATION, false for all others
      */
     public boolean isHardGate() {
-        return this == CONFIGURATION;
+        return hardGate;
     }
-
 }
