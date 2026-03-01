@@ -52,7 +52,13 @@ All attribution licensing is ARL.
   - [Budget Control](#budget-control)
   - [Pacing Constraints](#pacing-constraints)
   - [Exception Handling](#exception-handling)
-- [Part 8: The Statistical Core](#part-8-the-statistical-core)
+- [Part 8: Latency](#part-8-latency)
+  - [The Problem with Averages](#the-problem-with-averages)
+  - [Latency Recording in Experiments](#latency-recording-in-experiments)
+  - [Testing Latency with Contractual Thresholds](#testing-latency-with-contractual-thresholds)
+  - [Baseline-Derived Thresholds](#baseline-derived-thresholds)
+  - [Sample Size and Percentile Reliability](#sample-size-and-percentile-reliability)
+- [Part 9: The Statistical Core](#part-9-the-statistical-core)
   - [Bernoulli Trials](#bernoulli-trials)
   - [Transparent Statistics Mode](#transparent-statistics-mode)
   - [Further Reading](#further-reading)
@@ -94,13 +100,21 @@ The entire pass/fail culture and infrastructure of traditional unit testing — 
 
 PUnit is a JUnit 5 extension framework for **probabilistic testing**. It addresses the shortcomings of binary testing by running tests multiple times and determining pass/fail based on **statistical thresholds** rather than single-execution assertions. To be clear: PUnit is not a replacement for traditional unit testing. It is specifically designed for testing features which exhibit stochastic (aka random) behaviours. If a feature is fully deterministic, it is not a candidate for probabilistic testing.
 
-But assuming a feature can behave non-deterministically, instead of asking "Did it work?" PUnit asks "Does it work reliably enough?"
+Stochastic behaviour manifests in two dimensions:
+
+- **Functional** — whether the system produces a correct result. An LLM may return valid JSON 93% of the time; a classifier may achieve 97% accuracy. The success rate varies across executions.
+- **Temporal** — how long the system takes to respond. A service that averages 200ms may occasionally spike to 2 seconds. Latency is inherently variable, and a single measurement tells you very little about what to expect.
+
+PUnit addresses both. Pass-rate assertions handle functional stochasticity; latency assertions (see [Part 8: Latency](#part-8-latency)) handle temporal stochasticity. The two are evaluated independently — a service can pass on reliability but fail on latency, or vice versa.
+
+But assuming a feature can behave non-deterministically, instead of asking "Did it work?" PUnit asks "Does it work reliably enough — and fast enough?"
 
 PUnit provides:
 
 1. **Probabilistic tests** — Run a test method many times, count successes, and evaluate the observed success rate against a threshold
-2. **Experiments** — Measure, explore, and optimize system behaviour to discover empirical thresholds
-3. **Statistical rigour** — Proper confidence intervals, power analysis, and qualified verdicts
+2. **Latency assertions** — Evaluate observed percentile latencies (p50, p90, p95, p99) against contractual or baseline-derived thresholds
+3. **Experiments** — Measure, explore, and optimize system behaviour to discover empirical thresholds
+4. **Statistical rigour** — Proper confidence intervals, power analysis, and qualified verdicts
 
 ### Quick Start
 
@@ -1267,7 +1281,181 @@ void exceptionsCountAsFailures() {
 
 ---
 
-## Part 8: The Statistical Core
+## Part 8: Latency
+
+### The Problem with Averages
+
+A service responds in 200ms on average. Sounds fine — until you discover that one in a hundred requests takes 5 seconds, and one in a thousand takes 30.
+
+The average is perhaps the most widely reported and most misleading latency metric. It collapses an entire distribution into a single number, hiding the experience of the users who matter most: those at the tail. A system that averages 200ms but occasionally stalls for seconds is a fundamentally different system from one that consistently responds in 180–220ms. The average cannot distinguish between them.
+
+This is well understood in performance engineering. The solution is **percentile-based measurement**: instead of asking "what is the average?", ask "what latency does 95% of traffic experience?" and "what does 99% experience?" These questions reveal the shape of the distribution and expose the tail behaviour that averages conceal.
+
+PUnit applies this principle to probabilistic testing. Rather than recording a single average latency, it captures the full latency distribution across all successful samples and evaluates percentile-based thresholds: p50 (median), p90, p95, and p99.
+
+### Latency Recording in Experiments
+
+PUnit automatically records per-sample wall-clock execution time during both MEASURE and EXPLORE experiments. No additional configuration is needed — latency data is captured as a natural byproduct of running samples.
+
+Only **successful samples** contribute to the latency distribution. Failed samples are excluded because their execution times are often meaningless — a fast failure (an immediate validation rejection) or a slow failure (a timeout) would distort the distribution of the service's actual response behaviour.
+
+After all samples complete, PUnit computes the latency distribution from the successful sample times and writes it to the experiment output file.
+
+#### MEASURE experiment output
+
+A MEASURE experiment's spec file includes a `latency` section alongside the existing pass-rate statistics:
+
+```yaml
+schemaVersion: punit-spec-1
+useCaseId: PaymentGatewayUseCase
+generatedAt: 2026-02-15T10:30:00Z
+execution:
+  samplesPlanned: 1000
+  samplesExecuted: 1000
+  terminationReason: COMPLETED
+requirements:
+  minPassRate: 0.9194
+statistics:
+  successRate:
+    observed: 0.9350
+    standardError: 0.0078
+    confidenceInterval95: [0.9194, 0.9506]
+  successes: 935
+  failures: 65
+latency:
+  sampleCount: 935
+  meanMs: 312
+  standardDeviationMs: 145
+  p50Ms: 280
+  p90Ms: 490
+  p95Ms: 580
+  p99Ms: 920
+  maxMs: 1450
+cost:
+  totalTimeMs: 315000
+  avgTimePerSampleMs: 315
+```
+
+The `sampleCount` in the latency section equals the number of successes, not the total sample count. The fields capture the full shape of the distribution: central tendency (mean, median), spread (standard deviation), and tail behaviour (p90 through max).
+
+This data serves two purposes. First, it is descriptive — it tells you what the service's latency profile looked like during the experiment. Second, it becomes the **baseline** from which PUnit can derive latency thresholds for probabilistic tests (covered in [Baseline-Derived Thresholds](#baseline-derived-thresholds) below).
+
+#### EXPLORE experiment output
+
+EXPLORE experiments produce the same latency section per configuration, enabling side-by-side latency comparison across configurations:
+
+```yaml
+# model-gpt-4o_temp-0.3.yaml
+statistics:
+  observed: 0.9500
+  successes: 19
+  failures: 1
+latency:
+  sampleCount: 19
+  meanMs: 450
+  standardDeviationMs: 120
+  p50Ms: 380
+  p90Ms: 620
+  p95Ms: 750
+  p99Ms: 1100
+  maxMs: 1400
+
+# model-claude-3-5-sonnet_temp-0.3.yaml
+statistics:
+  observed: 0.9000
+  successes: 18
+  failures: 2
+latency:
+  sampleCount: 18
+  meanMs: 210
+  standardDeviationMs: 65
+  p50Ms: 190
+  p90Ms: 290
+  p95Ms: 340
+  p99Ms: 480
+  maxMs: 510
+```
+
+Here, model A has a higher pass rate but substantially worse tail latency. Model B responds more consistently, with a p99 less than half of model A's. This kind of trade-off — reliability versus responsiveness — is invisible to average-based metrics and difficult to spot without per-configuration latency profiles.
+
+### Testing Latency with Contractual Thresholds
+
+When you know the latency requirements upfront — from an SLA, an internal SLO, or a design target — you can declare them directly on the test:
+
+```java
+@ProbabilisticTest(
+    samples = 200,
+    minPassRate = 0.95,
+    latency = @Latency(p95Ms = 500, p99Ms = 1000)
+)
+void paymentServiceMeetsLatencySla() {
+    PaymentResult result = paymentService.processPayment(testPayment());
+    assertThat(result.isSuccessful()).isTrue();
+}
+```
+
+PUnit measures the wall-clock time of each successful sample, computes the observed percentile distribution after all samples complete, and compares each declared percentile against its threshold. A percentile **passes** if the observed value is at or below the threshold; it **fails** (breaches) if the observed value exceeds it.
+
+The `@Latency` annotation supports four percentiles: `p50Ms`, `p90Ms`, `p95Ms`, and `p99Ms`. You need only declare the ones you care about — unset percentiles (default `-1`) are not asserted.
+
+**The combined verdict.** Latency and pass rate are independent quality dimensions. Both must pass for the test to pass. A service that meets its reliability target but breaches its latency SLA still fails the test:
+
+```
+═══════════════════════════════════════════════════════════════
+PUnit FAILED: paymentServiceMeetsLatencySla
+  Observed: 96.0% (192/200) >= min pass rate: 95.0%
+  Latency (n=192): p95 480ms <= 500ms, p99 1350ms > 1000ms <- BREACH
+═══════════════════════════════════════════════════════════════
+```
+
+The pass rate is fine (96% >= 95%), but the observed p99 of 1350ms exceeds the 1000ms threshold. The test fails because latency is not a secondary concern — it is a first-class assertion.
+
+### Baseline-Derived Thresholds
+
+When a MEASURE experiment has been run and its spec contains latency data, you can derive latency thresholds from the baseline rather than declaring them explicitly. This mirrors how PUnit derives pass-rate thresholds from baselines — the empirically observed performance becomes the expectation, with a statistical margin to account for natural variance.
+
+```java
+@ProbabilisticTest(
+    useCase = PaymentGatewayUseCase.class,
+    samples = 200,
+    latencyBaseline = true
+)
+void paymentServiceLatencyConformsToBaseline() {
+    PaymentResult result = paymentService.processPayment(testPayment());
+    assertThat(result.isSuccessful()).isTrue();
+}
+```
+
+With `latencyBaseline = true`, PUnit loads the latency section from the matching spec and derives upper-bound thresholds for all four percentiles using a confidence interval. This means the thresholds are slightly looser than the raw baseline values — they accommodate the natural variance you would expect when re-running the service with a different (typically smaller) sample size.
+
+If the referenced baseline does not contain latency data (because the MEASURE experiment was run before latency recording was available, or because no samples succeeded), PUnit raises a configuration error.
+
+### Sample Size and Percentile Reliability
+
+Percentile assertions are only as reliable as the sample size behind them. Computing a p99 from 10 samples is statistically dubious — with only 10 observations, the "99th percentile" is just the maximum value, and a single outlier dominates the result.
+
+PUnit addresses this with minimum sample size requirements. The relevant count is the number of **successful samples** (since only successes contribute to the latency distribution), which depends on both the total sample count and the expected pass rate.
+
+| Percentile | Minimum successful samples |
+|------------|---------------------------|
+| p50        | 5                         |
+| p90        | 10                        |
+| p95        | 20                        |
+| p99        | 100                       |
+
+For **VERIFICATION** intent, PUnit enforces these minimums as a feasibility gate before any samples execute. If the expected number of successful samples (total samples multiplied by the expected pass rate) is insufficient for any asserted percentile, the test is rejected with a configuration error:
+
+```
+Latency p99 assertion requires at least 100 successful samples,
+but only 40 are expected (planned=50, expected success rate=0.80).
+Increase sample size or remove the p99 assertion.
+```
+
+For **SMOKE** intent, the feasibility gate is bypassed. PUnit runs the test and reports whatever percentiles it can compute, but marks the results as **indicative** — a signal, not evidence. This follows the same philosophy as pass-rate smoke tests: useful for catching gross regressions cheaply, but not a substitute for proper verification.
+
+---
+
+## Part 9: The Statistical Core
 
 A brief look at the statistical engine that powers PUnit.
 
