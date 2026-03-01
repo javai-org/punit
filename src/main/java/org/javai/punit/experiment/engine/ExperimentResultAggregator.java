@@ -1,5 +1,6 @@
 package org.javai.punit.experiment.engine;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -35,6 +36,7 @@ public class ExperimentResultAggregator {
     private final Map<String, Integer> failureDistribution = new LinkedHashMap<>();
     private final List<UseCaseOutcome<?>> outcomes = new ArrayList<>();
     private final List<ResultProjection> resultProjections = new ArrayList<>();
+    private final List<Duration> successfulDurations = new ArrayList<>();
     private final PostconditionAggregator postconditionAggregator = new PostconditionAggregator();
     private String terminationReason = null;
     private String terminationDetails = null;
@@ -61,6 +63,7 @@ public class ExperimentResultAggregator {
         Objects.requireNonNull(outcome, "outcome must not be null");
         successes++;
         outcomes.add(outcome);
+        successfulDurations.add(outcome.executionTime());
         trackTokens(outcome);
         recordPostconditions(outcome.evaluatePostconditions());
         updateLastSampleTime();
@@ -259,6 +262,15 @@ public class ExperimentResultAggregator {
 
     public Map<String, Integer> getFailureDistribution() {
         return Collections.unmodifiableMap(failureDistribution);
+    }
+
+    /**
+     * Returns the execution durations of all successful samples.
+     *
+     * @return unmodifiable list of durations
+     */
+    public List<Duration> getSuccessfulDurations() {
+        return Collections.unmodifiableList(successfulDurations);
     }
 
     /**

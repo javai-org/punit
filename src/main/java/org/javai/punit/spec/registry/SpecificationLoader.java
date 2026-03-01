@@ -20,6 +20,7 @@ import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.spec.model.LatencyBaseline;
 
 /**
  * Loads execution specifications from YAML files.
@@ -119,6 +120,7 @@ public final class SpecificationLoader {
 		boolean inExecution = false;
 		boolean inStatistics = false;
 		boolean inStatisticsFailureDistribution = false;
+		boolean inLatency = false;
 
 		// Requirements fields
 		double minPassRate = 1.0;
@@ -148,6 +150,16 @@ public final class SpecificationLoader {
 		int expiresInDays = 0;
 		Instant baselineEndTime = null;
 
+		// Latency fields
+		int latencySampleCount = 0;
+		long latencyMean = 0;
+		long latencyStdDev = 0;
+		long latencyP50 = 0;
+		long latencyP90 = 0;
+		long latencyP95 = 0;
+		long latencyP99 = 0;
+		long latencyMax = 0;
+
 		// Covariate fields
 		CovariateProfile.Builder covariateProfileBuilder = CovariateProfile.builder();
 		String footprint = null;
@@ -173,6 +185,7 @@ public final class SpecificationLoader {
 				inExecution = false;
 				inStatistics = false;
 				inStatisticsFailureDistribution = false;
+				inLatency = false;
 
 				if (line.startsWith("specId:") || line.startsWith("useCaseId:")) {
 					// Both specId (legacy) and useCaseId map to useCaseId
@@ -209,6 +222,8 @@ public final class SpecificationLoader {
 					inExpiration = true;
 				} else if (line.startsWith("covariates:")) {
 					inCovariates = true;
+				} else if (line.startsWith("latency:")) {
+					inLatency = true;
 				} else if (line.startsWith("footprint:")) {
 					footprint = extractValue(line);
 				}
@@ -221,6 +236,11 @@ public final class SpecificationLoader {
 			// Handle nested sections
 			if (inExtendedStatistics && trimmed.startsWith("failureDistribution:")) {
 				inFailureDistribution = true;
+				continue;
+			}
+			if ((inStatistics || inLatency) && trimmed.startsWith("latency:")) {
+				inLatency = true;
+				inStatisticsFailureDistribution = false;
 				continue;
 			}
 
@@ -302,6 +322,24 @@ public final class SpecificationLoader {
 					CovariateValue covValue = parseCovariateValue(value);
 					covariateProfileBuilder.put(key, covValue);
 				}
+			} else if (inLatency) {
+				if (trimmed.startsWith("sampleCount:")) {
+					latencySampleCount = Integer.parseInt(extractValue(trimmed));
+				} else if (trimmed.startsWith("mean:")) {
+					latencyMean = Long.parseLong(extractValue(trimmed));
+				} else if (trimmed.startsWith("standardDeviation:")) {
+					latencyStdDev = Long.parseLong(extractValue(trimmed));
+				} else if (trimmed.startsWith("p50:")) {
+					latencyP50 = Long.parseLong(extractValue(trimmed));
+				} else if (trimmed.startsWith("p90:")) {
+					latencyP90 = Long.parseLong(extractValue(trimmed));
+				} else if (trimmed.startsWith("p95:")) {
+					latencyP95 = Long.parseLong(extractValue(trimmed));
+				} else if (trimmed.startsWith("p99:")) {
+					latencyP99 = Long.parseLong(extractValue(trimmed));
+				} else if (trimmed.startsWith("max:")) {
+					latencyMax = Long.parseLong(extractValue(trimmed));
+				}
 			} else if (inExecution) {
 				// MEASURE output: execution.samplesExecuted → empirical basis samples
 				if (trimmed.startsWith("samplesExecuted:")) {
@@ -368,6 +406,13 @@ public final class SpecificationLoader {
 		}
 		if (footprint != null && !footprint.isEmpty()) {
 			builder.footprint(footprint);
+		}
+
+		// Set latency baseline if we found latency data
+		if (latencySampleCount > 0) {
+			builder.latencyBaseline(new LatencyBaseline(
+					latencySampleCount, latencyMean, latencyStdDev,
+					latencyP50, latencyP90, latencyP95, latencyP99, latencyMax));
 		}
 
 		return builder.build();

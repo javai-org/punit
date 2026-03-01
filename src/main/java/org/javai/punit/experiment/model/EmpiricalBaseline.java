@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
+import org.javai.punit.statistics.LatencyDistribution;
 
 /**
  * Represents an empirical baseline generated from experiment execution.
@@ -40,7 +41,8 @@ public final class EmpiricalBaseline {
     private final ExpirationPolicy expirationPolicy;
     private final String footprint;
     private final CovariateProfile covariateProfile;
-    
+    private final LatencyDistribution latencyDistribution;
+
     private EmpiricalBaseline(Builder builder) {
         this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
         this.experimentId = builder.experimentId;
@@ -56,6 +58,7 @@ public final class EmpiricalBaseline {
         this.expirationPolicy = builder.expirationPolicy;
         this.footprint = builder.footprint;
         this.covariateProfile = builder.covariateProfile;
+        this.latencyDistribution = builder.latencyDistribution;
     }
     
     public static Builder builder() {
@@ -181,6 +184,24 @@ public final class EmpiricalBaseline {
         return covariateProfile != null && !covariateProfile.isEmpty();
     }
 
+    /**
+     * Returns the latency distribution from successful samples.
+     *
+     * @return the latency distribution, or null if not recorded
+     */
+    public LatencyDistribution getLatencyDistribution() {
+        return latencyDistribution;
+    }
+
+    /**
+     * Returns true if this baseline has latency distribution data.
+     *
+     * @return true if latency distribution is present
+     */
+    public boolean hasLatencyDistribution() {
+        return latencyDistribution != null;
+    }
+
 	/**
 	 * Summary of experiment execution.
 	 */
@@ -251,7 +272,8 @@ public final class EmpiricalBaseline {
         private ExpirationPolicy expirationPolicy;
         private String footprint;
         private CovariateProfile covariateProfile;
-        
+        private LatencyDistribution latencyDistribution;
+
         private Builder() {}
         
         public Builder useCaseId(String useCaseId) {
@@ -385,7 +407,18 @@ public final class EmpiricalBaseline {
             this.covariateProfile = covariateProfile;
             return this;
         }
-        
+
+        /**
+         * Sets the latency distribution for this baseline.
+         *
+         * @param latencyDistribution the latency distribution (may be null)
+         * @return this builder
+         */
+        public Builder latencyDistribution(LatencyDistribution latencyDistribution) {
+            this.latencyDistribution = latencyDistribution;
+            return this;
+        }
+
         public EmpiricalBaseline build() {
             return new EmpiricalBaseline(this);
         }

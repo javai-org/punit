@@ -10,6 +10,7 @@ import org.javai.punit.experiment.model.EmpiricalBaseline.ExecutionSummary;
 import org.javai.punit.experiment.model.EmpiricalBaseline.StatisticsSummary;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
+import org.javai.punit.statistics.LatencyDistribution;
 
 /**
  * Generates empirical baselines from experiment results.
@@ -145,7 +146,13 @@ public class EmpiricalBaselineGenerator {
         if (covariateProfile != null && !covariateProfile.isEmpty()) {
             builder.covariateProfile(covariateProfile);
         }
-        
+
+        // Add latency distribution if successful durations are available
+        if (!aggregator.getSuccessfulDurations().isEmpty()) {
+            builder.latencyDistribution(
+                    LatencyDistribution.fromDurations(aggregator.getSuccessfulDurations()));
+        }
+
         return builder.build();
     }
 }

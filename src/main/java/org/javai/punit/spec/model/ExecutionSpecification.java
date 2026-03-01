@@ -56,6 +56,7 @@ public final class ExecutionSpecification {
 	private final ExpirationPolicy expirationPolicy;
 	private final CovariateProfile covariateProfile;
 	private final String footprint;
+	private final LatencyBaseline latencyBaseline;
 
 	private ExecutionSpecification(Builder builder) {
 		this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
@@ -80,6 +81,7 @@ public final class ExecutionSpecification {
 		this.expirationPolicy = builder.expirationPolicy;
 		this.covariateProfile = builder.covariateProfile;
 		this.footprint = builder.footprint;
+		this.latencyBaseline = builder.latencyBaseline;
 	}
 
 	public static Builder builder() {
@@ -263,6 +265,27 @@ public final class ExecutionSpecification {
 	 */
 	public boolean hasFootprint() {
 		return footprint != null && !footprint.isEmpty();
+	}
+
+	/**
+	 * Returns the latency baseline from the experiment.
+	 *
+	 * <p>This data captures the distributional latency profile of successful
+	 * samples. It is used for baseline-derived latency threshold computation.
+	 *
+	 * @return the latency baseline, or null if not recorded
+	 */
+	public LatencyBaseline getLatencyBaseline() {
+		return latencyBaseline;
+	}
+
+	/**
+	 * Returns true if this specification has latency baseline data.
+	 *
+	 * @return true if latency baseline is present
+	 */
+	public boolean hasLatencyBaseline() {
+		return latencyBaseline != null;
 	}
 
 	/**
@@ -510,6 +533,7 @@ public final class ExecutionSpecification {
 		private ExpirationPolicy expirationPolicy;
 		private CovariateProfile covariateProfile;
 		private String footprint;
+		private LatencyBaseline latencyBaseline;
 
 		private Builder() {
 		}
@@ -655,6 +679,17 @@ public final class ExecutionSpecification {
 		 */
 		public Builder footprint(String footprint) {
 			this.footprint = footprint;
+			return this;
+		}
+
+		/**
+		 * Sets the latency baseline for this specification.
+		 *
+		 * @param latencyBaseline the latency baseline (may be null)
+		 * @return this builder
+		 */
+		public Builder latencyBaseline(LatencyBaseline latencyBaseline) {
+			this.latencyBaseline = latencyBaseline;
 			return this;
 		}
 
