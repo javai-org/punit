@@ -1,5 +1,6 @@
 package org.javai.punit.experiment.engine.shared;
 
+import java.time.Duration;
 import java.util.List;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.contract.PostconditionResult;
@@ -19,10 +20,42 @@ public final class ResultRecorder {
     }
 
     /**
+     * Records the outcome from the captor into the aggregator, using wall-clock duration
+     * measured by the framework around the sample invocation.
+     *
+     * <p>The wall-clock duration is preferred over {@code outcome.executionTime()} because
+     * the latter depends on how the user constructs the outcome and may not reflect the
+     * actual time spent executing the sample.
+     *
+     * @param captor the outcome captor containing the recorded outcome
+     * @param aggregator the aggregator to record results into
+     * @param wallClockDuration the wall-clock duration measured by the framework
+     */
+    public static void recordResult(OutcomeCaptor captor, ExperimentResultAggregator aggregator,
+                                    Duration wallClockDuration) {
+        if (captor != null && captor.hasResult()) {
+            UseCaseOutcome<?> outcome = captor.getContractOutcome();
+            boolean success = outcome.allPostconditionsSatisfied();
+
+            if (success) {
+                aggregator.recordSuccess(outcome, wallClockDuration);
+            } else {
+                List<PostconditionResult> postconditions = outcome.evaluatePostconditions();
+                String failureCategory = determineFailureCategory(postconditions);
+                aggregator.recordFailure(outcome, failureCategory);
+            }
+        } else if (captor != null && captor.hasException()) {
+            aggregator.recordException(captor.getException());
+        }
+        // If nothing was recorded, don't add anything to the aggregator
+    }
+
+    /**
      * Records the outcome from the captor into the aggregator.
      *
-     * <p>Success is determined by evaluating postconditions via
-     * {@code outcome.allPostconditionsSatisfied()}.
+     * <p>Uses the outcome's own {@code executionTime()} for duration tracking.
+     * Prefer {@link #recordResult(OutcomeCaptor, ExperimentResultAggregator, Duration)}
+     * when wall-clock timing is available.
      *
      * @param captor the outcome captor containing the recorded outcome
      * @param aggregator the aggregator to record results into

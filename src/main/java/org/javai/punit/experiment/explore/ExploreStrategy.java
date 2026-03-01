@@ -260,8 +260,10 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         if (configAggregators == null) {
             ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
             try {
+                long startNanos = System.nanoTime();
                 invocation.proceed();
-                ResultRecorder.recordResult(captor, aggregator);
+                java.time.Duration wallClock = java.time.Duration.ofNanos(System.nanoTime() - startNanos);
+                ResultRecorder.recordResult(captor, aggregator, wallClock);
             } catch (Throwable e) {
                 aggregator.recordException(e);
             }
@@ -288,8 +290,10 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         ResultProjectionBuilder projectionBuilder = new ResultProjectionBuilder();
 
         try {
+            long startNanos = System.nanoTime();
             invocation.proceed();
-            ResultRecorder.recordResult(captor, aggregator);
+            java.time.Duration wallClock = java.time.Duration.ofNanos(System.nanoTime() - startNanos);
+            ResultRecorder.recordResult(captor, aggregator, wallClock);
 
             // Build result projection
             if (captor != null && captor.hasResult()) {

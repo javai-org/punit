@@ -55,7 +55,33 @@ public class ExperimentResultAggregator {
     }
 
     /**
+     * Records a successful sample execution using wall-clock duration measured
+     * by the framework.
+     *
+     * <p>The wall-clock duration is preferred over {@code outcome.executionTime()}
+     * because it captures the full sample execution time regardless of how the user
+     * constructs the outcome.
+     *
+     * @param outcome the use case outcome
+     * @param wallClockDuration the wall-clock duration measured by the framework
+     */
+    public void recordSuccess(UseCaseOutcome<?> outcome, Duration wallClockDuration) {
+        Objects.requireNonNull(outcome, "outcome must not be null");
+        Objects.requireNonNull(wallClockDuration, "wallClockDuration must not be null");
+        successes++;
+        outcomes.add(outcome);
+        successfulDurations.add(wallClockDuration);
+        trackTokens(outcome);
+        recordPostconditions(outcome.evaluatePostconditions());
+        updateLastSampleTime();
+    }
+
+    /**
      * Records a successful sample execution.
+     *
+     * <p>Uses the outcome's own {@code executionTime()} for duration tracking.
+     * Prefer {@link #recordSuccess(UseCaseOutcome, Duration)} when wall-clock
+     * timing is available.
      *
      * @param outcome the use case outcome
      */
