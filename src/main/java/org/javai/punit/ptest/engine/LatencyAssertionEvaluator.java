@@ -8,8 +8,8 @@ import org.javai.punit.statistics.LatencyDistribution;
  * Evaluates latency assertions by comparing observed percentiles against thresholds.
  *
  * <p>This evaluator takes a {@link LatencyDistribution} (computed from successful
- * sample durations) and a {@link LatencyAssertionConfig} (explicit thresholds from
- * the {@code @Latency} annotation), and produces a {@link LatencyAssertionResult}.
+ * sample durations) and resolved thresholds (from annotation and/or baseline),
+ * and produces a {@link LatencyAssertionResult}.
  *
  * <h2>Evaluation rules</h2>
  * <ul>
@@ -33,23 +33,20 @@ class LatencyAssertionEvaluator {
     private static final int MIN_RECOMMENDED_SAMPLES_P99 = 100;
 
     /**
-     * Evaluates latency assertions.
+     * Evaluates latency assertions using resolved thresholds.
      *
-     * @param config the latency assertion config (thresholds)
+     * @param resolvedThresholds the resolved thresholds (from annotation, baseline, or mixed)
      * @param distribution the observed latency distribution (null if no successful samples)
      * @param successfulSampleCount number of successful samples
      * @return the evaluation result
      */
-    LatencyAssertionResult evaluate(LatencyAssertionConfig config,
+    LatencyAssertionResult evaluate(LatencyThresholdResolver.ResolvedThresholds resolvedThresholds,
                                     LatencyDistribution distribution,
                                     int successfulSampleCount) {
 
-        if (!config.isLatencyRequested()) {
-            return LatencyAssertionResult.notRequested();
-        }
+        LatencyAssertionConfig resolvedConfig = resolvedThresholds.toConfig();
 
-        if (!config.hasExplicitThresholds()) {
-            // Only baseline requested, no explicit thresholds — Phase 3 handles this
+        if (!resolvedConfig.hasExplicitThresholds()) {
             return LatencyAssertionResult.notRequested();
         }
 
@@ -62,30 +59,34 @@ class LatencyAssertionEvaluator {
         List<String> caveats = new ArrayList<>();
         boolean allPassed = true;
 
-        if (config.hasP50()) {
-            var result = evaluatePercentile("p50", distribution.p50Ms(), config.p50Ms(),
-                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P50);
+        if (resolvedConfig.hasP50()) {
+            var result = evaluatePercentile("p50", distribution.p50Ms(), resolvedConfig.p50Ms(),
+                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P50,
+                    resolvedThresholds.p50().source());
             results.add(result);
             if (!result.passed()) allPassed = false;
         }
 
-        if (config.hasP90()) {
-            var result = evaluatePercentile("p90", distribution.p90Ms(), config.p90Ms(),
-                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P90);
+        if (resolvedConfig.hasP90()) {
+            var result = evaluatePercentile("p90", distribution.p90Ms(), resolvedConfig.p90Ms(),
+                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P90,
+                    resolvedThresholds.p90().source());
             results.add(result);
             if (!result.passed()) allPassed = false;
         }
 
-        if (config.hasP95()) {
-            var result = evaluatePercentile("p95", distribution.p95Ms(), config.p95Ms(),
-                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P95);
+        if (resolvedConfig.hasP95()) {
+            var result = evaluatePercentile("p95", distribution.p95Ms(), resolvedConfig.p95Ms(),
+                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P95,
+                    resolvedThresholds.p95().source());
             results.add(result);
             if (!result.passed()) allPassed = false;
         }
 
-        if (config.hasP99()) {
-            var result = evaluatePercentile("p99", distribution.p99Ms(), config.p99Ms(),
-                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P99);
+        if (resolvedConfig.hasP99()) {
+            var result = evaluatePercentile("p99", distribution.p99Ms(), resolvedConfig.p99Ms(),
+                    successfulSampleCount, MIN_RECOMMENDED_SAMPLES_P99,
+                    resolvedThresholds.p99().source());
             results.add(result);
             if (!result.passed()) allPassed = false;
         }
@@ -99,14 +100,36 @@ class LatencyAssertionEvaluator {
         return new LatencyAssertionResult(allPassed, results, successfulSampleCount, false, caveats);
     }
 
+    /**
+     * Evaluates latency assertions using raw config (backward-compatible for explicit-only mode).
+     *
+     * @param config the latency assertion config (thresholds)
+     * @param distribution the observed latency distribution (null if no successful samples)
+     * @param successfulSampleCount number of successful samples
+     * @return the evaluation result
+     */
+    LatencyAssertionResult evaluate(LatencyAssertionConfig config,
+                                    LatencyDistribution distribution,
+                                    int successfulSampleCount) {
+
+        if (!config.isLatencyRequested() || !config.hasExplicitThresholds()) {
+            return LatencyAssertionResult.notRequested();
+        }
+
+        // Convert to resolved thresholds with "explicit" source
+        LatencyThresholdResolver resolver = new LatencyThresholdResolver();
+        LatencyThresholdResolver.ResolvedThresholds resolved = resolver.resolve(config, null, 0.95);
+        return evaluate(resolved, distribution, successfulSampleCount);
+    }
+
     private LatencyAssertionResult.PercentileResult evaluatePercentile(
             String label, long observedMs, long thresholdMs,
-            int sampleCount, int minRecommended) {
+            int sampleCount, int minRecommended, String source) {
 
         boolean passed = observedMs <= thresholdMs;
         boolean indicative = sampleCount < minRecommended;
 
         return new LatencyAssertionResult.PercentileResult(
-                label, observedMs, thresholdMs, passed, indicative);
+                label, observedMs, thresholdMs, passed, indicative, source);
     }
 }

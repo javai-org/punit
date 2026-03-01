@@ -8,7 +8,7 @@ import org.javai.punit.reporting.PUnitReporter;
  * <p>Produces output like:
  * <pre>
  * Latency (n=199): p95 420ms &lt;= 500ms, p99 810ms &lt;= 1000ms
- * Latency (n=199): p95 420ms &lt;= 500ms, p99 1200ms > 1000ms ← BREACH
+ * Latency (n=199): p95 420ms &lt;= 500ms (from baseline), p99 1200ms > 1000ms ← BREACH
  * </pre>
  *
  * <p>Package-private: internal implementation detail of the test extension.
@@ -41,6 +41,11 @@ class LatencySummaryRenderer {
                 sb.append("<= ").append(pr.thresholdMs()).append("ms");
             } else {
                 sb.append("> ").append(pr.thresholdMs()).append("ms \u2190 BREACH");
+            }
+
+            // Append source if not just "explicit"
+            if (pr.source() != null && !pr.source().equals("explicit")) {
+                sb.append(" (").append(pr.source()).append(")");
             }
 
             if (pr.indicative()) {

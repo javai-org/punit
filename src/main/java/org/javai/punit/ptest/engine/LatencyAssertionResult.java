@@ -55,13 +55,22 @@ record LatencyAssertionResult(
      * @param thresholdMs the threshold value in milliseconds
      * @param passed true if observed <= threshold
      * @param indicative true if sample size is too small for reliable percentile
+     * @param source the source of the threshold (e.g., "explicit", "from baseline", "baseline-capped")
      */
     record PercentileResult(
             String label,
             long observedMs,
             long thresholdMs,
             boolean passed,
-            boolean indicative
+            boolean indicative,
+            String source
     ) {
+        /**
+         * Backward-compatible constructor without source.
+         */
+        PercentileResult(String label, long observedMs, long thresholdMs,
+                         boolean passed, boolean indicative) {
+            this(label, observedMs, thresholdMs, passed, indicative, "explicit");
+        }
     }
 }

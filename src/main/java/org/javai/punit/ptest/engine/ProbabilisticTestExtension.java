@@ -95,6 +95,7 @@ public class ProbabilisticTestExtension implements
 	private static final String STRATEGY_CONFIG_KEY = "strategyConfig";
 	private static final String THRESHOLD_DERIVED_KEY = "thresholdDerived";
 	private static final String LATENCY_CONFIG_KEY = "latencyConfig";
+	private static final String RESOLVED_LATENCY_THRESHOLDS_KEY = "resolvedLatencyThresholds";
 
 	// Strategy for test execution (currently only Bernoulli trials supported)
 	private final ProbabilisticTestStrategy strategy;
@@ -405,6 +406,37 @@ public class ProbabilisticTestExtension implements
 	}
 
 	/**
+	 * Resolves latency thresholds using the annotation config and baseline data.
+	 * Stores the resolved thresholds in the extension store.
+	 */
+	private void resolveLatencyThresholds(ExtensionContext.Store store,
+										  ExecutionSpecification baseline,
+										  ExtensionContext context) {
+		LatencyAssertionConfig latencyConfig = store.get(LATENCY_CONFIG_KEY, LatencyAssertionConfig.class);
+		if (latencyConfig == null) {
+			// Try parent store
+			latencyConfig = context.getParent()
+					.map(parent -> parent.getStore(NAMESPACE).get(LATENCY_CONFIG_KEY, LatencyAssertionConfig.class))
+					.orElse(null);
+		}
+		if (latencyConfig == null || !latencyConfig.isLatencyRequested()) {
+			return;
+		}
+
+		org.javai.punit.spec.model.LatencyBaseline latencyBaseline =
+				baseline != null ? baseline.getLatencyBaseline() : null;
+
+		TestConfiguration config = store.get(CONFIG_KEY, TestConfiguration.class);
+		double confidence = config != null ? config.resolvedConfidence() : 0.95;
+
+		LatencyThresholdResolver resolver = new LatencyThresholdResolver();
+		LatencyThresholdResolver.ResolvedThresholds resolved =
+				resolver.resolve(latencyConfig, latencyBaseline, confidence);
+
+		store.put(RESOLVED_LATENCY_THRESHOLDS_KEY, resolved);
+	}
+
+	/**
 	 * Evaluates latency assertions using the aggregator's collected latencies.
 	 */
 	private LatencyAssertionResult evaluateLatency(ExtensionContext context,
@@ -421,8 +453,25 @@ public class ProbabilisticTestExtension implements
 			distribution = org.javai.punit.statistics.LatencyDistribution.fromMillis(millis);
 		}
 
+		// Use resolved thresholds if available, fall back to raw config
+		LatencyThresholdResolver.ResolvedThresholds resolvedThresholds = getResolvedLatencyThresholds(context);
 		LatencyAssertionEvaluator evaluator = new LatencyAssertionEvaluator();
+		if (resolvedThresholds != null) {
+			return evaluator.evaluate(resolvedThresholds, distribution, latenciesMs.size());
+		}
 		return evaluator.evaluate(latencyConfig, distribution, latenciesMs.size());
+	}
+
+	private LatencyThresholdResolver.ResolvedThresholds getResolvedLatencyThresholds(ExtensionContext context) {
+		ExtensionContext.Store store = context.getStore(NAMESPACE);
+		var resolved = store.get(RESOLVED_LATENCY_THRESHOLDS_KEY, LatencyThresholdResolver.ResolvedThresholds.class);
+		if (resolved != null) {
+			return resolved;
+		}
+		return context.getParent()
+				.map(parent -> parent.getStore(NAMESPACE).get(
+						RESOLVED_LATENCY_THRESHOLDS_KEY, LatencyThresholdResolver.ResolvedThresholds.class))
+				.orElse(null);
 	}
 
 	/**
@@ -706,6 +755,8 @@ public class ProbabilisticTestExtension implements
 		if (pending == null) {
 			// No pending selection - validate without baseline
 			validateTestConfiguration(context, null);
+			// Resolve latency thresholds (explicit-only, no baseline)
+			resolveLatencyThresholds(store, null, context);
 			// Log configuration for explicit threshold mode
 			logFinalConfiguration(context);
 			// Enforce verification feasibility gate (Req 5)
@@ -736,6 +787,9 @@ public class ProbabilisticTestExtension implements
 
 			// Derive minPassRate from baseline if not explicitly specified
 			deriveMinPassRateFromBaseline(store, baseline);
+
+			// Resolve latency thresholds using baseline latency data
+			resolveLatencyThresholds(store, baseline, context);
 
 			// Log baseline selection result first (so user sees what baseline was used)
 			baselineOrchestrator.logSelectionResult(result, pending.specId());
