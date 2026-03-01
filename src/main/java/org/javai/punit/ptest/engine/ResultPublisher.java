@@ -78,8 +78,34 @@ class ResultPublisher {
             List<CovariateMisalignment> misalignments,
             String baselineFilename,
             TestIntent intent,
-            double resolvedConfidence
+            double resolvedConfidence,
+            LatencyAssertionResult latencyResult
     ) {
+        /**
+         * Backward-compatible constructor without latency result.
+         */
+        PublishContext(
+                String testName, int plannedSamples, int samplesExecuted,
+                int successes, int failures, double minPassRate, double observedPassRate,
+                boolean passed, Optional<TerminationReason> terminationReason,
+                String terminationDetails, long elapsedMs, boolean hasMultiplier,
+                double appliedMultiplier, long timeBudgetMs, long tokenBudget,
+                long methodTokensConsumed, CostBudgetMonitor.TokenMode tokenMode,
+                SharedBudgetMonitor classBudget, SharedBudgetMonitor suiteBudget,
+                ExecutionSpecification spec, TransparentStatsConfig transparentStats,
+                org.javai.punit.api.ThresholdOrigin thresholdOrigin, String contractRef,
+                Double confidence, BaselineData baseline,
+                List<CovariateMisalignment> misalignments, String baselineFilename,
+                TestIntent intent, double resolvedConfidence) {
+            this(testName, plannedSamples, samplesExecuted, successes, failures,
+                    minPassRate, observedPassRate, passed, terminationReason,
+                    terminationDetails, elapsedMs, hasMultiplier, appliedMultiplier,
+                    timeBudgetMs, tokenBudget, methodTokensConsumed, tokenMode,
+                    classBudget, suiteBudget, spec, transparentStats, thresholdOrigin,
+                    contractRef, confidence, baseline, misalignments, baselineFilename,
+                    intent, resolvedConfidence, null);
+        }
+
         /**
          * Backward-compatible constructor that defaults to VERIFICATION intent and 0.95 confidence.
          */
@@ -101,7 +127,7 @@ class ResultPublisher {
                     timeBudgetMs, tokenBudget, methodTokensConsumed, tokenMode,
                     classBudget, suiteBudget, spec, transparentStats, thresholdOrigin,
                     contractRef, confidence, baseline, misalignments, baselineFilename,
-                    TestIntent.VERIFICATION, 0.95);
+                    TestIntent.VERIFICATION, 0.95, null);
         }
 
         boolean hasTimeBudget() {
@@ -254,6 +280,9 @@ class ResultPublisher {
                             RateFormat.format(ctx.minPassRate()))));
         }
 
+        // Append latency result if evaluated
+        appendLatencyResult(sb, ctx);
+
         // Append provenance if configured
         appendProvenance(sb, ctx);
 
@@ -319,6 +348,18 @@ class ResultPublisher {
         if (!warning.isEmpty()) {
             reporter.reportWarn(warning.title(), warning.body());
         }
+    }
+
+    private static final LatencySummaryRenderer latencyRenderer = new LatencySummaryRenderer();
+
+    /**
+     * Appends latency assertion result to the verdict output if evaluated.
+     */
+    void appendLatencyResult(StringBuilder sb, PublishContext ctx) {
+        if (ctx.latencyResult() == null || !ctx.latencyResult().wasEvaluated()) {
+            return;
+        }
+        latencyRenderer.appendTo(sb, ctx.latencyResult());
     }
 
     /**

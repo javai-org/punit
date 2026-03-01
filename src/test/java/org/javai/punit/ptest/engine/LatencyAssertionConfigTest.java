@@ -1,0 +1,81 @@
+package org.javai.punit.ptest.engine;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("LatencyAssertionConfig")
+class LatencyAssertionConfigTest {
+
+    @Nested
+    @DisplayName("isLatencyRequested")
+    class IsLatencyRequested {
+
+        @Test
+        @DisplayName("should return false when no thresholds and no baseline")
+        void shouldReturnFalseWhenNoThresholdsAndNoBaseline() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
+
+            assertThat(config.isLatencyRequested()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should return true when explicit threshold set")
+        void shouldReturnTrueWhenExplicitThresholdSet() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, false);
+
+            assertThat(config.isLatencyRequested()).isTrue();
+        }
+
+        @Test
+        @DisplayName("should return true when baseline requested")
+        void shouldReturnTrueWhenBaselineRequested() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, true);
+
+            assertThat(config.isLatencyRequested()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("hasExplicitThresholds")
+    class HasExplicitThresholds {
+
+        @Test
+        @DisplayName("should return false when all defaults")
+        void shouldReturnFalseWhenAllDefaults() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
+
+            assertThat(config.hasExplicitThresholds()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should return true when p50 is set")
+        void shouldReturnTrueWhenP50Set() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(100, -1, -1, -1, false);
+
+            assertThat(config.hasExplicitThresholds()).isTrue();
+            assertThat(config.hasP50()).isTrue();
+            assertThat(config.hasP90()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should return true when p90 is set")
+        void shouldReturnTrueWhenP90Set() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, 200, -1, -1, false);
+
+            assertThat(config.hasExplicitThresholds()).isTrue();
+            assertThat(config.hasP90()).isTrue();
+        }
+
+        @Test
+        @DisplayName("should accept zero as a valid threshold")
+        void shouldAcceptZeroAsValidThreshold() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(0, -1, -1, -1, false);
+
+            assertThat(config.hasExplicitThresholds()).isTrue();
+            assertThat(config.hasP50()).isTrue();
+        }
+    }
+}

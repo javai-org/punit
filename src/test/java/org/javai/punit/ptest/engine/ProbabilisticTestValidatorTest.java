@@ -3,6 +3,7 @@ package org.javai.punit.ptest.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
+import org.javai.punit.api.Latency;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
@@ -569,6 +570,22 @@ class ProbabilisticTestValidatorTest {
             public TestIntent intent() {
                 return TestIntent.VERIFICATION;
             }
+
+            @Override
+            public Latency latency() {
+                return new Latency() {
+                    @Override public Class<? extends java.lang.annotation.Annotation> annotationType() { return Latency.class; }
+                    @Override public long p50Ms() { return -1; }
+                    @Override public long p90Ms() { return -1; }
+                    @Override public long p95Ms() { return -1; }
+                    @Override public long p99Ms() { return -1; }
+                };
+            }
+
+            @Override
+            public boolean latencyBaseline() {
+                return false;
+            }
         };
     }
 
@@ -670,6 +687,22 @@ class ProbabilisticTestValidatorTest {
             @Override
             public TestIntent intent() {
                 return TestIntent.VERIFICATION;
+            }
+
+            @Override
+            public Latency latency() {
+                return new Latency() {
+                    @Override public Class<? extends java.lang.annotation.Annotation> annotationType() { return Latency.class; }
+                    @Override public long p50Ms() { return -1; }
+                    @Override public long p90Ms() { return -1; }
+                    @Override public long p95Ms() { return -1; }
+                    @Override public long p99Ms() { return -1; }
+                };
+            }
+
+            @Override
+            public boolean latencyBaseline() {
+                return false;
             }
         };
     }

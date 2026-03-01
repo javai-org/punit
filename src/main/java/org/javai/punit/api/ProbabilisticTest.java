@@ -431,4 +431,50 @@ public @interface ProbabilisticTest {
      */
     String contractRef() default "";
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LATENCY ASSERTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Declares per-percentile latency thresholds for this test.
+     *
+     * <p>When any percentile threshold is set (value != -1), the framework
+     * measures wall-clock time per successful sample and evaluates the observed
+     * latency distribution against the declared thresholds after all samples complete.
+     *
+     * <p>The test fails if any observed percentile exceeds its declared threshold.
+     * Latency assertions are independent of pass-rate: a test can pass on pass-rate
+     * but fail on latency, or vice versa.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * @ProbabilisticTest(
+     *     samples = 100,
+     *     minPassRate = 0.95,
+     *     latency = @Latency(p95Ms = 500, p99Ms = 1000)
+     * )
+     * void testServiceLatency() {
+     *     Response response = service.call();
+     *     assertThat(response.isValid()).isTrue();
+     * }
+     * }</pre>
+     *
+     * @return the latency threshold configuration
+     * @see Latency
+     */
+    Latency latency() default @Latency;
+
+    /**
+     * When {@code true}, latency thresholds are derived from the baseline spec's
+     * latency data. Requires that the referenced baseline contains a latency section.
+     *
+     * <p>This is mutually exclusive with explicit {@link #latency()} thresholds.
+     * If both are set, a configuration error is raised.
+     *
+     * <p>Default: {@code false}.
+     *
+     * @return true to derive latency thresholds from baseline
+     */
+    boolean latencyBaseline() default false;
+
 }

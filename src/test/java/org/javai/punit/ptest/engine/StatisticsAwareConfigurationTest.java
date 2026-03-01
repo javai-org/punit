@@ -6,6 +6,7 @@ import java.lang.annotation.Annotation;
 import java.time.Instant;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
+import org.javai.punit.api.Latency;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
@@ -286,6 +287,16 @@ class StatisticsAwareConfigurationTest {
             @Override public ThresholdOrigin thresholdOrigin() { return ThresholdOrigin.UNSPECIFIED; }
             @Override public String contractRef() { return ""; }
             @Override public TestIntent intent() { return TestIntent.VERIFICATION; }
+            @Override public Latency latency() {
+                return new Latency() {
+                    @Override public Class<? extends Annotation> annotationType() { return Latency.class; }
+                    @Override public long p50Ms() { return -1; }
+                    @Override public long p90Ms() { return -1; }
+                    @Override public long p95Ms() { return -1; }
+                    @Override public long p99Ms() { return -1; }
+                };
+            }
+            @Override public boolean latencyBaseline() { return false; }
         };
     }
 }

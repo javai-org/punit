@@ -3,6 +3,7 @@ package org.javai.punit.ptest.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.lang.annotation.Annotation;
+import org.javai.punit.api.Latency;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.statistics.OperationalApproach;
@@ -360,6 +361,16 @@ class OperationalApproachResolverTest {
             }
             @Override public String contractRef() { return ""; }
             @Override public TestIntent intent() { return TestIntent.VERIFICATION; }
+            @Override public Latency latency() {
+                return new Latency() {
+                    @Override public Class<? extends Annotation> annotationType() { return Latency.class; }
+                    @Override public long p50Ms() { return -1; }
+                    @Override public long p90Ms() { return -1; }
+                    @Override public long p95Ms() { return -1; }
+                    @Override public long p99Ms() { return -1; }
+                };
+            }
+            @Override public boolean latencyBaseline() { return false; }
         };
     }
 }

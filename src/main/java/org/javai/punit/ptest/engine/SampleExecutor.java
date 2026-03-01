@@ -75,8 +75,10 @@ public class SampleExecutor {
             ExceptionHandling exceptionPolicy) throws Throwable {
 
         try {
+            long startNanos = System.nanoTime();
             invocation.proceed();
-            aggregator.recordSuccess();
+            long latencyMs = (System.nanoTime() - startNanos) / 1_000_000;
+            aggregator.recordSuccess(latencyMs);
             return SampleResult.ofSuccess();
         } catch (AssertionError e) {
             aggregator.recordFailure(e);

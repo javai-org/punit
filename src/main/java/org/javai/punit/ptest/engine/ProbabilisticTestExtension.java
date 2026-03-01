@@ -94,6 +94,7 @@ public class ProbabilisticTestExtension implements
 	private static final String PENDING_SELECTION_KEY = "pendingSelection";
 	private static final String STRATEGY_CONFIG_KEY = "strategyConfig";
 	private static final String THRESHOLD_DERIVED_KEY = "thresholdDerived";
+	private static final String LATENCY_CONFIG_KEY = "latencyConfig";
 
 	// Strategy for test execution (currently only Bernoulli trials supported)
 	private final ProbabilisticTestStrategy strategy;
@@ -213,6 +214,11 @@ public class ProbabilisticTestExtension implements
 		store.put(STRATEGY_CONFIG_KEY, strategyConfig);
 		TestConfiguration config = createTestConfigurationFromStrategy(strategyConfig);
 		store.put(CONFIG_KEY, config);
+
+		// Resolve latency assertion config
+		LatencyAssertionConfig latencyConfig = LatencyAssertionConfig.fromAnnotation(
+				annotation.latency(), annotation.latencyBaseline());
+		store.put(LATENCY_CONFIG_KEY, latencyConfig);
 		store.put(AGGREGATOR_KEY, aggregator);
 		store.put(EVALUATOR_KEY, evaluator);
 		store.put(BUDGET_MONITOR_KEY, budgetMonitor);
@@ -363,17 +369,29 @@ public class ProbabilisticTestExtension implements
 										   SharedBudgetMonitor classBudget,
 										   SharedBudgetMonitor suiteBudget) {
 
-		// Delegate verdict computation to strategy
+		// Delegate verdict computation to strategy (pass rate)
 		BernoulliTrialsConfig strategyConfig = getStrategyConfig(context);
-		boolean passed = strategy.computeVerdict(aggregator, strategyConfig);
+		boolean passRatePassed = strategy.computeVerdict(aggregator, strategyConfig);
+
+		// Evaluate latency assertions
+		LatencyAssertionResult latencyResult = evaluateLatency(context, aggregator);
+		boolean latencyPassed = latencyResult.passed();
+		boolean passed = passRatePassed && latencyPassed;
 
 		// Publish structured results via TestReporter
-		publishResults(context, aggregator, config, methodBudget, classBudget, suiteBudget, passed);
+		publishResults(context, aggregator, config, methodBudget, classBudget, suiteBudget,
+				passed, latencyResult);
 
 		// Throw assertion error if test failed
 		if (!passed) {
-			// Delegate failure message building to strategy
-			String message = strategy.buildFailureMessage(aggregator, strategyConfig);
+			String message;
+			if (!passRatePassed) {
+				// Delegate failure message building to strategy
+				message = strategy.buildFailureMessage(aggregator, strategyConfig);
+			} else {
+				// Pass rate passed but latency failed
+				message = buildLatencyFailureMessage(latencyResult);
+			}
 
 			AssertionError error = new AssertionError(message);
 
@@ -386,13 +404,61 @@ public class ProbabilisticTestExtension implements
 		}
 	}
 
+	/**
+	 * Evaluates latency assertions using the aggregator's collected latencies.
+	 */
+	private LatencyAssertionResult evaluateLatency(ExtensionContext context,
+												   SampleResultAggregator aggregator) {
+		LatencyAssertionConfig latencyConfig = getLatencyConfig(context);
+		if (latencyConfig == null || !latencyConfig.isLatencyRequested()) {
+			return LatencyAssertionResult.notRequested();
+		}
+
+		List<Long> latenciesMs = aggregator.getSuccessfulLatenciesMs();
+		org.javai.punit.statistics.LatencyDistribution distribution = null;
+		if (!latenciesMs.isEmpty()) {
+			long[] millis = latenciesMs.stream().mapToLong(Long::longValue).toArray();
+			distribution = org.javai.punit.statistics.LatencyDistribution.fromMillis(millis);
+		}
+
+		LatencyAssertionEvaluator evaluator = new LatencyAssertionEvaluator();
+		return evaluator.evaluate(latencyConfig, distribution, latenciesMs.size());
+	}
+
+	/**
+	 * Builds a failure message when pass rate passed but latency failed.
+	 */
+	private String buildLatencyFailureMessage(LatencyAssertionResult result) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("Latency assertion failed.\n");
+		for (var pr : result.percentileResults()) {
+			if (!pr.passed()) {
+				sb.append(String.format("  %s: %dms > %dms (threshold exceeded)\n",
+						pr.label(), pr.observedMs(), pr.thresholdMs()));
+			}
+		}
+		return sb.toString();
+	}
+
+	private LatencyAssertionConfig getLatencyConfig(ExtensionContext context) {
+		ExtensionContext.Store store = context.getStore(NAMESPACE);
+		LatencyAssertionConfig config = store.get(LATENCY_CONFIG_KEY, LatencyAssertionConfig.class);
+		if (config != null) {
+			return config;
+		}
+		return context.getParent()
+				.map(parent -> parent.getStore(NAMESPACE).get(LATENCY_CONFIG_KEY, LatencyAssertionConfig.class))
+				.orElse(null);
+	}
+
 	private void publishResults(ExtensionContext context,
 								SampleResultAggregator aggregator,
 								TestConfiguration config,
 								CostBudgetMonitor methodBudget,
 								SharedBudgetMonitor classBudget,
 								SharedBudgetMonitor suiteBudget,
-								boolean passed) {
+								boolean passed,
+								LatencyAssertionResult latencyResult) {
 
 		String testName = context.getParent()
 				.map(ExtensionContext::getDisplayName)
@@ -434,7 +500,8 @@ public class ProbabilisticTestExtension implements
 				misalignments,
 				baselineFilename,
 				config.intent(),
-				config.resolvedConfidence()
+				config.resolvedConfidence(),
+				latencyResult
 		);
 
 		// Print console summary

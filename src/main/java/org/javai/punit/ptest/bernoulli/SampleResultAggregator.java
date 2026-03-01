@@ -30,6 +30,7 @@ public class SampleResultAggregator {
     private int successes = 0;
     private int failures = 0;
     private final List<Throwable> exampleFailures = new ArrayList<>();
+    private final List<Long> successfulLatenciesMs = new ArrayList<>();
     private TerminationReason terminationReason = null;
     private String terminationDetails = null;
     private boolean forcedFailure = false;
@@ -60,6 +61,16 @@ public class SampleResultAggregator {
      */
     public void recordSuccess() {
         successes++;
+    }
+
+    /**
+     * Records a successful sample execution with latency measurement.
+     *
+     * @param latencyMs the wall-clock execution time in milliseconds
+     */
+    public void recordSuccess(long latencyMs) {
+        successes++;
+        successfulLatenciesMs.add(latencyMs);
     }
 
     /**
@@ -139,6 +150,15 @@ public class SampleResultAggregator {
      */
     public List<Throwable> getExampleFailures() {
         return Collections.unmodifiableList(exampleFailures);
+    }
+
+    /**
+     * Returns an unmodifiable list of latencies (in milliseconds) from successful samples.
+     *
+     * @return list of successful sample latencies in ms
+     */
+    public List<Long> getSuccessfulLatenciesMs() {
+        return Collections.unmodifiableList(successfulLatenciesMs);
     }
 
     /**
