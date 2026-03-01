@@ -9,6 +9,7 @@ import java.util.Objects;
 import org.javai.punit.experiment.engine.YamlBuilder;
 import org.javai.punit.experiment.engine.output.DescriptiveStatistics;
 import org.javai.punit.experiment.engine.output.DiffAnchorGenerator;
+import org.javai.punit.experiment.engine.output.LatencySection;
 import org.javai.punit.experiment.engine.output.OutputUtilities;
 import org.javai.punit.experiment.engine.output.OutputUtilities.OutputHeader;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
@@ -92,6 +93,7 @@ public class ExploreOutputWriter {
         writeExecution(builder, baseline);
         // NO requirements section - exploration is comparative, not prescriptive
         writeStatistics(builder, baseline);
+        LatencySection.writeTo(builder, baseline);
         writeCost(builder, baseline);
         writeSuccessCriteria(builder, baseline);
         writeResultProjections(builder, baseline);

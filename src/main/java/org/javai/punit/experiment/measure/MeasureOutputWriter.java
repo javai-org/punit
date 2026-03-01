@@ -8,6 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import org.javai.punit.experiment.engine.YamlBuilder;
 import org.javai.punit.experiment.engine.output.InferentialStatistics;
+import org.javai.punit.experiment.engine.output.LatencySection;
 import org.javai.punit.experiment.engine.output.OutputUtilities;
 import org.javai.punit.experiment.engine.output.OutputUtilities.OutputHeader;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
@@ -15,7 +16,6 @@ import org.javai.punit.experiment.model.ResultProjection;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
 import org.javai.punit.model.ExpirationPolicy;
-import org.javai.punit.statistics.LatencyDistribution;
 
 /**
  * Writes measurement output for @MeasureExperiment.
@@ -222,20 +222,7 @@ public class MeasureOutputWriter {
     }
 
     private void writeLatency(YamlBuilder builder, EmpiricalBaseline baseline) {
-        if (!baseline.hasLatencyDistribution()) {
-            return;
-        }
-        LatencyDistribution latency = baseline.getLatencyDistribution();
-        builder.startObject("latency")
-            .field("sampleCount", latency.sampleCount())
-            .field("meanMs", latency.meanMs())
-            .field("standardDeviationMs", latency.standardDeviationMs())
-            .field("p50Ms", latency.p50Ms())
-            .field("p90Ms", latency.p90Ms())
-            .field("p95Ms", latency.p95Ms())
-            .field("p99Ms", latency.p99Ms())
-            .field("maxMs", latency.maxMs())
-            .endObject();
+        LatencySection.writeTo(builder, baseline);
     }
 
     private void writeExpiration(YamlBuilder builder, EmpiricalBaseline baseline) {
