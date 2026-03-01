@@ -745,4 +745,72 @@ public class StatisticalExplanationBuilder {
                 ComplianceEvidenceEvaluator.SIZING_NOTE, samples, RateFormat.format(threshold),
                 ComplianceEvidenceEvaluator.DEFAULT_ALPHA));
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LATENCY ANALYSIS BUILDER
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Latency data passed across the package boundary using only primitives and strings.
+     *
+     * @param successfulSamples number of successful samples used for latency computation
+     * @param totalSamples total samples executed (including failures)
+     * @param skipped true if latency evaluation was skipped
+     * @param skipReason reason for skipping (null if not skipped)
+     * @param p50Ms observed p50 latency (-1 if not available)
+     * @param p90Ms observed p90 latency (-1 if not available)
+     * @param p95Ms observed p95 latency (-1 if not available)
+     * @param p99Ms observed p99 latency (-1 if not available)
+     * @param maxMs observed max latency (-1 if not available)
+     * @param percentileAssertions per-percentile results
+     * @param caveats advisory messages
+     * @param thresholdSource overall source description
+     * @param baselineFilename baseline filename if applicable (nullable)
+     */
+    public record LatencyData(
+            int successfulSamples,
+            int totalSamples,
+            boolean skipped,
+            String skipReason,
+            long p50Ms,
+            long p90Ms,
+            long p95Ms,
+            long p99Ms,
+            long maxMs,
+            List<StatisticalExplanation.PercentileAssertion> percentileAssertions,
+            List<String> caveats,
+            String thresholdSource,
+            String baselineFilename
+    ) {}
+
+    /**
+     * Builds a latency analysis from primitive inputs.
+     *
+     * <p>This method serves as the bridge between the engine package (which owns
+     * {@code LatencyAssertionResult}) and the statistics package (which owns
+     * {@code StatisticalExplanation.LatencyAnalysis}).
+     *
+     * @param data the latency data (primitives only)
+     * @return the latency analysis, or null if data is null
+     */
+    public StatisticalExplanation.LatencyAnalysis buildLatencyAnalysis(LatencyData data) {
+        if (data == null) {
+            return null;
+        }
+        return new StatisticalExplanation.LatencyAnalysis(
+                data.successfulSamples(),
+                data.totalSamples(),
+                data.skipped(),
+                data.skipReason(),
+                data.p50Ms(),
+                data.p90Ms(),
+                data.p95Ms(),
+                data.p99Ms(),
+                data.maxMs(),
+                data.percentileAssertions(),
+                data.caveats(),
+                data.thresholdSource(),
+                data.baselineFilename()
+        );
+    }
 }

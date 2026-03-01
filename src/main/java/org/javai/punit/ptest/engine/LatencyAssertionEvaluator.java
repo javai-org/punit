@@ -97,7 +97,13 @@ class LatencyAssertionEvaluator {
             caveats.add("Sample size is small for some percentiles — results are indicative, not evidential.");
         }
 
-        return new LatencyAssertionResult(allPassed, results, successfulSampleCount, false, caveats);
+        long maxLatencyMs = distribution != null ? distribution.maxMs() : -1;
+        long p50Ms = distribution != null ? distribution.p50Ms() : -1;
+        long p90Ms = distribution != null ? distribution.p90Ms() : -1;
+        long p95Ms = distribution != null ? distribution.p95Ms() : -1;
+        long p99Ms = distribution != null ? distribution.p99Ms() : -1;
+        return new LatencyAssertionResult(allPassed, results, successfulSampleCount, false, caveats,
+                maxLatencyMs, p50Ms, p90Ms, p95Ms, p99Ms);
     }
 
     /**

@@ -436,8 +436,8 @@ class ResultPublisher {
     void printTransparentStatsSummary(PublishContext ctx) {
         StatisticalExplanationBuilder builder = new StatisticalExplanationBuilder();
 
-        String thresholdOriginName = ctx.thresholdOrigin() != null 
-                ? ctx.thresholdOrigin().name() 
+        String thresholdOriginName = ctx.thresholdOrigin() != null
+                ? ctx.thresholdOrigin().name()
                 : "UNSPECIFIED";
 
         StatisticalExplanation explanation;
@@ -475,6 +475,21 @@ class ResultPublisher {
             );
         }
 
+        // Build latency analysis if available
+        StatisticalExplanation.LatencyAnalysis latencyAnalysis = buildLatencyAnalysis(builder, ctx);
+        if (latencyAnalysis != null) {
+            explanation = new StatisticalExplanation(
+                    explanation.testName(),
+                    explanation.hypothesis(),
+                    explanation.observed(),
+                    explanation.baseline(),
+                    explanation.inference(),
+                    explanation.verdict(),
+                    explanation.provenance(),
+                    latencyAnalysis
+            );
+        }
+
         // Render and print
         TextExplanationRenderer renderer = new TextExplanationRenderer(ctx.transparentStats());
         var rendered = renderer.renderForReporter(explanation);
@@ -482,6 +497,53 @@ class ResultPublisher {
 
         // Print expiration warning respecting the configured detail level
         printExpirationWarning(ctx.spec(), ctx.transparentStats().detailLevel());
+    }
+
+    /**
+     * Bridges LatencyAssertionResult (engine package) to LatencyAnalysis (statistics package)
+     * using the builder's LatencyData record as the primitive-only intermediary.
+     */
+    private StatisticalExplanation.LatencyAnalysis buildLatencyAnalysis(
+            StatisticalExplanationBuilder builder, PublishContext ctx) {
+
+        LatencyAssertionResult result = ctx.latencyResult();
+        if (result == null || !result.wasEvaluated()) {
+            return null;
+        }
+
+        // Determine threshold source from percentile results
+        String thresholdSource = determineThresholdSource(result);
+
+        // Bridge PercentileResult → PercentileAssertion (primitives only)
+        List<StatisticalExplanation.PercentileAssertion> assertions = result.percentileResults().stream()
+                .map(pr -> new StatisticalExplanation.PercentileAssertion(
+                        pr.label(), pr.observedMs(), pr.thresholdMs(),
+                        pr.passed(), pr.indicative(), pr.source()))
+                .toList();
+
+        StatisticalExplanationBuilder.LatencyData data = new StatisticalExplanationBuilder.LatencyData(
+                result.successfulSampleCount(),
+                ctx.samplesExecuted(),
+                result.skipped(),
+                result.skipped() && !result.caveats().isEmpty() ? result.caveats().getFirst() : null,
+                result.observedP50Ms(),
+                result.observedP90Ms(),
+                result.observedP95Ms(),
+                result.observedP99Ms(),
+                result.maxLatencyMs(),
+                assertions,
+                result.caveats(),
+                thresholdSource,
+                ctx.baselineFilename()
+        );
+
+        return builder.buildLatencyAnalysis(data);
+    }
+
+    private String determineThresholdSource(LatencyAssertionResult result) {
+        boolean anyBaseline = result.percentileResults().stream()
+                .anyMatch(pr -> pr.source() != null && pr.source().contains("baseline"));
+        return anyBaseline ? "from baseline" : "explicit";
     }
 }
 

@@ -79,6 +79,9 @@ public class TextExplanationRenderer implements ExplanationRenderer {
         if (detailLevel == TransparentStatsConfig.DetailLevel.VERBOSE) {
             renderStatisticalInferenceSection(sb, explanation);
         }
+        if (explanation.hasLatencyAnalysis()) {
+            renderLatencyAnalysisSection(sb, explanation.latencyAnalysis());
+        }
         renderVerdictSection(sb, explanation.verdict());
         renderProvenanceSection(sb, explanation.provenance());
 
@@ -204,6 +207,83 @@ public class TextExplanationRenderer implements ExplanationRenderer {
         if (inference.hasPValue()) {
             sb.append("\n");
             sb.append(statLabel("p-value:", String.format("P(Z > %.2f) = %.3f", z, inference.pValue())));
+        }
+    }
+
+    private void renderLatencyAnalysisSection(StringBuilder sb, StatisticalExplanation.LatencyAnalysis latency) {
+        sb.append("LATENCY ANALYSIS\n");
+
+        // Population line
+        if (latency.skipped()) {
+            sb.append(statLabel("Population:",
+                    String.format("No successful samples available (%d of %d)",
+                            latency.successfulSamples(), latency.totalSamples())));
+            // Skipped message
+            String wrapIndent = "  " + " ".repeat(PUnitReporter.DETAIL_LABEL_WIDTH);
+            int wrapIndentLen = wrapIndent.length();
+            appendWrappedLabel(sb, "Latency:",
+                    "Not evaluated. Latency assertions require at least one successful sample. " +
+                    "The pass rate failure should be investigated first.",
+                    wrapIndent, wrapIndentLen);
+            sb.append("\n");
+            return;
+        }
+
+        sb.append(statLabel("Population:",
+                String.format("Successful samples only (n=%d of %d)",
+                        latency.successfulSamples(), latency.totalSamples())));
+
+        // Observed distribution
+        sb.append("  Observed distribution:\n");
+        if (latency.p50Ms() >= 0) sb.append(statLabel("p50:", latency.p50Ms() + "ms"));
+        if (latency.p90Ms() >= 0) sb.append(statLabel("p90:", latency.p90Ms() + "ms"));
+        if (latency.p95Ms() >= 0) sb.append(statLabel("p95:", latency.p95Ms() + "ms"));
+        if (latency.p99Ms() >= 0) sb.append(statLabel("p99:", latency.p99Ms() + "ms"));
+        if (latency.maxMs() >= 0) sb.append(statLabel("max:", latency.maxMs() + "ms"));
+        sb.append("\n");
+
+        // Percentile thresholds
+        if (!latency.percentileAssertions().isEmpty()) {
+            String thresholdHeader = latency.isBaselineDerived()
+                    ? "Percentile thresholds (from baseline):"
+                    : "Percentile thresholds:";
+            sb.append("  ").append(thresholdHeader).append("\n");
+
+            for (var assertion : latency.percentileAssertions()) {
+                String comparison = assertion.passed()
+                        ? assertion.observedMs() + "ms <= " + assertion.thresholdMs() + "ms"
+                        : assertion.observedMs() + "ms > " + assertion.thresholdMs() + "ms";
+
+                String result = assertion.passed() ? "PASS" : "FAIL";
+                if (assertion.indicative() && assertion.passed()) {
+                    result = "PASS (indicative)";
+                }
+
+                // Format: label: comparison right-aligned result
+                String labelAndComparison = String.format("%-" + PUnitReporter.DETAIL_LABEL_WIDTH + "s%s",
+                        assertion.label() + ":", comparison);
+                int padding = LINE_WIDTH - 2 - labelAndComparison.length() - result.length();
+                if (padding < 1) padding = 1;
+                sb.append("  ").append(labelAndComparison)
+                  .append(" ".repeat(padding)).append(result).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        // Caveats
+        if (!latency.caveats().isEmpty()) {
+            String wrapIndent = "  " + " ".repeat(PUnitReporter.DETAIL_LABEL_WIDTH);
+            int wrapIndentLen = wrapIndent.length();
+            for (String caveat : latency.caveats()) {
+                appendWrappedLabel(sb, "Caveat:", caveat, wrapIndent, wrapIndentLen);
+            }
+            sb.append("\n");
+        }
+
+        // Baseline reference
+        if (latency.isBaselineDerived() && latency.baselineFilename() != null) {
+            sb.append(statLabel("Baseline reference:", latency.baselineFilename()));
+            sb.append("\n");
         }
     }
 

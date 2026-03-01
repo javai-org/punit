@@ -8,6 +8,9 @@ import java.util.List;
  * <p>Contains per-percentile results plus an overall pass/fail verdict.
  * The result may be {@link #skipped()} if no successful samples were available.
  *
+ * <p>Also carries the full observed distribution (p50-max) for transparent
+ * stats rendering, regardless of which percentiles were asserted.
+ *
  * <p>Package-private: internal implementation detail of the test extension.
  *
  * @param passed true if all asserted percentiles are within thresholds
@@ -15,21 +18,45 @@ import java.util.List;
  * @param successfulSampleCount number of successful samples used for latency computation
  * @param skipped true if latency evaluation was skipped (e.g., zero successes)
  * @param caveats list of advisory messages (e.g., undersized sample warning)
+ * @param maxLatencyMs slowest single sample in milliseconds (-1 if not available)
+ * @param observedP50Ms observed p50 latency (-1 if not available)
+ * @param observedP90Ms observed p90 latency (-1 if not available)
+ * @param observedP95Ms observed p95 latency (-1 if not available)
+ * @param observedP99Ms observed p99 latency (-1 if not available)
  */
 record LatencyAssertionResult(
         boolean passed,
         List<PercentileResult> percentileResults,
         int successfulSampleCount,
         boolean skipped,
-        List<String> caveats
+        List<String> caveats,
+        long maxLatencyMs,
+        long observedP50Ms,
+        long observedP90Ms,
+        long observedP95Ms,
+        long observedP99Ms
 ) {
+
+    /**
+     * Backward-compatible constructor without distribution fields.
+     */
+    LatencyAssertionResult(
+            boolean passed,
+            List<PercentileResult> percentileResults,
+            int successfulSampleCount,
+            boolean skipped,
+            List<String> caveats) {
+        this(passed, percentileResults, successfulSampleCount, skipped, caveats,
+                -1, -1, -1, -1, -1);
+    }
 
     /**
      * Creates a skipped result (no latency data available).
      */
     static LatencyAssertionResult skipped(String reason) {
         return new LatencyAssertionResult(
-                true, List.of(), 0, true, List.of(reason));
+                true, List.of(), 0, true, List.of(reason),
+                -1, -1, -1, -1, -1);
     }
 
     /**
@@ -37,7 +64,8 @@ record LatencyAssertionResult(
      */
     static LatencyAssertionResult notRequested() {
         return new LatencyAssertionResult(
-                true, List.of(), 0, true, List.of());
+                true, List.of(), 0, true, List.of(),
+                -1, -1, -1, -1, -1);
     }
 
     /**

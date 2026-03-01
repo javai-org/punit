@@ -761,6 +761,7 @@ public class ProbabilisticTestExtension implements
 			logFinalConfiguration(context);
 			// Enforce verification feasibility gate (Req 5)
 			enforceVerificationFeasibility(context);
+			enforceLatencyFeasibility(context);
 			// Mark as resolved to prevent repeated logging
 			store.put(BASELINE_RESOLVED_KEY, Boolean.TRUE);
 			return;
@@ -799,6 +800,7 @@ public class ProbabilisticTestExtension implements
 
 			// Enforce verification feasibility gate (Req 5)
 			enforceVerificationFeasibility(context);
+			enforceLatencyFeasibility(context);
 
 			// Mark as resolved
 			store.put(BASELINE_RESOLVED_KEY, Boolean.TRUE);
@@ -912,6 +914,36 @@ public class ProbabilisticTestExtension implements
 			throw new ExtensionConfigurationException(
 					InfeasibilityMessageRenderer.render(
 							testName, result, config.hasTransparentStats()));
+		}
+	}
+
+	/**
+	 * Enforces the latency feasibility gate for VERIFICATION intent.
+	 *
+	 * <p>Checks that the expected number of successful samples is sufficient
+	 * for all asserted latency percentiles. If not, throws
+	 * {@link ExtensionConfigurationException} to fail the test before samples execute.
+	 *
+	 * @param context the extension context
+	 * @throws ExtensionConfigurationException if latency assertions are infeasible
+	 */
+	private void enforceLatencyFeasibility(ExtensionContext context) {
+		TestConfiguration config = getConfiguration(context);
+		if (config == null || config.intent() != TestIntent.VERIFICATION) {
+			return;
+		}
+
+		LatencyAssertionConfig latencyConfig = getLatencyConfig(context);
+		if (latencyConfig == null || !latencyConfig.isLatencyRequested()) {
+			return;
+		}
+
+		double expectedSuccessRate = Double.isNaN(config.minPassRate()) ? 1.0 : config.minPassRate();
+		LatencyFeasibilityEvaluator.FeasibilityResult result =
+				LatencyFeasibilityEvaluator.evaluate(latencyConfig, config.samples(), expectedSuccessRate);
+
+		if (!result.feasible()) {
+			throw new ExtensionConfigurationException(result.message());
 		}
 	}
 

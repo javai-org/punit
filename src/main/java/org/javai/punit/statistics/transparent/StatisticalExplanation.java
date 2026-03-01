@@ -25,8 +25,30 @@ public record StatisticalExplanation(
         BaselineReference baseline,
         StatisticalInference inference,
         VerdictInterpretation verdict,
-        Provenance provenance
+        Provenance provenance,
+        LatencyAnalysis latencyAnalysis
 ) {
+
+    /**
+     * Backward-compatible constructor without latency analysis.
+     */
+    public StatisticalExplanation(
+            String testName,
+            HypothesisStatement hypothesis,
+            ObservedData observed,
+            BaselineReference baseline,
+            StatisticalInference inference,
+            VerdictInterpretation verdict,
+            Provenance provenance) {
+        this(testName, hypothesis, observed, baseline, inference, verdict, provenance, null);
+    }
+
+    /**
+     * Returns true if latency analysis data is available.
+     */
+    public boolean hasLatencyAnalysis() {
+        return latencyAnalysis != null;
+    }
 
     /**
      * Provenance information documenting the origin of the threshold.
@@ -193,5 +215,86 @@ public record StatisticalExplanation(
             caveats = caveats != null ? List.copyOf(caveats) : List.of();
         }
     }
+
+    /**
+     * Latency analysis for transparent stats output.
+     *
+     * <p>Uses only primitives and strings to avoid dependencies on the API package,
+     * keeping the statistics module isolated (ArchUnit constraint).
+     *
+     * @param successfulSamples number of successful samples used for latency computation
+     * @param totalSamples total samples executed (including failures)
+     * @param skipped true if latency evaluation was skipped (e.g., zero successes)
+     * @param skipReason reason for skipping (null if not skipped)
+     * @param p50Ms observed p50 latency (-1 if not available)
+     * @param p90Ms observed p90 latency (-1 if not available)
+     * @param p95Ms observed p95 latency (-1 if not available)
+     * @param p99Ms observed p99 latency (-1 if not available)
+     * @param maxMs observed max latency (-1 if not available)
+     * @param percentileAssertions per-percentile assertion results (only asserted percentiles)
+     * @param caveats advisory messages
+     * @param thresholdSource overall source description (e.g., "explicit", "from baseline")
+     * @param baselineFilename the baseline filename if thresholds derived from baseline (nullable)
+     */
+    public record LatencyAnalysis(
+            int successfulSamples,
+            int totalSamples,
+            boolean skipped,
+            String skipReason,
+            long p50Ms,
+            long p90Ms,
+            long p95Ms,
+            long p99Ms,
+            long maxMs,
+            List<PercentileAssertion> percentileAssertions,
+            List<String> caveats,
+            String thresholdSource,
+            String baselineFilename
+    ) {
+        public LatencyAnalysis {
+            percentileAssertions = percentileAssertions != null ? List.copyOf(percentileAssertions) : List.of();
+            caveats = caveats != null ? List.copyOf(caveats) : List.of();
+        }
+
+        /**
+         * Returns true if any percentile assertion failed.
+         */
+        public boolean hasBreaches() {
+            return percentileAssertions.stream().anyMatch(a -> !a.passed);
+        }
+
+        /**
+         * Returns true if any result is indicative (undersized sample).
+         */
+        public boolean hasIndicativeResults() {
+            return percentileAssertions.stream().anyMatch(PercentileAssertion::indicative);
+        }
+
+        /**
+         * Returns true if thresholds were derived from a baseline.
+         */
+        public boolean isBaselineDerived() {
+            return thresholdSource != null && thresholdSource.contains("baseline");
+        }
+    }
+
+    /**
+     * Result for a single percentile assertion in the latency analysis.
+     *
+     * @param label the percentile label (e.g., "p95")
+     * @param observedMs the observed value in milliseconds
+     * @param thresholdMs the threshold value in milliseconds
+     * @param passed true if observed <= threshold
+     * @param indicative true if sample size is too small for reliable percentile
+     * @param source the source of the threshold (e.g., "explicit", "from baseline")
+     */
+    public record PercentileAssertion(
+            String label,
+            long observedMs,
+            long thresholdMs,
+            boolean passed,
+            boolean indicative,
+            String source
+    ) {}
 }
 
