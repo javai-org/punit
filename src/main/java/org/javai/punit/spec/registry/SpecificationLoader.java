@@ -325,19 +325,19 @@ public final class SpecificationLoader {
 			} else if (inLatency) {
 				if (trimmed.startsWith("sampleCount:")) {
 					latencySampleCount = Integer.parseInt(extractValue(trimmed));
-				} else if (trimmed.startsWith("mean:")) {
+				} else if (trimmed.startsWith("meanMs:")) {
 					latencyMean = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("standardDeviation:")) {
+				} else if (trimmed.startsWith("standardDeviationMs:")) {
 					latencyStdDev = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p50:")) {
+				} else if (trimmed.startsWith("p50Ms:")) {
 					latencyP50 = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p90:")) {
+				} else if (trimmed.startsWith("p90Ms:")) {
 					latencyP90 = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p95:")) {
+				} else if (trimmed.startsWith("p95Ms:")) {
 					latencyP95 = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p99:")) {
+				} else if (trimmed.startsWith("p99Ms:")) {
 					latencyP99 = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("max:")) {
+				} else if (trimmed.startsWith("maxMs:")) {
 					latencyMax = Long.parseLong(extractValue(trimmed));
 				}
 			} else if (inExecution) {

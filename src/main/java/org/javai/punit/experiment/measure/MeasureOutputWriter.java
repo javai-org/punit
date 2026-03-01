@@ -228,13 +228,13 @@ public class MeasureOutputWriter {
         LatencyDistribution latency = baseline.getLatencyDistribution();
         builder.startObject("latency")
             .field("sampleCount", latency.sampleCount())
-            .field("mean", latency.meanMs())
-            .field("standardDeviation", latency.standardDeviationMs())
-            .field("p50", latency.p50Ms())
-            .field("p90", latency.p90Ms())
-            .field("p95", latency.p95Ms())
-            .field("p99", latency.p99Ms())
-            .field("max", latency.maxMs())
+            .field("meanMs", latency.meanMs())
+            .field("standardDeviationMs", latency.standardDeviationMs())
+            .field("p50Ms", latency.p50Ms())
+            .field("p90Ms", latency.p90Ms())
+            .field("p95Ms", latency.p95Ms())
+            .field("p99Ms", latency.p99Ms())
+            .field("maxMs", latency.maxMs())
             .endObject();
     }
 

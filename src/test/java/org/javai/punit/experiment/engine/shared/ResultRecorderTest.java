@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ResultRecorder")
 class ResultRecorderTest {
 
+    private static final Duration WALL_CLOCK = Duration.ofMillis(100);
+
     private ExperimentResultAggregator aggregator;
 
     @BeforeEach
@@ -51,7 +53,7 @@ class ResultRecorderTest {
             OutcomeCaptor captor = new OutcomeCaptor();
             captor.record(outcome);
 
-            ResultRecorder.recordResult(captor, aggregator);
+            ResultRecorder.recordResult(captor, aggregator, WALL_CLOCK);
 
             assertThat(aggregator.getSuccesses()).isEqualTo(1);
             assertThat(aggregator.getFailures()).isZero();
@@ -81,7 +83,7 @@ class ResultRecorderTest {
             OutcomeCaptor captor = new OutcomeCaptor();
             captor.record(outcome);
 
-            ResultRecorder.recordResult(captor, aggregator);
+            ResultRecorder.recordResult(captor, aggregator, WALL_CLOCK);
 
             assertThat(aggregator.getSuccesses()).isZero();
             assertThat(aggregator.getFailures()).isEqualTo(1);
@@ -111,7 +113,7 @@ class ResultRecorderTest {
 
                 OutcomeCaptor captor = new OutcomeCaptor();
                 captor.record(outcome);
-                ResultRecorder.recordResult(captor, aggregator);
+                ResultRecorder.recordResult(captor, aggregator, WALL_CLOCK);
             }
 
             assertThat(aggregator.hasPostconditionStats()).isTrue();
@@ -149,10 +151,46 @@ class ResultRecorderTest {
             OutcomeCaptor captor = new OutcomeCaptor();
             captor.record(outcome);
 
-            ResultRecorder.recordResult(captor, aggregator);
+            ResultRecorder.recordResult(captor, aggregator, WALL_CLOCK);
 
             assertThat(aggregator.getFailures()).isEqualTo(1);
             assertThat(aggregator.getFailureDistribution()).containsKey("Parse number");
+        }
+    }
+
+    @Nested
+    @DisplayName("wall-clock duration tracking")
+    class WallClockDurationTests {
+
+        @Test
+        @DisplayName("successful sample stores wall-clock duration not outcome duration")
+        void successfulSampleStoresWallClockDuration() {
+            Duration outcomeDuration = Duration.ofMillis(10);
+            Duration wallClockDuration = Duration.ofMillis(250);
+
+            ServiceContract<Void, String> contract = ServiceContract
+                    .<Void, String>define()
+                    .ensure("OK", s -> Outcome.ok())
+                    .build();
+
+            UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
+                    "test",
+                    outcomeDuration,
+                    Instant.now(),
+                    Map.of(),
+                    contract,
+                    null,
+                    null,
+                    null
+            );
+
+            OutcomeCaptor captor = new OutcomeCaptor();
+            captor.record(outcome);
+
+            ResultRecorder.recordResult(captor, aggregator, wallClockDuration);
+
+            assertThat(aggregator.getSuccessfulDurations()).hasSize(1);
+            assertThat(aggregator.getSuccessfulDurations().get(0)).isEqualTo(wallClockDuration);
         }
     }
 
@@ -166,7 +204,7 @@ class ResultRecorderTest {
             OutcomeCaptor captor = new OutcomeCaptor();
             captor.recordException(new RuntimeException("Test error"));
 
-            ResultRecorder.recordResult(captor, aggregator);
+            ResultRecorder.recordResult(captor, aggregator, WALL_CLOCK);
 
             assertThat(aggregator.getFailures()).isEqualTo(1);
             assertThat(aggregator.getFailureDistribution()).containsKey("RuntimeException");
@@ -175,9 +213,8 @@ class ResultRecorderTest {
         @Test
         @DisplayName("does not record anything when captor is null")
         void doesNotRecordAnythingWhenCaptorIsNull() {
-            ResultRecorder.recordResult(null, aggregator);
+            ResultRecorder.recordResult(null, aggregator, WALL_CLOCK);
 
-            // Should not record anything
             assertThat(aggregator.getSamplesExecuted()).isZero();
         }
 
@@ -185,11 +222,9 @@ class ResultRecorderTest {
         @DisplayName("does not record anything when captor has no result")
         void doesNotRecordAnythingWhenCaptorHasNoResult() {
             OutcomeCaptor captor = new OutcomeCaptor();
-            // Don't record anything
 
-            ResultRecorder.recordResult(captor, aggregator);
+            ResultRecorder.recordResult(captor, aggregator, WALL_CLOCK);
 
-            // Should not record anything
             assertThat(aggregator.getSamplesExecuted()).isZero();
         }
     }

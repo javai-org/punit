@@ -233,14 +233,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
         OutcomeCaptor captor = invocationStore.get("captor", OutcomeCaptor.class);
 
-        try {
-            long startNanos = System.nanoTime();
-            invocation.proceed();
-            java.time.Duration wallClock = java.time.Duration.ofNanos(System.nanoTime() - startNanos);
-            ResultRecorder.recordResult(captor, aggregator, wallClock);
-        } catch (Throwable e) {
-            aggregator.recordException(e);
-        }
+        ResultRecorder.executeAndRecord(invocation, captor, aggregator);
 
         // Report progress
         reportProgress(extensionContext, aggregator, sample, effectiveSamples);

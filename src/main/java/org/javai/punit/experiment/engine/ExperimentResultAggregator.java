@@ -77,22 +77,16 @@ public class ExperimentResultAggregator {
     }
 
     /**
-     * Records a successful sample execution.
+     * Records a successful sample execution using the outcome's own
+     * {@code executionTime()} for duration tracking.
      *
-     * <p>Uses the outcome's own {@code executionTime()} for duration tracking.
-     * Prefer {@link #recordSuccess(UseCaseOutcome, Duration)} when wall-clock
-     * timing is available.
+     * <p>Prefer {@link #recordSuccess(UseCaseOutcome, Duration)} with
+     * framework-measured wall-clock timing for accurate latency data.
      *
      * @param outcome the use case outcome
      */
     public void recordSuccess(UseCaseOutcome<?> outcome) {
-        Objects.requireNonNull(outcome, "outcome must not be null");
-        successes++;
-        outcomes.add(outcome);
-        successfulDurations.add(outcome.executionTime());
-        trackTokens(outcome);
-        recordPostconditions(outcome.evaluatePostconditions());
-        updateLastSampleTime();
+        recordSuccess(outcome, outcome.executionTime());
     }
 
     /**

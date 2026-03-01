@@ -1,6 +1,7 @@
 package org.javai.punit.experiment.explore;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -259,14 +260,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         // Handle simple mode (no factors)
         if (configAggregators == null) {
             ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
-            try {
-                long startNanos = System.nanoTime();
-                invocation.proceed();
-                java.time.Duration wallClock = java.time.Duration.ofNanos(System.nanoTime() - startNanos);
-                ResultRecorder.recordResult(captor, aggregator, wallClock);
-            } catch (Throwable e) {
-                aggregator.recordException(e);
-            }
+            ResultRecorder.executeAndRecord(invocation, captor, aggregator);
             return;
         }
 
@@ -292,7 +286,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         try {
             long startNanos = System.nanoTime();
             invocation.proceed();
-            java.time.Duration wallClock = java.time.Duration.ofNanos(System.nanoTime() - startNanos);
+            Duration wallClock = Duration.ofNanos(System.nanoTime() - startNanos);
             ResultRecorder.recordResult(captor, aggregator, wallClock);
 
             // Build result projection

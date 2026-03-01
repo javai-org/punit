@@ -55,13 +55,13 @@ class MeasureOutputWriterLatencyTest {
 
             assertThat(yaml)
                     .contains("sampleCount:")
-                    .contains("mean:")
-                    .contains("standardDeviation:")
-                    .contains("p50:")
-                    .contains("p90:")
-                    .contains("p95:")
-                    .contains("p99:")
-                    .contains("max:");
+                    .contains("meanMs:")
+                    .contains("standardDeviationMs:")
+                    .contains("p50Ms:")
+                    .contains("p90Ms:")
+                    .contains("p95Ms:")
+                    .contains("p99Ms:")
+                    .contains("maxMs:");
         }
 
         @Test
@@ -75,9 +75,9 @@ class MeasureOutputWriterLatencyTest {
 
             assertThat(yaml)
                     .contains("sampleCount: 10")
-                    .contains("p50: " + dist.p50Ms())
-                    .contains("p90: " + dist.p90Ms())
-                    .contains("max: " + dist.maxMs());
+                    .contains("p50Ms: " + dist.p50Ms())
+                    .contains("p90Ms: " + dist.p90Ms())
+                    .contains("maxMs: " + dist.maxMs());
         }
 
         @Test
