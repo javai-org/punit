@@ -8,7 +8,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.UseCase;
 
 /**
- * Test subject classes for latency baseline integration tests (Phase 3).
+ * Test subject classes for latency baseline integration tests.
  * These classes are used by LatencyBaselineIntegrationTest via TestKit
  * and are NOT meant to be run directly.
  */
@@ -23,8 +23,8 @@ public class LatencyBaselineTestSubjects {
     public static class LatencyBaselineUseCase {}
 
     /**
-     * Test with latencyBaseline=true — thresholds derived purely from baseline.
-     * The spec has p95=750ms and stddev=120, so derived upper bound will be slightly above 750.
+     * Test with automatic baseline-derived latency thresholds.
+     * The spec has latency data, so PUnit derives thresholds automatically.
      * Our fast test execution should easily pass.
      */
     public static class BaselineOnlyTest {
@@ -32,8 +32,7 @@ public class LatencyBaselineTestSubjects {
                 samples = 10,
                 minPassRate = 0.8,
                 intent = TestIntent.SMOKE,
-                useCase = LatencyBaselineUseCase.class,
-                latencyBaseline = true
+                useCase = LatencyBaselineUseCase.class
         )
         void fastExecutionWithBaselineThresholds() {
             // Sub-millisecond — well within any baseline-derived threshold
@@ -42,35 +41,36 @@ public class LatencyBaselineTestSubjects {
     }
 
     /**
-     * Test with mixed mode: explicit p99 ceiling + baseline fills the rest.
-     * Explicit p99=5000ms is looser than baseline-derived, so baseline should win for p99.
-     * All other percentiles come from baseline.
+     * Test with latency disabled via @Latency(disabled = true).
+     * Even though the baseline has latency data, no latency assertions are made.
      */
-    public static class MixedModeTest {
+    public static class DisabledLatencyTest {
         @ProbabilisticTest(
                 samples = 10,
                 minPassRate = 0.8,
                 intent = TestIntent.SMOKE,
                 useCase = LatencyBaselineUseCase.class,
-                latency = @Latency(p99Ms = 5000)
+                latency = @Latency(disabled = true)
         )
-        void mixedModeExecution() {
-            // Sub-millisecond — well within thresholds
+        void disabledLatencyExecution() {
+            // Latency assertions are suppressed
             assertThat(true).isTrue();
         }
     }
 
     /**
-     * Test with latencyBaseline=true but NO use case (no spec) — should fail with config error.
+     * Test with explicit @Latency thresholds AND a baseline that has latency data.
+     * This is a misconfiguration — PUnit should raise a configuration error.
      */
-    public static class BaselineWithoutSpecTest {
+    public static class ExplicitWithBaselineTest {
         @ProbabilisticTest(
-                samples = 5,
+                samples = 10,
                 minPassRate = 0.8,
                 intent = TestIntent.SMOKE,
-                latencyBaseline = true
+                useCase = LatencyBaselineUseCase.class,
+                latency = @Latency(p95Ms = 500)
         )
-        void shouldFailBecauseNoBaseline() {
+        void explicitWithBaselineShouldFail() {
             assertThat(true).isTrue();
         }
     }

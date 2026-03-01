@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.InputSource;
+import org.javai.punit.api.Latency;
 import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.ProbabilisticTest;
@@ -255,7 +256,8 @@ class InputSourceIntegrationTest {
             return Stream.of("add milk", "remove bread", "clear cart");
         }
 
-        @ProbabilisticTest(useCase = TestUseCase.class, samples = 6, minPassRate = 0.5)
+        @ProbabilisticTest(useCase = TestUseCase.class, samples = 6, minPassRate = 0.5,
+                latency = @Latency(disabled = true))
         @InputSource("testInputs")
         void testWithInputs(String input) {
             capturedInputs.add(input);

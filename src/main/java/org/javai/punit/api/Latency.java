@@ -73,4 +73,19 @@ public @interface Latency {
      * @return the p99 threshold in ms, or -1 if not asserted
      */
     long p99Ms() default -1;
+
+    /**
+     * Opts out of latency assertions entirely.
+     *
+     * <p>When a baseline spec contains latency data, PUnit automatically derives
+     * latency thresholds — no explicit opt-in is needed. Set {@code disabled = true}
+     * to suppress this automatic derivation when you want a baseline-backed test
+     * that does not assert latency.
+     *
+     * <p>Default: {@code false} (latency assertions are enabled when thresholds
+     * are available, either explicit or baseline-derived).
+     *
+     * @return true to disable latency assertions
+     */
+    boolean disabled() default false;
 }

@@ -579,13 +579,10 @@ class ProbabilisticTestValidatorTest {
                     @Override public long p90Ms() { return -1; }
                     @Override public long p95Ms() { return -1; }
                     @Override public long p99Ms() { return -1; }
+                    @Override public boolean disabled() { return false; }
                 };
             }
 
-            @Override
-            public boolean latencyBaseline() {
-                return false;
-            }
         };
     }
 
@@ -697,13 +694,10 @@ class ProbabilisticTestValidatorTest {
                     @Override public long p90Ms() { return -1; }
                     @Override public long p95Ms() { return -1; }
                     @Override public long p99Ms() { return -1; }
+                    @Override public boolean disabled() { return false; }
                 };
             }
 
-            @Override
-            public boolean latencyBaseline() {
-                return false;
-            }
         };
     }
 }

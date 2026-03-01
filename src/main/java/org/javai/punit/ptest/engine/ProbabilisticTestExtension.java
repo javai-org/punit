@@ -218,7 +218,7 @@ public class ProbabilisticTestExtension implements
 
 		// Resolve latency assertion config
 		LatencyAssertionConfig latencyConfig = LatencyAssertionConfig.fromAnnotation(
-				annotation.latency(), annotation.latencyBaseline());
+				annotation.latency());
 		store.put(LATENCY_CONFIG_KEY, latencyConfig);
 		store.put(AGGREGATOR_KEY, aggregator);
 		store.put(EVALUATOR_KEY, evaluator);
@@ -408,6 +408,10 @@ public class ProbabilisticTestExtension implements
 	/**
 	 * Resolves latency thresholds using the annotation config and baseline data.
 	 * Stores the resolved thresholds in the extension store.
+	 *
+	 * <p>Resolution is triggered when explicit thresholds are present OR
+	 * when the baseline contains latency data (automatic derivation).
+	 * Skipped when latency is disabled or when neither source is available.
 	 */
 	private void resolveLatencyThresholds(ExtensionContext.Store store,
 										  ExecutionSpecification baseline,
@@ -419,12 +423,17 @@ public class ProbabilisticTestExtension implements
 					.map(parent -> parent.getStore(NAMESPACE).get(LATENCY_CONFIG_KEY, LatencyAssertionConfig.class))
 					.orElse(null);
 		}
-		if (latencyConfig == null || !latencyConfig.isLatencyRequested()) {
+		if (latencyConfig == null || latencyConfig.disabled()) {
+			return;
+		}
+
+		boolean hasBaselineLatency = baseline != null && baseline.hasLatencyBaseline();
+		if (!latencyConfig.hasExplicitThresholds() && !hasBaselineLatency) {
 			return;
 		}
 
 		org.javai.punit.spec.model.LatencyBaseline latencyBaseline =
-				baseline != null ? baseline.getLatencyBaseline() : null;
+				hasBaselineLatency ? baseline.getLatencyBaseline() : null;
 
 		TestConfiguration config = store.get(CONFIG_KEY, TestConfiguration.class);
 		double confidence = config != null ? config.resolvedConfidence() : 0.95;
@@ -442,7 +451,14 @@ public class ProbabilisticTestExtension implements
 	private LatencyAssertionResult evaluateLatency(ExtensionContext context,
 												   SampleResultAggregator aggregator) {
 		LatencyAssertionConfig latencyConfig = getLatencyConfig(context);
-		if (latencyConfig == null || !latencyConfig.isLatencyRequested()) {
+		if (latencyConfig == null || latencyConfig.disabled()) {
+			return LatencyAssertionResult.notRequested();
+		}
+
+		// Use resolved thresholds if available (covers both explicit and baseline-derived),
+		// fall back to raw config for explicit-only without baseline
+		LatencyThresholdResolver.ResolvedThresholds resolvedThresholds = getResolvedLatencyThresholds(context);
+		if (resolvedThresholds == null && !latencyConfig.hasExplicitThresholds()) {
 			return LatencyAssertionResult.notRequested();
 		}
 
@@ -453,8 +469,6 @@ public class ProbabilisticTestExtension implements
 			distribution = org.javai.punit.statistics.LatencyDistribution.fromMillis(millis);
 		}
 
-		// Use resolved thresholds if available, fall back to raw config
-		LatencyThresholdResolver.ResolvedThresholds resolvedThresholds = getResolvedLatencyThresholds(context);
 		LatencyAssertionEvaluator evaluator = new LatencyAssertionEvaluator();
 		if (resolvedThresholds != null) {
 			return evaluator.evaluate(resolvedThresholds, distribution, latenciesMs.size());
@@ -755,8 +769,9 @@ public class ProbabilisticTestExtension implements
 		if (pending == null) {
 			// No pending selection - validate without baseline
 			validateTestConfiguration(context, null);
-			// Resolve latency thresholds (explicit-only, no baseline)
-			resolveLatencyThresholds(store, null, context);
+			// Resolve latency thresholds using pre-loaded spec if available (may contain latency data)
+			ExecutionSpecification preLoadedSpec = store.get(SPEC_KEY, ExecutionSpecification.class);
+			resolveLatencyThresholds(store, preLoadedSpec, context);
 			// Log configuration for explicit threshold mode
 			logFinalConfiguration(context);
 			// Enforce verification feasibility gate (Req 5)
@@ -924,6 +939,9 @@ public class ProbabilisticTestExtension implements
 	 * for all asserted latency percentiles. If not, throws
 	 * {@link ExtensionConfigurationException} to fail the test before samples execute.
 	 *
+	 * <p>Uses resolved thresholds when available (covers baseline-derived latency),
+	 * since the raw config's {@code isLatencyRequested()} only reflects explicit thresholds.
+	 *
 	 * @param context the extension context
 	 * @throws ExtensionConfigurationException if latency assertions are infeasible
 	 */
@@ -934,13 +952,23 @@ public class ProbabilisticTestExtension implements
 		}
 
 		LatencyAssertionConfig latencyConfig = getLatencyConfig(context);
-		if (latencyConfig == null || !latencyConfig.isLatencyRequested()) {
+		if (latencyConfig == null || latencyConfig.disabled()) {
+			return;
+		}
+
+		// Prefer resolved thresholds (which include baseline-derived) over raw config
+		LatencyThresholdResolver.ResolvedThresholds resolvedThresholds = getResolvedLatencyThresholds(context);
+		LatencyAssertionConfig effectiveConfig = resolvedThresholds != null
+				? resolvedThresholds.toConfig()
+				: latencyConfig;
+
+		if (!effectiveConfig.isLatencyRequested()) {
 			return;
 		}
 
 		double expectedSuccessRate = Double.isNaN(config.minPassRate()) ? 1.0 : config.minPassRate();
 		LatencyFeasibilityEvaluator.FeasibilityResult result =
-				LatencyFeasibilityEvaluator.evaluate(latencyConfig, config.samples(), expectedSuccessRate);
+				LatencyFeasibilityEvaluator.evaluate(effectiveConfig, config.samples(), expectedSuccessRate);
 
 		if (!result.feasible()) {
 			throw new ExtensionConfigurationException(result.message());

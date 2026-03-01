@@ -446,7 +446,17 @@ public @interface ProbabilisticTest {
      * Latency assertions are independent of pass-rate: a test can pass on pass-rate
      * but fail on latency, or vice versa.
      *
-     * <h3>Example</h3>
+     * <h3>Automatic baseline derivation</h3>
+     * <p>When the referenced baseline spec contains latency data, PUnit
+     * automatically derives latency thresholds — no explicit opt-in is required.
+     * This mirrors how pass-rate thresholds are derived from baselines.
+     * Use {@link Latency#disabled()} to opt out of automatic derivation.
+     *
+     * <p>Explicit thresholds (e.g. {@code @Latency(p95Ms = 500)}) and a
+     * baseline with latency data are mutually exclusive. If both are present,
+     * PUnit raises a configuration error.
+     *
+     * <h3>Example — explicit thresholds</h3>
      * <pre>{@code
      * @ProbabilisticTest(
      *     samples = 100,
@@ -459,22 +469,19 @@ public @interface ProbabilisticTest {
      * }
      * }</pre>
      *
+     * <h3>Example — opt out of automatic derivation</h3>
+     * <pre>{@code
+     * @ProbabilisticTest(
+     *     useCase = MyUseCase.class,
+     *     samples = 100,
+     *     latency = @Latency(disabled = true)
+     * )
+     * void testPassRateOnly() { ... }
+     * }</pre>
+     *
      * @return the latency threshold configuration
      * @see Latency
      */
     Latency latency() default @Latency;
-
-    /**
-     * When {@code true}, latency thresholds are derived from the baseline spec's
-     * latency data. Requires that the referenced baseline contains a latency section.
-     *
-     * <p>This is mutually exclusive with explicit {@link #latency()} thresholds.
-     * If both are set, a configuration error is raised.
-     *
-     * <p>Default: {@code false}.
-     *
-     * @return true to derive latency thresholds from baseline
-     */
-    boolean latencyBaseline() default false;
 
 }

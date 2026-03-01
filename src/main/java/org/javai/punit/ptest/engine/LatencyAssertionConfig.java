@@ -15,32 +15,31 @@ record LatencyAssertionConfig(
         long p90Ms,
         long p95Ms,
         long p99Ms,
-        boolean baselineRequested
+        boolean disabled
 ) {
 
     /**
      * Creates a config from a {@link Latency} annotation.
      *
      * @param latency the annotation
-     * @param latencyBaseline whether baseline-derived thresholds are requested
      * @return the resolved config
      */
-    static LatencyAssertionConfig fromAnnotation(Latency latency, boolean latencyBaseline) {
+    static LatencyAssertionConfig fromAnnotation(Latency latency) {
         return new LatencyAssertionConfig(
                 latency.p50Ms(),
                 latency.p90Ms(),
                 latency.p95Ms(),
                 latency.p99Ms(),
-                latencyBaseline
+                latency.disabled()
         );
     }
 
     /**
-     * Returns true if any latency assertion is requested (explicit thresholds
-     * or baseline derivation).
+     * Returns true if any explicit latency assertion is requested
+     * (i.e. explicit thresholds are set and latency is not disabled).
      */
     boolean isLatencyRequested() {
-        return hasExplicitThresholds() || baselineRequested;
+        return !disabled && hasExplicitThresholds();
     }
 
     /**

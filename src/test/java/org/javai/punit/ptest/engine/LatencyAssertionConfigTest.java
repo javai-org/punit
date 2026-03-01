@@ -14,8 +14,8 @@ class LatencyAssertionConfigTest {
     class IsLatencyRequested {
 
         @Test
-        @DisplayName("should return false when no thresholds and no baseline")
-        void shouldReturnFalseWhenNoThresholdsAndNoBaseline() {
+        @DisplayName("should return false when no thresholds and not disabled")
+        void shouldReturnFalseWhenNoThresholdsAndNotDisabled() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
 
             assertThat(config.isLatencyRequested()).isFalse();
@@ -30,11 +30,11 @@ class LatencyAssertionConfigTest {
         }
 
         @Test
-        @DisplayName("should return true when baseline requested")
-        void shouldReturnTrueWhenBaselineRequested() {
-            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, true);
+        @DisplayName("should return false when disabled even with explicit thresholds")
+        void shouldReturnFalseWhenDisabled() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, true);
 
-            assertThat(config.isLatencyRequested()).isTrue();
+            assertThat(config.isLatencyRequested()).isFalse();
         }
     }
 

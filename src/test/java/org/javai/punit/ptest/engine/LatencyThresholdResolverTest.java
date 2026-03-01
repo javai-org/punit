@@ -19,7 +19,7 @@ class LatencyThresholdResolverTest {
     class NotRequested {
 
         @Test
-        @DisplayName("should return not-asserted thresholds when latency not requested")
+        @DisplayName("should return not-asserted thresholds when no explicit and no baseline")
         void shouldReturnNotAssertedWhenNotRequested() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
 
@@ -49,13 +49,13 @@ class LatencyThresholdResolverTest {
     }
 
     @Nested
-    @DisplayName("Baseline only (latencyBaseline=true)")
-    class BaselineOnly {
+    @DisplayName("Automatic baseline derivation")
+    class AutomaticBaselineDerivation {
 
         @Test
-        @DisplayName("should derive all thresholds from baseline")
+        @DisplayName("should derive all thresholds from baseline when no explicit thresholds")
         void shouldDeriveAllFromBaseline() {
-            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, true);
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
             LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
 
             var resolved = resolver.resolve(config, baseline, 0.95);
@@ -70,73 +70,71 @@ class LatencyThresholdResolverTest {
             assertThat(resolved.p95().source()).isEqualTo("from baseline");
             assertThat(resolved.p99().source()).isEqualTo("from baseline");
         }
+    }
+
+    @Nested
+    @DisplayName("Disabled")
+    class Disabled {
 
         @Test
-        @DisplayName("should throw when baseline requested but no baseline available")
-        void shouldThrowWhenBaselineRequestedButMissing() {
+        @DisplayName("should return not-asserted when disabled without explicit thresholds")
+        void shouldReturnNotAssertedWhenDisabled() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, true);
+
+            var resolved = resolver.resolve(config, null, 0.95);
+
+            assertThat(resolved.toConfig().hasExplicitThresholds()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should return not-asserted when disabled even with baseline present")
+        void shouldReturnNotAssertedWhenDisabledWithBaseline() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, true);
+            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+
+            var resolved = resolver.resolve(config, baseline, 0.95);
+
+            assertThat(resolved.toConfig().hasExplicitThresholds()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should throw when disabled with explicit thresholds")
+        void shouldThrowWhenDisabledWithExplicit() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, true);
 
             assertThatThrownBy(() -> resolver.resolve(config, null, 0.95))
                     .isInstanceOf(ExtensionConfigurationException.class)
-                    .hasMessageContaining("latencyBaseline = true")
-                    .hasMessageContaining("no latency data");
+                    .hasMessageContaining("disabled = true")
+                    .hasMessageContaining("explicit");
         }
     }
 
     @Nested
-    @DisplayName("Mixed mode (explicit + baseline)")
-    class MixedMode {
+    @DisplayName("Misconfiguration")
+    class Misconfiguration {
 
         @Test
-        @DisplayName("explicit ceiling wins when stricter than baseline-derived")
-        void explicitWinsWhenStricter() {
-            // Baseline p95=750ms with stddev=120, n=100
-            // Derived upper bound ≈ 750 + 1.645 * 12 ≈ 770
-            // Explicit p95=500ms → explicit is stricter
+        @DisplayName("should throw when explicit thresholds combined with baseline")
+        void shouldThrowWhenExplicitWithBaseline() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, false);
             LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
 
-            var resolved = resolver.resolve(config, baseline, 0.95);
-
-            assertThat(resolved.p95().thresholdMs()).isEqualTo(500);
-            assertThat(resolved.p95().source()).contains("explicit");
-            assertThat(resolved.p95().source()).contains("stricter");
+            assertThatThrownBy(() -> resolver.resolve(config, baseline, 0.95))
+                    .isInstanceOf(ExtensionConfigurationException.class)
+                    .hasMessageContaining("Explicit @Latency thresholds")
+                    .hasMessageContaining("baseline");
         }
 
         @Test
-        @DisplayName("baseline-derived wins when stricter than explicit")
-        void baselineWinsWhenStricter() {
-            // Baseline p95=750ms, explicit p95=5000ms → baseline is stricter
-            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 5000, -1, false);
+        @DisplayName("should throw when disabled with explicit thresholds even with baseline")
+        void shouldThrowWhenDisabledWithExplicitAndBaseline() {
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, true);
             LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
 
-            var resolved = resolver.resolve(config, baseline, 0.95);
-
-            assertThat(resolved.p95().thresholdMs()).isLessThan(5000);
-            assertThat(resolved.p95().source()).contains("baseline");
-            assertThat(resolved.p95().source()).contains("stricter");
-        }
-
-        @Test
-        @DisplayName("baseline fills unspecified percentiles")
-        void baselineFillsUnspecifiedPercentiles() {
-            // Only p99 explicit, p50/p90/p95 should come from baseline
-            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, 2000, false);
-            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
-
-            var resolved = resolver.resolve(config, baseline, 0.95);
-
-            // p50/p90/p95 should be from baseline
-            assertThat(resolved.p50().thresholdMs()).isGreaterThanOrEqualTo(380);
-            assertThat(resolved.p50().source()).isEqualTo("from baseline");
-            assertThat(resolved.p90().source()).isEqualTo("from baseline");
-            assertThat(resolved.p95().source()).isEqualTo("from baseline");
-
-            // p99 should use the explicit value (2000) since it's looser than derived
-            // The derived would be ~1100 + small margin, so 2000 is looser
-            // Baseline-derived should win since it's stricter
-            assertThat(resolved.p99().thresholdMs()).isLessThan(2000);
-            assertThat(resolved.p99().source()).contains("baseline");
+            assertThatThrownBy(() -> resolver.resolve(config, baseline, 0.95))
+                    .isInstanceOf(ExtensionConfigurationException.class)
+                    .hasMessageContaining("disabled = true")
+                    .hasMessageContaining("explicit");
         }
     }
 
@@ -147,7 +145,7 @@ class LatencyThresholdResolverTest {
         @Test
         @DisplayName("sourceFor should return correct source for each label")
         void sourceForShouldReturnCorrectSource() {
-            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, true);
+            LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
             LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
 
             var resolved = resolver.resolve(config, baseline, 0.95);

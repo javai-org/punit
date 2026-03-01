@@ -1412,13 +1412,12 @@ The pass rate is fine (96% >= 95%), but the observed p99 of 1350ms exceeds the 1
 
 ### Baseline-Derived Thresholds
 
-When a MEASURE experiment has been run and its spec contains latency data, you can derive latency thresholds from the baseline rather than declaring them explicitly. This mirrors how PUnit derives pass-rate thresholds from baselines — the empirically observed performance becomes the expectation, with a statistical margin to account for natural variance.
+When a MEASURE experiment has been run and its spec contains latency data, PUnit **automatically** derives latency thresholds from the baseline — no explicit opt-in is required. This mirrors how PUnit derives pass-rate thresholds from baselines: the empirically observed performance becomes the expectation, with a statistical margin to account for natural variance.
 
 ```java
 @ProbabilisticTest(
     useCase = PaymentGatewayUseCase.class,
-    samples = 200,
-    latencyBaseline = true
+    samples = 200
 )
 void paymentServiceLatencyConformsToBaseline() {
     PaymentResult result = paymentService.processPayment(testPayment());
@@ -1426,9 +1425,20 @@ void paymentServiceLatencyConformsToBaseline() {
 }
 ```
 
-With `latencyBaseline = true`, PUnit loads the latency section from the matching spec and derives upper-bound thresholds for all four percentiles using a confidence interval. This means the thresholds are slightly looser than the raw baseline values — they accommodate the natural variance you would expect when re-running the service with a different (typically smaller) sample size.
+If the baseline spec contains a latency section, PUnit derives upper-bound thresholds for all four percentiles using a confidence interval. The thresholds are slightly looser than the raw baseline values — they accommodate the natural variance you would expect when re-running the service with a different (typically smaller) sample size.
 
-If the referenced baseline does not contain latency data (because the MEASURE experiment was run before latency recording was available, or because no samples succeeded), PUnit raises a configuration error.
+If you want a baseline-backed test that asserts pass-rate but **not** latency, opt out with `@Latency(disabled = true)`:
+
+```java
+@ProbabilisticTest(
+    useCase = PaymentGatewayUseCase.class,
+    samples = 200,
+    latency = @Latency(disabled = true)
+)
+void passRateOnlyTest() { ... }
+```
+
+> **Misconfiguration guard:** Explicit `@Latency` thresholds (e.g. `@Latency(p95Ms = 500)`) and a baseline with latency data are mutually exclusive. If both are present, PUnit raises a configuration error. Either remove the explicit thresholds and let the baseline drive, or use `@Latency(disabled = true)` to opt out.
 
 ### Sample Size and Percentile Reliability
 
