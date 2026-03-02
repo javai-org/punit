@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-02
+
+### Added
+- Latency assertions via `@Latency` annotation with per-percentile thresholds (p50, p90, p95, p99)
+- Automatic latency threshold derivation from baseline specs using confidence-interval upper bounds
+- Advisory latency mode (default): breaches warn in output but do not fail the test
+- Latency enforcement mode (`-Dpunit.latency.enforce=true`) for CI environments with consistent hardware
+- Latency feasibility gate for VERIFICATION intent — rejects undersized sample configurations before execution
+- Indicative marker for latency results when sample size is below the statistical minimum
+- Latency data captured in MEASURE and EXPLORE experiment specs (percentiles, mean, standard deviation, sample count)
+- Latency analysis section in transparent statistics output
+
+### Changed
+- Improved EXPLORE experiment output format with diff-anchor lines
+
 ## [0.2.0] - 2026-02-15
 
 ### Added
@@ -39,6 +54,7 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/javai-org/punit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/javai-org/punit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/javai-org/punit/releases/tag/v0.1.0
