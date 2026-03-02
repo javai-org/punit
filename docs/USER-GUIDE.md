@@ -1614,13 +1614,14 @@ For the mathematical foundations — confidence interval calculations, power ana
 
 PUnit configuration follows this resolution order: System property → Environment variable → Annotation value → Framework default.
 
-| Property                        | Environment Variable             | Description                   |
-|---------------------------------|----------------------------------|-------------------------------|
-| `punit.samples`                 | `PUNIT_SAMPLES`                  | Override sample count         |
-| `punit.stats.transparent`       | `PUNIT_STATS_TRANSPARENT`        | Enable transparent statistics |
-| `punit.specs.outputDir`         | `PUNIT_SPECS_OUTPUT_DIR`         | Spec output directory         |
-| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | Exploration output directory  |
-| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | Optimization output directory |
+| Property                        | Environment Variable             | Description                                            |
+|---------------------------------|----------------------------------|--------------------------------------------------------|
+| `punit.samples`                 | `PUNIT_SAMPLES`                  | Override sample count                                  |
+| `punit.stats.transparent`       | `PUNIT_STATS_TRANSPARENT`        | Enable transparent statistics                          |
+| `punit.latency.enforce`         | `PUNIT_LATENCY_ENFORCE`          | Enforce latency assertions (default: false = advisory) |
+| `punit.specs.outputDir`         | `PUNIT_SPECS_OUTPUT_DIR`         | Spec output directory                                  |
+| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | Exploration output directory                           |
+| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | Optimization output directory                          |
 
 #### LLM Provider Configuration
 
