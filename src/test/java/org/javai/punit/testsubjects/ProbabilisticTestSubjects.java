@@ -286,6 +286,25 @@ public class ProbabilisticTestSubjects {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // SUPPRESSED FAILURE TEST SUBJECTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Always-failing test with low maxExampleFailures to exercise the suppression path.
+     * With samples=10, minPassRate=0.3 (need 3 passes), maxExampleFailures=2:
+     * - After 8 failures, impossibility triggers (max possible passes = 2 < 3).
+     * - Samples 1-2: rethrown as failed (within limit)
+     * - Samples 3-7: beyond limit → aborted (skipped)
+     * - Sample 8: triggers early termination → verdict failure
+     */
+    public static class SuppressedFailuresTest {
+        @ProbabilisticTest(samples = 10, minPassRate = 0.3, maxExampleFailures = 2, intent = TestIntent.SMOKE)
+        void alwaysFails() {
+            assertThat(false).isTrue();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // PROVENANCE TEST SUBJECTS
     // ═══════════════════════════════════════════════════════════════════════════
 

@@ -5,6 +5,7 @@ import org.javai.punit.testsubjects.ProbabilisticTestSubjects.AlwaysFailingTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.AlwaysPassingTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.BarelyFailingTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.BarelyPassingTest;
+import org.javai.punit.testsubjects.ProbabilisticTestSubjects.SuppressedFailuresTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ClassTimeBudgetTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ClassTokenBudgetTest;
 import org.javai.punit.testsubjects.ProbabilisticTestSubjects.ConfigurableSamplesTest;
@@ -242,6 +243,24 @@ class ProbabilisticTestIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(
                 EarlyTerminationByImpossibilityTest.getSamplesActuallyExecuted())
                 .isEqualTo(6);
+    }
+
+    @Test
+    void suppressedFailuresAreAbortedNotSucceeded() {
+        // With samples=10, minPassRate=0.3 (need 3 passes), maxExampleFailures=2:
+        // All samples fail. After 8 failures, impossibility triggers.
+        // - Samples 1-2: rethrown as failed (within maxExampleFailures)
+        // - Samples 3-7: beyond limit → aborted (not falsely counted as succeeded)
+        // - Sample 8: early termination → verdict failure
+        EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .selectors(DiscoverySelectors.selectClass(SuppressedFailuresTest.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats
+                        .started(8)
+                        .succeeded(0)
+                        .failed(3)      // 2 rethrown sample failures + 1 verdict failure
+                        .aborted(5));   // 5 failures beyond maxExampleFailures display limit
     }
 
     @Test

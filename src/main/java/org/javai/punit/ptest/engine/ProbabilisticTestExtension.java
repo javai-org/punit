@@ -28,6 +28,7 @@ import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
 import org.javai.punit.ptest.strategy.InterceptResult;
 import org.javai.punit.ptest.strategy.ProbabilisticTestStrategy;
 import org.javai.punit.ptest.strategy.SampleExecutionContext;
+import org.opentest4j.TestAbortedException;
 import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.spec.baseline.BaselineRepository;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.SelectionResult;
@@ -341,10 +342,16 @@ public class ProbabilisticTestExtension implements
 			finalizeProbabilisticTest(extensionContext, aggregator, config, budgetMonitor,
 					classBudgetMonitor, suiteBudgetMonitor);
 		} else {
-			// Continue - rethrow sample failures so they appear as ❌ in the IDE/CLI
-			// Only rethrow up to maxExampleFailures to avoid drowning output with noise
-			if (result.hasSampleFailure() && aggregator.getFailures() <= strategyConfig.maxExampleFailures()) {
-				rethrowSampleFailure(result.sampleFailure(), aggregator, config);
+			if (result.hasSampleFailure()) {
+				if (aggregator.getFailures() <= strategyConfig.maxExampleFailures()) {
+					// Rethrow sample failures so they appear as ❌ in the IDE/CLI
+					rethrowSampleFailure(result.sampleFailure(), aggregator, config);
+				} else {
+					// Beyond display limit — mark as aborted so JUnit counts it as
+					// "skipped" rather than "succeeded", keeping the summary truthful.
+					throw new TestAbortedException(
+							"Sample failure (beyond maxExampleFailures display limit)");
+				}
 			}
 		}
 	}
@@ -372,6 +379,15 @@ public class ProbabilisticTestExtension implements
 
 		// Delegate verdict computation to strategy (pass rate)
 		BernoulliTrialsConfig strategyConfig = getStrategyConfig(context);
+
+		// Guard: detect config sync failures between TestConfiguration and BernoulliTrialsConfig
+		if (!Double.isNaN(config.minPassRate()) && Double.isNaN(strategyConfig.minPassRate())) {
+			throw new IllegalStateException(
+					"BUG: TestConfiguration.minPassRate was updated to " + config.minPassRate()
+					+ " but BernoulliTrialsConfig.minPassRate is still NaN. "
+					+ "This indicates a config sync failure in baseline derivation.");
+		}
+
 		boolean passRatePassed = strategy.computeVerdict(aggregator, strategyConfig);
 
 		// Evaluate latency assertions
@@ -768,12 +784,26 @@ public class ProbabilisticTestExtension implements
 		BaselineSelectionOrchestrator.PendingSelection pending =
 				store.get(PENDING_SELECTION_KEY, BaselineSelectionOrchestrator.PendingSelection.class);
 		if (pending == null) {
-			// No pending selection - validate without baseline
-			validateTestConfiguration(context, null);
-			// Resolve latency thresholds using pre-loaded spec if available (may contain latency data)
+			// No pending covariate-aware selection.
+			// A pre-loaded spec may exist (from a useCase without covariates).
 			ExecutionSpecification preLoadedSpec = store.get(SPEC_KEY, ExecutionSpecification.class);
+
+			// Use the pre-loaded spec as the selected baseline for validation when
+			// minPassRate is not explicitly specified — this is the baseline-derived path.
+			TestConfiguration config = store.get(CONFIG_KEY, TestConfiguration.class);
+			boolean needsBaselineDerivation = config != null && Double.isNaN(config.minPassRate());
+			ExecutionSpecification baselineForValidation = needsBaselineDerivation ? preLoadedSpec : null;
+
+			validateTestConfiguration(context, baselineForValidation);
+
+			// Derive minPassRate from pre-loaded spec if not explicitly specified
+			if (needsBaselineDerivation && preLoadedSpec != null) {
+				deriveMinPassRateFromBaseline(store, preLoadedSpec);
+			}
+
+			// Resolve latency thresholds using pre-loaded spec if available (may contain latency data)
 			resolveLatencyThresholds(store, preLoadedSpec, context);
-			// Log configuration for explicit threshold mode
+			// Log configuration
 			logFinalConfiguration(context);
 			// Enforce verification feasibility gate (Req 5)
 			enforceVerificationFeasibility(context);
@@ -882,6 +912,12 @@ public class ProbabilisticTestExtension implements
 		TestConfiguration updatedConfig = config.withMinPassRate(derivedMinPassRate);
 		store.put(CONFIG_KEY, updatedConfig);
 		store.put(THRESHOLD_DERIVED_KEY, Boolean.TRUE);
+
+		// Update BernoulliTrialsConfig with derived minPassRate (must stay in sync with TestConfiguration)
+		BernoulliTrialsConfig oldStrategyConfig = store.get(STRATEGY_CONFIG_KEY, BernoulliTrialsConfig.class);
+		if (oldStrategyConfig != null) {
+			store.put(STRATEGY_CONFIG_KEY, oldStrategyConfig.withMinPassRate(derivedMinPassRate));
+		}
 
 		// Update EarlyTerminationEvaluator with derived minPassRate
 		EarlyTerminationEvaluator oldEvaluator = store.get(EVALUATOR_KEY, EarlyTerminationEvaluator.class);
