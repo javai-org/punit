@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-03-02
+
+### Fixed
+- Verdict header contradicting verdict body when using spec-derived thresholds — `BernoulliTrialsConfig` was not synced with `TestConfiguration` after baseline `minPassRate` derivation, causing the verdict summary to use stale values
+
 ## [0.3.0] - 2026-03-02
 
 ### Added
@@ -54,7 +59,8 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/javai-org/punit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/javai-org/punit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/javai-org/punit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/javai-org/punit/releases/tag/v0.1.0
