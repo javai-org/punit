@@ -1474,14 +1474,7 @@ To suppress latency evaluation entirely (not even advisory warnings), use `@Late
 
 Percentile assertions are only as reliable as the sample size behind them. Computing a p99 from 10 samples is statistically dubious — with only 10 observations, the "99th percentile" is just the maximum value, and a single outlier dominates the result.
 
-PUnit addresses this with minimum sample size requirements. The relevant count is the number of **successful samples** (since only successes contribute to the latency distribution), which depends on both the total sample count and the expected pass rate.
-
-| Percentile | Minimum successful samples |
-|------------|----------------------------|
-| p50        | 5                          |
-| p90        | 10                         |
-| p95        | 20                         |
-| p99        | 100                        |
+PUnit addresses this with minimum sample size requirements. The relevant count is the number of **successful samples** (since only successes contribute to the latency distribution), which depends on both the total sample count and the expected pass rate. See part 9 for more detail on the minimal sample size requirements for latency assertions.
 
 For **VERIFICATION** intent, PUnit enforces these minimums as a feasibility gate before any samples execute. If the expected number of successful samples (total samples multiplied by the expected pass rate) is insufficient for any asserted percentile, the test is rejected with a configuration error:
 
