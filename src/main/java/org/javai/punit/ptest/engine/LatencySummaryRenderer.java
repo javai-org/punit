@@ -41,6 +41,9 @@ class LatencySummaryRenderer {
                 sb.append("<= ").append(pr.thresholdMs()).append("ms");
             } else {
                 sb.append("> ").append(pr.thresholdMs()).append("ms \u2190 BREACH");
+                if (!LatencyAssertionConfig.isEnforced()) {
+                    sb.append(" (advisory)");
+                }
             }
 
             // Append source if not just "explicit"

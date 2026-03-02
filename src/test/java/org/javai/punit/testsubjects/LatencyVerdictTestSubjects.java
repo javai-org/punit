@@ -67,4 +67,21 @@ public class LatencyVerdictTestSubjects {
             assertThat(true).isTrue();
         }
     }
+
+    /**
+     * Test with a latency threshold that will be breached (p95 = 0ms on a test that sleeps).
+     * In advisory mode (default), the test should pass despite the latency breach.
+     */
+    public static class AdvisoryLatencyBreachTest {
+        @ProbabilisticTest(
+                samples = 5,
+                minPassRate = 0.8,
+                intent = TestIntent.SMOKE,
+                latency = @Latency(p95Ms = 0)
+        )
+        void shouldBreachLatencyButPassInAdvisoryMode() throws InterruptedException {
+            Thread.sleep(5);
+            assertThat(true).isTrue();
+        }
+    }
 }

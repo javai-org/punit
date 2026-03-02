@@ -75,17 +75,21 @@ public @interface Latency {
     long p99Ms() default -1;
 
     /**
-     * Opts out of latency assertions entirely.
+     * Opts out of latency evaluation entirely (suppresses even advisory warnings).
      *
      * <p>When a baseline spec contains latency data, PUnit automatically derives
-     * latency thresholds — no explicit opt-in is needed. Set {@code disabled = true}
-     * to suppress this automatic derivation when you want a baseline-backed test
-     * that does not assert latency.
+     * latency thresholds — no explicit opt-in is needed. By default, latency
+     * assertions are <em>advisory</em>: breaches produce warnings in the output
+     * but do not fail the test. To make breaches fail the test, set
+     * {@code -Dpunit.latency.enforce=true} or {@code PUNIT_LATENCY_ENFORCE=true}.
      *
-     * <p>Default: {@code false} (latency assertions are enabled when thresholds
-     * are available, either explicit or baseline-derived).
+     * <p>Set {@code disabled = true} to suppress latency evaluation entirely —
+     * no warnings, no enforcement, no latency line in the output.
      *
-     * @return true to disable latency assertions
+     * <p>Default: {@code false} (latency is evaluated when thresholds are available,
+     * either explicit or baseline-derived).
+     *
+     * @return true to disable latency evaluation entirely
      */
     boolean disabled() default false;
 }

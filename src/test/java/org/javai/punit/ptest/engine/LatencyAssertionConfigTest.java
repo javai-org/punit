@@ -2,6 +2,7 @@ package org.javai.punit.ptest.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,38 @@ class LatencyAssertionConfigTest {
 
             assertThat(config.hasExplicitThresholds()).isTrue();
             assertThat(config.hasP50()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("Global enforce flag")
+    class GlobalEnforceFlag {
+
+        @AfterEach
+        void clearSystemProperty() {
+            System.clearProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE);
+        }
+
+        @Test
+        @DisplayName("should not be enforced by default")
+        void shouldNotBeEnforcedByDefault() {
+            assertThat(LatencyAssertionConfig.isEnforced()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should be enforced when system property is true")
+        void shouldBeEnforcedWhenSystemPropertyTrue() {
+            System.setProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE, "true");
+
+            assertThat(LatencyAssertionConfig.isEnforced()).isTrue();
+        }
+
+        @Test
+        @DisplayName("should not be enforced when system property is false")
+        void shouldNotBeEnforcedWhenSystemPropertyFalse() {
+            System.setProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE, "false");
+
+            assertThat(LatencyAssertionConfig.isEnforced()).isFalse();
         }
     }
 }

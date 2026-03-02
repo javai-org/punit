@@ -377,7 +377,8 @@ public class ProbabilisticTestExtension implements
 		// Evaluate latency assertions
 		LatencyAssertionResult latencyResult = evaluateLatency(context, aggregator);
 		boolean latencyPassed = latencyResult.passed();
-		boolean passed = passRatePassed && latencyPassed;
+		boolean latencyEnforced = LatencyAssertionConfig.isEnforced();
+		boolean passed = passRatePassed && (latencyPassed || !latencyEnforced);
 
 		// Publish structured results via TestReporter
 		publishResults(context, aggregator, config, methodBudget, classBudget, suiteBudget,
@@ -946,6 +947,10 @@ public class ProbabilisticTestExtension implements
 	 * @throws ExtensionConfigurationException if latency assertions are infeasible
 	 */
 	private void enforceLatencyFeasibility(ExtensionContext context) {
+		if (!LatencyAssertionConfig.isEnforced()) {
+			return;
+		}
+
 		TestConfiguration config = getConfiguration(context);
 		if (config == null || config.intent() != TestIntent.VERIFICATION) {
 			return;

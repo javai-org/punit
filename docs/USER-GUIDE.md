@@ -60,6 +60,7 @@ All attribution licensing is ARL.
   - [Sample Size and Percentile Reliability](#sample-size-and-percentile-reliability)
 - [Part 9: The Statistical Core](#part-9-the-statistical-core)
   - [Bernoulli Trials](#bernoulli-trials)
+  - [Latency: Empirical Percentiles with Confidence Bounds](#latency-empirical-percentiles-with-confidence-bounds)
   - [Transparent Statistics Mode](#transparent-statistics-mode)
   - [Further Reading](#further-reading)
 - [Appendices](#appendices)
@@ -153,7 +154,7 @@ This test runs 100 samples. Each sample calls the LLM and asserts the result. In
 This guide uses examples from the **punitexamples** project — a separate repository that demonstrates PUnit's capabilities using a shopping basket and payment gateway domain. Clone it alongside PUnit:
 
 ```bash
-git clone <punitexamples-repo-url>
+git clone https://github.com/javai-org/punitexamples.git
 ```
 
 The punitexamples project uses a Gradle composite build to reference the local PUnit framework. Experiments and tests are ready to run without modification.
@@ -1408,7 +1409,7 @@ PUnit FAILED: paymentServiceMeetsLatencySla
 ═══════════════════════════════════════════════════════════════
 ```
 
-The pass rate is fine (96% >= 95%), but the observed p99 of 1350ms exceeds the 1000ms threshold. The test fails because latency is not a secondary concern — it is a first-class assertion.
+The pass rate is fine (96% >= 95%), but the observed p99 of 1350ms exceeds the 1000ms threshold. With enforcement enabled (-Dpunit.latency.enforce=true), the test fails — latency is treated as a first-class assertion. In advisory mode (the default), the breach is reported but does not fail the test.
 
 ### Baseline-Derived Thresholds
 
@@ -1440,6 +1441,35 @@ void passRateOnlyTest() { ... }
 
 > **Misconfiguration guard:** Explicit `@Latency` thresholds (e.g. `@Latency(p95Ms = 500)`) and a baseline with latency data are mutually exclusive. If both are present, PUnit raises a configuration error. Either remove the explicit thresholds and let the baseline drive, or use `@Latency(disabled = true)` to opt out.
 
+#### Latency enforcement mode
+
+Latency assertions are **advisory by default** — breaches produce warnings in the output but do not fail the test. This is because latency profiles are environment-dependent: a baseline generated on CI hardware may not match a developer laptop.
+
+To make latency breaches fail the test (e.g. on CI with consistent hardware), enable enforcement:
+
+```bash
+# System property
+-Dpunit.latency.enforce=true
+
+# Environment variable
+PUNIT_LATENCY_ENFORCE=true
+```
+
+A typical setup is to enforce latency in CI and leave advisory mode (the default) for local development:
+
+```properties
+# CI gradle.properties
+systemProp.punit.latency.enforce=true
+```
+
+| Enforce flag              | Latency evaluated             | Breach behaviour            | Feasibility gate           |
+|---------------------------|-------------------------------|-----------------------------|----------------------------|
+| `false` (default)         | Yes (if thresholds available) | Warn in output, test passes | Skipped                    |
+| `true`                    | Yes                           | Test fails                  | Active (VERIFICATION only) |
+| `@Latency(disabled=true)` | No                            | N/A                         | Skipped                    |
+
+To suppress latency evaluation entirely (not even advisory warnings), use `@Latency(disabled = true)` on individual tests.
+
 ### Sample Size and Percentile Reliability
 
 Percentile assertions are only as reliable as the sample size behind them. Computing a p99 from 10 samples is statistically dubious — with only 10 observations, the "99th percentile" is just the maximum value, and a single outlier dominates the result.
@@ -1447,11 +1477,11 @@ Percentile assertions are only as reliable as the sample size behind them. Compu
 PUnit addresses this with minimum sample size requirements. The relevant count is the number of **successful samples** (since only successes contribute to the latency distribution), which depends on both the total sample count and the expected pass rate.
 
 | Percentile | Minimum successful samples |
-|------------|---------------------------|
-| p50        | 5                         |
-| p90        | 10                        |
-| p95        | 20                        |
-| p99        | 100                       |
+|------------|----------------------------|
+| p50        | 5                          |
+| p90        | 10                         |
+| p95        | 20                         |
+| p99        | 100                        |
 
 For **VERIFICATION** intent, PUnit enforces these minimums as a feasibility gate before any samples execute. If the expected number of successful samples (total samples multiplied by the expected pass rate) is insufficient for any asserted percentile, the test is rejected with a configuration error:
 
@@ -1479,6 +1509,42 @@ At its heart, PUnit models each sample as a **Bernoulli trial** — an experimen
 
 This statistical machinery runs automatically when a regression test executes. Users don't interact with it directly — they simply write tests, and PUnit applies rigorous statistical inference under the hood.
 
+### Latency: Empirical Percentiles with Confidence Bounds
+
+Pass-rate testing uses a parametric model (binomial distribution), but latency requires a different approach. Service latency distributions are often multimodal or heavily skewed — a fast path through a cache versus a slow path to the database, for example. Assuming normality would be inappropriate, so PUnit avoids fitting a parametric distribution to latency data entirely.
+
+Instead, PUnit works with **empirical percentiles**. During a MEASURE experiment, it records the wall-clock duration of each successful sample, sorts the values, and reads off percentiles using nearest-rank interpolation:
+
+```
+index = ⌈p × n⌉ − 1    (clamped to [0, n−1])
+percentile = sorted[index]
+```
+
+Only successful samples contribute — failed samples are excluded because their timing reflects validation failure or timeout, not the system's operational latency.
+
+**Threshold derivation from baselines.** When a regression test references a baseline spec that contains latency data, PUnit derives a one-sided upper confidence bound for each percentile:
+
+```
+threshold = baselinePercentile + z × (σ / √n)
+```
+
+where *z* is the z-score for the configured confidence level (default 95%, one-sided), *σ* is the baseline's standard deviation, and *n* is the baseline's sample count. The term *σ / √n* is the standard error — it quantifies how much the observed percentile might vary across runs due to sampling alone. Larger baselines (higher *n*) yield tighter thresholds; noisier systems (higher *σ*) yield wider ones.
+
+The derived threshold is clamped to be at least the baseline value, ensuring it never becomes tighter than what was actually observed.
+
+**Minimum sample sizes.** Percentile estimates degrade rapidly with small samples. A "p99" computed from 10 observations is just the maximum — it tells you nothing about the 99th percentile of the true distribution. PUnit defines minimum sample counts for evidential results:
+
+| Percentile | Minimum successful samples |
+|------------|----------------------------|
+| p50        | 5                          |
+| p90        | 10                         |
+| p95        | 20                         |
+| p99        | 100                        |
+
+When enforcement is active (`-Dpunit.latency.enforce=true`) and the test has VERIFICATION intent, these minimums are enforced as a feasibility gate before any samples execute. The relevant count is the *expected* number of successful samples — total samples multiplied by the expected pass rate. If this falls below the minimum for any asserted percentile, the test is rejected with a configuration error rather than producing unreliable results.
+
+When the sample count is below the minimum but the feasibility gate is inactive (advisory mode or SMOKE intent), PUnit still evaluates latency but marks the results as **indicative** — a signal that the numbers should be taken with a grain of salt.
+
 ### Transparent Statistics Mode
 
 Enable `transparentStats = true` to see the statistical reasoning:
@@ -1500,6 +1566,7 @@ Output includes:
 - Observed data summary
 - Confidence intervals
 - p-values and verdict interpretation
+- Latency analysis (when thresholds are available)
 
 ```
 ══════════════════════════════════════════════════════════════════════════════
@@ -1520,6 +1587,21 @@ STATISTICAL INFERENCE
   Standard error:      SE = 0.0336
   95% Confidence interval: [0.804, 0.936]
   p-value:             0.288
+
+LATENCY ANALYSIS
+  Population:          Successful samples only (n=87 of 100)
+  Observed distribution:
+  p50:                 120ms
+  p90:                 340ms
+  p95:                 480ms
+  p99:                 920ms
+  max:                 1150ms
+
+  Percentile thresholds (from baseline):
+  p95:                 480ms <= 517ms                                PASS
+  p99:                 920ms <= 1050ms                               PASS
+
+  Baseline reference:  JsonValidationUseCase.yaml
 
 VERDICT
   Result:              PASS

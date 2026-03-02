@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.testsubjects.LatencyTestSubjects.LatencyFailingTest;
 import org.javai.punit.testsubjects.LatencyTestSubjects.LatencyPassingTest;
 import org.javai.punit.testsubjects.LatencyTestSubjects.NoLatencyTest;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
@@ -17,6 +18,12 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 class LatencyIntegrationTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
+    private static final String PROP_LATENCY_ENFORCE = "punit.latency.enforce";
+
+    @AfterEach
+    void clearEnforceProperty() {
+        System.clearProperty(PROP_LATENCY_ENFORCE);
+    }
 
     @Test
     @DisplayName("should pass when latency is within thresholds")
@@ -33,8 +40,10 @@ class LatencyIntegrationTest {
     }
 
     @Test
-    @DisplayName("should fail when latency exceeds threshold")
+    @DisplayName("should fail when latency exceeds threshold and enforcement is enabled")
     void shouldFailWhenLatencyExceedsThreshold() {
+        System.setProperty(PROP_LATENCY_ENFORCE, "true");
+
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
                 .selectors(DiscoverySelectors.selectClass(LatencyFailingTest.class))
                 .execute()

@@ -18,6 +18,12 @@ record LatencyAssertionConfig(
         boolean disabled
 ) {
 
+    /** System property to enforce latency assertions (default: false = advisory). */
+    static final String PROP_LATENCY_ENFORCE = "punit.latency.enforce";
+
+    /** Environment variable to enforce latency assertions (default: false = advisory). */
+    static final String ENV_LATENCY_ENFORCE = "PUNIT_LATENCY_ENFORCE";
+
     /**
      * Creates a config from a {@link Latency} annotation.
      *
@@ -32,6 +38,27 @@ record LatencyAssertionConfig(
                 latency.p99Ms(),
                 latency.disabled()
         );
+    }
+
+    /**
+     * Checks whether latency assertions are enforced (breaches fail the test).
+     *
+     * <p>By default, latency assertions are advisory — breaches produce warnings but
+     * do not fail the test. Set {@code -Dpunit.latency.enforce=true} or
+     * {@code PUNIT_LATENCY_ENFORCE=true} to make breaches fail the test.
+     *
+     * @return true if latency breaches should fail the test
+     */
+    static boolean isEnforced() {
+        String sysProp = System.getProperty(PROP_LATENCY_ENFORCE);
+        if (sysProp != null) {
+            return Boolean.parseBoolean(sysProp.trim());
+        }
+        String envVar = System.getenv(ENV_LATENCY_ENFORCE);
+        if (envVar != null) {
+            return Boolean.parseBoolean(envVar.trim());
+        }
+        return false;
     }
 
     /**
