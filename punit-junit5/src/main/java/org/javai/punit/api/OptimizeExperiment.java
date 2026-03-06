@@ -214,13 +214,11 @@ public @interface OptimizeExperiment {
      * <p>Each iteration runs this many samples before aggregating results
      * and scoring. Like MEASURE's sample count, but within each iteration.
      *
-     * <p><b>Mutual exclusivity with {@code @InputSource}:</b> When the experiment method
-     * is also annotated with {@link InputSource @InputSource}, this attribute must NOT
-     * be specified. With {@code @InputSource}, each iteration tests ALL inputs exactly
-     * once — the effective samples per iteration equals the number of inputs. Setting
-     * {@code samplesPerIteration} to any value other than the default when using
-     * {@code @InputSource} will throw an
-     * {@link org.junit.jupiter.api.extension.ExtensionConfigurationException}.
+     * <p>When the experiment method is also annotated with {@link InputSource @InputSource},
+     * inputs are cycled via round-robin within each iteration. If this attribute is left
+     * at its default value, the effective samples per iteration equals the number of inputs.
+     * If explicitly set, the specified value is used and inputs cycle accordingly — some
+     * inputs may appear more or fewer times per iteration depending on the ratio.
      *
      * <p>Without {@code @InputSource}, this attribute controls how many times the
      * experiment method executes per iteration.

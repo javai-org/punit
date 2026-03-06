@@ -38,7 +38,10 @@ public class ResultProjectionBuilder {
     public ResultProjection build(int sampleIndex, UseCaseOutcome<?> outcome) {
         Objects.requireNonNull(outcome, "outcome must not be null");
 
-        String input = extractInput(outcome.metadata());
+        String input = outcome.inputRepresentation();
+        if (input == null) {
+            input = extractInput(outcome.metadata());
+        }
         Map<String, String> postconditions = extractPostconditions(outcome);
         String content = extractContent(outcome);
 

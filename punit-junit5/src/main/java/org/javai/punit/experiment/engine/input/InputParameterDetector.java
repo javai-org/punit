@@ -3,6 +3,7 @@ package org.javai.punit.experiment.engine.input;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
+import org.javai.punit.api.ControlFactor;
 import org.javai.punit.api.Factor;
 import org.javai.punit.api.Input;
 import org.javai.punit.api.OutcomeCaptor;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtensionConfigurationException;
  * <ul>
  *   <li>{@link OutcomeCaptor} - handled by CaptorParameterResolver</li>
  *   <li>{@link Factor @Factor}-annotated parameters - handled by FactorParameterResolver</li>
+ *   <li>{@link ControlFactor @ControlFactor}-annotated parameters - handled by ControlFactorParameterResolver</li>
  *   <li>UseCase types - handled by UseCaseProvider (detected by naming convention)</li>
  *   <li>{@link TokenChargeRecorder} - handled by TokenChargeRecorderParameterResolver</li>
  * </ul>
@@ -61,7 +63,7 @@ public final class InputParameterDetector {
         throw new ExtensionConfigurationException(
                 "@InputSource requires a method parameter to inject the input value. " +
                 "Mark the parameter with @Input or ensure the parameter is not a framework type " +
-                "(OutcomeCaptor, UseCase, TokenChargeRecorder) or @Factor-annotated.");
+                "(OutcomeCaptor, UseCase, TokenChargeRecorder) or @Factor/@ControlFactor-annotated.");
     }
 
     /**
@@ -103,6 +105,11 @@ public final class InputParameterDetector {
 
         // Skip @Factor-annotated parameters - handled by FactorParameterResolver
         if (param.isAnnotationPresent(Factor.class)) {
+            return true;
+        }
+
+        // Skip @ControlFactor-annotated parameters - handled by ControlFactorParameterResolver
+        if (param.isAnnotationPresent(ControlFactor.class)) {
             return true;
         }
 

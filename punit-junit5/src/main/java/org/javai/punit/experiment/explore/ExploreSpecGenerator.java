@@ -28,6 +28,52 @@ public class ExploreSpecGenerator {
     private static final String DEFAULT_EXPLORATIONS_DIR = "src/test/resources/punit/explorations";
 
     /**
+     * Generates a single spec file for the use case (no per-config breakdown).
+     *
+     * <p>Used when @InputSource is present with round-robin cycling — all inputs
+     * contribute to a single aggregated exploration spec.
+     */
+    public void generateSpec(
+            ExtensionContext context,
+            ExtensionContext.Store store,
+            ExperimentResultAggregator aggregator) {
+
+        ExploreConfig config = (ExploreConfig) store.get("config", ExperimentConfig.class);
+        String useCaseId = config.useCaseId();
+        int expiresInDays = config.expiresInDays();
+
+        UseCaseContext useCaseContext = DefaultUseCaseContext.builder().build();
+
+        EmpiricalBaselineGenerator generator = new EmpiricalBaselineGenerator();
+        EmpiricalBaseline baseline = generator.generate(
+                aggregator,
+                context.getTestClass().orElse(null),
+                context.getTestMethod().orElse(null),
+                useCaseContext,
+                expiresInDays
+        );
+
+        try {
+            String filename = useCaseId.replace('.', '-') + ".yaml";
+            String outputDirOverride = System.getProperty("punit.explorations.outputDir");
+            Path baseDir = (outputDirOverride != null && !outputDirOverride.isEmpty())
+                    ? Paths.get(outputDirOverride) : Paths.get(DEFAULT_EXPLORATIONS_DIR);
+            Files.createDirectories(baseDir);
+            Path outputPath = baseDir.resolve(filename);
+
+            ExploreOutputWriter writer = new ExploreOutputWriter();
+            writer.write(baseline, outputPath);
+
+            context.publishReportEntry("punit.spec.outputPath", outputPath.toString());
+        } catch (IOException e) {
+            context.publishReportEntry("punit.spec.error", e.getMessage());
+        }
+
+        context.publishReportEntry("punit.config.successRate",
+                String.format("%.4f", aggregator.getObservedSuccessRate()));
+    }
+
+    /**
      * Generates a spec file for a single configuration.
      */
     public void generateSpec(
