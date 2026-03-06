@@ -26,7 +26,10 @@
           <set>
             <option value="$PROJECT_DIR$/../outcome" />
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/punit-core" />
             <option value="$PROJECT_DIR$/punit-gradle-plugin" />
+            <option value="$PROJECT_DIR$/punit-junit5" />
+            <option value="$PROJECT_DIR$/punit-sentinel" />
           </set>
         </option>
       </GradleProjectSettings>

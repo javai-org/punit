@@ -4,6 +4,8 @@ pluginManagement {
 
 rootProject.name = "punit"
 
+include("punit-core", "punit-junit5", "punit-sentinel")
+
 // Include the outcome library from the local filesystem when available (sibling folder).
 // On CI, this folder won't exist and Gradle resolves outcome from Maven Central instead.
 val outcomeDir = file("../outcome")
