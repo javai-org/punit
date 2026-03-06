@@ -12,7 +12,7 @@ For decades, the dominant paradigm in software testing has rested on an implicit
 
 Under this paradigm, tests produce **binary outcomes**—pass or fail—and a single failure is definitive evidence of a defect. Test frameworks report success as a count of green checkmarks, and any red mark warrants investigation. The entire edifice of continuous integration, test-driven development, and quality gates is built on this foundation.
 
-Of course, uncertainty has always existed. Network timeouts, race conditions, clock skew, and resource contention introduce variability into even carefully designed systems. But the traditional response has been to **treat uncertainty as a defect to eliminate**—a source of "flaky tests" to be fixed, mocked away, or suppressed. The goal was to restore the deterministic ideal.
+Of course, uncertainty has always existed. Network timeouts, race conditions, clock skew, and resource contention introduce variability into even carefully designed systems — both in *what* they produce and in *how long* they take to produce it. But the traditional response has been to **treat uncertainty as a defect to eliminate**—a source of "flaky tests" to be fixed, mocked away, or suppressed. The goal was to restore the deterministic ideal.
 
 ### The LLM Inflection Point
 
@@ -30,6 +30,20 @@ This represents a qualitative shift in the testing challenge:
 | Single test is definitive | Single test is a sample   |
 
 The average software developer has encountered uncertainty, but typically as an annoyance to work around. LLMs bring it into the foreground as a **permanent feature** of the systems we build. A customer service chatbot that "usually" gives correct answers is not buggy—it's behaving exactly as its underlying model does.
+
+### Two Dimensions of Stochasticity
+
+The uncertainty introduced by non-deterministic systems manifests along two independent dimensions:
+
+1. **Functional stochasticity** — whether the system produces a correct result. Given identical input, an LLM may generate valid JSON in 95 out of 100 invocations and malformed output in the remaining 5. The *correctness* of the output is a random variable.
+
+2. **Temporal stochasticity** — how long the system takes to respond. Even among successful invocations, response times vary substantially. A service that averages 200ms may spike to 2 seconds on any given call. Latency is not a fixed property of the system; it is a *distribution*.
+
+These dimensions are independent. A fast response can be incorrect; a slow response can be correct. A service can meet its reliability target while routinely breaching its latency SLA, or vice versa. Treating either dimension in isolation misses half the picture.
+
+Traditional testing addresses neither dimension statistically. A single successful response says nothing about the success *rate*; a single fast response says nothing about the *tail latency* that affects the worst-served users. Both require repeated observation and distributional reasoning — the same shift from binary to probabilistic thinking.
+
+PUnit addresses both dimensions within a unified framework. Pass-rate assertions (Sections 1–5) model functional stochasticity as a binomial process. Latency assertions (Section 12) characterise temporal stochasticity through empirical percentile distributions. Both are evaluated independently and both must pass for the test to pass, reflecting the reality that a system must be both correct *and* responsive.
 
 ### The Need for Statistical Rigor
 
@@ -1376,6 +1390,14 @@ $$n = \frac{z_{\alpha/2}^2 \cdot p(1-p)}{e^2}$$
 
 $$n = \left(\frac{z_\alpha \sqrt{p_0(1-p_0)} + z_\beta \sqrt{p_1(1-p_1)}}{p_0 - p_1}\right)^2$$
 
+### Empirical Percentile (nearest-rank)
+
+$$Q(p) = t_{(\lceil p \cdot n_s \rceil)}, \quad t_{(1)} \leq \cdots \leq t_{(n_s)}$$
+
+### Latency Threshold Derivation (upper confidence bound)
+
+$$\tau_j = \max\left(Q_{\text{baseline}}(p_j), \; \left\lceil Q_{\text{baseline}}(p_j) + z_\alpha \cdot \frac{s}{\sqrt{n_s}} \right\rceil\right)$$
+
 ---
 
 ## 10. Transparent Statistics Mode
@@ -1554,10 +1576,10 @@ Configuration follows precedence (highest to lowest):
 
 ### 10.8 Detail Levels
 
-| Level     | Description                                        | Use Case            |
-|-----------|-----------------------------------------------------|---------------------|
-| `SUMMARY` | Verdict + key numbers (skips z-test section)        | Quick reference     |
-| `VERBOSE` | Full explanation including z-test (default)          | Audit/review        |
+| Level     | Description                                  | Use Case        |
+|-----------|----------------------------------------------|-----------------|
+| `SUMMARY` | Verdict + key numbers (skips z-test section) | Quick reference |
+| `VERBOSE` | Full explanation including z-test (default)  | Audit/review    |
 
 ### 10.9 Validation by Statisticians
 
@@ -1689,6 +1711,235 @@ By surfacing these questions—and providing frameworks for answering them—PUn
 
 ---
 
+## 12. Latency: Empirical Percentile Analysis
+
+### 12.1 The Statistical Challenge of Latency
+
+Pass-rate testing models functional outcomes as Bernoulli trials drawn from a binomial distribution (Section 1). Latency presents a fundamentally different statistical challenge. Service latency distributions are typically:
+
+- **Right-skewed**: A long right tail caused by cache misses, garbage collection pauses, network retransmission, or cold starts
+- **Multimodal**: Distinct modes corresponding to fast paths (cached) and slow paths (database lookup, remote API call)
+- **Heavy-tailed**: Extreme outliers that are orders of magnitude larger than the median
+
+These characteristics violate the assumptions of parametric models such as the normal distribution. A system with a 200ms mean and 50ms standard deviation could have a p99 of 350ms (near-normal) or 2000ms (heavy-tailed) — the summary statistics cannot distinguish the two.
+
+**PUnit's approach**: Rather than fitting a parametric distribution to latency data, PUnit uses **non-parametric empirical percentiles** exclusively. This distribution-free approach makes no assumptions about the shape of the latency distribution — it characterises the distribution directly from the observed order statistics.
+
+### 12.2 Empirical Percentile Estimation
+
+#### 12.2.1 Population Definition
+
+Not all samples contribute to the latency distribution. PUnit defines the **latency population** as:
+
+$$\mathcal{L} = \{ t_i : X_i = 1 \}$$
+
+where $t_i$ is the wall-clock execution time of the $i$-th trial and $X_i$ is its Bernoulli outcome. Only successful samples ($X_i = 1$) are included.
+
+**Rationale**: Failed samples produce execution times that are statistically meaningless for latency characterisation. A fast failure (immediate validation rejection, $t \approx 0$) and a slow failure (timeout at $t = 30{,}000\text{ms}$) both reflect error paths, not the system's operational response time. Including them would contaminate the distribution and produce percentile estimates that describe neither the successful nor the failed population.
+
+Let $n_s = |\mathcal{L}|$ denote the number of successful samples and let $t_{(1)} \leq t_{(2)} \leq \cdots \leq t_{(n_s)}$ be the order statistics of the successful latencies.
+
+#### 12.2.2 Nearest-Rank Interpolation
+
+PUnit computes percentiles using the **nearest-rank method**. For a percentile $p \in (0, 1]$ with $n_s$ sorted observations:
+
+$$\text{index}(p) = \lceil p \cdot n_s \rceil - 1 \quad \text{(clamped to } [0, \, n_s - 1]\text{)}$$
+
+$$Q(p) = t_{(\text{index}(p) + 1)}$$
+
+where $t_{(k)}$ denotes the $k$-th order statistic.
+
+**Worked example**: For $n_s = 200$ successful samples:
+
+| Percentile | $p$  | $\lceil p \cdot 200 \rceil - 1$ | Order statistic |
+|------------|------|----------------------------------|-----------------|
+| p50        | 0.50 | 99                               | $t_{(100)}$     |
+| p90        | 0.90 | 179                              | $t_{(180)}$     |
+| p95        | 0.95 | 189                              | $t_{(190)}$     |
+| p99        | 0.99 | 197                              | $t_{(198)}$     |
+
+**Why nearest-rank?** Linear interpolation methods (e.g., Type 7 in R) produce fractional percentile estimates. For latency thresholds expressed in integer milliseconds and compared against SLA values, the discrete nearest-rank method produces integer-valued estimates that align naturally with how thresholds are specified and reported.
+
+#### 12.2.3 Summary Statistics
+
+In addition to percentiles, PUnit computes:
+
+- **Mean**: $\bar{t} = \frac{1}{n_s} \sum_{i=1}^{n_s} t_i$
+
+- **Sample standard deviation**: $s = \sqrt{\frac{1}{n_s - 1} \sum_{i=1}^{n_s} (t_i - \bar{t})^2}$
+
+- **Maximum**: $t_{(n_s)}$
+
+The mean and standard deviation are used in threshold derivation (Section 12.4). The percentiles and maximum characterise the distribution shape.
+
+### 12.3 Latency Assertions
+
+#### 12.3.1 The Assertion Model
+
+A latency assertion specifies a set of percentile constraints:
+
+$$\mathcal{C} = \{ (p_j, \tau_j) : j = 1, \ldots, m \}$$
+
+where $p_j$ is a percentile level (one of $\{0.50, 0.90, 0.95, 0.99\}$) and $\tau_j$ is the corresponding threshold in milliseconds.
+
+For each constraint, the assertion evaluates:
+
+$$\text{PASS}_j \iff Q(p_j) \leq \tau_j$$
+
+The overall latency assertion passes if and only if all individual constraints pass:
+
+$$\text{PASS}_{\text{latency}} = \bigwedge_{j=1}^{m} \text{PASS}_j$$
+
+#### 12.3.2 Combined Verdict
+
+Pass-rate and latency are independent quality dimensions. The overall test verdict requires both to pass:
+
+$$\text{PASS}_{\text{test}} = \text{PASS}_{\text{rate}} \wedge \text{PASS}_{\text{latency}}$$
+
+This reflects the operational reality that a service must be both *correct* and *responsive*. A payment API that succeeds 99.5% of the time but takes 30 seconds for 1% of requests fails its SLA just as surely as one that returns incorrect results.
+
+#### 12.3.3 Threshold Sources
+
+Latency thresholds can originate from two sources:
+
+| Source | Symbol | How specified | Statistical question |
+|--------|--------|---------------|---------------------|
+| **Explicit** | $\tau_j$ (given) | `@Latency(p95Ms = 500)` | "Does the system meet the declared latency target?" |
+| **Baseline-derived** | $\hat{\tau}_j$ (estimated) | Automatic from spec | "Has latency degraded from the measured baseline?" |
+
+This mirrors the compliance vs. regression dichotomy for pass-rate thresholds (Section 3). Explicit thresholds are normative claims; baseline-derived thresholds are empirical estimates with a statistical margin.
+
+### 12.4 Threshold Derivation from Baselines
+
+#### 12.4.1 The Problem
+
+When a MEASURE experiment records the latency distribution, the observed percentiles are point estimates subject to sampling variability. Using the raw baseline percentile as the threshold would cause frequent false positives — the same problem as using $\hat{p}_{\text{exp}}$ directly as the pass-rate threshold (Section 3.1).
+
+**Example**: A baseline observes $Q_{0.95} = 480\text{ms}$ from $n_s = 935$ samples. A subsequent test with $n_s = 192$ samples observes $Q_{0.95} = 495\text{ms}$. Is this a degradation, or normal variance?
+
+#### 12.4.2 Upper Confidence Bound
+
+PUnit derives latency thresholds as **one-sided upper confidence bounds** on the baseline percentile. The formula uses the standard error of the mean as a proxy for percentile uncertainty:
+
+$$\hat{\tau}_j = Q_{\text{baseline}}(p_j) + z_\alpha \cdot \frac{s}{\sqrt{n_s}}$$
+
+where:
+- $Q_{\text{baseline}}(p_j)$ is the baseline percentile value
+- $z_\alpha = \Phi^{-1}(1 - \alpha)$ is the one-sided critical value (e.g., $z_{0.05} = 1.645$)
+- $s$ is the baseline sample standard deviation
+- $n_s$ is the baseline sample count (successful samples only)
+
+The derived threshold is then:
+
+$$\tau_j = \max\left(Q_{\text{baseline}}(p_j), \, \lceil \hat{\tau}_j \rceil\right)$$
+
+The ceiling ensures integer millisecond thresholds, and the $\max$ ensures the threshold is never tighter than the raw baseline observation.
+
+#### 12.4.3 Statistical Interpretation
+
+This derivation answers: "What is the upper bound of the $(1-\alpha)$ confidence interval for the true percentile, given the baseline observations?"
+
+A test with observed $Q(p_j) \leq \tau_j$ means: the observed percentile is within the range expected from a system whose true latency profile matches the baseline, at the specified confidence level.
+
+A breach ($Q(p_j) > \tau_j$) means: the observed percentile exceeds what we would expect from normal sampling variance alone, providing evidence of latency degradation.
+
+#### 12.4.4 Limitations of this Approach
+
+The formula $\hat{\tau}_j = Q(p_j) + z \cdot s / \sqrt{n_s}$ uses the standard error of the *mean* as a proxy for the standard error of the *percentile*. For the true standard error of an order statistic, the density of the distribution at the percentile point is required — which is unknown in the non-parametric setting.
+
+The approximation is conservative in practice for the following reasons:
+
+- The standard deviation $s$ reflects the overall spread of the distribution, not just the local density at the percentile point
+- The $\max$ floor ensures thresholds are never tighter than the raw observation
+- The ceiling rounding provides an additional (small) buffer
+
+For baseline sample sizes typical of MEASURE experiments ($n_s \geq 500$), the approximation produces thresholds that are close to what a bootstrap confidence interval would yield, at far lower computational cost. For small baselines ($n_s < 100$), the derived thresholds may be wider than necessary — a conservative error that produces fewer false positives rather than more.
+
+#### 12.4.5 Worked Example
+
+**Baseline**: $n_s = 935$, $s = 145\text{ms}$, $Q_{0.95} = 580\text{ms}$, confidence $= 0.95$
+
+$$z_{0.05} = 1.645$$
+
+$$\text{SE} = \frac{145}{\sqrt{935}} = \frac{145}{30.58} = 4.74\text{ms}$$
+
+$$\hat{\tau}_{0.95} = 580 + 1.645 \times 4.74 = 580 + 7.80 = 587.80$$
+
+$$\tau_{0.95} = \max(580, \lceil 587.80 \rceil) = 588\text{ms}$$
+
+A subsequent test observing $Q_{0.95} = 580\text{ms}$ would pass ($580 \leq 588$). An observation of $Q_{0.95} = 600\text{ms}$ would breach ($600 > 588$).
+
+### 12.5 Sample Size Requirements for Percentile Estimation
+
+#### 12.5.1 The Problem
+
+An empirical percentile $Q(p)$ is computed from the $\lceil p \cdot n_s \rceil$-th order statistic. When $n_s$ is small relative to $p$, the estimate is unreliable:
+
+- For $p = 0.99$ with $n_s = 10$: $\lceil 0.99 \times 10 \rceil = 10$ — the "99th percentile" is simply the maximum value. A single outlier determines the result.
+- For $p = 0.99$ with $n_s = 50$: $\lceil 0.99 \times 50 \rceil = 50$ — still the maximum. The p99 only becomes distinct from the maximum when $n_s \geq 100$.
+
+#### 12.5.2 Minimum Sample Sizes
+
+PUnit enforces minimum sample counts for each percentile level based on the requirement that the percentile estimate be based on at least one observation *below* it in the sorted order:
+
+| Percentile | $p$  | Minimum $n_s$ | Rationale |
+|------------|------|----------------|-----------|
+| p50        | 0.50 | 5              | With $n_s = 5$: index = 2, two values below, two above |
+| p90        | 0.90 | 10             | With $n_s = 10$: index = 9, one value above |
+| p95        | 0.95 | 20             | With $n_s = 20$: index = 19, one value above |
+| p99        | 0.99 | 100            | With $n_s = 100$: index = 99, one value above. Below 100, p99 = max |
+
+These thresholds ensure that the percentile estimate is not degenerate (i.e., not simply the minimum or maximum of the sample).
+
+#### 12.5.3 The Feasibility Gate
+
+For **VERIFICATION** intent with latency enforcement enabled, PUnit checks *before any samples execute* whether the expected number of successful samples meets the minimum requirement:
+
+$$n_{s,\text{expected}} = n_{\text{planned}} \times \hat{p}_{\text{baseline}}$$
+
+If $n_{s,\text{expected}} < n_{s,\min}(p_j)$ for any asserted percentile $p_j$, PUnit raises an `ExtensionConfigurationException` — the same mechanism used for the pass-rate feasibility gate (Section 5.7.1).
+
+**Example**: A test with $n_{\text{planned}} = 50$ and baseline $\hat{p} = 0.80$ yields $n_{s,\text{expected}} = 40$. A p99 assertion requires $n_{s,\min} = 100$. The test is infeasible and fails immediately with a diagnostic message.
+
+#### 12.5.4 Indicative Results
+
+When sample size falls below the minimum but the test is not subject to the feasibility gate (SMOKE intent, or advisory mode), PUnit still evaluates the percentile but marks the result as **indicative**:
+
+> "The p99 result is based on $n_s = 40$ samples (minimum recommended: 100). This result is indicative — a directional signal, not a statistically reliable estimate."
+
+This mirrors the SMOKE/VERIFICATION asymmetry for pass-rate testing (Section 5.7.3). The percentile is computed and reported, but its epistemic weight is explicitly qualified.
+
+### 12.6 Enforcement Modes
+
+Latency assertions support two enforcement modes, reflecting the practical reality that latency profiles are environment-dependent:
+
+| Mode | Breach behaviour | Default | Rationale |
+|------|-----------------|---------|-----------|
+| **Advisory** | Warning in output; test passes | Yes | Baseline may have been recorded on different hardware |
+| **Enforced** | Test fails | No | Latency is a first-class SLA dimension |
+
+**Why advisory is the default**: A baseline generated on CI hardware with dedicated resources may record $Q_{0.95} = 480\text{ms}$. The same workload on a developer laptop with competing processes may observe $Q_{0.95} = 650\text{ms}$ — a genuine environmental difference, not a regression. Failing the test by default would produce false positives that erode trust in the framework.
+
+When enforcement is enabled (via `-Dpunit.latency.enforce=true`), latency breaches fail the test, and the VERIFICATION feasibility gate is active. This is appropriate for environments where hardware consistency is controlled (dedicated CI, staging environments).
+
+### 12.7 Relationship to Pass-Rate Testing
+
+The table below summarises how PUnit's two quality dimensions parallel each other in statistical treatment:
+
+| Aspect | Pass Rate | Latency |
+|--------|-----------|---------|
+| **Statistical model** | Parametric (binomial) | Non-parametric (empirical percentiles) |
+| **Estimand** | Success probability $p$ | Percentile quantiles $Q(p_j)$ |
+| **Threshold derivation** | Wilson score lower bound | Upper confidence bound on percentile |
+| **Baseline storage** | $(\hat{p}, k, n)$ | $(Q_{0.50}, Q_{0.90}, Q_{0.95}, Q_{0.99}, s, n_s)$ |
+| **Feasibility gate** | $N_{\min}$ from Wilson bound | $n_{s,\min}$ from percentile reliability |
+| **Indicative marking** | Undersized sample note | Undersized sample note |
+| **Enforcement** | Always enforced | Advisory by default; opt-in enforcement |
+
+The two dimensions are evaluated independently and combined with logical conjunction. This independence means that latency analysis can never compensate for a pass-rate failure, and vice versa — each dimension must meet its own threshold.
+
+---
+
 ## References
 
 1. Wilson, E. B. (1927). Probable inference, the law of succession, and statistical inference. *Journal of the American Statistical Association*, 22(158), 209-212.
@@ -1706,6 +1957,10 @@ By surfacing these questions—and providing frameworks for answering them—PUn
 7. Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). Chapman and Hall/CRC. [Beta-Binomial posterior predictive]
 
 8. Jeffreys, H. (1946). An invariant form for the prior probability in estimation problems. *Proceedings of the Royal Society of London. Series A*, 186(1007), 453-461. [Jeffreys prior]
+
+9. Hyndman, R. J., & Fan, Y. (1996). Sample quantiles in statistical packages. *The American Statistician*, 50(4), 361-365. [Percentile interpolation methods]
+
+10. David, H. A., & Nagaraja, H. N. (2003). *Order Statistics* (3rd ed.). Wiley-Interscience. [Order statistics and empirical percentiles]
 
 ---
 
