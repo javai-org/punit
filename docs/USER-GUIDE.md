@@ -217,12 +217,16 @@ void apiMeetsSla() {
 This test runs 100 samples. Each sample calls the API and asserts the result. PUnit counts successes and evaluates whether the observed rate meets the 95% threshold.
 
 ```
-═══════════════════════════════════════════════════════════════
-PUnit PASSED (SMOKE): apiMeetsSla
-  Observed: 97.0% (97/100) >= min pass rate: 95.0%
-  Threshold origin: SLA
-  Contract ref: API SLA §3.1
-═══════════════════════════════════════════════════════════════
+═ VERDICT: PASS (SMOKE) ══════════════════════════════════════════════ PUnit ═
+
+  apiMeetsSla
+
+  Observed pass rate:  0.9700 (97/100) >= required: 0.9500
+  Threshold origin:    SLA
+  Contract:            API SLA §3.1
+  Elapsed:             1234ms
+
+══════════════════════════════════════════════════════════════════════════════
 ```
 
 The `thresholdOrigin` and `contractRef` attributes document where the threshold came from. This provenance is part of the test's output, so anyone reading the results can trace the threshold back to its source.
@@ -253,7 +257,7 @@ When testing high thresholds (99.9%+), sample size matters significantly:
 | 10,000  | ~0.1%                   |
 | 100,000 | ~0.03%                  |
 
-To detect that a system is at 99.97% when the SLA requires 99.99%, you need enough samples to distinguish a 0.02% difference. With 1,000 samples, this gap is statistically invisible.
+To detect that a system is at 99.97% when the SLA requires 99.99%, you need enough samples to distinguish a 0.02% difference. Even with 1,000 samples, this gap is statistically invisible.
 
 ### The Parameter Triangle
 
@@ -357,12 +361,14 @@ In other words: sample failures are expected and informative; the statistical ve
 Every probabilistic test produces a verdict with statistical context:
 
 ```
-═══════════════════════════════════════════════════════════════
-PUnit PASSED: testInstructionTranslation
-  Observed: 94.0% (94/100) >= min pass rate: 91.9%
-  Baseline: 93.5% @ N=1000 (spec: ShoppingBasketUseCase.yaml)
-  Confidence: 95%
-═══════════════════════════════════════════════════════════════
+═ VERDICT: PASS (VERIFICATION) ═══════════════════════════════════════ PUnit ═
+
+  testInstructionTranslation
+
+  Observed pass rate:  0.9400 (94/100) >= required: 0.9190
+  Elapsed:             5765ms
+
+══════════════════════════════════════════════════════════════════════════════
 ```
 
 **Responding to results**
@@ -559,17 +565,32 @@ System usage and environmental changes mean that baseline data can become dated.
 An expired baseline can and will still be used by the probabilistic test, but the verdict will include a warning that the baseline may have drifted and the test's result should therefore be treated with caution.
 
 ```
-═══════════════════════════════════════════════════════════════
-PUnit PASSED: testInstructionTranslation
-  Observed: 94.0% (94/100) >= min pass rate: 91.9%
-  Baseline: 93.5% @ N=1000 (spec: ShoppingBasketUseCase.yaml)
-  Confidence: 95%
+═ VERDICT: PASS (VERIFICATION) ═══════════════════════════════════════ PUnit ═
 
-  ⚠️  BASELINE EXPIRED
-  The baseline was generated on 2025-11-15 and expired on 2025-12-15.
-  System behavior may have drifted. Consider re-running MEASURE to
-  establish a fresh baseline.
-═══════════════════════════════════════════════════════════════
+  testInstructionTranslation
+
+  Observed pass rate:  0.9400 (94/100) >= required: 0.9190
+  Elapsed:             5765ms
+
+══════════════════════════════════════════════════════════════════════════════
+```
+
+When the baseline has expired, PUnit prints a separate warning immediately after the verdict:
+
+```
+═ BASELINE EXPIRED ═══════════════════════════════════════════════════ PUnit ═
+
+  The baseline used for statistical inference has expired.
+
+  Baseline created:    2025-11-15 09:30 GMT
+  Validity period:     30 days
+  Expiration date:     2025-12-15 09:30 GMT
+  Expired:             3 days ago
+
+  Statistical inference is based on potentially stale empirical data.
+  Consider running a fresh MEASURE experiment to update the baseline.
+
+══════════════════════════════════════════════════════════════════════════════
 ```
 
 ---
@@ -776,16 +797,29 @@ void exploreInputVariations(
 }
 ```
 
-Without `@Input`, the framework auto-detects the input parameter by excluding framework types (UseCase, OutcomeCaptor, TokenChargeRecorder) and `@Factor`-annotated parameters. Use `@Input` when:
+Without `@Input`, the framework auto-detects the input parameter by excluding framework types (UseCase, OutcomeCaptor, TokenChargeRecorder) and `@Factor`/`@ControlFactor`-annotated parameters. Use `@Input` when:
 - The method has multiple candidate parameters
 - You want to be explicit for clarity
 - Auto-detection picks the wrong parameter
 
-**Sample Distribution:**
+**Round-Robin Input Cycling:**
 
-Samples are distributed evenly across inputs:
-- 100 samples with 10 inputs = 10 samples per input
-- Each input is tested the same number of times (remainders go to early inputs)
+All artifact types (`@ProbabilisticTest`, `@MeasureExperiment`, `@ExploreExperiment`, `@OptimizeExperiment`) use the same round-robin strategy for `@InputSource`: inputs are cycled in order across samples.
+
+With 100 samples and 3 inputs:
+
+```
+Sample 1  → "Add 2 apples"
+Sample 2  → "Remove the milk"
+Sample 3  → "Clear the basket"
+Sample 4  → "Add 2 apples"      (cycles back)
+Sample 5  → "Remove the milk"
+...
+Sample 99 → "Clear the basket"
+Sample 100→ "Add 2 apples"
+```
+
+Each input receives an equal share of samples (34, 33, 33 in this case). The total number of samples is always controlled by the artifact's own sample count attribute (`samples`, `samplesPerConfig`, or `samplesPerIteration`) — `@InputSource` provides the test data, not the sample count.
 
 **Choosing Method vs File Source:**
 
@@ -886,9 +920,10 @@ EXPLORE produces one exploration file per configuration:
 
 ```
 src/test/resources/punit/explorations/ShoppingBasketUseCase/
-├── model-gpt-4o_temp-0.0.yaml
-├── model-gpt-4o_temp-0.5.yaml
-├── model-gpt-4o_temp-1.0.yaml
+├── model-gpt-4o-mini.yaml
+├── model-gpt-4o.yaml
+├── model-claude-3-5-haiku.yaml
+├── model-claude-3-5-sonnet.yaml
 └── ...
 ```
 
@@ -1006,7 +1041,7 @@ static String weakStartingPrompt() {
 }
 ```
 
-**Note:** When using `@InputSource`, each optimization iteration tests the control factor against ALL inputs in the source. Don't specify `samplesPerIteration` when using `@InputSource` — the effective samples per iteration equals the number of inputs.
+**Note:** When using `@InputSource`, inputs are cycled via round-robin within each iteration. If `samplesPerIteration` is not specified, it defaults to the number of inputs (one pass through each input per iteration). If `samplesPerIteration` is explicitly set, the specified value is used and inputs cycle accordingly.
 
 ### Scorers and Mutators
 
@@ -1055,7 +1090,7 @@ For a detailed treatment of this workflow — including production readiness pha
 
 **Running with real LLMs:**
 
-By default, experiments use mock LLMs for fast, free, deterministic results. To run with real LLM providers, set the mode and provide API keys:
+By default, the experiments in the punitexamoples project use mock LLMs for fast, free, deterministic results. To run with real LLM providers, set the mode and provide API keys:
 
 ```bash
 export PUNIT_LLM_MODE=real
@@ -1092,20 +1127,27 @@ Covariates are environmental factors that may affect system behaviour.
 **Intelligent baseline selection:** When a probabilistic test runs, PUnit examines the current execution context (covariates) and selects the most appropriate baseline. If one or more covariates don't match, PUnit qualifies the verdict with a warning:
 
 ```
-═══════════════════════════════════════════════════════════════
-PUnit PASSED: testInstructionTranslation
-  Observed: 91.0% (91/100) >= min pass rate: 91.9%
-  Baseline: 93.5% @ N=1000 (spec: ShoppingBasketUseCase.yaml)
-  Confidence: 95%
+═ VERDICT: PASS (VERIFICATION) ═══════════════════════════════════════ PUnit ═
 
-  ⚠️  COVARIATE NON-CONFORMANCE
-  The test is running under different conditions than the baseline:
-    • day_of_week: baseline=WEEKDAY, current=WEEKEND
-    • time_of_day: baseline=MORNING, current=EVENING
+  testInstructionTranslation
 
-  Statistical inference may be less reliable. Consider whether
-  these differences affect the validity of the comparison.
-═══════════════════════════════════════════════════════════════
+  Observed pass rate:  0.9100 (91/100) >= required: 0.9190
+  Elapsed:             5765ms
+
+══════════════════════════════════════════════════════════════════════════════
+```
+
+When covariates don't match, PUnit prints a separate warning after the verdict:
+
+```
+═ COVARIATE NON-CONFORMANCE ══════════════════════════════════════════ PUnit ═
+
+  Statistical inference may be less reliable.
+
+  • day_of_week: baseline=WEEKDAY, test=WEEKEND
+  • time_of_day: baseline=MORNING, test=EVENING
+
+══════════════════════════════════════════════════════════════════════════════
 ```
 
 **How PUnit selects baselines:**
@@ -1402,11 +1444,15 @@ The `@Latency` annotation supports four percentiles: `p50Ms`, `p90Ms`, `p95Ms`, 
 **The combined verdict.** Latency and pass rate are independent quality dimensions. Both must pass for the test to pass. A service that meets its reliability target but breaches its latency SLA still fails the test:
 
 ```
-═══════════════════════════════════════════════════════════════
-PUnit FAILED: paymentServiceMeetsLatencySla
-  Observed: 96.0% (192/200) >= min pass rate: 95.0%
-  Latency (n=192): p95 480ms <= 500ms, p99 1350ms > 1000ms <- BREACH
-═══════════════════════════════════════════════════════════════
+═ VERDICT: FAIL (VERIFICATION) ═══════════════════════════════════════ PUnit ═
+
+  paymentServiceMeetsLatencySla
+
+  Observed pass rate:  0.9600 (192/200) >= required: 0.9500
+  Latency:             (n=192): p95 480ms <= 500ms, p99 1350ms > 1000ms ← BREACH
+  Elapsed:             12340ms
+
+══════════════════════════════════════════════════════════════════════════════
 ```
 
 The pass rate is fine (96% >= 95%), but the observed p99 of 1350ms exceeds the 1000ms threshold. With enforcement enabled (-Dpunit.latency.enforce=true), the test fails — latency is treated as a first-class assertion. In advisory mode (the default), the breach is reported but does not fail the test.
@@ -1562,42 +1608,52 @@ Output includes:
 - Latency analysis (when thresholds are available)
 
 ```
-══════════════════════════════════════════════════════════════════════════════
-STATISTICAL ANALYSIS: shouldReturnValidJson
-══════════════════════════════════════════════════════════════════════════════
+═ STATISTICAL ANALYSIS FOR: shouldReturnValidJson ════════════════════ PUnit ═
 
-HYPOTHESIS TEST
-  H₀ (null):        True success rate π ≤ 0.85
-  H₁ (alternative): True success rate π > 0.85
-  Test type:        One-sided binomial proportion test
+  HYPOTHESIS TEST
+    H₀ (null):             True success rate π ≤ 0.8500 (system does not meet spec)
+    H₁ (alternative):      True success rate π > 0.8500 (system meets spec)
+    Test type:             One-sided binomial proportion test
 
-OBSERVED DATA
-  Sample size (n):     100
-  Successes (k):       87
-  Observed rate (p̂):   0.870
+  OBSERVED DATA
+    Sample size (n):       100
+    Successes (k):         87
+    Observed rate (p̂):     0.8700
 
-STATISTICAL INFERENCE
-  Standard error:      SE = 0.0336
-  95% Confidence interval: [0.804, 0.936]
-  p-value:             0.288
+  BASELINE REFERENCE
+    Source:                JsonValidationUseCase.yaml (generated 2026-01-10)
+    Empirical basis:       1000 samples, 870 successes (0.8700)
+    Threshold derivation:  Lower bound of 95% CI = 85.1%, min pass rate = 85%
 
-LATENCY ANALYSIS
-  Population:          Successful samples only (n=87 of 100)
-  Observed distribution:
-  p50:                 120ms
-  p90:                 340ms
-  p95:                 480ms
-  p99:                 920ms
-  max:                 1150ms
+  STATISTICAL INFERENCE
+    Standard error:        SE = √(p̂(1-p̂)/n) = √(0.87 × 0.13 / 100) = 0.0336
+    Confidence interval:   95% [0.804, 0.936]
 
-  Percentile thresholds (from baseline):
-  p95:                 480ms <= 517ms                                PASS
-  p99:                 920ms <= 1050ms                               PASS
+    Test statistic:        z = (p̂ - π₀) / √(π₀(1-π₀)/n)
+                           z = (0.87 - 0.85) / √(0.85 × 0.15 / 100)
+                           z = 0.56
 
-  Baseline reference:  JsonValidationUseCase.yaml
+    p-value:               P(Z > 0.56) = 0.288
 
-VERDICT
-  Result:              PASS
+  LATENCY ANALYSIS
+    Population:            Successful samples only (n=87 of 100)
+    Observed distribution:
+      p50:                 120ms
+      p90:                 340ms
+      p95:                 480ms
+      p99:                 920ms
+      max:                 1150ms
+
+    Percentile thresholds (from baseline):
+      p95:                 480ms <= 517ms                            PASS
+      p99:                 920ms <= 1050ms                           PASS
+
+    Baseline reference:    JsonValidationUseCase.yaml
+
+  VERDICT
+    Result:                PASS
+    Interpretation:        The observed success rate of 87.00% meets the
+                           derived threshold of 85.00%.
 
 ══════════════════════════════════════════════════════════════════════════════
 ```
