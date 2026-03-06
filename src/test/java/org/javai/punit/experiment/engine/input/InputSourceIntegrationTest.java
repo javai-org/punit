@@ -7,15 +7,21 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.javai.outcome.Outcome;
+import org.javai.punit.api.ControlFactor;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.Latency;
 import org.javai.punit.api.MeasureExperiment;
+import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
+import org.javai.punit.experiment.optimize.FactorMutator;
+import org.javai.punit.experiment.optimize.OptimizationObjective;
+import org.javai.punit.experiment.optimize.OptimizeHistory;
+import org.javai.punit.experiment.optimize.SuccessRateScorer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -99,30 +105,46 @@ class InputSourceIntegrationTest {
     class ExploreExperimentTests {
 
         @Test
-        @DisplayName("runs samples per input configuration")
-        void runsSamplesPerInputConfiguration() {
+        @DisplayName("cycles through inputs via round-robin during exploration")
+        void cyclesThroughInputsDuringExploration() {
             ExploreTestSubject.capturedInputs.clear();
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
                     .selectors(DiscoverySelectors.selectClass(ExploreTestSubject.class))
                     .execute();
 
-            // 3 inputs × 2 samples per config = 6 total samples
+            // 3 inputs × samplesPerConfig=2 = 6 total samples, round-robin cycling
             results.testEvents().assertStatistics(stats ->
                     stats.started(6).succeeded(6).failed(0));
 
-            // Verify inputs were captured
-            assertThat(ExploreTestSubject.capturedInputs).hasSize(6);
-            // Each input should be run 2 times (samplesPerConfig)
-            long addMilkCount = ExploreTestSubject.capturedInputs.stream()
-                    .filter("add milk"::equals).count();
-            long removeBreadCount = ExploreTestSubject.capturedInputs.stream()
-                    .filter("remove bread"::equals).count();
-            long clearCartCount = ExploreTestSubject.capturedInputs.stream()
-                    .filter("clear cart"::equals).count();
-            assertThat(addMilkCount).isEqualTo(2);
-            assertThat(removeBreadCount).isEqualTo(2);
-            assertThat(clearCartCount).isEqualTo(2);
+            // Verify round-robin order: inputs cycle rather than group
+            assertThat(ExploreTestSubject.capturedInputs)
+                    .containsExactly("add milk", "remove bread", "clear cart",
+                                     "add milk", "remove bread", "clear cart");
+        }
+    }
+
+    @Nested
+    @DisplayName("OptimizeExperiment with @InputSource")
+    class OptimizeExperimentTests {
+
+        @Test
+        @DisplayName("cycles through inputs via round-robin with explicit samplesPerIteration")
+        void cyclesThroughInputsWithExplicitSamplesPerIteration() {
+            OptimizeWithInputsTestSubject.capturedInputs.clear();
+            EngineExecutionResults results = EngineTestKit
+                    .engine("junit-jupiter")
+                    .selectors(DiscoverySelectors.selectClass(OptimizeWithInputsTestSubject.class))
+                    .execute();
+
+            // 1 iteration × 5 samplesPerIteration = 5 total samples
+            results.testEvents().assertStatistics(stats ->
+                    stats.started(5).succeeded(5).failed(0));
+
+            // Verify round-robin cycling: 3 inputs across 5 samples
+            assertThat(OptimizeWithInputsTestSubject.capturedInputs)
+                    .containsExactly("add milk", "remove bread", "clear cart",
+                                     "add milk", "remove bread");
         }
     }
 
@@ -247,6 +269,39 @@ class InputSourceIntegrationTest {
     }
 
     /**
+     * Test subject for OptimizeExperiment with @InputSource and explicit samplesPerIteration.
+     * Verifies that the mutual exclusivity constraint has been removed and round-robin works.
+     */
+    public static class OptimizeWithInputsTestSubject {
+        static List<String> capturedInputs = new ArrayList<>();
+
+        static Stream<String> testInputs() {
+            return Stream.of("add milk", "remove bread", "clear cart");
+        }
+
+        @OptimizeExperiment(
+                useCase = TestUseCase.class,
+                controlFactor = "prompt",
+                initialControlFactorValue = "test",
+                scorer = SuccessRateScorer.class,
+                mutator = StringNoOpMutator.class,
+                objective = OptimizationObjective.MAXIMIZE,
+                samplesPerIteration = 5,
+                maxIterations = 1
+        )
+        @InputSource("testInputs")
+        void optimizeWithInputs(
+                @ControlFactor String prompt,
+                String input,
+                OutcomeCaptor captor
+        ) {
+            capturedInputs.add(input);
+            TestUseCase useCase = new TestUseCase();
+            captor.record(useCase.process(input));
+        }
+    }
+
+    /**
      * Test subject for ProbabilisticTest with @InputSource.
      */
     public static class ProbabilisticTestSubject {
@@ -265,6 +320,21 @@ class InputSourceIntegrationTest {
             if (input == null) {
                 throw new AssertionError("Input should not be null");
             }
+        }
+    }
+
+    /**
+     * Concrete no-op mutator for String factors, used by optimize test subjects.
+     */
+    public static class StringNoOpMutator implements FactorMutator<String> {
+        @Override
+        public String mutate(String currentValue, OptimizeHistory history) {
+            return currentValue;
+        }
+
+        @Override
+        public String description() {
+            return "No-op (value unchanged)";
         }
     }
 }

@@ -49,6 +49,7 @@ class ResultProjectionBuilderTest {
             alwaysPassing(),
             null,
             null,
+            null,
             null
         );
     }
@@ -105,12 +106,76 @@ class ResultProjectionBuilderTest {
                 alwaysPassing(),
                 null,
                 null,
+                null,
                 null
             );
 
             ResultProjection projection = builder.build(0, outcome);
 
             assertThat(projection.content()).isNull();
+        }
+
+        @Test
+        @DisplayName("uses first-class inputRepresentation from outcome")
+        void usesFirstClassInputRepresentation() {
+            ResultProjectionBuilder builder = new ResultProjectionBuilder();
+            UseCaseOutcome<TestResult> outcome = new UseCaseOutcome<>(
+                new TestResult("key", "value"),
+                Duration.ZERO,
+                Instant.now(),
+                Map.of(),
+                alwaysPassing(),
+                null,
+                null,
+                null,
+                "test input"
+            );
+
+            ResultProjection projection = builder.build(0, outcome);
+
+            assertThat(projection.input()).isEqualTo("test input");
+        }
+
+        @Test
+        @DisplayName("first-class inputRepresentation takes precedence over metadata")
+        void firstClassInputTakesPrecedenceOverMetadata() {
+            ResultProjectionBuilder builder = new ResultProjectionBuilder();
+            UseCaseOutcome<TestResult> outcome = new UseCaseOutcome<>(
+                new TestResult("key", "value"),
+                Duration.ZERO,
+                Instant.now(),
+                Map.of("input", "metadata input"),
+                alwaysPassing(),
+                null,
+                null,
+                null,
+                "first-class input"
+            );
+
+            ResultProjection projection = builder.build(0, outcome);
+
+            assertThat(projection.input()).isEqualTo("first-class input");
+        }
+
+        @Test
+        @DisplayName("falls back to metadata input when inputRepresentation is null")
+        void fallsBackToMetadataInput() {
+            ResultProjectionBuilder builder = new ResultProjectionBuilder();
+            UseCaseOutcome<TestResult> outcome = new UseCaseOutcome<>(
+                new TestResult("key", "value"),
+                Duration.ZERO,
+                Instant.now(),
+                Map.of("input", "metadata input"),
+                alwaysPassing(),
+                null,
+                null,
+                null,
+                null
+            );
+
+            ResultProjection projection = builder.build(0, outcome);
+
+            assertThat(projection.input()).isEqualTo("metadata input");
         }
 
         @Test
@@ -253,6 +318,7 @@ class ResultProjectionBuilderTest {
                 evaluator,
                 null,
                 null,
+                null,
                 null
             );
 
@@ -289,6 +355,7 @@ class ResultProjectionBuilderTest {
                 Instant.now(),
                 Map.of(),
                 evaluator,
+                null,
                 null,
                 null,
                 null

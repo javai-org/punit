@@ -34,6 +34,7 @@ class OptimizationOrchestratorTest {
                 new TestPostconditionEvaluator(success),
                 null,
                 null,
+                null,
                 null
         );
     }

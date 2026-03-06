@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.ExploreExperiment;
@@ -27,6 +28,7 @@ import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorResolver;
 import org.javai.punit.experiment.engine.shared.ResultRecorder;
 import org.javai.punit.experiment.measure.MeasureInvocationContext;
+import org.javai.punit.experiment.measure.MeasureWithInputsInvocationContext;
 import org.javai.punit.experiment.model.ResultProjection;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -158,7 +160,6 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                         i, samplesPerConfig, useCaseId, new OutcomeCaptor()));
     }
 
-    @SuppressWarnings("unchecked")
     private Stream<TestTemplateInvocationContext> provideWithInputsInvocationContexts(
             Method testMethod,
             InputSource inputSource,
@@ -181,34 +182,29 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                     "@InputSource resolved to empty list");
         }
 
-        // Store explore-mode metadata
+        int totalSamples = samplesPerConfig * inputs.size();
+
+        // Store explore-mode metadata with single aggregator (round-robin, not per-config)
         store.put("mode", ExperimentMode.EXPLORE);
         store.put("inputs", inputs);
         store.put("inputType", inputType);
-        store.put("configAggregators", new LinkedHashMap<String, ExperimentResultAggregator>());
+        ExperimentResultAggregator aggregator = new ExperimentResultAggregator(useCaseId, totalSamples);
+        store.put("aggregator", aggregator);
+        store.put("totalSamples", totalSamples);
+        store.put("currentSample", new AtomicInteger(0));
         store.put("terminated", new AtomicBoolean(false));
 
-        // Generate invocation contexts for all inputs × samples
-        List<ExploreWithInputsInvocationContext> invocations = new ArrayList<>();
-
-        for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++) {
-            Object inputValue = inputs.get(inputIndex);
-            String configName = buildInputConfigName(inputValue, inputIndex);
-
-            ExperimentResultAggregator configAggregator =
-                    new ExperimentResultAggregator(useCaseId + "/" + configName, samplesPerConfig);
-            ((Map<String, ExperimentResultAggregator>) store.get("configAggregators", Map.class))
-                    .put(configName, configAggregator);
-
-            for (int sample = 1; sample <= samplesPerConfig; sample++) {
-                invocations.add(new ExploreWithInputsInvocationContext(
-                        sample, samplesPerConfig, inputIndex, inputs.size(),
-                        useCaseId, configName, inputValue, inputType, new OutcomeCaptor()
-                ));
-            }
-        }
-
-        return invocations.stream().map(c -> (TestTemplateInvocationContext) c);
+        // Generate round-robin stream cycling through inputs
+        int totalInputs = inputs.size();
+        return Stream.iterate(1, i -> i + 1)
+                .limit(totalSamples)
+                .map(i -> {
+                    int inputIndex = (i - 1) % totalInputs;
+                    Object inputValue = inputs.get(inputIndex);
+                    return (TestTemplateInvocationContext) new MeasureWithInputsInvocationContext(
+                            i, totalSamples, useCaseId, new OutcomeCaptor(),
+                            inputValue, inputType, inputIndex, totalInputs);
+                });
     }
 
     /**
@@ -218,22 +214,6 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         return InputParameterDetector.findInputParameterType(method);
     }
 
-    /**
-     * Builds a configuration name from an input value.
-     */
-    private String buildInputConfigName(Object inputValue, int index) {
-        if (inputValue == null) {
-            return "input-" + (index + 1);
-        }
-        String str = inputValue.toString();
-        // Truncate and sanitize for use as config name
-        if (str.length() > 40) {
-            str = str.substring(0, 37) + "...";
-        }
-        // Replace characters that might be problematic in file names
-        str = str.replaceAll("[^a-zA-Z0-9_-]", "_");
-        return "input-" + (index + 1) + "-" + str;
-    }
 
     @Override
     @SuppressWarnings("unchecked")
@@ -257,10 +237,52 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         Integer sampleInConfig = invocationStore.get("sampleInConfig", Integer.class);
         Object[] factorValues = invocationStore.get("factorValues", Object[].class);
 
-        // Handle simple mode (no factors)
+        // Handle simple mode (no factors) and InputSource round-robin mode
         if (configAggregators == null) {
             ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
-            ResultRecorder.executeAndRecord(invocation, captor, aggregator);
+            Integer totalSamples = store.get("totalSamples", Integer.class);
+
+            if (totalSamples == null) {
+                // Simple mode (no inputs, no factors) — just record
+                ResultRecorder.executeAndRecord(invocation, captor, aggregator);
+                return;
+            }
+
+            // InputSource round-robin mode: record with projections
+            AtomicInteger currentSample = store.get("currentSample", AtomicInteger.class);
+            int sample = currentSample.incrementAndGet();
+            ResultProjectionBuilder projectionBuilder = new ResultProjectionBuilder();
+
+            try {
+                long startNanos = System.nanoTime();
+                invocation.proceed();
+                Duration wallClock = Duration.ofNanos(System.nanoTime() - startNanos);
+                ResultRecorder.recordResult(captor, aggregator, wallClock);
+
+                if (captor != null && captor.hasResult()) {
+                    ResultProjection projection = projectionBuilder.build(
+                            sample - 1, captor.getContractOutcome());
+                    aggregator.addResultProjection(projection);
+                }
+            } catch (Throwable e) {
+                aggregator.recordException(e);
+
+                Long startTimeMs = store.get("startTimeMs", Long.class);
+                long elapsed = startTimeMs != null ? System.currentTimeMillis() - startTimeMs : 0;
+                ResultProjection projection = projectionBuilder.buildError(
+                        sample - 1, null, elapsed, e);
+                aggregator.addResultProjection(projection);
+            }
+
+            ExperimentProgressReporter.reportProgress(
+                    extensionContext, "EXPLORE", sample, totalSamples,
+                    aggregator.getObservedSuccessRate());
+
+            if (sample >= totalSamples) {
+                aggregator.setCompleted();
+                ExploreSpecGenerator generator = new ExploreSpecGenerator();
+                generator.generateSpec(extensionContext, store, aggregator);
+            }
             return;
         }
 

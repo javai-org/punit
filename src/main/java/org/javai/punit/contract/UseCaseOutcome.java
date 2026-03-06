@@ -77,7 +77,8 @@ public record UseCaseOutcome<R>(
         PostconditionEvaluator<R> postconditionEvaluator,
         Object expectedValue,
         MatchResult matchResult,
-        DurationResult durationResult
+        DurationResult durationResult,
+        String inputRepresentation
 ) {
 
     /**
@@ -368,7 +369,8 @@ public record UseCaseOutcome<R>(
             R result = function.apply(input);
             Duration executionTime = Duration.between(start, Instant.now());
 
-            return new MetadataBuilder<>(contract, result, executionTime, start);
+            String inputRepresentation = input != null ? input.toString() : null;
+            return new MetadataBuilder<>(contract, result, executionTime, start, inputRepresentation);
         }
     }
 
@@ -383,15 +385,18 @@ public record UseCaseOutcome<R>(
         private final R result;
         private final Duration executionTime;
         private final Instant timestamp;
+        private final String inputRepresentation;
         private final Map<String, Object> metadata = new HashMap<>();
         private Object expectedValue;
         private MatchResult matchResult;
 
-        private MetadataBuilder(ServiceContract<?, R> contract, R result, Duration executionTime, Instant timestamp) {
+        private MetadataBuilder(ServiceContract<?, R> contract, R result, Duration executionTime,
+                                Instant timestamp, String inputRepresentation) {
             this.contract = contract;
             this.result = result;
             this.executionTime = executionTime;
             this.timestamp = timestamp;
+            this.inputRepresentation = inputRepresentation;
         }
 
         /**
@@ -499,7 +504,8 @@ public record UseCaseOutcome<R>(
 
             return new UseCaseOutcome<>(
                     result, executionTime, timestamp, metadata,
-                    contract, expectedValue, matchResult, durationResult);
+                    contract, expectedValue, matchResult, durationResult,
+                    inputRepresentation);
         }
     }
 }

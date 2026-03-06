@@ -44,6 +44,7 @@ class OutcomeCaptorContractIntegrationTest {
                     contract,
                     null,
                     null,
+                    null,
                     null
             );
 
@@ -69,6 +70,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null,
                     null
@@ -101,6 +103,7 @@ class OutcomeCaptorContractIntegrationTest {
                     contract,
                     null,
                     null,
+                    null,
                     null
             );
 
@@ -122,6 +125,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of("tokensUsed", 150, "model", "gpt-4"),
                     contract,
+                    null,
                     null,
                     null,
                     null
@@ -148,6 +152,7 @@ class OutcomeCaptorContractIntegrationTest {
                     contract,
                     null,
                     null,
+                    null,
                     null
             );
 
@@ -172,6 +177,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null,
                     null
@@ -207,6 +213,7 @@ class OutcomeCaptorContractIntegrationTest {
                     contract1,
                     null,
                     null,
+                    null,
                     null
             );
 
@@ -216,6 +223,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract2,
+                    null,
                     null,
                     null,
                     null
@@ -246,12 +254,72 @@ class OutcomeCaptorContractIntegrationTest {
                     contract,
                     null,
                     null,
+                    null,
                     null
             );
 
             UseCaseOutcome<String> returned = captor.record(outcome);
 
             assertThat(returned).isSameAs(outcome);
+        }
+    }
+
+    @Nested
+    @DisplayName("inputRepresentation")
+    class InputRepresentationTests {
+
+        @Test
+        @DisplayName("builder captures input as inputRepresentation")
+        void builderCapturesInputAsInputRepresentation() {
+            ServiceContract<String, String> contract = ServiceContract
+                    .<String, String>define()
+                    .build();
+
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(contract)
+                    .input("test instruction")
+                    .execute(input -> "result for " + input)
+                    .build();
+
+            assertThat(outcome.inputRepresentation()).isEqualTo("test instruction");
+        }
+
+        @Test
+        @DisplayName("builder sets null inputRepresentation when input is null")
+        void builderSetsNullInputRepresentationWhenInputIsNull() {
+            ServiceContract<String, String> contract = ServiceContract
+                    .<String, String>define()
+                    .build();
+
+            UseCaseOutcome<String> outcome = UseCaseOutcome
+                    .withContract(contract)
+                    .input(null)
+                    .execute(input -> "result")
+                    .build();
+
+            assertThat(outcome.inputRepresentation()).isNull();
+        }
+
+        @Test
+        @DisplayName("direct constructor with null inputRepresentation")
+        void directConstructorWithNullInputRepresentation() {
+            ServiceContract<Void, String> contract = ServiceContract
+                    .<Void, String>define()
+                    .build();
+
+            UseCaseOutcome<String> outcome = new UseCaseOutcome<>(
+                    "result",
+                    Duration.ofMillis(100),
+                    Instant.now(),
+                    Map.of(),
+                    contract,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+
+            assertThat(outcome.inputRepresentation()).isNull();
         }
     }
 
@@ -282,6 +350,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null,
                     null
@@ -317,6 +386,7 @@ class OutcomeCaptorContractIntegrationTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null,
                     null

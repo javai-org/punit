@@ -1,7 +1,6 @@
 package org.javai.punit.experiment.optimize;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -14,7 +13,6 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.javai.punit.api.ExperimentMode;
-import org.javai.punit.api.Factor;
 import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OptimizeExperiment;
@@ -24,6 +22,7 @@ import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
+import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.experiment.model.FactorSuit;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -125,17 +124,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         int effectiveSamplesPerIteration = optimizeConfig.samplesPerIteration();
 
         if (inputSource != null) {
-            // Validate mutual exclusivity: @InputSource and explicit samplesPerIteration cannot both be specified
-            // The default value is 20 - if the user changes it to anything else, they're explicitly setting it
-            if (optimizeConfig.samplesPerIteration() != OptimizeExperiment.DEFAULT_SAMPLES_PER_ITERATION) {
-                throw new ExtensionConfigurationException(
-                        "@InputSource and samplesPerIteration are mutually exclusive. " +
-                        "When using @InputSource, each iteration tests all inputs exactly once " +
-                        "(samplesPerIteration is implicitly equal to the number of inputs). " +
-                        "Remove the samplesPerIteration attribute when using @InputSource.");
-            }
-
-            inputType = findInputParameterType(testMethod, optimizeConfig.controlFactor());
+            inputType = InputParameterDetector.findInputParameterType(testMethod);
             InputSourceResolver resolver = new InputSourceResolver();
             inputs = resolver.resolve(inputSource, context.getRequiredTestClass(), inputType);
 
@@ -144,8 +133,12 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
                         "@InputSource resolved to empty list");
             }
 
-            // With @InputSource, samples per iteration = number of inputs
-            effectiveSamplesPerIteration = inputs.size();
+            // When samplesPerIteration is at default and @InputSource is present,
+            // use inputs.size() for backward compatibility
+            if (optimizeConfig.samplesPerIteration() == OptimizeExperiment.DEFAULT_SAMPLES_PER_ITERATION) {
+                effectiveSamplesPerIteration = inputs.size();
+            }
+            // Otherwise, use the explicitly set samplesPerIteration (round-robin handles any mismatch)
 
             store.put("inputs", inputs);
             store.put("inputType", inputType);
@@ -187,35 +180,6 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         }
 
         return StreamSupport.stream(spliterator, false);
-    }
-
-    /**
-     * Finds the input parameter type from method parameters.
-     */
-    private Class<?> findInputParameterType(Method method, String controlFactorName) {
-        for (Parameter param : method.getParameters()) {
-            Class<?> type = param.getType();
-            if (type == OutcomeCaptor.class) {
-                continue;
-            }
-            // Skip @ControlFactor parameter
-            if (param.isAnnotationPresent(org.javai.punit.api.ControlFactor.class)) {
-                continue;
-            }
-            // Skip @Factor parameter
-            if (param.isAnnotationPresent(Factor.class)) {
-                continue;
-            }
-            // Skip use case types
-            if (type.getPackageName().contains("usecase") ||
-                type.getSimpleName().endsWith("UseCase")) {
-                continue;
-            }
-            return type;
-        }
-        throw new ExtensionConfigurationException(
-                "@InputSource requires a method parameter to inject the input value. " +
-                "The parameter must not be OutcomeCaptor, UseCase, or @ControlFactor-annotated.");
     }
 
     @Override
@@ -451,6 +415,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
                 new FailedInvocationEvaluator(errorMessage),
                 null,
                 null,
+                null,
                 null
         );
     }
@@ -556,8 +521,8 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
     /**
      * Spliterator that generates OptimizeWithInputsInvocationContext instances.
      *
-     * <p>This spliterator iterates through all inputs for each iteration.
-     * Each iteration tests every input exactly once, then moves to the next iteration.
+     * <p>This spliterator cycles through inputs via round-robin for each iteration.
+     * Inputs are selected using modulo indexing: {@code (sample - 1) % inputs.size()}.
      */
     private static class OptimizeWithInputsSpliterator
             extends Spliterators.AbstractSpliterator<TestTemplateInvocationContext> {
@@ -591,8 +556,8 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
             // Advance to next sample (1-indexed)
             int sample = state.nextSample();
 
-            // Input index is sample - 1 (0-indexed)
-            int inputIndex = sample - 1;
+            // Round-robin cycling through inputs
+            int inputIndex = (sample - 1) % inputs.size();
             Object inputValue = inputs.get(inputIndex);
 
             // Create invocation context with input

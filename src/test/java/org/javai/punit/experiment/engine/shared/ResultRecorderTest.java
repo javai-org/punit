@@ -47,6 +47,7 @@ class ResultRecorderTest {
                     contract,
                     null,
                     null,
+                    null,
                     null
             );
 
@@ -75,6 +76,7 @@ class ResultRecorderTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null,
                     null
@@ -106,6 +108,7 @@ class ResultRecorderTest {
                         Instant.now(),
                         Map.of(),
                         contract,
+                        null,
                         null,
                         null,
                         null
@@ -145,6 +148,7 @@ class ResultRecorderTest {
                     contract,
                     null,
                     null,
+                    null,
                     null
             );
 
@@ -179,6 +183,7 @@ class ResultRecorderTest {
                     Instant.now(),
                     Map.of(),
                     contract,
+                    null,
                     null,
                     null,
                     null

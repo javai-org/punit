@@ -163,6 +163,7 @@ class ExperimentPacingIntegrationTest {
                 SIMPLE_CONTRACT,
                 null,
                 null,
+                null,
                 null
         );
     }

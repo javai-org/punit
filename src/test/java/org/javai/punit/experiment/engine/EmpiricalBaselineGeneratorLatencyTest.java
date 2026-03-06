@@ -117,6 +117,7 @@ class EmpiricalBaselineGeneratorLatencyTest {
                 NO_OP_EVALUATOR,
                 null,
                 null,
+                null,
                 null);
     }
 }
