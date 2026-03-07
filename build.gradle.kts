@@ -48,13 +48,44 @@ subprojects {
     }
 
     dependencies {
-        // JUnit BOM for consistent versions across all submodules
-        "api"(platform("org.junit:junit-bom:5.14.2"))
+    // JUnit 5 Jupiter API - needed at compile time for the extension
+    // Using 'api' so consumers get transitive access to JUnit types
+    // Version 5.13.3 includes failureThreshold for @RepeatedTest
+    api(platform("org.junit:junit-bom:5.14.3"))
+    api("org.junit.jupiter:junit-jupiter-api")
 
-        // Common test dependencies
-        "testImplementation"("org.junit.jupiter:junit-jupiter")
-        "testImplementation"("org.assertj:assertj-core:3.27.7")
-        "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+    // Apache Commons Statistics - for statistical calculations (confidence intervals, distributions)
+    implementation("org.apache.commons:commons-statistics-distribution:1.2")
+
+    // SnakeYAML - for YAML serialization in spec generation
+    implementation("org.yaml:snakeyaml:2.6")
+
+    // Jackson - for JSON/CSV parsing in @InputSource
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.1")
+
+    // Outcome - result types for contract postconditions
+    // Resolved locally via composite build (settings.gradle.kts), or from Maven Central on CI
+    api("org.javai:outcome:0.1.0")
+
+    // Optional JSON matching support for instance conformance
+    // Users who want JsonMatcher need to add this dependency to their project
+    compileOnly("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
+    implementation("org.apache.logging.log4j:log4j-api:2.25.3")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.3")
+    // Bridge SLF4J to Log4j2 (some dependencies use SLF4J)
+    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
+
+    // Test dependencies
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.junit.platform:junit-platform-testkit")
+    testImplementation("org.assertj:assertj-core:3.27.7")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
+    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
+    testImplementation("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
 
     tasks.test {
