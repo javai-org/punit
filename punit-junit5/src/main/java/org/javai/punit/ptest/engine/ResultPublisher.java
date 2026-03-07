@@ -47,6 +47,28 @@ class ResultPublisher {
     }
 
     /**
+     * Per-dimension assertion results from the aggregator.
+     *
+     * @param functionalAsserted whether the functional dimension was asserted
+     * @param latencyAsserted whether the latency dimension was asserted
+     * @param functionalSuccesses functional success count (null if not asserted)
+     * @param functionalFailures functional failure count (null if not asserted)
+     * @param latencyDimensionSuccesses latency dimension success count (null if not asserted)
+     * @param latencyDimensionFailures latency dimension failure count (null if not asserted)
+     */
+    record DimensionResults(
+            boolean functionalAsserted,
+            boolean latencyAsserted,
+            Integer functionalSuccesses,
+            Integer functionalFailures,
+            Integer latencyDimensionSuccesses,
+            Integer latencyDimensionFailures
+    ) {
+        static final DimensionResults NONE = new DimensionResults(
+                false, false, null, null, null, null);
+    }
+
+    /**
      * Data needed for publishing results.
      */
     record PublishContext(
@@ -79,10 +101,37 @@ class ResultPublisher {
             String baselineFilename,
             TestIntent intent,
             double resolvedConfidence,
-            LatencyAssertionResult latencyResult
+            LatencyAssertionResult latencyResult,
+            DimensionResults dimensionResults
     ) {
         /**
-         * Backward-compatible constructor without latency result.
+         * Backward-compatible constructor without dimension results.
+         */
+        PublishContext(
+                String testName, int plannedSamples, int samplesExecuted,
+                int successes, int failures, double minPassRate, double observedPassRate,
+                boolean passed, Optional<TerminationReason> terminationReason,
+                String terminationDetails, long elapsedMs, boolean hasMultiplier,
+                double appliedMultiplier, long timeBudgetMs, long tokenBudget,
+                long methodTokensConsumed, CostBudgetMonitor.TokenMode tokenMode,
+                SharedBudgetMonitor classBudget, SharedBudgetMonitor suiteBudget,
+                ExecutionSpecification spec, TransparentStatsConfig transparentStats,
+                org.javai.punit.api.ThresholdOrigin thresholdOrigin, String contractRef,
+                Double confidence, BaselineData baseline,
+                List<CovariateMisalignment> misalignments, String baselineFilename,
+                TestIntent intent, double resolvedConfidence,
+                LatencyAssertionResult latencyResult) {
+            this(testName, plannedSamples, samplesExecuted, successes, failures,
+                    minPassRate, observedPassRate, passed, terminationReason,
+                    terminationDetails, elapsedMs, hasMultiplier, appliedMultiplier,
+                    timeBudgetMs, tokenBudget, methodTokensConsumed, tokenMode,
+                    classBudget, suiteBudget, spec, transparentStats, thresholdOrigin,
+                    contractRef, confidence, baseline, misalignments, baselineFilename,
+                    intent, resolvedConfidence, latencyResult, DimensionResults.NONE);
+        }
+
+        /**
+         * Backward-compatible constructor without latency result or dimension results.
          */
         PublishContext(
                 String testName, int plannedSamples, int samplesExecuted,
@@ -103,7 +152,7 @@ class ResultPublisher {
                     timeBudgetMs, tokenBudget, methodTokensConsumed, tokenMode,
                     classBudget, suiteBudget, spec, transparentStats, thresholdOrigin,
                     contractRef, confidence, baseline, misalignments, baselineFilename,
-                    intent, resolvedConfidence, null);
+                    intent, resolvedConfidence, null, DimensionResults.NONE);
         }
 
         /**
@@ -127,7 +176,7 @@ class ResultPublisher {
                     timeBudgetMs, tokenBudget, methodTokensConsumed, tokenMode,
                     classBudget, suiteBudget, spec, transparentStats, thresholdOrigin,
                     contractRef, confidence, baseline, misalignments, baselineFilename,
-                    TestIntent.VERIFICATION, 0.95, null);
+                    TestIntent.VERIFICATION, 0.95, null, DimensionResults.NONE);
         }
 
         boolean hasTimeBudget() {
@@ -157,6 +206,11 @@ class ResultPublisher {
 
         boolean isVerification() {
             return intent == null || intent == TestIntent.VERIFICATION;
+        }
+
+        boolean hasDimensionResults() {
+            return dimensionResults != null
+                    && (dimensionResults.functionalAsserted() || dimensionResults.latencyAsserted());
         }
     }
 
@@ -227,6 +281,25 @@ class ResultPublisher {
             entries.put("punit.suite.tokensConsumed", String.valueOf(suiteBudget.getTokensConsumed()));
         }
 
+        // Include per-dimension results
+        if (ctx.hasDimensionResults()) {
+            DimensionResults dim = ctx.dimensionResults();
+            if (dim.functionalAsserted()) {
+                entries.put("punit.dimension.functional", "true");
+                entries.put("punit.dimension.functional.successes",
+                        String.valueOf(dim.functionalSuccesses()));
+                entries.put("punit.dimension.functional.failures",
+                        String.valueOf(dim.functionalFailures()));
+            }
+            if (dim.latencyAsserted()) {
+                entries.put("punit.dimension.latency", "true");
+                entries.put("punit.dimension.latency.successes",
+                        String.valueOf(dim.latencyDimensionSuccesses()));
+                entries.put("punit.dimension.latency.failures",
+                        String.valueOf(dim.latencyDimensionFailures()));
+            }
+        }
+
         // Include expiration status
         if (ctx.spec() != null) {
             ExpirationStatus expirationStatus = ExpirationEvaluator.evaluate(ctx.spec());
@@ -279,6 +352,9 @@ class ResultPublisher {
                             ctx.successes(), ctx.samplesExecuted(),
                             RateFormat.format(ctx.minPassRate()))));
         }
+
+        // Append per-dimension breakdown if available
+        appendDimensionBreakdown(sb, ctx);
 
         // Append latency result if evaluated
         appendLatencyResult(sb, ctx);
@@ -351,6 +427,32 @@ class ResultPublisher {
     }
 
     private static final LatencySummaryRenderer latencyRenderer = new LatencySummaryRenderer();
+
+    /**
+     * Appends per-dimension breakdown to the verdict when both dimensions are asserted.
+     *
+     * <p>When only one dimension is asserted, the composite verdict already represents
+     * that dimension — no additional breakdown is needed. When both dimensions are
+     * asserted, the breakdown shows each dimension's individual result.
+     */
+    void appendDimensionBreakdown(StringBuilder sb, PublishContext ctx) {
+        if (!ctx.hasDimensionResults()) {
+            return;
+        }
+        DimensionResults dim = ctx.dimensionResults();
+        if (!dim.functionalAsserted() || !dim.latencyAsserted()) {
+            return; // Only show breakdown when both dimensions are asserted
+        }
+
+        sb.append(PUnitReporter.labelValueLn("Contract:",
+                String.format("%d/%d passed",
+                        dim.functionalSuccesses(),
+                        dim.functionalSuccesses() + dim.functionalFailures())));
+        sb.append(PUnitReporter.labelValueLn("Latency:",
+                String.format("%d/%d within limit",
+                        dim.latencyDimensionSuccesses(),
+                        dim.latencyDimensionSuccesses() + dim.latencyDimensionFailures())));
+    }
 
     /**
      * Appends latency assertion result to the verdict output if evaluated.

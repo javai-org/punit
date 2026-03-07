@@ -1,6 +1,7 @@
 package org.javai.punit.ptest.engine;
 
 import org.javai.punit.api.ExceptionHandling;
+import org.javai.punit.contract.AssertionScope;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
 import org.junit.jupiter.api.extension.InvocationInterceptor.Invocation;
@@ -74,6 +75,7 @@ public class SampleExecutor {
             SampleResultAggregator aggregator,
             ExceptionHandling exceptionPolicy) throws Throwable {
 
+        AssertionScope.begin();
         try {
             long startNanos = System.nanoTime();
             invocation.proceed();
@@ -85,14 +87,33 @@ public class SampleExecutor {
             return SampleResult.ofFailure(e);
         } catch (Throwable t) {
             aggregator.recordFailure(t);
-            
+
             if (exceptionPolicy == ExceptionHandling.ABORT_TEST) {
                 // Signal immediate abort - caller should finalize and rethrow
                 return SampleResult.ofAbort(t);
             }
-            
+
             // FAIL_SAMPLE: record and continue
             return SampleResult.ofFailure(t);
+        } finally {
+            recordDimensionResults(aggregator);
+            AssertionScope.end();
+        }
+    }
+
+    /**
+     * Records per-dimension results from the current assertion scope to the aggregator.
+     */
+    private void recordDimensionResults(SampleResultAggregator aggregator) {
+        AssertionScope scope = AssertionScope.current();
+        if (scope == null) {
+            return;
+        }
+        if (scope.isFunctionalAsserted()) {
+            aggregator.recordFunctionalResult(scope.isFunctionalPassed());
+        }
+        if (scope.isLatencyAsserted()) {
+            aggregator.recordLatencyResult(scope.isLatencyPassed());
         }
     }
 

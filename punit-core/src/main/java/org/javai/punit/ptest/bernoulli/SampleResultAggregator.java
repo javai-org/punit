@@ -35,6 +35,14 @@ public class SampleResultAggregator {
     private String terminationDetails = null;
     private boolean forcedFailure = false;
 
+    // Per-dimension tracking (Phase 2: dimension-scoped assertions)
+    private boolean functionalDimensionAsserted = false;
+    private boolean latencyDimensionAsserted = false;
+    private int functionalSuccesses = 0;
+    private int functionalFailures = 0;
+    private int latencySuccesses = 0;
+    private int latencyFailures = 0;
+
     /**
      * Creates a new aggregator for the specified number of samples.
      *
@@ -223,6 +231,82 @@ public class SampleResultAggregator {
      */
     public boolean isComplete() {
         return terminationReason != null || getSamplesExecuted() >= totalSamples;
+    }
+
+    // ========== Per-Dimension Tracking ==========
+
+    /**
+     * Records the functional dimension result for the current sample.
+     *
+     * @param passed true if the functional assertion (postconditions/expected value) passed
+     */
+    public void recordFunctionalResult(boolean passed) {
+        functionalDimensionAsserted = true;
+        if (passed) {
+            functionalSuccesses++;
+        } else {
+            functionalFailures++;
+        }
+    }
+
+    /**
+     * Records the latency dimension result for the current sample.
+     *
+     * @param passed true if the latency assertion (duration constraint) passed
+     */
+    public void recordLatencyResult(boolean passed) {
+        latencyDimensionAsserted = true;
+        if (passed) {
+            latencySuccesses++;
+        } else {
+            latencyFailures++;
+        }
+    }
+
+    /**
+     * Returns whether the functional dimension was asserted by any sample.
+     */
+    public boolean isFunctionalAsserted() {
+        return functionalDimensionAsserted;
+    }
+
+    /**
+     * Returns whether the latency dimension was asserted by any sample.
+     */
+    public boolean isLatencyAsserted() {
+        return latencyDimensionAsserted;
+    }
+
+    /**
+     * Returns the number of functional successes, or empty if the functional
+     * dimension was not asserted.
+     */
+    public Optional<Integer> functionalSuccesses() {
+        return functionalDimensionAsserted ? Optional.of(functionalSuccesses) : Optional.empty();
+    }
+
+    /**
+     * Returns the number of functional failures, or empty if the functional
+     * dimension was not asserted.
+     */
+    public Optional<Integer> functionalFailures() {
+        return functionalDimensionAsserted ? Optional.of(functionalFailures) : Optional.empty();
+    }
+
+    /**
+     * Returns the number of latency successes, or empty if the latency
+     * dimension was not asserted.
+     */
+    public Optional<Integer> latencySuccesses() {
+        return latencyDimensionAsserted ? Optional.of(latencySuccesses) : Optional.empty();
+    }
+
+    /**
+     * Returns the number of latency failures, or empty if the latency
+     * dimension was not asserted.
+     */
+    public Optional<Integer> latencyFailures() {
+        return latencyDimensionAsserted ? Optional.of(latencyFailures) : Optional.empty();
     }
 
     /**

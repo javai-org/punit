@@ -551,6 +551,15 @@ public class ProbabilisticTestExtension implements
 		SelectionResult selectionResult = getSelectionResult(context);
 		String baselineFilename = selectionResult != null ? selectionResult.selected().filename() : null;
 
+		ResultPublisher.DimensionResults dimensionResults = new ResultPublisher.DimensionResults(
+				aggregator.isFunctionalAsserted(),
+				aggregator.isLatencyAsserted(),
+				aggregator.functionalSuccesses().orElse(null),
+				aggregator.functionalFailures().orElse(null),
+				aggregator.latencySuccesses().orElse(null),
+				aggregator.latencyFailures().orElse(null)
+		);
+
 		ResultPublisher.PublishContext publishCtx = new ResultPublisher.PublishContext(
 				testName,
 				config.samples(),
@@ -581,7 +590,8 @@ public class ProbabilisticTestExtension implements
 				baselineFilename,
 				config.intent(),
 				config.resolvedConfidence(),
-				latencyResult
+				latencyResult,
+				dimensionResults
 		);
 
 		// Print console summary

@@ -266,7 +266,9 @@ The old model led to intractable problems: JUnit lifecycle annotations (`@Before
 
 ---
 
-## Phase 1: Module Decomposition
+## Phase 1: Module Decomposition — COMPLETE
+
+**Status:** Complete (2026-03-07)
 
 **Addresses:** REQ-S01, REQ-S07, REQ-S06
 
@@ -475,7 +477,9 @@ The `punit-gradle-plugin` must be updated to work with the multi-module structur
 
 ---
 
-## Phase 2: Dimension-Scoped Assertion API
+## Phase 2: Dimension-Scoped Assertion API — COMPLETE
+
+**Status:** Complete (2026-03-07)
 
 **Addresses:** REQ-S03, DD-01, DD-02
 
@@ -1091,7 +1095,7 @@ Review and update existing examples (shopping basket, payment gateway, LLM integ
 
 | Phase | Focus | Key Deliverables | Breaking Changes |
 |-------|-------|------------------|-----------------|
-| 1 | Module decomposition | `punit-core` + `punit-junit5` + `punit-sentinel` (skeleton) modules, `UseCaseProvider` refactored to extend `UseCaseFactory` (DD-07), field scanning retargeted to `UseCaseFactory`, `@Sentinel` annotation, budget validation, meta-artifact, ArchUnit module constraints | None (meta-artifact preserves compatibility) |
+| **1** | **Module decomposition** | **COMPLETE.** `punit-core` + `punit-junit5` + `punit-sentinel` (skeleton) modules, `UseCaseProvider` refactored to extend `UseCaseFactory` (DD-07), field scanning retargeted to `UseCaseFactory`, `@Sentinel` annotation, budget validation, meta-artifact, ArchUnit module constraints | None (meta-artifact preserves compatibility) |
 | 2 | Dimension-scoped assertions | `assertContract()`, `assertLatency()`, adaptive `assertAll()`, per-dimension verdict rendering | None |
 | 3 | Per-dimension baselines and spec resolution | Per-dimension spec files, `SpecRepository` interface, `LayeredSpecRepository`, `PUNIT_SPEC_DIR` | None (legacy specs handled) |
 | 4 | Sentinel runtime | `SentinelRunner` consuming `@Sentinel` classes (DD-06), `@Sentinel` annotation, `VerdictSink`, `WebhookVerdictSink`, `EnvironmentMetadata`, lifecycle API. Zero JUnit dependency. | None (new module) |

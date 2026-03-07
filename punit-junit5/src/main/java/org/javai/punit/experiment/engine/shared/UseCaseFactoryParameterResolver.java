@@ -53,6 +53,13 @@ public class UseCaseFactoryParameterResolver implements ParameterResolver {
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isSynthetic()) continue;
                 if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                    // Skip fields that are themselves ParameterResolvers (e.g. UseCaseProvider
+                    // registered via @RegisterExtension). JUnit 5 already registers those as
+                    // resolvers, so claiming the same parameter here would cause a
+                    // "multiple competing ParameterResolvers" error.
+                    if (ParameterResolver.class.isAssignableFrom(field.getType())) {
+                        continue;
+                    }
                     field.setAccessible(true);
                     try {
                         UseCaseFactory factory = (UseCaseFactory) field.get(testInstance);

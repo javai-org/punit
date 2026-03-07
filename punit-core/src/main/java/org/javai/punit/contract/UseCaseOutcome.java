@@ -201,52 +201,180 @@ public record UseCaseOutcome<R>(
     }
 
     /**
-     * Asserts that all contract criteria pass.
+     * Asserts that only functional postconditions and expected value matching pass.
      *
-     * <p>All postconditions and duration constraints are evaluated and any
-     * failures are accumulated. If any criteria fail, an {@link AssertionError}
-     * is thrown with messages describing all failures.
+     * <p>Evaluates postconditions and instance conformance. Duration constraints
+     * are not evaluated. Signals the functional dimension to the framework via
+     * {@link AssertionScope}.
      *
-     * @throws AssertionError if any postcondition or duration constraint fails
+     * @throws AssertionError if any postcondition fails or expected value does not match
+     * @throws IllegalStateException if no functional criteria are configured
+     *         (no postconditions and no expected value)
      */
-    public void assertAll() {
-        List<String> failures = new java.util.ArrayList<>(evaluatePostconditions().stream()
-                .filter(PostconditionResult::failed)
-                .map(PostconditionResult::failureMessage)
-                .toList());
+    public void assertContract() {
+        assertContract(null);
+    }
 
-        if (durationResult != null && durationResult.failed()) {
-            failures.add(durationResult.failureMessage());
+    /**
+     * Asserts that only functional postconditions and expected value matching pass,
+     * throwing a custom message on failure.
+     *
+     * @param contextMessage additional context for the error message (may be null)
+     * @throws AssertionError if any postcondition fails or expected value does not match
+     * @throws IllegalStateException if no functional criteria are configured
+     */
+    public void assertContract(String contextMessage) {
+        if (!hasContractCriteria()) {
+            throw new IllegalStateException(
+                    "assertContract() called but no service contract is configured: "
+                            + "no postconditions and no expected value.");
         }
 
-        if (!failures.isEmpty()) {
-            throw new AssertionError("Contract violations:\n  - " + String.join("\n  - ", failures));
+        List<String> failures = collectContractFailures();
+        boolean passed = failures.isEmpty();
+
+        AssertionScope scope = AssertionScope.current();
+        if (scope != null) {
+            scope.recordFunctional(passed);
+        }
+
+        if (!passed) {
+            String prefix = contextMessage != null ? contextMessage + " - " : "";
+            throw new AssertionError(prefix + "Contract violations:\n  - "
+                    + String.join("\n  - ", failures));
         }
     }
 
     /**
-     * Asserts that all contract criteria pass, throwing a custom message on failure.
+     * Asserts that only the duration constraint passes.
      *
-     * <p>All postconditions and duration constraints are evaluated and any
-     * failures are accumulated. If any criteria fail, an {@link AssertionError}
-     * is thrown with the context message and descriptions of all failures.
+     * <p>Evaluates the duration constraint only. Postconditions and expected value
+     * matching are not evaluated. Signals the latency dimension to the framework
+     * via {@link AssertionScope}.
      *
-     * @param contextMessage additional context for the error message
-     * @throws AssertionError if any postcondition or duration constraint fails
+     * @throws AssertionError if execution time exceeds the configured duration limit
+     * @throws IllegalStateException if no duration constraint is configured
+     */
+    public void assertLatency() {
+        assertLatency(null);
+    }
+
+    /**
+     * Asserts that only the duration constraint passes, throwing a custom message on failure.
+     *
+     * @param contextMessage additional context for the error message (may be null)
+     * @throws AssertionError if execution time exceeds the configured duration limit
+     * @throws IllegalStateException if no duration constraint is configured
+     */
+    public void assertLatency(String contextMessage) {
+        if (durationResult == null) {
+            throw new IllegalStateException(
+                    "assertLatency() called but no duration constraint is configured.");
+        }
+
+        boolean passed = durationResult.passed();
+
+        AssertionScope scope = AssertionScope.current();
+        if (scope != null) {
+            scope.recordLatency(passed);
+        }
+
+        if (!passed) {
+            String prefix = contextMessage != null ? contextMessage + " - " : "";
+            throw new AssertionError(prefix + "Latency violation:\n  - "
+                    + durationResult.failureMessage());
+        }
+    }
+
+    /**
+     * Asserts that all configured contract criteria pass (adaptive).
+     *
+     * <p>This method adapts to whatever dimensions are configured on the outcome:
+     * <ul>
+     *   <li>If both a service contract and a duration constraint are configured: asserts both.</li>
+     *   <li>If only a service contract is configured: asserts contract only.</li>
+     *   <li>If only a duration constraint is configured: asserts latency only.</li>
+     *   <li>If neither is configured: throws a misconfiguration error.</li>
+     * </ul>
+     *
+     * <p>Signals the asserted dimensions to the framework via {@link AssertionScope}.
+     *
+     * @throws AssertionError if any configured criterion fails
+     * @throws IllegalStateException if no criteria are configured
+     */
+    public void assertAll() {
+        assertAll(null);
+    }
+
+    /**
+     * Asserts that all configured contract criteria pass (adaptive),
+     * throwing a custom message on failure.
+     *
+     * @param contextMessage additional context for the error message (may be null)
+     * @throws AssertionError if any configured criterion fails
+     * @throws IllegalStateException if no criteria are configured
      */
     public void assertAll(String contextMessage) {
+        boolean hasContract = hasContractCriteria();
+        boolean hasLatency = durationResult != null;
+
+        if (!hasContract && !hasLatency) {
+            throw new IllegalStateException(
+                    "assertAll() called but no criteria are configured: "
+                            + "no postconditions, no expected value, and no duration constraint.");
+        }
+
+        AssertionScope scope = AssertionScope.current();
+        List<String> failures = new java.util.ArrayList<>();
+
+        if (hasContract) {
+            List<String> contractFailures = collectContractFailures();
+            boolean contractPassed = contractFailures.isEmpty();
+            if (scope != null) {
+                scope.recordFunctional(contractPassed);
+            }
+            failures.addAll(contractFailures);
+        }
+
+        if (hasLatency) {
+            boolean latencyPassed = durationResult.passed();
+            if (scope != null) {
+                scope.recordLatency(latencyPassed);
+            }
+            if (!latencyPassed) {
+                failures.add(durationResult.failureMessage());
+            }
+        }
+
+        if (!failures.isEmpty()) {
+            String prefix = contextMessage != null ? contextMessage + " - " : "";
+            throw new AssertionError(prefix + "Contract violations:\n  - "
+                    + String.join("\n  - ", failures));
+        }
+    }
+
+    /**
+     * Returns whether this outcome has functional criteria configured
+     * (postconditions or expected value matching).
+     */
+    private boolean hasContractCriteria() {
+        return postconditionEvaluator.postconditionCount() > 0 || hasExpectedValue();
+    }
+
+    /**
+     * Collects failure messages from postconditions and expected value matching.
+     */
+    private List<String> collectContractFailures() {
         List<String> failures = new java.util.ArrayList<>(evaluatePostconditions().stream()
                 .filter(PostconditionResult::failed)
                 .map(PostconditionResult::failureMessage)
                 .toList());
 
-        if (durationResult != null && durationResult.failed()) {
-            failures.add(durationResult.failureMessage());
+        if (hasExpectedValue() && !matchesExpected()) {
+            failures.add("Expected value mismatch: " + matchResult.diff());
         }
 
-        if (!failures.isEmpty()) {
-            throw new AssertionError(contextMessage + " - Contract violations:\n  - " + String.join("\n  - ", failures));
-        }
+        return failures;
     }
 
     // ========== Metadata Accessors ==========
