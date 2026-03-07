@@ -1112,6 +1112,54 @@ See [Appendix A: Configuration Reference](#a-configuration-reference) for all LL
 >
 > Use budget constraints (`tokenBudget`, `timeBudgetMs`) to cap costs. Start with mock mode or small sample sizes to verify your experiment works before running with real APIs.
 
+### Baseline Spec Resolution
+
+When a `@ProbabilisticTest` runs, PUnit needs to find the baseline specification that was produced by a prior `@MeasureExperiment`. This section describes where PUnit looks and in what order.
+
+#### Resolution Algorithm
+
+PUnit resolves specs through a **layered search** — it checks each location in priority order and uses the first match:
+
+| Priority | Source                          | How to configure                                                                      |
+|----------|---------------------------------|---------------------------------------------------------------------------------------|
+| 1        | **Environment-local directory** | System property `punit.spec.dir` or environment variable `PUNIT_SPEC_DIR`             |
+| 2        | **Classpath**                   | `punit/specs/` on the classpath (the default output location of `@MeasureExperiment`) |
+
+This layering enables environment-specific overrides without modifying checked-in specs. A staging environment can have its own baseline directory with specs that reflect staging-grade latency, while the classpath retains the production baselines committed to version control.
+
+**Example: overriding specs per environment**
+
+```bash
+# CI uses checked-in specs (classpath) — no configuration needed
+./gradlew test
+
+# Staging uses environment-specific baselines
+PUNIT_SPEC_DIR=/opt/punit/staging-specs ./gradlew test
+
+# Local development overrides via system property
+./gradlew test -Dpunit.spec.dir=./local-specs
+```
+
+#### Dimension-Qualified Specs
+
+A `@MeasureExperiment` may produce multiple spec files when the use case has both functional and latency dimensions:
+
+| File                                 | Contents                                                                      |
+|--------------------------------------|-------------------------------------------------------------------------------|
+| `ShoppingBasketUseCase.yaml`         | Functional baseline (success rate) — always produced                          |
+| `ShoppingBasketUseCase.latency.yaml` | Latency baseline (percentile timings) — produced when latency data is present |
+
+When a `@ProbabilisticTest` uses `assertLatency()` or `assertAll()`, PUnit first looks for the dedicated latency spec (`{UseCaseId}.latency.yaml`). If not found, it falls back to the combined spec and extracts latency data from it. This allows latency baselines to be maintained independently — useful when latency characteristics are more environment-sensitive than functional correctness.
+
+The layered search applies to each spec file independently. For example, an environment-local directory might override only the latency spec while the functional spec is resolved from the classpath.
+
+#### What Happens When No Spec is Found
+
+If no spec is found in any layer, the behaviour depends on the test configuration:
+
+- **With explicit `minPassRate`**: The test runs using the declared threshold directly (no baseline needed)
+- **Without `minPassRate`**: The test fails with a configuration error, since there is no basis for determining a threshold
+
 ### Covariate-Aware Baseline Selection
 
 Covariates are environmental factors that may affect system behaviour.
