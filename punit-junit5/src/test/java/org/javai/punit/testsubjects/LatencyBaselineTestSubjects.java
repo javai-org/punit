@@ -1,7 +1,6 @@
 package org.javai.punit.testsubjects;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import org.javai.punit.api.Latency;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
@@ -60,7 +59,7 @@ public class LatencyBaselineTestSubjects {
 
     /**
      * Test with explicit @Latency thresholds AND a baseline that has latency data.
-     * This is a misconfiguration — PUnit should raise a configuration error.
+     * Explicit thresholds override baseline-derived thresholds.
      */
     public static class ExplicitWithBaselineTest {
         @ProbabilisticTest(
@@ -70,7 +69,8 @@ public class LatencyBaselineTestSubjects {
                 useCase = LatencyBaselineUseCase.class,
                 latency = @Latency(p95Ms = 500)
         )
-        void explicitWithBaselineShouldFail() {
+        void explicitOverridesBaseline() {
+            // Sub-millisecond — well within the explicit 500ms p95 threshold
             assertThat(true).isTrue();
         }
     }

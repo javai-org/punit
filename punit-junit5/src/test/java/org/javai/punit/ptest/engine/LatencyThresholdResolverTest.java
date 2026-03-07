@@ -2,7 +2,6 @@ package org.javai.punit.ptest.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import org.javai.punit.spec.model.LatencyBaseline;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -110,19 +109,21 @@ class LatencyThresholdResolverTest {
     }
 
     @Nested
-    @DisplayName("Misconfiguration")
-    class Misconfiguration {
+    @DisplayName("Explicit overrides baseline")
+    class ExplicitOverridesBaseline {
 
         @Test
-        @DisplayName("should throw when explicit thresholds combined with baseline")
-        void shouldThrowWhenExplicitWithBaseline() {
+        @DisplayName("should use explicit thresholds when baseline also has latency data")
+        void shouldUseExplicitWhenBaselinePresent() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, false);
             LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
 
-            assertThatThrownBy(() -> resolver.resolve(config, baseline, 0.95))
-                    .isInstanceOf(ExtensionConfigurationException.class)
-                    .hasMessageContaining("Explicit @Latency thresholds")
-                    .hasMessageContaining("baseline");
+            var resolved = resolver.resolve(config, baseline, 0.95);
+
+            assertThat(resolved.p95().thresholdMs()).isEqualTo(500);
+            assertThat(resolved.p95().source()).isEqualTo("explicit");
+            assertThat(resolved.p99().thresholdMs()).isEqualTo(-1);
+            assertThat(resolved.p50().thresholdMs()).isEqualTo(-1);
         }
 
         @Test

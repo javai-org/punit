@@ -14,7 +14,7 @@ import org.junit.jupiter.api.extension.ExtensionConfigurationException;
  *   <tr><td>No</td><td>Yes</td><td>No</td><td>Explicit thresholds</td></tr>
  *   <tr><td>No</td><td>—</td><td>Yes</td><td>No latency assertion</td></tr>
  *   <tr><td>Yes</td><td>No</td><td>No</td><td>Derive from baseline (automatic)</td></tr>
- *   <tr><td>Yes</td><td>Yes</td><td>No</td><td>Misconfiguration error</td></tr>
+ *   <tr><td>Yes</td><td>Yes</td><td>No</td><td>Explicit thresholds (override baseline)</td></tr>
  *   <tr><td>Yes</td><td>No</td><td>Yes</td><td>No latency assertion (opted out)</td></tr>
  *   <tr><td>Yes</td><td>Yes</td><td>Yes</td><td>Misconfiguration error</td></tr>
  * </table>
@@ -102,23 +102,14 @@ class LatencyThresholdResolver {
             return ALL_NOT_ASSERTED;
         }
 
-        // explicit + baseline → misconfiguration
-        if (hasExplicit && hasBaseline) {
-            throw new ExtensionConfigurationException(
-                    "Explicit @Latency thresholds cannot be combined with a baseline that contains " +
-                    "latency data. When a baseline has latency data, PUnit derives thresholds " +
-                    "automatically. Remove the explicit thresholds or use @Latency(disabled = true) " +
-                    "to opt out of latency assertions.");
+        // explicit thresholds take precedence — whether or not a baseline exists
+        if (hasExplicit) {
+            return resolveExplicitOnly(annotationConfig);
         }
 
         // baseline present, no explicit → derive automatically
-        if (hasBaseline && !hasExplicit) {
+        if (hasBaseline) {
             return resolveFromBaseline(baseline, confidence);
-        }
-
-        // explicit, no baseline → use explicit as-is
-        if (hasExplicit) {
-            return resolveExplicitOnly(annotationConfig);
         }
 
         // neither explicit nor baseline → no latency assertions

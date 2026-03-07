@@ -59,6 +59,7 @@ All attribution licensing is ARL.
   - [Latency Recording in Experiments](#latency-recording-in-experiments)
   - [Testing Latency with Contractual Thresholds](#testing-latency-with-contractual-thresholds)
   - [Baseline-Derived Thresholds](#baseline-derived-thresholds)
+  - [The Three Latency Mechanisms at a Glance](#the-three-latency-mechanisms-at-a-glance)
   - [Sample Size and Percentile Reliability](#sample-size-and-percentile-reliability)
 - [Part 9: The Statistical Core](#part-9-the-statistical-core)
   - [Bernoulli Trials](#bernoulli-trials)
@@ -426,7 +427,7 @@ void paymentServiceMeetsLatencySla() {
 
 The `@Latency` annotation supports four percentiles: `p50Ms`, `p90Ms`, `p95Ms`, and `p99Ms`. Declare only the ones you care about — unset percentiles (default `-1`) are not asserted.
 
-> **Misconfiguration guard:** Explicit `@Latency` thresholds and a baseline spec with latency data are mutually exclusive. If both are present, PUnit raises a configuration error.
+> **Precedence rule:** When explicit `@Latency` thresholds are declared and the baseline spec also contains latency data, the explicit thresholds take precedence — the baseline latency data is ignored. This allows you to use a baseline for pass-rate derivation while asserting latency against your own contractual targets.
 
 **3. Use `@Latency(disabled = true)` to opt out**
 
@@ -441,7 +442,7 @@ When a baseline spec contains latency data but you only want to assert pass-rate
 void passRateOnlyTest() { ... }
 ```
 
-Without this opt-out, PUnit would automatically derive and evaluate latency thresholds from the baseline.
+Without this opt-out, PUnit would automatically evaluate latency thresholds derived from the baseline. The `disabled = true` flag does not prevent derivation — the thresholds already exist in the spec — it simply tells PUnit to ignore them.
 
 **When none of the above applies** — inline threshold tests with no baseline and no explicit `@Latency` — the attribute can simply be omitted. PUnit evaluates pass-rate only.
 
@@ -1646,7 +1647,7 @@ If you want a baseline-backed test that asserts pass-rate but **not** latency, o
 void passRateOnlyTest() { ... }
 ```
 
-> **Misconfiguration guard:** Explicit `@Latency` thresholds (e.g. `@Latency(p95Ms = 500)`) and a baseline with latency data are mutually exclusive. If both are present, PUnit raises a configuration error. Either remove the explicit thresholds and let the baseline drive, or use `@Latency(disabled = true)` to opt out.
+> **Precedence rule:** When explicit `@Latency` thresholds (e.g. `@Latency(p95Ms = 500)`) are declared and the baseline also contains latency data, the explicit thresholds take precedence — the baseline latency data is ignored. This lets you use the baseline for pass-rate while asserting latency against contractual targets. To suppress latency evaluation entirely, use `@Latency(disabled = true)`.
 
 #### Latency enforcement mode
 
@@ -1676,6 +1677,49 @@ systemProp.punit.latency.enforce=true
 | `@Latency(disabled=true)` | No                            | N/A                         | Skipped                    |
 
 To suppress latency evaluation entirely (not even advisory warnings), use `@Latency(disabled = true)` on individual tests.
+
+### The Three Latency Mechanisms at a Glance
+
+PUnit evaluates latency through three distinct mechanisms. They operate at different granularities, draw their thresholds from different sources, and fire at different points in the test lifecycle. Understanding how they relate — and where the real analytical power lies — is important for choosing the right approach.
+
+#### Mechanism 1: Service Contract Duration Constraint
+
+A `DurationConstraint` declared on the use case's `ServiceContract` via `ensureDurationBelow()`. When the test method calls `assertLatency()` or `assertAll()`, each sample's execution time is checked against the declared duration. A breach is a sample failure in the latency dimension.
+
+This is the simplest of the three mechanisms: a fixed ceiling applied to each individual invocation in isolation. It can catch gross outliers — a single call that takes 30 seconds against a 5-second SLA — but it tells you nothing about the distribution. A service where 40% of calls narrowly miss the ceiling would pass every individual check while delivering a terrible user experience in aggregate. Per-sample duration constraints are a useful safety net, but they are not where the probabilistic approach adds value.
+
+#### Mechanism 2: Explicit `@Latency` Annotation
+
+Percentile thresholds declared directly on the `@ProbabilisticTest` via the `latency` attribute, e.g. `@Latency(p95Ms = 500, p99Ms = 1000)`.
+
+This is fundamentally different from mechanism 1. Rather than checking each sample in isolation, PUnit collects the wall-clock time of every successful sample, computes the observed percentile distribution after all samples complete, and compares each declared percentile against its threshold. The thresholds come from a contractual source — an SLA, SLO, or design target known to the test author.
+
+This aggregate evaluation is where the probabilistic framework delivers real insight. A per-sample check cannot distinguish between "occasionally slow" and "systematically slow". Percentile-based evaluation can: a p95 breach tells you the tail is too heavy; a p50 breach tells you the median is too slow. By evaluating the distribution rather than individual data points, mechanism 2 transforms latency testing from a blunt per-invocation gate into a statistically meaningful assessment of service behaviour.
+
+#### Mechanism 3: Baseline-Derived Percentile Thresholds
+
+Percentile thresholds automatically derived from a MEASURE experiment's baseline spec. When the spec contains latency data and no explicit `@Latency` annotation is present, PUnit computes upper-bound thresholds for each percentile using a confidence interval.
+
+Mechanism 3 operates at the same aggregate granularity as mechanism 2 — the difference is provenance. Where mechanism 2 uses contractual thresholds chosen by the test author, mechanism 3 derives thresholds empirically from the baseline. The formula `threshold = baselinePercentile + z × (σ / √n)` accommodates natural variance when re-running with a different sample size. This makes mechanism 3 the natural choice for regression testing: the system's own measured performance becomes the expectation, with a statistical margin that tightens as the sample size grows.
+
+#### Comparison
+
+| Aspect                   | Duration Constraint (1)                                | Explicit `@Latency` (2)                 | Baseline-Derived (3)                                |
+|--------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------------------|
+| **Declared on**          | `ServiceContract` (use case)                           | `@ProbabilisticTest` (test)             | MEASURE spec (automatic)                            |
+| **Granularity**          | Per-sample                                             | Aggregate (percentile)                  | Aggregate (percentile)                              |
+| **Threshold provenance** | Fixed value in code                                    | Contractual (SLA/SLO)                   | Empirical (baseline + confidence interval)          |
+| **Evaluation point**     | During each sample (`assertLatency()` / `assertAll()`) | After all samples complete              | After all samples complete                          |
+| **Opt-in/opt-out**       | Implicit when contract has duration constraint         | Explicit `latency = @Latency(...)`      | Automatic; opt out with `@Latency(disabled = true)` |
+| **Can coexist with**     | Either of the other two                                | Either (overrides baseline if present)  | Either (yields to explicit if present)              |
+
+#### How the Mechanisms Interact
+
+**Explicit thresholds (mechanism 2) take precedence over baseline-derived thresholds (mechanism 3).** Both mechanisms answer the same question — does the latency distribution conform? — but they draw thresholds from different sources. When both are available, the explicit thresholds win: PUnit uses the contractual values from the `@Latency` annotation and ignores the baseline-derived values. This allows a developer to use the baseline for pass-rate derivation while asserting latency against a known SLA or SLO. When no explicit thresholds are declared, baseline-derived thresholds apply automatically.
+
+**Mechanism 1 is independent of mechanisms 2 and 3.** A service contract's duration constraint operates per-sample during execution; the aggregate percentile mechanisms operate after all samples complete. Both can be active simultaneously. A sample could pass the per-sample duration check but the overall distribution could still breach a percentile threshold, or vice versa.
+
+**A test can exercise all applicable mechanisms.** When a test calls `assertAll()` on a use case that has a duration constraint, and the test also has percentile thresholds (either explicit or baseline-derived), all layers are active: per-sample duration checks during execution, and aggregate percentile checks after completion. In practice, the aggregate mechanisms (2 or 3) are the ones that provide the statistically grounded verdict — the per-sample constraint is a coarse-grained safety net that catches individual outliers but cannot characterise the distribution.
 
 ### Sample Size and Percentile Reliability
 
@@ -2225,103 +2269,199 @@ You only need API keys for the providers you're actually using. If your experime
 
 ### B: Experiment Output Formats
 
-Each experiment type produces YAML files in different directories with different structures:
+Each experiment type produces YAML files in different directories with different structures. The extracts below are taken from real experiment outputs. Sections omitted for brevity are marked with `# ...`.
 
 #### MEASURE Output
 
 Location: `src/test/resources/punit/specs/{UseCaseId}.yaml`
 
-MEASURE produces baseline specs used by probabilistic tests:
+MEASURE produces the baseline spec that probabilistic tests use to derive thresholds. Its distinguishing features are: **covariates** (the environmental conditions under which the baseline was recorded), **requirements** (the derived `minPassRate`), **extended statistics** (standard error, confidence interval), and optionally a **latency** section. When the use case declares covariates, the filename includes a **footprint** suffix that encodes the covariate combination.
 
 ```yaml
-schemaVersion: punit-spec-2
-specId: ShoppingBasketUseCase
+# Empirical Baseline for ShoppingBasketUseCase                          ← header comment
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
 useCaseId: ShoppingBasketUseCase
-generatedAt: 2026-01-15T10:30:00Z
-
-empiricalBasis:
-  samples: 1000
-  successes: 935
-  generatedAt: 2026-01-15T10:30:00Z
-
-covariates:
-  llm_model: gpt-4o
-  temperature: 0.3
+generatedAt: 2026-03-03T17:45:51.370476Z
+experimentClass: org.javai.punit.examples.experiments.ShoppingBasketMeasure
+experimentMethod: measureBaseline
+footprint: 8e7245de                                                     ← covariate fingerprint
+covariates:                                                             ← environmental conditions
   day_of_week: WEEKDAY
-
-extendedStatistics:
-  standardError: 0.0078
-  confidenceInterval:
-    lower: 0.919
-    upper: 0.949
-
-contentFingerprint: sha256:abc123...
+  time_of_day: 16:00/4h
+  llm_model: gpt-4o-mini
+  temperature: 0.3
+execution:
+  samplesPlanned: 1000
+  samplesExecuted: 1000
+  terminationReason: COMPLETED
+requirements:
+  minPassRate: 0.7418                                                   ← derived threshold
+statistics:
+  successRate:
+    observed: 0.7680
+    standardError: 0.0133
+    confidenceInterval95: [0.7418, 0.7942]                              ← 95% CI
+  successes: 768
+  failures: 232
+  failureDistribution:                                                  ← per-postcondition breakdown
+    Valid shopping action: 232
+latency:                                                                ← latency distribution
+  sampleCount: 768
+  meanMs: 0
+  standardDeviationMs: 0
+  p50Ms: 0
+  p90Ms: 0
+  p95Ms: 0
+  p99Ms: 0
+  maxMs: 3
+cost:
+  totalTimeMs: 557
+  avgTimePerSampleMs: 0
+  totalTokens: 197288
+  avgTokensPerSample: 197
+contentFingerprint: 90fc6a06ededa50e...                                 ← integrity hash
 ```
+
+When latency data is present, MEASURE also produces a dedicated latency spec at `{UseCaseId}-latency.yaml` containing only the `execution` and `latency` sections.
 
 #### EXPLORE Output
 
 Location: `src/test/resources/punit/explorations/{UseCaseId}/{configName}.yaml`
 
-EXPLORE produces one file per configuration tested, enabling comparison:
+EXPLORE produces **one file per configuration**, enabling side-by-side comparison. Its distinguishing feature is the **result projection** — a per-sample record of inputs, postcondition outcomes, and raw content that lets you inspect exactly what the system produced under each configuration. The `useCaseId` includes the configuration name as a path suffix.
 
 ```yaml
-schemaVersion: punit-exploration-1
-useCaseId: ShoppingBasketUseCase
-configurationId: model-gpt-4o_temp-0.3
-generatedAt: 2026-01-15T09:15:00Z
+# Empirical Baseline for ShoppingBasketUseCase/model-gpt-4o             ← config in ID
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
 
-configuration:
-  model: gpt-4o
-  temperature: 0.3
-
-results:
-  samples: 20
-  successes: 19
-  successRate: 0.95
-
-covariates:
-  day_of_week: WEEKDAY
+schemaVersion: punit-spec-1
+useCaseId: ShoppingBasketUseCase/model-gpt-4o                           ← use case + config
+generatedAt: 2026-03-03T17:41:25.667899Z
+experimentClass: org.javai.punit.examples.experiments.ShoppingBasketExplore
+experimentMethod: compareModels
+execution:
+  samplesPlanned: 20
+  samplesExecuted: 20
+  terminationReason: COMPLETED
+statistics:
+  observed: 0.9000
+  successes: 18
+  failures: 2
+latency:
+  sampleCount: 18
+  # ...
+cost:
+  totalTimeMs: 194
+  avgTimePerSampleMs: 9
+  totalTokens: 3922
+  avgTokensPerSample: 196
+resultProjection:                                                       ← per-sample detail
+# ────── anchor:0dfe8af7 ──────
+  sample[0]:
+    input: Add some apples
+    postconditions:
+      Contains valid actions: passed
+      Response has content: passed
+      Valid shopping action: passed
+    executionTimeMs: 0
+    content: |
+      ChatResponse[content={"actions": [...]}, promptTokens=177, completionTokens=20]
+# ────── anchor:0c45c028 ──────
+  sample[1]:
+    # ...
+# ────── anchor:17610c9a ──────
+  sample[4]:                                                            ← a failed sample
+    input: Add some apples
+    postconditions:
+      Contains valid actions: failed                                    ← postcondition failure
+      Response has content: passed
+      Valid shopping action: failed
+    executionTimeMs: 0
+    content: |
+      ChatResponse[content={"operations": [...]}, ...]                  ← wrong schema
+  # ... remaining samples
+contentFingerprint: b8c458e7da03edb9...
 ```
 
 #### OPTIMIZE Output
 
 Location: `src/test/resources/punit/optimizations/{UseCaseId}/{experimentId}_{timestamp}.yaml`
 
-OPTIMIZE produces a history of iterations showing the optimization trajectory:
+OPTIMIZE produces a history of iterations showing the optimization trajectory. Its distinguishing features are: the **control factor** being varied, the **optimization policy** (objective, scorer, mutator, termination), a **best iteration** summary (when at least one iteration scored above the minimum threshold), and the full **iteration log** with per-iteration scores, statistics, and the control factor value tried.
 
 ```yaml
-schemaVersion: punit-optimization-1
+# Optimization History for ShoppingBasketUseCase
+# Primary output: the best value for the control factor
+# Generated automatically by punit @OptimizeExperiment
+
+schemaVersion: punit-optimize-1
 useCaseId: ShoppingBasketUseCase
-experimentId: temperature-optimization-v1
-generatedAt: 2026-01-15T11:45:00Z
+experimentId: prompt-optimization-v1
+generatedAt: 2026-03-03T17:43:11.308105Z
+controlFactor:                                                          ← what is being optimized
+  name: systemPrompt
+  type: String
+optimization:                                                           ← optimization policy
+  objective: MAXIMIZE
+  scorer: Success rate (higher is better) - measures % of samples where all criteria passed
+  mutator: Mock (deterministic) prompt progression - scripted sequence of improvements
+  terminationPolicy: Max 10 iterations OR No improvement for 3 iterations
+timing:
+  startTime: 2026-03-03T17:43:11.308105Z
+  endTime: 2026-03-03T17:43:27.771902Z
+  totalDurationMs: 16463
+bestIteration:                                                          ← best result (when present)
+  iterationNumber: 3
+  score: 87.5%
+  bestControlFactor: |
+    You are a shopping assistant. Convert the user's request into JSON...
+  statistics:
+    sampleCount: 8
+    observed: 0.8750
+    successes: 7
+    failures: 1
+summary:
+  totalIterations: 10
+  totalTokens: 0
+  initialScore: 0.0%
+  bestScore: 87.5%
+  scoreImprovement: 87.5%
+terminationReason:
+  cause: MAX_ITERATIONS
+  message: "Reached maximum iterations: 10"
+iterations:                                                             ← full iteration history
+  - iterationNumber: 0
+    status: BELOW_THRESHOLD
+    score: 0.0%
+    controlFactor: |                                                    ← value tried
+      You are a shopping assistant. Convert the user's request into
+      a JSON list of shopping basket operations.
+    statistics:
+      sampleCount: 8
+      observed: 0.0000
+      successes: 0
+      failures: 8
+    totalTokens: 0
+    meanLatencyMs: 0.00
+    failureReason: Score 0.00 is below minimum threshold 0.50           ← why this iteration failed
+  - iterationNumber: 1
+    status: BELOW_THRESHOLD
+    score: 0.0%
+    controlFactor: |
+      You are a shopping assistant. Convert the user's request into
+      a JSON list of shopping basket operations.
 
-controlFactor: temperature
-objective: MAXIMIZE
-terminationReason: NO_IMPROVEMENT_WINDOW
-
-iterations:
-  - iteration: 1
-    controlValue: 1.0
-    samples: 20
-    successes: 15
-    score: 0.75
-  - iteration: 2
-    controlValue: 0.7
-    samples: 20
-    successes: 17
-    score: 0.85
-  - iteration: 3
-    controlValue: 0.4
-    samples: 20
-    successes: 19
-    score: 0.95
-  # ... more iterations
-
-bestIteration:
-  iteration: 5
-  controlValue: 0.3
-  score: 0.97
+      IMPORTANT: Respond with ONLY valid JSON. No explanations, ...
+    # ...
+  # ... remaining iterations
+contentFingerprint: b4f6de1a05ca9aff...
 ```
+
+When no iteration scores above the minimum threshold, the `bestIteration` section is omitted and `scoreImprovement` is `0.0%`.
 
 ### C: Glossary
 

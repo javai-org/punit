@@ -448,9 +448,9 @@ public @interface ProbabilisticTest {
      * This mirrors how pass-rate thresholds are derived from baselines.
      * Use {@link Latency#disabled()} to opt out of automatic derivation.
      *
-     * <p>Explicit thresholds (e.g. {@code @Latency(p95Ms = 500)}) and a
-     * baseline with latency data are mutually exclusive. If both are present,
-     * PUnit raises a configuration error.
+     * <p>When explicit thresholds are declared and the baseline also contains
+     * latency data, the explicit thresholds take precedence — the baseline
+     * latency data is ignored.
      *
      * <h3>Example — explicit thresholds</h3>
      * <pre>{@code
