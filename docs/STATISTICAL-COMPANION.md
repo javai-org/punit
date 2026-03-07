@@ -1394,7 +1394,7 @@ $$n = \left(\frac{z_\alpha \sqrt{p_0(1-p_0)} + z_\beta \sqrt{p_1(1-p_1)}}{p_0 - 
 
 $$Q(p) = t_{(\lceil p \cdot n_s \rceil)}, \quad t_{(1)} \leq \cdots \leq t_{(n_s)}$$
 
-### Latency Threshold Derivation (upper confidence bound)
+### Latency Threshold Derivation (conservative percentile tolerance)
 
 $$\tau_j = \max\left(Q_{\text{baseline}}(p_j), \; \left\lceil Q_{\text{baseline}}(p_j) + z_\alpha \cdot \frac{s}{\sqrt{n_s}} \right\rceil\right)$$
 
@@ -1729,13 +1729,19 @@ These characteristics violate the assumptions of parametric models such as the n
 
 #### 12.2.1 Population Definition
 
-Not all samples contribute to the latency distribution. PUnit defines the **latency population** as:
+Not all samples contribute to the latency distribution. PUnit defines the **latency population** as the distribution of **successful-response latency**:
 
 $$\mathcal{L} = \{ t_i : X_i = 1 \}$$
 
+Equivalently, the latency estimand is the conditional distribution:
+
+$$T \mid X = 1$$
+
 where $t_i$ is the wall-clock execution time of the $i$-th trial and $X_i$ is its Bernoulli outcome. Only successful samples ($X_i = 1$) are included.
 
-**Rationale**: Failed samples produce execution times that are statistically meaningless for latency characterisation. A fast failure (immediate validation rejection, $t \approx 0$) and a slow failure (timeout at $t = 30{,}000\text{ms}$) both reflect error paths, not the system's operational response time. Including them would contaminate the distribution and produce percentile estimates that describe neither the successful nor the failed population.
+**Rationale**: Failed samples produce execution times that are not directly comparable with successful response times. A fast failure (immediate validation rejection, $t \approx 0$) and a slow failure (timeout at $t = 30{,}000\text{ms}$) both reflect error paths, not the latency of successful operation. Including them would contaminate the distribution and produce percentile estimates that describe neither the successful nor the failed population.
+
+**Important semantic note**: This is a **conditional latency distribution**, not the unconditional user-experienced response-time distribution over all attempts. Pass rate and latency therefore describe two complementary dimensions: the probability of success, and the latency distribution given success.
 
 Let $n_s = |\mathcal{L}|$ denote the number of successful samples and let $t_{(1)} \leq t_{(2)} \leq \cdots \leq t_{(n_s)}$ be the order statistics of the successful latencies.
 
@@ -1837,15 +1843,17 @@ The ceiling ensures integer millisecond thresholds, and the $\max$ ensures the t
 
 #### 12.4.3 Statistical Interpretation
 
-This derivation answers: "What is the upper bound of the $(1-\alpha)$ confidence interval for the true percentile, given the baseline observations?"
+This derivation answers a more modest engineering question:
 
-A test with observed $Q(p_j) \leq \tau_j$ means: the observed percentile is within the range expected from a system whose true latency profile matches the baseline, at the specified confidence level.
+> "What is a conservative upper tolerance for this baseline percentile, allowing for ordinary sampling variation?"
 
-A breach ($Q(p_j) > \tau_j$) means: the observed percentile exceeds what we would expect from normal sampling variance alone, providing evidence of latency degradation.
+A test with observed $Q(p_j) \leq \tau_j$ means: the observed percentile is within the tolerance PUnit derives from the measured baseline and its overall spread.
+
+A breach ($Q(p_j) > \tau_j$) means: the observed percentile exceeds that baseline-derived tolerance, providing evidence suggestive of latency degradation.
 
 #### 12.4.4 Limitations of this Approach
 
-The formula $\hat{\tau}_j = Q(p_j) + z \cdot s / \sqrt{n_s}$ uses the standard error of the *mean* as a proxy for the standard error of the *percentile*. For the true standard error of an order statistic, the density of the distribution at the percentile point is required — which is unknown in the non-parametric setting.
+The formula $\hat{\tau}_j = Q(p_j) + z \cdot s / \sqrt{n_s}$ uses the standard error of the *mean* as a proxy for the uncertainty of the *percentile*. It should therefore be understood as an engineering approximation, not as a formal non-parametric confidence interval for the quantile. For the true sampling distribution of an order statistic, the density of the distribution at the percentile point is required — which is unknown in the non-parametric setting.
 
 The approximation is conservative in practice for the following reasons:
 
