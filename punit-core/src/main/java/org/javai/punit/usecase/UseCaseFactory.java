@@ -56,9 +56,10 @@ public class UseCaseFactory {
      * @param factory      a supplier that creates instances
      * @param <T>          the use case type
      */
-    public <T> void register(Class<T> useCaseClass, Supplier<T> factory) {
+    public <T> UseCaseFactory register(Class<T> useCaseClass, Supplier<T> factory) {
         factories.put(useCaseClass, factory);
         singletons.remove(useCaseClass);
+        return this;
     }
 
     /**
@@ -68,10 +69,11 @@ public class UseCaseFactory {
      * @param factorFactory a function that takes FactorValues and creates an instance
      * @param <T>           the use case type
      */
-    public <T> void registerWithFactors(Class<T> useCaseClass,
+    public <T> UseCaseFactory registerWithFactors(Class<T> useCaseClass,
                                          Function<FactorValues, T> factorFactory) {
         factorFactories.put(useCaseClass, factorFactory);
         singletons.remove(useCaseClass);
+        return this;
     }
 
     /**
@@ -81,9 +83,10 @@ public class UseCaseFactory {
      * @param factory      a supplier that creates base instances
      * @param <T>          the use case type
      */
-    public <T> void registerAutoWired(Class<T> useCaseClass, Supplier<T> factory) {
+    public <T> UseCaseFactory registerAutoWired(Class<T> useCaseClass, Supplier<T> factory) {
         autoWiredFactories.put(useCaseClass, factory);
         singletons.remove(useCaseClass);
+        return this;
     }
 
     /**

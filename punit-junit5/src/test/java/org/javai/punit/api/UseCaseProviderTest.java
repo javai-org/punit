@@ -62,6 +62,16 @@ class UseCaseProviderTest {
         }
 
         @Test
+        @DisplayName("supports fluent chaining of register calls")
+        void supportsFluentChaining() {
+            provider.register(SimpleUseCase.class, () -> new SimpleUseCase("a"))
+                    .register(AnnotatedUseCase.class, AnnotatedUseCase::new);
+
+            assertThat(provider.isRegistered(SimpleUseCase.class)).isTrue();
+            assertThat(provider.isRegistered(AnnotatedUseCase.class)).isTrue();
+        }
+
+        @Test
         @DisplayName("throws when no factory registered")
         void throwsWhenNoFactoryRegistered() {
             assertThatThrownBy(() -> provider.getInstance(SimpleUseCase.class))

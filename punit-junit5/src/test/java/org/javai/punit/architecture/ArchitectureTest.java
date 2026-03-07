@@ -29,6 +29,10 @@ import org.junit.jupiter.api.Test;
  *   <li>Dependencies flow in expected directions</li>
  * </ul>
  *
+ * <p><strong>Note:</strong> The {@code punit-sentinel} module is not on this module's classpath,
+ * so its classes are not scanned here. When {@code punit-sentinel} gains production code
+ * (Phase 4), it must have its own ArchUnit test enforcing zero {@code org.junit} dependencies.
+ *
  * @see <a href="file:../../../../../plan/DOC-03-ARCHITECTURE-OVERVIEW.md">Architecture Overview</a>
  */
 @DisplayName("Architecture Rules")

@@ -1203,7 +1203,7 @@ Budgets can be specified at different levels:
 |------------|--------------------|------------------------------------------|
 | **Method** | Single test method | `@ProbabilisticTest(timeBudgetMs = ...)` |
 | **Class**  | All tests in class | `@CostBudget` on class                   |
-| **Suite**  | All tests in run   | *Planned for future release*             |
+| **Suite**  | All tests in run   | System property or environment variable  |
 
 When budgets are set at multiple levels, PUnit enforces all of them — the first exhausted budget triggers termination.
 
@@ -1670,14 +1670,42 @@ For the mathematical foundations — confidence interval calculations, power ana
 
 PUnit configuration follows this resolution order: System property → Environment variable → Annotation value → Framework default.
 
-| Property                        | Environment Variable             | Description                                            |
-|---------------------------------|----------------------------------|--------------------------------------------------------|
-| `punit.samples`                 | `PUNIT_SAMPLES`                  | Override sample count                                  |
-| `punit.stats.transparent`       | `PUNIT_STATS_TRANSPARENT`        | Enable transparent statistics                          |
-| `punit.latency.enforce`         | `PUNIT_LATENCY_ENFORCE`          | Enforce latency assertions (default: false = advisory) |
-| `punit.specs.outputDir`         | `PUNIT_SPECS_OUTPUT_DIR`         | Spec output directory                                  |
-| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | Exploration output directory                           |
-| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | Optimization output directory                          |
+#### General
+
+| Property                        | Environment Variable             | Default   | Description                                            |
+|---------------------------------|----------------------------------|-----------|--------------------------------------------------------|
+| `punit.samples`                 | `PUNIT_SAMPLES`                  | `100`     | Override sample count                                  |
+| `punit.minPassRate`             | `PUNIT_MIN_PASS_RATE`            | —         | Override minimum pass rate                             |
+| `punit.samplesMultiplier`       | `PUNIT_SAMPLES_MULTIPLIER`       | `1.0`     | Multiplier applied to sample count                     |
+| `punit.stats.transparent`       | `PUNIT_STATS_TRANSPARENT`        | `false`   | Enable transparent statistics                          |
+| `punit.latency.enforce`         | `PUNIT_LATENCY_ENFORCE`          | `false`   | Enforce latency assertions (default: advisory)         |
+| `punit.specs.outputDir`         | `PUNIT_SPECS_OUTPUT_DIR`         | see below | Spec output directory                                  |
+| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | see below | Exploration output directory                           |
+| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | see below | Optimization output directory                          |
+
+Default output directories: `src/test/resources/punit/specs/`, `src/test/resources/punit/explorations/`, `src/test/resources/punit/optimizations/`.
+
+#### Method-Level Budget
+
+These override the corresponding `@ProbabilisticTest` annotation attributes.
+
+| Property             | Environment Variable   | Default | Description                                               |
+|----------------------|------------------------|---------|-----------------------------------------------------------|
+| `punit.timeBudgetMs` | `PUNIT_TIME_BUDGET_MS` | `0`     | Time budget in milliseconds (0 = unlimited)               |
+| `punit.tokenBudget`  | `PUNIT_TOKEN_BUDGET`   | `0`     | Token budget (0 = unlimited)                              |
+| `punit.tokenCharge`  | `PUNIT_TOKEN_CHARGE`   | `0`     | Fixed token charge per sample (0 = use dynamic recording) |
+
+#### Suite-Level Budget
+
+Suite budgets apply across all probabilistic tests in the JVM. They are configured exclusively via system properties or environment variables (there is no annotation equivalent).
+
+| Property                        | Environment Variable              | Default            | Description                                       |
+|---------------------------------|-----------------------------------|--------------------|---------------------------------------------------|
+| `punit.suite.timeBudgetMs`      | `PUNIT_SUITE_TIME_BUDGET_MS`      | `0`                | Time budget for entire suite (0 = unlimited)      |
+| `punit.suite.tokenBudget`       | `PUNIT_SUITE_TOKEN_BUDGET`        | `0`                | Token budget for entire suite (0 = unlimited)     |
+| `punit.suite.onBudgetExhausted` | `PUNIT_SUITE_ON_BUDGET_EXHAUSTED` | `FAIL`             | `FAIL` or `EVALUATE_PARTIAL`                      |
+
+When budgets are set at multiple levels, PUnit enforces all of them — the first exhausted budget triggers termination.
 
 #### LLM Provider Configuration
 
