@@ -56,14 +56,42 @@ public class MeasureOutputWriter {
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_INSTANT;
 
     /**
-     * Writes a measurement baseline to the specified path in YAML format.
+     * Writes a measurement baseline to the specified path in YAML format,
+     * including all sections.
      *
      * @param baseline the baseline to write
      * @param path the output path
      * @throws IOException if writing fails
      */
     public void write(EmpiricalBaseline baseline, Path path) throws IOException {
-        Objects.requireNonNull(baseline, "baseline must not be null");
+        writeToFile(toYaml(baseline), path);
+    }
+
+    /**
+     * Writes only the functional dimension (pass-rate statistics) to the specified path.
+     * Latency data is excluded.
+     *
+     * @param baseline the baseline to write
+     * @param path the output path
+     * @throws IOException if writing fails
+     */
+    public void writeFunctional(EmpiricalBaseline baseline, Path path) throws IOException {
+        writeToFile(toFunctionalYaml(baseline), path);
+    }
+
+    /**
+     * Writes only the latency dimension to the specified path.
+     * Pass-rate statistics and requirements are excluded.
+     *
+     * @param baseline the baseline to write
+     * @param path the output path
+     * @throws IOException if writing fails
+     */
+    public void writeLatency(EmpiricalBaseline baseline, Path path) throws IOException {
+        writeToFile(toLatencyYaml(baseline), path);
+    }
+
+    private void writeToFile(String content, Path path) throws IOException {
         Objects.requireNonNull(path, "path must not be null");
 
         Path parent = path.getParent();
@@ -71,29 +99,60 @@ public class MeasureOutputWriter {
             Files.createDirectories(parent);
         }
 
-        String content = toYaml(baseline);
         Files.writeString(path, content, StandardCharsets.UTF_8);
     }
 
     /**
-     * Converts a baseline to YAML format for measurement output.
+     * Converts a baseline to YAML format containing all sections.
      *
      * @param baseline the baseline
-     * @return YAML string
+     * @return YAML string with both functional and latency data
      */
     public String toYaml(EmpiricalBaseline baseline) {
-        String contentWithoutFingerprint = buildYamlContent(baseline);
+        return buildAndFingerprint(baseline, true, true);
+    }
+
+    /**
+     * Converts a baseline to YAML format containing only functional data
+     * (requirements, statistics). Latency data is excluded.
+     *
+     * @param baseline the baseline
+     * @return YAML string with functional data only
+     */
+    public String toFunctionalYaml(EmpiricalBaseline baseline) {
+        return buildAndFingerprint(baseline, true, false);
+    }
+
+    /**
+     * Converts a baseline to YAML format containing only latency data.
+     * Requirements and pass-rate statistics are excluded.
+     *
+     * @param baseline the baseline
+     * @return YAML string with latency data only
+     */
+    public String toLatencyYaml(EmpiricalBaseline baseline) {
+        return buildAndFingerprint(baseline, false, true);
+    }
+
+    private String buildAndFingerprint(EmpiricalBaseline baseline,
+                                        boolean includeFunctional, boolean includeLatency) {
+        String contentWithoutFingerprint = buildYamlContent(baseline, includeFunctional, includeLatency);
         return OutputUtilities.appendFingerprint(contentWithoutFingerprint);
     }
 
-    private String buildYamlContent(EmpiricalBaseline baseline) {
+    private String buildYamlContent(EmpiricalBaseline baseline,
+                                     boolean includeFunctional, boolean includeLatency) {
         YamlBuilder builder = YamlBuilder.create();
 
         writeHeader(builder, baseline);
         writeCovariates(builder, baseline);
         writeExecution(builder, baseline);
-        writeRequirementsAndStatistics(builder, baseline);
-        writeLatency(builder, baseline);
+        if (includeFunctional) {
+            writeRequirementsAndStatistics(builder, baseline);
+        }
+        if (includeLatency) {
+            writeLatency(builder, baseline);
+        }
         writeCost(builder, baseline);
         writeSuccessCriteria(builder, baseline);
         writeResultProjections(builder, baseline);

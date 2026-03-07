@@ -104,21 +104,21 @@ public class MeasureSpecGenerator {
                 covariateProfile
         );
 
-        // Write spec files using measure-specific output format.
-        // Produces per-dimension files: functional spec + latency spec (when latency data exists).
-        // The combined spec is also written for backward compatibility.
+        // Write per-dimension spec files.
+        // Functional spec: pass-rate statistics only (no latency).
+        // Latency spec: latency percentiles only (no pass-rate statistics).
         try {
             MeasureOutputWriter writer = new MeasureOutputWriter();
 
-            // Write combined spec (backward compatibility)
+            // Write functional spec (pass-rate statistics, no latency)
             Path outputPath = resolveOutputPath(useCaseId, footprint, covariateProfile);
-            writer.write(baseline, outputPath);
+            writer.writeFunctional(baseline, outputPath);
             context.publishReportEntry("punit.spec.outputPath", outputPath.toString());
 
-            // Write latency-only spec when latency data is available
+            // Write latency spec when latency data is available (no pass-rate statistics)
             if (baseline.hasLatencyDistribution()) {
                 Path latencyPath = resolveOutputPath(useCaseId + ".latency", footprint, covariateProfile);
-                writer.write(baseline, latencyPath);
+                writer.writeLatency(baseline, latencyPath);
                 context.publishReportEntry("punit.spec.latencyOutputPath", latencyPath.toString());
             }
         } catch (IOException e) {

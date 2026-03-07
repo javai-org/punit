@@ -24,6 +24,7 @@ class PacingIntegrationTest {
 
         EngineExecutionResults results = EngineTestKit
                 .engine("junit-jupiter")
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectMethod(PacedTestClass.class, "testWithPacing"))
                 .execute();
 
@@ -44,6 +45,7 @@ class PacingIntegrationTest {
 
         EngineExecutionResults results = EngineTestKit
                 .engine("junit-jupiter")
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectMethod(UnpacedTestClass.class, "testWithoutPacing"))
                 .execute();
 
@@ -64,6 +66,7 @@ class PacingIntegrationTest {
 
         EngineTestKit
                 .engine("junit-jupiter")
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectMethod(TimingTestClass.class, "testWithTimingCheck"))
                 .execute();
 

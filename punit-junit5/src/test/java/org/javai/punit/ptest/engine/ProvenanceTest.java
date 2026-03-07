@@ -211,6 +211,7 @@ class ProvenanceTest {
         testAppender.clear();
         
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(testClass))
                 .execute();
         

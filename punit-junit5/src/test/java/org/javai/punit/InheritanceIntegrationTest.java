@@ -29,6 +29,7 @@ class InheritanceIntegrationTest {
         @DisplayName("subclass inherits @ProbabilisticTest and UseCaseFactory from superclass")
         void subclassInheritsProbabilisticTest() {
             EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(InheritedProbabilisticTest.class))
                     .execute()
                     .testEvents()
@@ -42,6 +43,7 @@ class InheritanceIntegrationTest {
         @DisplayName("subclass inherits @ProbabilisticTest with @InputSource from superclass")
         void subclassInheritsProbabilisticTestWithInputs() {
             EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(
                             InheritedProbabilisticTestWithInputs.class))
                     .execute()
@@ -61,6 +63,7 @@ class InheritanceIntegrationTest {
         @DisplayName("subclass inherits @MeasureExperiment and UseCaseFactory from superclass")
         void subclassInheritsMeasureExperiment() {
             EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(InheritedMeasureExperiment.class))
                     .execute()
                     .testEvents()

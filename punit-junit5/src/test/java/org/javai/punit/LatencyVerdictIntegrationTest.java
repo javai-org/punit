@@ -31,6 +31,7 @@ class LatencyVerdictIntegrationTest {
     @DisplayName("should pass with transparent stats and latency enabled")
     void shouldPassWithTransparentStatsAndLatency() {
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(TransparentStatsWithLatencyTest.class))
                 .execute()
                 .testEvents();
@@ -46,6 +47,7 @@ class LatencyVerdictIntegrationTest {
         System.setProperty("punit.latency.enforce", "true");
 
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(VerificationUndersizedLatencyTest.class))
                 .execute()
                 .allEvents()
@@ -80,6 +82,7 @@ class LatencyVerdictIntegrationTest {
     @DisplayName("SMOKE intent with undersized latency p99 should bypass feasibility gate")
     void smokeUndersizedLatencyShouldBypassGate() {
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(SmokeUndersizedLatencyTest.class))
                 .execute()
                 .testEvents();
@@ -94,6 +97,7 @@ class LatencyVerdictIntegrationTest {
     void shouldWarnButNotFailWhenLatencyBreachesInAdvisoryMode() {
         // Advisory mode is the default (enforce not set)
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(AdvisoryLatencyBreachTest.class))
                 .execute()
                 .testEvents();
@@ -111,6 +115,7 @@ class LatencyVerdictIntegrationTest {
     void verificationUndersizedLatencyShouldBypassGateInAdvisoryMode() {
         // Advisory mode is the default (enforce not set)
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(VerificationUndersizedLatencyTest.class))
                 .execute()
                 .testEvents();

@@ -29,6 +29,7 @@ class LatencyIntegrationTest {
     @DisplayName("should pass when latency is within thresholds")
     void shouldPassWhenLatencyWithinThresholds() {
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(LatencyPassingTest.class))
                 .execute()
                 .testEvents();
@@ -45,6 +46,7 @@ class LatencyIntegrationTest {
         System.setProperty(PROP_LATENCY_ENFORCE, "true");
 
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(LatencyFailingTest.class))
                 .execute()
                 .testEvents();
@@ -58,6 +60,7 @@ class LatencyIntegrationTest {
     @DisplayName("should pass when no latency thresholds are set")
     void shouldPassWhenNoLatencyThresholds() {
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(NoLatencyTest.class))
                 .execute()
                 .testEvents();

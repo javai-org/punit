@@ -293,6 +293,15 @@ public class ProbabilisticTestExtension implements
 											ReflectiveInvocationContext<Method> invocationContext,
 											ExtensionContext extensionContext) throws Throwable {
 
+		// Guard: when registered globally via auto-detection, this interceptor fires for
+		// all test template methods including @MeasureExperiment etc. Delegate to the next
+		// interceptor in the chain if this invocation doesn't belong to a probabilistic test.
+		Method method = extensionContext.getRequiredTestMethod();
+		if (!AnnotationSupport.isAnnotated(method, ProbabilisticTest.class)) {
+			invocation.proceed();
+			return;
+		}
+
 		// Ensure baseline selection is resolved lazily before first sample.
 		// This must happen BEFORE getting config, as it may derive minPassRate from baseline.
 		ensureBaselineSelected(extensionContext);

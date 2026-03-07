@@ -40,6 +40,7 @@ class BaselineDerivedThresholdIntegrationTest {
             // Baseline declares minPassRate=0.80; all samples pass (100% >= 80%) → PASS
             // With 80% of 10 = 8 required, SUCCESS_GUARANTEED triggers after 8 successes
             var allEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(AlwaysPassingWithDerivedThresholdTest.class))
                     .execute()
                     .allEvents()
@@ -82,6 +83,7 @@ class BaselineDerivedThresholdIntegrationTest {
 
             // Baseline declares minPassRate=0.80; test passes 70% → FAIL
             var allEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(BarelyFailingWithDerivedThresholdTest.class))
                     .execute()
                     .allEvents()
@@ -128,6 +130,7 @@ class BaselineDerivedThresholdIntegrationTest {
             BarelyFailingWithDerivedThresholdTest.resetCounter();
 
             var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(BarelyFailingWithDerivedThresholdTest.class))
                     .execute()
                     .allEvents()

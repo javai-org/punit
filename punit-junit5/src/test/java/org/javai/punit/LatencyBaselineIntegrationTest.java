@@ -25,6 +25,7 @@ class LatencyBaselineIntegrationTest {
     @DisplayName("should pass with automatic baseline-derived latency thresholds")
     void shouldPassWithAutomaticBaselineDerivation() {
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(BaselineOnlyTest.class))
                 .execute()
                 .testEvents();
@@ -39,6 +40,7 @@ class LatencyBaselineIntegrationTest {
     @DisplayName("should pass when latency is disabled via @Latency(disabled = true)")
     void shouldPassWhenLatencyDisabled() {
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(DisabledLatencyTest.class))
                 .execute()
                 .testEvents();
@@ -52,6 +54,7 @@ class LatencyBaselineIntegrationTest {
     @DisplayName("should fail when explicit latency thresholds conflict with baseline")
     void shouldFailWhenExplicitThresholdsWithBaseline() {
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(ExplicitWithBaselineTest.class))
                 .execute()
                 .allEvents()

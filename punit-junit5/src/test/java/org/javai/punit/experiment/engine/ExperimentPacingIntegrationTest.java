@@ -47,6 +47,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(PacedMeasureExperiment.class))
                     .execute();
 
@@ -66,6 +67,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(UnpacedMeasureExperiment.class))
                     .execute();
 
@@ -90,6 +92,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(PacedExploreExperiment.class))
                     .execute();
 
@@ -109,6 +112,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(GlobalCounterExploreExperiment.class))
                     .execute();
 
@@ -132,6 +136,7 @@ class ExperimentPacingIntegrationTest {
 
             EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(TimingExperiment.class))
                     .execute();
 

@@ -42,6 +42,7 @@ class ProbabilisticTestIntegrationTest {
         // With 80% of 10 = 8 required, after 8 consecutive successes
         // SUCCESS_GUARANTEED triggers and we skip remaining 2 samples
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(AlwaysPassingTest.class))
                 .execute()
                 .testEvents()
@@ -54,6 +55,7 @@ class ProbabilisticTestIntegrationTest {
     @Test
     void alwaysFailingTestFails() {
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(AlwaysFailingTest.class))
                 .execute()
                 .testEvents()
@@ -69,6 +71,7 @@ class ProbabilisticTestIntegrationTest {
         PartiallyFailingTest.resetCounter();
         
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(PartiallyFailingTest.class))
                 .execute()
                 .testEvents()
@@ -85,6 +88,7 @@ class ProbabilisticTestIntegrationTest {
         // With 80% of 10 = 8 required, after 8 consecutive successes
         // SUCCESS_GUARANTEED triggers before we reach samples 9-10 that would fail
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(BarelyPassingTest.class))
                 .execute()
                 .testEvents()
@@ -99,6 +103,7 @@ class ProbabilisticTestIntegrationTest {
         BarelyFailingTest.resetCounter();
         
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(BarelyFailingTest.class))
                 .execute()
                 .testEvents()
@@ -111,6 +116,7 @@ class ProbabilisticTestIntegrationTest {
     @Test
     void exceptionsTreatedAsFailures() {
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(ExceptionThrowingTest.class))
                 .execute()
                 .testEvents()
@@ -128,6 +134,7 @@ class ProbabilisticTestIntegrationTest {
         // When SUCCESS_GUARANTEED triggers, we don't re-throw sample failures
         // because the test has already passed.
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(MinPassRateZeroTest.class))
                 .execute()
                 .testEvents()
@@ -140,6 +147,7 @@ class ProbabilisticTestIntegrationTest {
     @Test
     void singleSampleTestWorks() {
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(SingleSampleTest.class))
                 .execute()
                 .testEvents()
@@ -160,6 +168,7 @@ class ProbabilisticTestIntegrationTest {
         System.setProperty("punit.samples", "5");
         try {
             EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(ConfigurableSamplesTest.class))
                     .execute()
                     .testEvents()
@@ -185,6 +194,7 @@ class ProbabilisticTestIntegrationTest {
         System.setProperty("punit.samplesMultiplier", "0.5");
         try {
             EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(ConfigurableSamplesTest.class))
                     .execute()
                     .testEvents()
@@ -211,6 +221,7 @@ class ProbabilisticTestIntegrationTest {
         System.setProperty("punit.minPassRate", "0.6");
         try {
             EngineTestKit.engine(JUNIT_ENGINE_ID)
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(BarelyFailingTest.class))
                     .execute()
                     .testEvents()
@@ -230,6 +241,7 @@ class ProbabilisticTestIntegrationTest {
         EarlyTerminationByImpossibilityTest.resetCounter();
         
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(EarlyTerminationByImpossibilityTest.class))
                 .execute()
                 .testEvents()
@@ -253,6 +265,7 @@ class ProbabilisticTestIntegrationTest {
         // - Samples 3-7: beyond limit → aborted (not falsely counted as succeeded)
         // - Sample 8: early termination → verdict failure
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(SuppressedFailuresTest.class))
                 .execute()
                 .testEvents()
@@ -268,6 +281,7 @@ class ProbabilisticTestIntegrationTest {
         TerminateOnFirstFailureTest.resetCounter();
         
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(TerminateOnFirstFailureTest.class))
                 .execute()
                 .testEvents()
@@ -287,6 +301,7 @@ class ProbabilisticTestIntegrationTest {
         PassesWithSomeFailuresTest.resetCounter();
         
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(PassesWithSomeFailuresTest.class))
                 .execute()
                 .testEvents()
@@ -302,6 +317,7 @@ class ProbabilisticTestIntegrationTest {
         SuccessGuaranteedEarlyTerminationTest.resetCounter();
         
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(SuccessGuaranteedEarlyTerminationTest.class))
                 .execute()
                 .testEvents()
@@ -328,6 +344,7 @@ class ProbabilisticTestIntegrationTest {
         // After 4 samples: 120 tokens > 100 budget
         // With FAIL behavior, test should fail when budget exhausted
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(ClassTokenBudgetTest.class))
                 .execute()
                 .testEvents()
@@ -348,6 +365,7 @@ class ProbabilisticTestIntegrationTest {
         // Class has 50ms time budget, each sample takes 20ms
         // Should run ~2-3 samples before budget exhausted
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(ClassTimeBudgetTest.class))
                 .execute()
                 .testEvents()
@@ -366,6 +384,7 @@ class ProbabilisticTestIntegrationTest {
         // before budget exhaustion (50 token budget, 30 per sample = 2 samples run)
         // 2/2 = 100% >= 50% required, so test passes
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(EvaluatePartialBudgetTest.class))
                 .execute()
                 .testEvents()
@@ -381,6 +400,7 @@ class ProbabilisticTestIntegrationTest {
         // Verify that sample failures show the actual assertion reason (concise)
         // without verbose stack traces or suppressed exceptions
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(AlwaysFailingTest.class))
                 .execute()
                 .allEvents()
@@ -417,6 +437,7 @@ class ProbabilisticTestIntegrationTest {
         // VERIFICATION + N=10, p₀=0.95, confidence=0.95 → N_min=52 → infeasible
         // Should fail with ExtensionConfigurationException, no samples execute
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(VerificationUndersizedTest.class))
                 .execute()
                 .allEvents()
@@ -453,6 +474,7 @@ class ProbabilisticTestIntegrationTest {
         // An unrecoverable configuration error should fail fast — the infeasibility
         // message should appear exactly once, not once per sample invocation.
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(VerificationUndersizedTest.class))
                 .execute()
                 .allEvents()
@@ -478,6 +500,7 @@ class ProbabilisticTestIntegrationTest {
         // VERIFICATION + N=55, p₀=0.90, confidence=0.95 → N_min=25 → feasible
         // Should execute samples normally and pass (always passes)
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(VerificationSizedTest.class))
                 .execute()
                 .testEvents()
@@ -490,6 +513,7 @@ class ProbabilisticTestIntegrationTest {
         // SMOKE + N=10, p₀=0.95 → would be infeasible for VERIFICATION, but SMOKE skips gate
         // Should execute samples normally
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(SmokeUndersizedTest.class))
                 .execute()
                 .testEvents()
@@ -501,6 +525,7 @@ class ProbabilisticTestIntegrationTest {
     void smokeSizedExecutesNormally() {
         // SMOKE + N=55, p₀=0.90 → sized, but intent is SMOKE
         EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(SmokeSizedTest.class))
                 .execute()
                 .testEvents()
@@ -515,6 +540,7 @@ class ProbabilisticTestIntegrationTest {
         // Verify that sample failures don't have suppressed exceptions
         // (which caused verbose nested output)
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(AlwaysFailingTest.class))
                 .execute()
                 .allEvents()
@@ -549,6 +575,7 @@ class ProbabilisticTestIntegrationTest {
         // UNDEFINED: samples=10 with no threshold and no baseline.
         // The validation error is unrecoverable and should be reported once.
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(UndefinedThresholdTest.class))
                 .execute()
                 .allEvents()

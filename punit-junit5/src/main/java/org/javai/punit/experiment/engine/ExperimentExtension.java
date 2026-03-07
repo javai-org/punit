@@ -96,6 +96,14 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
 
         ExperimentModeStrategy strategy = store.get("strategy", ExperimentModeStrategy.class);
 
+        // Guard: when registered globally via auto-detection, this interceptor fires for
+        // all test template methods including @ProbabilisticTest. Delegate to the next
+        // interceptor in the chain if this invocation doesn't belong to an experiment.
+        if (strategy == null) {
+            invocation.proceed();
+            return;
+        }
+
         // Apply pacing delay (shared infrastructure)
         applyPacingDelay(store);
 

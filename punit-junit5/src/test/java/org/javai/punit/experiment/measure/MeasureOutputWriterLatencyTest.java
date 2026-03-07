@@ -110,6 +110,104 @@ class MeasureOutputWriterLatencyTest {
     }
 
     @Nested
+    @DisplayName("Dimension separation")
+    class DimensionSeparation {
+
+        @Test
+        @DisplayName("functional YAML should not contain latency section")
+        void functionalYamlShouldNotContainLatency() {
+            EmpiricalBaseline baseline = createBaselineWithLatency();
+
+            String yaml = writer.toFunctionalYaml(baseline);
+
+            assertThat(yaml)
+                    .contains("statistics:")
+                    .contains("requirements:")
+                    .doesNotContain("latency:");
+        }
+
+        @Test
+        @DisplayName("latency YAML should not contain statistics or requirements sections")
+        void latencyYamlShouldNotContainStatistics() {
+            EmpiricalBaseline baseline = createBaselineWithLatency();
+
+            String yaml = writer.toLatencyYaml(baseline);
+
+            assertThat(yaml)
+                    .contains("latency:")
+                    .doesNotContain("statistics:")
+                    .doesNotContain("requirements:");
+        }
+
+        @Test
+        @DisplayName("latency YAML should include shared sections")
+        void latencyYamlShouldIncludeSharedSections() {
+            EmpiricalBaseline baseline = createBaselineWithLatency();
+
+            String yaml = writer.toLatencyYaml(baseline);
+
+            assertThat(yaml)
+                    .contains("schemaVersion:")
+                    .contains("useCaseId:")
+                    .contains("execution:")
+                    .contains("cost:");
+        }
+
+        @Test
+        @DisplayName("functional YAML should include shared sections")
+        void functionalYamlShouldIncludeSharedSections() {
+            EmpiricalBaseline baseline = createBaselineWithLatency();
+
+            String yaml = writer.toFunctionalYaml(baseline);
+
+            assertThat(yaml)
+                    .contains("schemaVersion:")
+                    .contains("useCaseId:")
+                    .contains("execution:")
+                    .contains("cost:");
+        }
+
+        @Test
+        @DisplayName("combined YAML should contain both dimensions")
+        void combinedYamlShouldContainBothDimensions() {
+            EmpiricalBaseline baseline = createBaselineWithLatency();
+
+            String yaml = writer.toYaml(baseline);
+
+            assertThat(yaml)
+                    .contains("statistics:")
+                    .contains("requirements:")
+                    .contains("latency:");
+        }
+
+        @Test
+        @DisplayName("functional YAML should produce valid schema output")
+        void functionalYamlShouldProduceValidSchema() {
+            EmpiricalBaseline baseline = createBaselineWithLatency();
+
+            String yaml = writer.toFunctionalYaml(baseline);
+
+            ValidationResult result = SpecSchemaValidator.validate(yaml);
+            assertThat(result.isValid())
+                    .as("Functional YAML should pass schema validation. Errors: %s", result.errors())
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("latency YAML should produce valid schema output")
+        void latencyYamlShouldProduceValidSchema() {
+            EmpiricalBaseline baseline = createBaselineWithLatency();
+
+            String yaml = writer.toLatencyYaml(baseline);
+
+            ValidationResult result = SpecSchemaValidator.validate(yaml);
+            assertThat(result.isValid())
+                    .as("Latency YAML should pass schema validation. Errors: %s", result.errors())
+                    .isTrue();
+        }
+    }
+
+    @Nested
     @DisplayName("Round-trip: write then parse")
     class RoundTrip {
 

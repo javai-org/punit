@@ -93,8 +93,15 @@ public final class SpecSchemaValidator {
         // Execution section
         validateExecutionSection(content, errors);
         
-        // Statistics section
-        validateStatisticsSection(content, errors);
+        // Statistics section (required unless latency-only spec)
+        boolean hasStatistics = content.contains("statistics:");
+        boolean hasLatency = content.contains("latency:");
+        if (!hasStatistics && !hasLatency) {
+            errors.add("Spec must contain at least one dimension: statistics or latency");
+        }
+        if (hasStatistics) {
+            validateStatisticsSection(content, errors);
+        }
         
         // Cost section
         validateCostSection(content, errors);

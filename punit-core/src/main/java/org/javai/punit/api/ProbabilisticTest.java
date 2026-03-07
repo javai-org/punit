@@ -4,9 +4,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.javai.punit.ptest.engine.ProbabilisticTestExtension;
 import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Marks a method as a probabilistic test that will be executed multiple times
@@ -86,13 +84,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * }
  * }</pre>
  *
- * @see ProbabilisticTestExtension
  * @see TokenChargeRecorder
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @TestTemplate
-@ExtendWith(ProbabilisticTestExtension.class)
 public @interface ProbabilisticTest {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -213,8 +209,8 @@ public @interface ProbabilisticTest {
     /**
      * Maximum wall-clock time budget in milliseconds for all samples.
      * 0 = unlimited. Default: 0.
-     * 
-     * <p>If budget is exhausted before all samples complete, behavior is 
+     *
+     * <p>If budget is exhausted before all samples complete, behavior is
      * controlled by {@link #onBudgetExhausted()}.
      *
      * @return the time budget in milliseconds, or 0 for unlimited
@@ -224,10 +220,10 @@ public @interface ProbabilisticTest {
     /**
      * Token charge per sample invocation (static mode).
      * Must be ≥ 0. Default: 0 (no static token charging).
-     * 
+     *
      * <p>This value is accumulated after each sample execution. Used in
      * conjunction with {@link #tokenBudget()} to limit total token consumption.
-     * 
+     *
      * <p><strong>Static vs Dynamic charging:</strong>
      * <ul>
      *   <li>If the test method has a {@link TokenChargeRecorder} parameter,
@@ -242,13 +238,13 @@ public @interface ProbabilisticTest {
     /**
      * Maximum total token budget for all samples combined.
      * 0 = unlimited. Default: 0.
-     * 
+     *
      * <p>In static mode: before each sample, if the next sample's tokenCharge
      * would exceed the remaining budget, termination is triggered.
-     * 
+     *
      * <p>In dynamic mode: after each sample, if total tokens consumed exceeds
      * the budget, termination is triggered.
-     * 
+     *
      * <p>Behavior when exhausted is controlled by {@link #onBudgetExhausted()}.
      *
      * @return the token budget, or 0 for unlimited

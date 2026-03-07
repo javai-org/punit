@@ -48,6 +48,7 @@ class InputSourceIntegrationTest {
             MethodSourceTestSubject.capturedInputs.clear();
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(MethodSourceTestSubject.class))
                     .execute();
 
@@ -66,6 +67,7 @@ class InputSourceIntegrationTest {
             JsonFileSourceTestSubject.capturedInstructions.clear();
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(JsonFileSourceTestSubject.class))
                     .execute();
 
@@ -84,6 +86,7 @@ class InputSourceIntegrationTest {
             RecordInputTestSubject.capturedInputs.clear();
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(RecordInputTestSubject.class))
                     .execute();
 
@@ -110,6 +113,7 @@ class InputSourceIntegrationTest {
             ExploreTestSubject.capturedInputs.clear();
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(ExploreTestSubject.class))
                     .execute();
 
@@ -134,6 +138,7 @@ class InputSourceIntegrationTest {
             OptimizeWithInputsTestSubject.capturedInputs.clear();
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(OptimizeWithInputsTestSubject.class))
                     .execute();
 
@@ -158,6 +163,7 @@ class InputSourceIntegrationTest {
             ProbabilisticTestSubject.capturedInputs.clear();
             EngineExecutionResults results = EngineTestKit
                     .engine("junit-jupiter")
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .selectors(DiscoverySelectors.selectClass(ProbabilisticTestSubject.class))
                     .execute();
 
