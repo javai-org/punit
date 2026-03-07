@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
 import org.javai.punit.controls.budget.ProbabilisticTestBudgetExtension;
@@ -815,11 +815,11 @@ public class ProbabilisticTestExtension implements
 
 		store.getOrComputeIfAbsent(SELECTION_RESULT_KEY, key -> {
 			// Resolve use case instance for covariate resolution
-			Optional<UseCaseProvider> providerOpt = baselineOrchestrator.findUseCaseProvider(
+			Optional<UseCaseFactory> factoryOpt = baselineOrchestrator.findUseCaseFactory(
 					context.getTestInstance().orElse(null),
 					context.getTestClass().orElse(null));
-			Object useCaseInstance = providerOpt
-					.map(p -> baselineOrchestrator.resolveUseCaseInstance(p, pending.useCaseClass()))
+			Object useCaseInstance = factoryOpt
+					.map(f -> baselineOrchestrator.resolveUseCaseInstance(f, pending.useCaseClass()))
 					.orElse(null);
 
 			// Perform baseline selection

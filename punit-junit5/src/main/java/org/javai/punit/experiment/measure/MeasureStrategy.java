@@ -11,7 +11,7 @@ import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
@@ -52,7 +52,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         }
 
         Class<?> useCaseClass = annotation.useCase();
-        String useCaseId = UseCaseProvider.resolveId(useCaseClass);
+        String useCaseId = UseCaseFactory.resolveId(useCaseClass);
 
         return new MeasureConfig(
                 useCaseClass,

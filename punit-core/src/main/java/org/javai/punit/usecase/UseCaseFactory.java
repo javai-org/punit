@@ -161,7 +161,7 @@ public class UseCaseFactory {
         if (factory == null && factorFactory == null && autoWiredFactory == null) {
             throw new IllegalStateException(
                     "No factory registered for use case: " + useCaseClass.getName() + ". " +
-                    "Register one in @BeforeEach: provider.register(" + useCaseClass.getSimpleName() +
+                    "Register one during initialization: factory.register(" + useCaseClass.getSimpleName() +
                     ".class, () -> new " + useCaseClass.getSimpleName() + "(...))");
         }
 

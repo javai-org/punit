@@ -17,7 +17,7 @@ import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentConfig;
@@ -68,7 +68,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         }
 
         Class<?> useCaseClass = annotation.useCase();
-        String useCaseId = UseCaseProvider.resolveId(useCaseClass);
+        String useCaseId = UseCaseFactory.resolveId(useCaseClass);
 
         // Validate mutual exclusivity of initial value options
         if (!annotation.initialControlFactorValue().isEmpty() &&
@@ -291,12 +291,12 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
                     "@OptimizeExperiment requires useCase to be specified");
         }
 
-        // Try to get from UseCaseProvider
-        Optional<UseCaseProvider> providerOpt = findUseCaseProvider(context);
-        if (providerOpt.isPresent()) {
-            UseCaseProvider provider = providerOpt.get();
-            if (provider.isRegistered(useCaseClass)) {
-                return provider.getInstance(useCaseClass);
+        // Try to get from UseCaseFactory
+        Optional<UseCaseFactory> factoryOpt = findUseCaseFactory(context);
+        if (factoryOpt.isPresent()) {
+            UseCaseFactory factory = factoryOpt.get();
+            if (factory.isRegistered(useCaseClass)) {
+                return factory.getInstance(useCaseClass);
             }
         }
 
@@ -306,7 +306,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         } catch (Exception e) {
             throw new ExtensionConfigurationException(
                     "Cannot instantiate use case class: " + useCaseClass.getName() +
-                            ". Either register it with UseCaseProvider or provide a no-arg constructor.", e);
+                            ". Either register it with UseCaseFactory or provide a no-arg constructor.", e);
         }
     }
 
@@ -375,7 +375,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         return new OptimizeCompositeTerminationPolicy(policies);
     }
 
-    private Optional<UseCaseProvider> findUseCaseProvider(ExtensionContext context) {
+    private Optional<UseCaseFactory> findUseCaseFactory(ExtensionContext context) {
         // Use getTestInstance() instead of getRequiredTestInstance() because
         // during provideInvocationContexts(), the test instance may not exist yet
         Optional<Object> testInstanceOpt = context.getTestInstance();
@@ -385,10 +385,10 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
 
         Object testInstance = testInstanceOpt.get();
         for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
-            if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
+            if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
                 field.setAccessible(true);
                 try {
-                    return Optional.of((UseCaseProvider) field.get(testInstance));
+                    return Optional.of((UseCaseFactory) field.get(testInstance));
                 } catch (IllegalAccessException e) {
                     // Continue searching
                 }

@@ -9,9 +9,6 @@ signing {
 
 dependencies {
     api(project(":punit-core"))
-
-    // JUnit Jupiter API — compileOnly: Sentinel does not require JUnit at runtime
-    compileOnly("org.junit.jupiter:junit-jupiter-api")
 }
 
 tasks.jar {

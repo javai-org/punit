@@ -284,6 +284,45 @@ class ArchitectureTest {
 
             rule.check(classes);
         }
+
+        /**
+         * The usecase package in punit-core must not depend on JUnit at all.
+         * This ensures UseCaseFactory remains usable outside JUnit (e.g. Sentinel).
+         */
+        @Test
+        @DisplayName("usecase package must not depend on JUnit")
+        void useCaseFactoryMustNotDependOnJUnit() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("org.javai.punit.usecase..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("org.junit..")
+                    .because("usecase package is in punit-core and must be JUnit-free for Sentinel support");
+
+            rule.check(classes);
+        }
+
+        /**
+         * punit-core packages (statistics, model, usecase, contract) must not depend
+         * on JUnit extension types. The controls package is excluded because
+         * ProbabilisticTestBudgetExtension in punit-junit5 shares the controls.budget
+         * package namespace.
+         */
+        @Test
+        @DisplayName("punit-core packages must not depend on JUnit extension API")
+        void corePackagesMustNotDependOnJUnitExtensions() {
+            ArchRule rule = noClasses()
+                    .that().resideInAnyPackage(
+                            "org.javai.punit.statistics..",
+                            "org.javai.punit.model..",
+                            "org.javai.punit.usecase..",
+                            "org.javai.punit.contract.."
+                    )
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("org.junit.jupiter.api.extension..")
+                    .because("punit-core packages must be JUnit-free to support Sentinel and other engines");
+
+            rule.check(classes);
+        }
     }
 
 }

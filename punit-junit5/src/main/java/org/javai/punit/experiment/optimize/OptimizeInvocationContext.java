@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.Extension;
@@ -53,7 +53,7 @@ public record OptimizeInvocationContext(
     }
 
     /**
-     * Initializes the control factor on UseCaseProvider BEFORE parameter resolution.
+     * Initializes the control factor on UseCaseFactory BEFORE parameter resolution.
      *
      * <p>This ensures @FactorSetter methods are invoked when the use case is created,
      * allowing the control factor value to be applied to the use case instance.
@@ -75,16 +75,16 @@ public record OptimizeInvocationContext(
 
         @Override
         public void afterEach(ExtensionContext context) {
-            findProvider(context).ifPresent(UseCaseProvider::clearCurrentFactorValues);
+            findProvider(context).ifPresent(UseCaseFactory::clearCurrentFactorValues);
         }
 
-        private Optional<UseCaseProvider> findProvider(ExtensionContext context) {
+        private Optional<UseCaseFactory> findProvider(ExtensionContext context) {
             Object testInstance = context.getRequiredTestInstance();
             for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
-                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
+                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        return Optional.of((UseCaseProvider) field.get(testInstance));
+                        return Optional.of((UseCaseFactory) field.get(testInstance));
                     } catch (IllegalAccessException e) {
                         // Continue searching
                     }

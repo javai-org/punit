@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.Optional;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.ptest.engine.BaselineSelectionOrchestrator.PendingSelection;
 import org.javai.punit.ptest.engine.BaselineSelectionOrchestrator.PreparationResult;
@@ -135,15 +136,15 @@ class BaselineSelectionOrchestratorTest {
     }
 
     @Nested
-    @DisplayName("findUseCaseProvider")
-    class FindUseCaseProvider {
+    @DisplayName("findUseCaseFactory")
+    class FindUseCaseFactory {
 
         @Test
-        @DisplayName("returns empty when no provider exists")
-        void returnsEmptyWhenNoProvider() {
+        @DisplayName("returns empty when no factory exists")
+        void returnsEmptyWhenNoFactory() {
             Object testInstance = new Object();
 
-            Optional<UseCaseProvider> result = orchestrator.findUseCaseProvider(
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
                     testInstance, testInstance.getClass());
 
             assertThat(result).isEmpty();
@@ -154,7 +155,7 @@ class BaselineSelectionOrchestratorTest {
         void findsInstanceFieldProvider() {
             TestClassWithInstanceProvider testInstance = new TestClassWithInstanceProvider();
 
-            Optional<UseCaseProvider> result = orchestrator.findUseCaseProvider(
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
                     testInstance, testInstance.getClass());
 
             assertThat(result).isPresent();
@@ -164,7 +165,7 @@ class BaselineSelectionOrchestratorTest {
         @Test
         @DisplayName("finds static field provider when no instance")
         void findsStaticFieldProviderWhenNoInstance() {
-            Optional<UseCaseProvider> result = orchestrator.findUseCaseProvider(
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
                     null, TestClassWithStaticProvider.class);
 
             assertThat(result).isPresent();
@@ -175,11 +176,11 @@ class BaselineSelectionOrchestratorTest {
         void findsProviderFromInstanceWithBothFields() {
             TestClassWithBothProviders testInstance = new TestClassWithBothProviders();
 
-            Optional<UseCaseProvider> result = orchestrator.findUseCaseProvider(
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
                     testInstance, testInstance.getClass());
 
             assertThat(result).isPresent();
-            // Should find a provider (either instance or static - both are valid)
+            // Should find a factory (either instance or static - both are valid)
             assertThat(result.get()).isNotNull();
         }
 
@@ -189,7 +190,7 @@ class BaselineSelectionOrchestratorTest {
             OuterClassWithProvider outer = new OuterClassWithProvider();
             Object nestedInstance = outer.new NestedInner();
 
-            Optional<UseCaseProvider> result = orchestrator.findUseCaseProvider(
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
                     nestedInstance, nestedInstance.getClass());
 
             assertThat(result).isPresent();
@@ -203,7 +204,7 @@ class BaselineSelectionOrchestratorTest {
             OuterClassWithProvider.NestedInner middle = outer.new NestedInner();
             Object deepNested = middle.new DeeplyNested();
 
-            Optional<UseCaseProvider> result = orchestrator.findUseCaseProvider(
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
                     deepNested, deepNested.getClass());
 
             assertThat(result).isPresent();
@@ -263,9 +264,9 @@ class BaselineSelectionOrchestratorTest {
         @Test
         @DisplayName("returns null when class not registered")
         void returnsNullWhenClassNotRegistered() {
-            UseCaseProvider provider = new UseCaseProvider();
+            UseCaseFactory factory = new UseCaseFactory();
 
-            Object result = orchestrator.resolveUseCaseInstance(provider, String.class);
+            Object result = orchestrator.resolveUseCaseInstance(factory, String.class);
 
             assertThat(result).isNull();
         }
@@ -273,11 +274,11 @@ class BaselineSelectionOrchestratorTest {
         @Test
         @DisplayName("returns instance when registered")
         void returnsInstanceWhenRegistered() {
-            UseCaseProvider provider = new UseCaseProvider();
+            UseCaseFactory factory = new UseCaseFactory();
             String expectedInstance = "test-instance";
-            provider.register(String.class, () -> expectedInstance);
+            factory.register(String.class, () -> expectedInstance);
 
-            Object result = orchestrator.resolveUseCaseInstance(provider, String.class);
+            Object result = orchestrator.resolveUseCaseInstance(factory, String.class);
 
             assertThat(result).isSameAs(expectedInstance);
         }

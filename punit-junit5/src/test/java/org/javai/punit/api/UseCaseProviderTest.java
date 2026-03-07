@@ -70,15 +70,6 @@ class UseCaseProviderTest {
         }
 
         @Test
-        @DisplayName("supports fluent chaining")
-        void supportsFluentChaining() {
-            UseCaseProvider result = provider
-                .register(SimpleUseCase.class, () -> new SimpleUseCase("a"));
-
-            assertThat(result).isSameAs(provider);
-        }
-
-        @Test
         @DisplayName("clears singleton cache on re-register")
         void clearsSingletonCacheOnReRegister() {
             var singletonProvider = new UseCaseProvider(true);

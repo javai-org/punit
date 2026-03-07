@@ -27,8 +27,8 @@ Each module's ArchUnit test suite must enforce the following:
 - Must not depend on `org.javai.punit.sentinel.*`.
 
 **`punit-sentinel`:**
-- May depend on `punit-core` and `junit-jupiter-api` (for reading annotation metadata — see DD-05).
-- Zero imports from `junit-jupiter-engine` — the Sentinel provides its own execution engine.
+- May depend on `punit-core` only.
+- Zero imports from `junit-jupiter-api` and `junit-jupiter-engine` — the Sentinel has no JUnit dependency whatsoever. PUnit annotations carry JUnit meta-annotations compiled against `compileOnly` `junit-jupiter-api`, but these are invisible at runtime when `junit-jupiter-api` is absent from the classpath (standard Java behaviour for missing annotation types).
 - Must not depend on `org.javai.punit.junit5.*`.
 
 **`punit-reporting`** *(when implemented)*:
@@ -59,17 +59,17 @@ The module decomposition introduces three consumer profiles with distinct depend
 
 | Consumer | Role | Needs | Must Not Have |
 |---|---|---|---|
-| **Use case author** (`app-usecases`) | Defines use cases and service contracts | `UseCaseOutcome`, `ServiceContract`, contract API, annotations | JUnit extensions, JUnit engine, Sentinel runner |
-| **Test suite developer** | Writes `@ProbabilisticTest` methods | JUnit 5 extensions, annotations, statistical engine | Sentinel runner |
-| **Sentinel deployer** | Runs experiments and tests in target environments | `SentinelRunner`, verdict dispatch, statistical engine, annotations | JUnit engine (`junit-jupiter-engine`) |
+| **Reliability spec author** (`app-usecases`) | Defines `@Sentinel` classes, use cases, and service contracts | `UseCaseFactory`, `UseCaseOutcome`, `ServiceContract`, contract API, annotations, `@Sentinel` | JUnit extensions, JUnit engine, Sentinel runner |
+| **Test suite developer** | Writes JUnit test classes extending `@Sentinel` specs | JUnit 5 extensions, annotations, statistical engine | Sentinel runner |
+| **Sentinel deployer** | Runs experiments and tests in target environments | `SentinelRunner`, verdict dispatch, statistical engine, annotations | JUnit engine (`junit-jupiter-engine`), JUnit API (`junit-jupiter-api`) |
 
 This yields four published artifacts, plus one reserved for future work:
 
-**`org.javai:punit-core`** — The statistical engine, spec loading, contracts, budgets, reporting primitives, all PUnit annotations (`@ProbabilisticTest`, `@MeasureExperiment`, etc.), `UseCaseFactory`, `VerdictSink` interface. Annotations carry JUnit meta-annotations compiled against `compileOnly` `junit-jupiter-api` (DD-05). This is the foundation that both JUnit-based testing and the Sentinel build upon. It is also the direct dependency for use case authors who define service contracts and use case outcomes.
+**`org.javai:punit-core`** — The statistical engine, spec loading, contracts, budgets, reporting primitives, all PUnit annotations (`@ProbabilisticTest`, `@MeasureExperiment`, `@Sentinel`, etc.), `UseCaseFactory` (plain Java, JUnit-free — the use case registry that both engines consume), `VerdictSink` interface. Annotations carry JUnit meta-annotations compiled against `compileOnly` `junit-jupiter-api` (DD-05). This is the foundation that both JUnit-based testing and the Sentinel build upon. It is also the direct dependency for reliability spec authors who define `@Sentinel` classes with use cases and service contracts.
 
-**`org.javai:punit-junit5`** — The JUnit 5 integration layer: extensions (`ProbabilisticTestExtension`, `ExperimentExtension`), `UseCaseProvider` as `ParameterResolver`. Depends on `punit-core` and `junit-jupiter-api` transitively. This is what test suite developers depend on.
+**`org.javai:punit-junit5`** — The JUnit 5 integration layer: extensions (`ProbabilisticTestExtension`, `ExperimentExtension`), `UseCaseProvider` (JUnit adapter extending `UseCaseFactory` with `ParameterResolver` integration — see DD-07). Depends on `punit-core` and `junit-jupiter-api` transitively. This is what test suite developers depend on.
 
-**`org.javai:punit-sentinel`** — The Sentinel runner, `WebhookVerdictSink`, `EnvironmentMetadata`, `SentinelConfiguration`. Depends on `punit-core` and `junit-jupiter-api` (for reading annotation metadata). Zero `junit-jupiter-engine` dependency — the Sentinel provides its own execution engine. This is what Sentinel deployers depend on.
+**`org.javai:punit-sentinel`** — The Sentinel runner, `WebhookVerdictSink`, `EnvironmentMetadata`, `SentinelConfiguration`. Depends on `punit-core` only — zero JUnit dependency. PUnit annotations are readable via reflection without `junit-jupiter-api` because missing annotation types (the JUnit meta-annotations) are silently invisible at runtime per Java specification. This is what Sentinel deployers depend on.
 
 **`org.javai:punit`** — Backward-compatibility meta-artifact. An empty module that transitively depends on both `punit-core` and `punit-junit5`. Existing consumers who depend on `org.javai:punit` see no change in their dependency graph upon upgrade. New consumers are directed to `punit-junit5` instead.
 
@@ -85,7 +85,7 @@ This would force every use case author and every JUnit test suite to pull in the
 
 **Why not two artifacts (junit5 + sentinel), without a separate core?**
 
-This is the option that would minimise the artifact count. However, use case authors (the `app-usecases` module) would be forced to depend on either `punit-junit5` (pulling JUnit extensions and engine onto their compile classpath, even though they never use them) or `punit-sentinel` (pulling the Sentinel runner onto their classpath, even though they only need contracts). Neither is acceptable. The use case module is a shared dependency of both the test suite and the Sentinel — it needs an artifact that carries neither JUnit extensions nor Sentinel concerns. That artifact is `punit-core`.
+This is the option that would minimise the artifact count. However, reliability spec authors (the `app-usecases` module) would be forced to depend on either `punit-junit5` (pulling JUnit extensions and engine onto their compile classpath, even though they never use them) or `punit-sentinel` (pulling the Sentinel runner onto their classpath, even though they only need contracts and `UseCaseFactory`). Neither is acceptable. The use case module is a shared dependency of both the test suite and the Sentinel — it needs an artifact that carries neither JUnit extensions nor Sentinel concerns. That artifact is `punit-core`.
 
 **Is the backward-compatibility meta-artifact worth the overhead?**
 
@@ -108,7 +108,7 @@ punit (meta-artifact, backward compat)
 ### Consumer Dependency Declarations
 
 ```kotlin
-// Use case author (app-usecases module)
+// Reliability spec author (app-usecases module)
 dependencies {
     api("org.javai:punit-core:0.4.0")
 }
@@ -131,11 +131,146 @@ dependencies {
 
 ---
 
+## Sentinel Authoring Model
+
+This section describes the authoring model for Sentinel-eligible reliability specifications. It is the architectural foundation that Phases 1 and 4 implement.
+
+### DD-06: Reliability Specification First
+
+The `@Sentinel`-annotated class is the **primary authoring artifact** for stochastic reliability monitoring. It is a plain Java class with no JUnit dependencies, containing:
+
+- A `UseCaseFactory` field with registered use case factories
+- `@MeasureExperiment` methods (for establishing baselines)
+- `@ProbabilisticTest` methods (for ongoing verification)
+- `@InputSource` methods (shared input data)
+
+```java
+@Sentinel
+public class ShoppingBasketReliability {
+
+    UseCaseFactory factory = new UseCaseFactory();
+    {
+        factory.register(ShoppingBasketUseCase.class,
+            () -> new ShoppingBasketUseCase(new OpenAiClient(System.getenv("OPENAI_API_KEY"))));
+    }
+
+    @MeasureExperiment(useCase = ShoppingBasketUseCase.class, experimentId = "baseline-v1")
+    @InputSource("instructions")
+    void measureBaseline(ShoppingBasketUseCase useCase, String instruction, OutcomeCaptor captor) {
+        captor.record(useCase.translateInstruction(instruction));
+    }
+
+    @ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
+    @InputSource("instructions")
+    void testInstructionTranslation(ShoppingBasketUseCase useCase, String instruction) {
+        useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> instructions() {
+        return Stream.of(
+                "Add 2 apples",
+                "Remove the milk",
+                "Add 1 loaf of bread",
+                "Add 3 oranges and 2 bananas",
+                "Add 5 tomatoes and remove the cheese",
+                "Clear the basket",
+                "Clear everything",
+                "Remove 2 eggs from the basket",
+                "Add a dozen eggs",
+                "I'd like to remove all the vegetables"
+        );
+    }
+}
+```
+
+This class is the single source of truth for the reliability specification. It lives in `app-usecases` (not in test code) and is consumed by both the Sentinel engine and the JUnit engine. No descriptors, no code generation, no re-declaration. `UseCaseFactory` already exists in `punit-core` — no new classes are needed.
+
+### JUnit Consumption via Inheritance
+
+JUnit test classes derive from the reliability specification via inheritance:
+
+```java
+// Lives in the test source set — one line
+public class ShoppingBasketReliabilityTest extends ShoppingBasketReliability {
+}
+```
+
+PUnit's JUnit extension discovers the inherited `@ProbabilisticTest` and `@MeasureExperiment` annotations, finds the inherited `UseCaseFactory` field, and executes normally. The JUnit subclass may add JUnit-specific concerns (`@DisplayName`, `@Tag`, additional `@BeforeEach` setup, JUnit-only test methods) but the reliability specification itself is untouched.
+
+Delegation is also possible (the JUnit class holds a reference to the reliability spec and forwards calls) but inheritance is the natural and recommended approach.
+
+### Sentinel Consumption
+
+The Sentinel engine instantiates `@Sentinel`-annotated classes directly:
+
+1. Instantiate the class via its no-arg constructor (field initialisers and instance initialisers run, populating the `UseCaseFactory`).
+2. Find the `UseCaseFactory` field, read its registry.
+3. Scan for `@MeasureExperiment` / `@ProbabilisticTest` methods.
+4. Resolve `@InputSource` methods.
+5. Execute the sample loop using the same statistical core from `punit-core`.
+
+No JUnit types are involved at any point.
+
+### DD-07: `UseCaseFactory` in Core, `UseCaseProvider` as JUnit Adapter
+
+`UseCaseFactory` already exists in `punit-core` (`usecase` package) as a plain Java object managing use case factory registration and instantiation. It has no JUnit dependency. This is the class that `@Sentinel` reliability specifications use directly.
+
+`UseCaseProvider` in `punit-junit5` changes from **composition** (wrapping a `UseCaseFactory`) to **inheritance** (extending `UseCaseFactory`):
+
+```java
+// punit-junit5
+public class UseCaseProvider extends UseCaseFactory
+        implements ParameterResolver {
+
+    @Override
+    public boolean supportsParameter(...) {
+        return isRegistered(paramType);
+    }
+
+    @Override
+    public Object resolveParameter(...) {
+        return getInstance(paramType);
+    }
+}
+```
+
+Both engines discover the factory by scanning for fields assignable to `UseCaseFactory` (`UseCaseFactory.class.isAssignableFrom(field.getType())`). This matches both:
+- A `UseCaseFactory` field on a `@Sentinel` class (direct use)
+- A `UseCaseProvider` field on a traditional JUnit test class (because `UseCaseProvider` IS-A `UseCaseFactory`)
+
+This means:
+- `UseCaseFactory` stays in `punit-core` — no changes to its location or API
+- `UseCaseProvider` stays in `punit-junit5` — no rename, no new class, full backward compatibility
+- Existing `@RegisterExtension UseCaseProvider provider = new UseCaseProvider()` code works identically
+- The `@Sentinel` class uses `UseCaseFactory` from `punit-core` with zero JUnit types
+
+### DD-08: No DI Framework Coupling
+
+Stochastic services accessed by use cases must be plain Java objects constructable without a DI container. Applications using Spring, Guice, or other DI frameworks isolate their stochastic integrations into a DI-free module (`app-stochastic`). The main application's DI layer simply instantiates these plain Java classes as beans — no code duplication, no PUnit dependency in the main application.
+
+This eliminates the need for framework-specific Sentinel variants. There is no `SpringSentinel` or `GuiceSentinel`. The `@Sentinel` class constructs its stochastic dependencies as plain Java objects, and the Sentinel runtime knows nothing about DI frameworks.
+
+### DD-09: Factors and Factor Sources Out of Scope
+
+Only `@MeasureExperiment` and `@ProbabilisticTest` are supported in the Sentinel context. `@ExploreExperiment` and `@OptimizeExperiment` (and their associated `@Factor` / `@FactorSource` mechanisms) are inherently interactive — they involve comparing configurations, examining diffs, and adjusting parameters iteratively. This is developer-at-the-keyboard work, not automated monitoring. The Sentinel's experiment mode exists solely to establish and refresh baselines, which is precisely what measure experiments do.
+
+### Why This Model Works
+
+The insight is that a reliability specification for a stochastic service is an independent concept that predates any particular execution engine. It is not "a JUnit test that we also want to run elsewhere." It is a specification of what to measure and what to verify, authored in pure PUnit, that JUnit happens to be one way of running.
+
+This inverts the traditional dependency direction:
+- **Old model:** JUnit test class is primary → extract/adapt for Sentinel
+- **New model:** Reliability specification is primary → JUnit test class inherits from it
+
+The old model led to intractable problems: JUnit lifecycle annotations (`@BeforeEach`, `@RegisterExtension`) in the source class, JUnit types in the bytecode, the need for descriptors or code generation to bridge between engines. The new model eliminates all of these because the primary artifact never contained JUnit types in the first place.
+
+---
+
 ## Phase 1: Module Decomposition
 
 **Addresses:** REQ-S01, REQ-S07, REQ-S06
 
-**Objective:** Split the single `punit` module into `punit-core` (annotations, statistical engine, contracts — `compileOnly` on `junit-jupiter-api` per DD-05) and `punit-junit5` (JUnit 5 extensions and engine). Extract `UseCaseFactory` from `UseCaseProvider`. Validate budget configuration externalisation. This phase draws the module boundary that enables the Sentinel and provides structural clarity for all subsequent phases — the two-dimension model, the spec resolution redesign, and the assertion API all land more cleanly when it is already clear which module owns each concept.
+**Objective:** Split the single `punit` module into `punit-core` (annotations, statistical engine, contracts, `UseCaseFactory` — `compileOnly` on `junit-jupiter-api` per DD-05) and `punit-junit5` (JUnit 5 extensions and engine). Refactor `UseCaseProvider` from composition to inheritance of `UseCaseFactory` (DD-07). Update field scanning to target `UseCaseFactory` as the common base type. Validate budget configuration externalisation. This phase draws the module boundary that enables the Sentinel and provides structural clarity for all subsequent phases — the two-dimension model, the spec resolution redesign, and the assertion API all land more cleanly when it is already clear which module owns each concept.
 
 ### 1.1 Multi-Module Gradle Structure
 
@@ -151,12 +286,12 @@ punit/
 ├── build.gradle.kts                 # shared configuration (Java 21, -parameters, etc.)
 ├── punit-core/
 │   ├── build.gradle.kts             # compileOnly on junit-jupiter-api (DD-05)
-│   └── src/main/java/               # annotations, statistical engine, specs, contracts, budgets, reporting
+│   └── src/main/java/               # annotations, statistical engine, specs, contracts, budgets, reporting, UseCaseFactory
 ├── punit-junit5/
 │   ├── build.gradle.kts             # depends on punit-core + JUnit 5 Jupiter (API + engine)
-│   └── src/main/java/               # extensions, parameter resolvers
+│   └── src/main/java/               # extensions, UseCaseProvider (extends UseCaseFactory)
 ├── punit-sentinel/
-│   ├── build.gradle.kts             # depends on punit-core + junit-jupiter-api (no engine)
+│   ├── build.gradle.kts             # depends on punit-core only (no JUnit)
 │   └── src/main/java/               # Sentinel runner, verdict dispatch, environment metadata
 ├── punit-gradle-plugin/             # unchanged (standalone build)
 └── ...
@@ -172,7 +307,7 @@ All three modules are established in Phase 1. `punit-sentinel` begins as a minim
 
 | Package             | Contents                                                                                                                                                                                        |
 |---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `api`               | All PUnit annotations: `@ProbabilisticTest`, `@MeasureExperiment`, `@ExploreExperiment`, `@OptimizeExperiment`, `@UseCase`, `@Factor`, `@FactorSource`, `@Input`, `@InputSource`, `@Latency`, `@Covariate`, `@CovariateSource`, `@Pacing`, `@Config`. Also: `TestIntent`, `ThresholdOrigin`, `BudgetExhaustedBehavior`, `ExceptionHandling`, `UseCaseContext`, `OutcomeCaptor`, `TokenChargeRecorder` |
+| `api`               | All PUnit annotations: `@ProbabilisticTest`, `@MeasureExperiment`, `@ExploreExperiment`, `@OptimizeExperiment`, `@Sentinel`, `@UseCase`, `@Factor`, `@FactorSource`, `@Input`, `@InputSource`, `@Latency`, `@Covariate`, `@CovariateSource`, `@Pacing`, `@Config`. Also: `TestIntent`, `ThresholdOrigin`, `BudgetExhaustedBehavior`, `ExceptionHandling`, `UseCaseContext`, `OutcomeCaptor`, `TokenChargeRecorder` |
 | `contract`          | `UseCaseOutcome`, `ServiceContract`, `PostconditionEvaluator`, `DurationConstraint`, `DurationResult`, `MatchResult`, matchers                                                                  |
 | `ptest.bernoulli`   | `SampleResultAggregator`, `EarlyTerminationEvaluator`, `FinalVerdictDecider`, `BernoulliTrialsStrategy`, `BernoulliTrialsConfig`                                                                |
 | `ptest.strategy`    | `ProbabilisticTestStrategy`, `InterceptResult`, `SampleExecutionContext`                                                                                                                        |
@@ -183,7 +318,7 @@ All three modules are established in Phase 1. `punit-sentinel` begins as a minim
 | `reporting`         | `PUnitReporter`, `RateFormat`, `LatencySummaryRenderer`                                                                                                                                         |
 | `model`             | `TerminationReason`, `CovariateProfile`, `ExpirationStatus`, `BaselineProvenance`                                                                                                               |
 | `verdict`           | `VerdictSink` interface (REQ-S05), `LogVerdictSink`                                                                                                                                             |
-| `usecase`           | `UseCaseFactory` (REQ-S07)                                                                                                                                                                      |
+| `usecase`           | `UseCaseFactory` (DD-07 — plain Java, JUnit-free factory registration and instantiation)                                                                                                        |
 | `util`              | `Lazy`, utility classes                                                                                                                                                                         |
 
 **`punit-junit5`** (depends on `punit-core` + JUnit 5 Jupiter API + Engine):
@@ -196,7 +331,7 @@ All three modules are established in Phase 1. `punit-sentinel` begins as a minim
 | `experiment.explore` | `ExploreStrategy`, `ExploreConfig`, invocation contexts |
 | `experiment.optimize` | `OptimizeStrategy`, `OptimizeConfig`, invocation contexts |
 | `experiment.engine.shared` | `ResultRecorder`, `FactorResolver`, parameter resolvers |
-| `api` | `UseCaseProvider` (delegates to `UseCaseFactory` from punit-core) |
+| `api` | `UseCaseProvider` (extends `UseCaseFactory`, adds JUnit `ParameterResolver` integration — see DD-07) |
 | `controls.budget` | `ProbabilisticTestBudgetExtension` (JUnit extension for suite/class budgets) |
 
 ### 1.3 Dependency Declarations
@@ -234,41 +369,56 @@ dependencies {
 ```kotlin
 dependencies {
     api(project(":punit-core"))
-    implementation("org.junit.jupiter:junit-jupiter-api")  // DD-05: for reading annotation metadata
-    // NO junit-jupiter-engine — Sentinel provides its own execution engine
+    // NO JUnit dependency — Sentinel provides its own execution engine.
+    // PUnit annotations carry JUnit meta-annotations compiled against compileOnly
+    // junit-jupiter-api; these are silently invisible at runtime per Java spec.
 }
 ```
 
-### 1.4 `UseCaseFactory` Extraction (REQ-S07)
+### 1.4 `UseCaseProvider` Refactoring (DD-07)
 
-**Current state:** `UseCaseProvider` implements JUnit's `ParameterResolver` and contains the instantiation logic (`getInstance(Class<T>)`), factory registration (`register()`, `registerWithFactors()`, `registerAutoWired()`), and singleton management.
+**Current state (after Phase 1, iteration 1):** `UseCaseFactory` already exists in `punit-core` (`usecase` package) containing all factory logic — registration, instance resolution, factor injection, singleton management. `UseCaseProvider` in `punit-junit5` wraps `UseCaseFactory` via composition (holds a `UseCaseFactory` field) and implements JUnit's `ParameterResolver`.
+
+**Insight:** The `@Sentinel` reliability specification class needs a `UseCaseFactory` field — the class that already exists in `punit-core`. There is no need for a separate "provider" concept in the Sentinel context. `UseCaseProvider` is purely a JUnit delivery mechanism for `UseCaseFactory`. Nothing needs to move between modules.
 
 **Changes:**
 
-Extract the instantiation and factory logic into `UseCaseFactory` in `punit-core`:
+1. **`UseCaseProvider` changes from composition to inheritance:**
 
 ```java
-public class UseCaseFactory {
-    public <T> void register(Class<T> type, Supplier<T> factory);
-    public <T> void registerWithFactors(Class<T> type, Function<FactorValues, T> factory);
-    public <T> void registerAutoWired(Class<T> type, Supplier<T> factory);
-    public <T> T getInstance(Class<T> type);
-    // Internal: factor values, singleton management
+// punit-junit5 — existing class, refactored
+public class UseCaseProvider extends UseCaseFactory
+        implements ParameterResolver {
+
+    @Override
+    public boolean supportsParameter(ParameterContext paramCtx, ExtensionContext extCtx) {
+        return isRegistered(paramCtx.getParameter().getType());
+    }
+
+    @Override
+    public Object resolveParameter(ParameterContext paramCtx, ExtensionContext extCtx) {
+        return getInstance(paramCtx.getParameter().getType());
+    }
 }
 ```
 
-`UseCaseProvider` in `punit-junit5` becomes a thin adapter:
+This eliminates the delegation boilerplate. `UseCaseProvider` inherits `register()`, `getInstance()`, `isRegistered()`, etc. directly from `UseCaseFactory`. No API change for existing consumers — all methods remain available with identical signatures.
 
-```java
-public class UseCaseProvider implements ParameterResolver {
-    private final UseCaseFactory factory = new UseCaseFactory();
+2. **Field scanning retargets to `UseCaseFactory`:**
 
-    // ParameterResolver methods delegate to factory
-    // register/getInstance methods delegate to factory
-}
-```
+The four independent field-scanning implementations in `punit-junit5` (`BaselineSelectionOrchestrator`, `ExploreStrategy`, `OptimizeStrategy`, `FactorValuesInitializer`) currently scan for `UseCaseProvider.class.isAssignableFrom(field.getType())`. Change the target type to `UseCaseFactory.class.isAssignableFrom(field.getType())`.
 
-The Sentinel (Phase 4) uses `UseCaseFactory` directly, without any JUnit dependency.
+Because `UseCaseProvider extends UseCaseFactory`, this matches **both**:
+- A `UseCaseFactory` field (on a `@Sentinel` class inherited by a JUnit test class)
+- A `UseCaseProvider` field (on a traditional JUnit test class using `@RegisterExtension`)
+
+The scanning methods return `UseCaseFactory` (or `Optional<UseCaseFactory>`) instead of `UseCaseProvider`. All callers use only `UseCaseFactory` methods (`getInstance()`, `setCurrentFactorValues()`, etc.) which are already defined there.
+
+3. **`UseCaseFactory` error message updated:**
+
+The current error message in `UseCaseFactory.getInstance()` references `@BeforeEach` (a JUnit annotation). This is updated to be engine-neutral since `UseCaseFactory` is in `punit-core`.
+
+No classes move between modules. No new classes are introduced. No renames. Full backward compatibility.
 
 ### 1.5 Budget Configuration Validation (REQ-S06)
 
@@ -290,8 +440,8 @@ To preserve backward compatibility for existing consumers who depend on the `pun
 
 Test sources split to match the module structure:
 
-- `punit-core/src/test/java/` — Unit tests for all core classes (statistics, specs, contracts, budgets, aggregators, etc.).
-- `punit-junit5/src/test/java/` — Tests that use JUnit TestKit, test subjects, extension tests, ArchUnit tests for package dependencies.
+- `punit-core/src/test/java/` — Unit tests for all core classes (statistics, specs, contracts, budgets, aggregators, `UseCaseFactory`, etc.).
+- `punit-junit5/src/test/java/` — Tests that use JUnit TestKit, test subjects, extension tests, `UseCaseProvider` tests, ArchUnit tests for package dependencies.
 
 The ArchUnit test that enforces `statistics` package independence is updated to validate the module boundary: `punit-core` must have zero imports from `org.junit.*`.
 
@@ -307,19 +457,21 @@ The `punit-gradle-plugin` must be updated to work with the multi-module structur
 - The meta-artifact ensures existing `punit` dependency declarations continue to work.
 - No public API is removed or renamed — the split is purely structural.
 - Annotations remain in `org.javai.punit.api` within `punit-core`. Package paths do not change. Existing code that imports `@ProbabilisticTest` continues to work without modification (DD-05).
+- Existing code using `@RegisterExtension UseCaseProvider` continues to work without modification — `UseCaseProvider` remains in `punit-junit5` with the same name, same package, same public API. The only change is internal (composition → inheritance of `UseCaseFactory`).
 
 ### 1.10 Verification Criteria
 
 - `punit-core` compiles with `junit-jupiter-api` as `compileOnly` (annotations use JUnit meta-annotations). All its unit tests pass.
 - `punit-junit5` compiles against `punit-core` and all its tests pass.
-- `punit-sentinel` compiles against `punit-core` + `junit-jupiter-api` with zero `junit-jupiter-engine` on the classpath.
+- `punit-sentinel` compiles against `punit-core` with zero JUnit on the classpath.
 - The meta-artifact resolves correctly — a consumer depending on `punit` transitively gets both `punit-core` and `punit-junit5`.
-- `UseCaseFactory` unit tests pass in `punit-core`.
-- `UseCaseProvider` delegation tests pass in `punit-junit5`.
+- `UseCaseFactory` unit tests pass in `punit-core` (registration, instantiation, singleton management — no JUnit types).
+- `UseCaseProvider` tests pass in `punit-junit5` (inherits `UseCaseFactory`, JUnit `ParameterResolver` integration).
+- Field scanning in `punit-junit5` extensions finds both `UseCaseFactory` fields and `UseCaseProvider` fields via `UseCaseFactory.class.isAssignableFrom()`.
 - Budget environment variable override test passes.
 - Existing consumer projects (e.g., `punitexamples`) build and test successfully against the new multi-module artifacts.
 - ArchUnit test confirms `punit-core` has zero `junit-jupiter-engine` imports in production code.
-- ArchUnit test confirms `punit-sentinel` has zero `junit-jupiter-engine` imports.
+- ArchUnit test confirms `punit-sentinel` has zero JUnit imports.
 
 ---
 
@@ -534,7 +686,7 @@ This resolution is internal to `SpecificationRegistry`. The `SpecRepository` int
 
 **Addresses:** REQ-S04, REQ-S05, REQ-S08, REQ-S09, REQ-S10
 
-**Objective:** Introduce the `punit-sentinel` module — a non-JUnit runtime that executes probabilistic tests and experiments against a live environment, dispatching verdicts to configurable sinks. This phase builds on all prior phases: the module boundary (Phase 1), the dimension-scoped assertion API (Phase 2), and the spec resolution abstraction (Phase 3).
+**Objective:** Implement the `punit-sentinel` module — a JUnit-free runtime that executes probabilistic tests and experiments against a live environment, dispatching verdicts to configurable sinks. This phase builds on all prior phases: the module boundary (Phase 1, including `UseCaseFactory` in `punit-core`), the dimension-scoped assertion API (Phase 2), and the spec resolution abstraction (Phase 3). Critically, this phase realises the Sentinel authoring model (DD-06): the `SentinelRunner` consumes `@Sentinel`-annotated reliability specification classes directly — no descriptors, no code generation, no JUnit types involved.
 
 ### 4.1 Module Structure
 
@@ -562,7 +714,7 @@ punit/
 dependencies {
     api(project(":punit-core"))
     // HTTP client for WebhookVerdictSink (e.g., java.net.http — zero additional deps)
-    // NO JUnit dependency
+    // NO JUnit dependency — PUnit annotations are readable without junit-jupiter-api
 }
 ```
 
@@ -613,7 +765,7 @@ The correlation ID is generated in `punit-core` (since it is part of the `Verdic
 
 ### 4.3 `SentinelRunner` (REQ-S04)
 
-The core execution engine for the Sentinel. Lives in `punit-sentinel`.
+The core execution engine for the Sentinel. Lives in `punit-sentinel`. Consumes `@Sentinel`-annotated reliability specification classes directly.
 
 ```java
 public class SentinelRunner {
@@ -635,39 +787,45 @@ public class SentinelRunner {
 
 **`SentinelConfiguration`** (builder pattern):
 
-- `useCaseClasses` — List of use case classes to exercise (explicit registration).
+- `sentinelClasses` — List of `@Sentinel`-annotated reliability specification classes to execute. Each class is the primary authoring artifact (DD-06).
 - `specRepository` — The `SpecRepository` to use for spec resolution (defaults to `LayeredSpecRepository`).
-- `useCaseFactory` — The `UseCaseFactory` for instantiation (defaults to reflection-based construction).
 - `verdictSinks` — List of `VerdictSink` instances (defaults to `LogVerdictSink`).
 - `environmentMetadata` — `EnvironmentMetadata` instance (REQ-S09).
 - Budget overrides (time, tokens) — applied via system properties or environment variables through the existing `ConfigurationResolver` chain.
 
+Note: there is no separate factory configuration. Each `@Sentinel` class carries its own `UseCaseFactory` field with registered factories — the wiring is co-located with the specification, not centralised in configuration.
+
 **Execution flow (test mode):**
 
-For each registered use case class:
-1. Scan for methods annotated with `@ProbabilisticTest`.
-2. For each method:
-   a. Resolve configuration via `ConfigurationResolver`.
-   b. Load per-dimension specs via `SpecRepository` (Phase 3's layered resolution).
-   c. Derive thresholds via `ThresholdDeriver` / `LatencyThresholdDeriver`.
-   d. Instantiate the use case via `UseCaseFactory` (Phase 1's extracted factory).
-   e. Execute the N-sample loop: invoke the method, record pass/fail in `SampleResultAggregator` (with Phase 2's per-dimension tracking), check `EarlyTerminationEvaluator` and `BudgetOrchestrator` after each sample.
-   f. Compute verdict via `FinalVerdictDecider`.
-   g. Dispatch verdict (with environment metadata) to all `VerdictSink` instances.
+For each registered `@Sentinel` class:
+1. Instantiate the class via its no-arg constructor (field initialisers and instance initialisers run, populating the `UseCaseFactory`).
+2. Find the `UseCaseFactory` field on the class instance.
+3. Scan for methods annotated with `@ProbabilisticTest`.
+4. For each method:
+   a. Resolve configuration from the annotation attributes (samples, minPassRate, confidence, etc.).
+   b. Resolve `@InputSource` — find the named static method, invoke it to obtain input data.
+   c. Load per-dimension specs via `SpecRepository` (Phase 3's layered resolution).
+   d. Derive thresholds via `ThresholdDeriver` / `LatencyThresholdDeriver`.
+   e. Instantiate the use case via the `UseCaseFactory` (using the `useCase` class from the annotation).
+   f. Execute the N-sample loop: invoke the method with injected parameters (use case instance, input value), record pass/fail in `SampleResultAggregator` (with Phase 2's per-dimension tracking), check `EarlyTerminationEvaluator` and `BudgetOrchestrator` after each sample.
+   g. Compute verdict via `FinalVerdictDecider`.
+   h. Dispatch verdict (with environment metadata) to all `VerdictSink` instances.
 
 **Execution flow (experiment mode, REQ-S08):**
 
-For each registered use case class:
-1. Scan for methods annotated with `@MeasureExperiment`.
-2. For each method:
-   a. Parse experiment configuration.
-   b. Instantiate the use case.
-   c. Execute the N-sample loop, recording outcomes.
-   d. Generate per-dimension spec files (Phase 3's spec model).
-   e. Write specs to the environment-local spec directory (`punit.spec.dir` / `PUNIT_SPEC_DIR`).
-   f. Report experiment completion via `VerdictSink`.
+For each registered `@Sentinel` class:
+1. Instantiate the class and find the `UseCaseFactory` (as above).
+2. Scan for methods annotated with `@MeasureExperiment`.
+3. For each method:
+   a. Parse experiment configuration from annotation attributes.
+   b. Resolve `@InputSource` and `OutcomeCaptor` injection.
+   c. Instantiate the use case via `UseCaseFactory`.
+   d. Execute the N-sample loop, recording outcomes.
+   e. Generate per-dimension spec files (Phase 3's spec model).
+   f. Write specs to the environment-local spec directory (`punit.spec.dir` / `PUNIT_SPEC_DIR`).
+   g. Report experiment completion via `VerdictSink`.
 
-Only `@MeasureExperiment` is supported in the Sentinel context. `@ExploreExperiment` and `@OptimizeExperiment` are inherently interactive — they involve comparing configurations, examining diffs, and adjusting parameters iteratively. This is developer-at-the-keyboard work, not automated watchdog work. The Sentinel's experiment mode exists to establish and refresh baselines, which is precisely what measure experiments do.
+Only `@MeasureExperiment` is supported in the Sentinel context (DD-09).
 
 ### 4.4 `EnvironmentMetadata` (REQ-S09)
 
@@ -706,27 +864,45 @@ The caller (scheduler, HTTP handler, operator script) uses `SentinelResult` to d
 
 ### 4.6 Annotation Scanning
 
-The `SentinelRunner` must read annotation metadata from `@ProbabilisticTest` and `@MeasureExperiment` without JUnit's extension lifecycle.
+The `SentinelRunner` reads annotation metadata from `@ProbabilisticTest`, `@MeasureExperiment`, `@InputSource`, and `@Sentinel` without any JUnit involvement.
 
-**Decision (DD-05):** Annotations remain exactly as they are — single definitions in `punit-core` with their JUnit meta-annotations (`@TestTemplate`, `@ExtendWith`) intact. The Sentinel's classpath includes `junit-jupiter-api` (the annotation/interface JAR) but not `junit-jupiter-engine` (the test runner). The JUnit meta-annotations are inert metadata without the engine — they cause no JUnit behaviour.
+All PUnit annotations live in `punit-core`. They carry JUnit meta-annotations (`@TestTemplate`, `@ExtendWith`) compiled against `compileOnly` `junit-jupiter-api`, but these meta-annotations are invisible at runtime when `junit-jupiter-api` is absent from the classpath. This is standard Java behaviour: annotations whose types are not loadable are silently omitted from reflection results. The PUnit annotations themselves and their attributes (samples, minPassRate, useCase, experimentId, etc.) remain fully readable.
 
-The `SentinelRunner` reads the PUnit annotation attributes (`samples`, `minPassRate`, `spec`, `confidence`, etc.) reflectively to determine execution parameters. It ignores the JUnit meta-annotations entirely. No annotation splitting, wrapping, or restructuring is required.
+The `SentinelRunner` reads only PUnit annotation attributes. It never references JUnit types. No annotation splitting, wrapping, or restructuring is required.
 
-### 4.7 Backward Compatibility
+### 4.7 `@Sentinel` Annotation
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Sentinel {
+}
+```
+
+A class-level marker annotation living in `punit-core` (`api` package). It signals that a class is a reliability specification eligible for Sentinel deployment. The `SentinelRunner` requires this annotation on all classes it executes — it will not execute arbitrary classes, even if they contain `@ProbabilisticTest` methods.
+
+This is an opt-in mechanism. Sentinel deployment is a significant operational decision, and the developer is best positioned to decide which reliability specifications are candidates. The annotation makes this decision explicit and discoverable at build time.
+
+### 4.8 Backward Compatibility
 
 - `punit-sentinel` is a new module. No existing code is affected.
 - The `VerdictSink` interface in `punit-core` is additive. Existing `ResultPublisher` behaviour is unchanged; `VerdictSink` is an additional dispatch channel.
 - Annotations are unchanged (DD-05) — existing consumers see no change in annotation attributes, package paths, or import statements.
+- The `@Sentinel` annotation is a pure addition. Existing classes without `@Sentinel` continue to work identically in JUnit.
 
-### 4.8 Verification Criteria
+### 4.9 Verification Criteria
 
-- Unit tests for `SentinelRunner` executing a test loop against a mock use case.
+- Unit tests for `SentinelRunner` executing a test loop against a `@Sentinel`-annotated class with a mock use case.
+- Unit tests for `SentinelRunner` discovering `UseCaseFactory` field and using its registered factories.
+- Unit tests for `SentinelRunner` resolving `@InputSource` methods and cycling inputs.
 - Unit tests for `WebhookVerdictSink` (mock HTTP endpoint).
 - Unit tests for `CompositeVerdictSink`.
 - Unit tests for `EnvironmentMetadata.fromEnvironment()`.
-- Integration test: `SentinelRunner.runExperiments()` produces spec files in a configured directory, followed by `SentinelRunner.runTests()` consuming those specs and producing verdicts.
+- Integration test: `SentinelRunner.runExperiments()` instantiates a `@Sentinel` class, produces spec files in a configured directory, followed by `SentinelRunner.runTests()` consuming those specs and producing verdicts.
 - Integration test: `SentinelRunner.runTests()` with layered spec resolution — environment-local spec overrides classpath spec.
+- Integration test: `SentinelRunner` refuses to execute a class that lacks `@Sentinel`.
 - `SentinelResult` correctly aggregates per-test verdicts.
+- Zero JUnit types on `punit-sentinel` classpath — confirmed by ArchUnit and by compilation with no JUnit dependency.
 - Existing `punit-junit5` test suite passes — Sentinel introduction does not affect JUnit-based testing.
 
 ---
@@ -735,7 +911,7 @@ The `SentinelRunner` reads the PUnit annotation attributes (`samples`, `minPassR
 
 **Addresses:** REQ-S11
 
-**Objective:** Produce documentation guiding PUnit adopters on application module layout for projects that use probabilistic testing and deploy a Sentinel.
+**Objective:** Produce documentation guiding PUnit adopters on application module layout for projects that use probabilistic testing and deploy a Sentinel. This documentation reflects the reliability-specification-first authoring model (DD-06).
 
 ### 5.1 `docs/ARCHITECTURE-GUIDE.md`
 
@@ -743,7 +919,13 @@ The `SentinelRunner` reads the PUnit annotation attributes (`samples`, `minPassR
 
 1. **Introduction** — Why application architecture matters for probabilistic testing and environment-aware monitoring.
 
-2. **Reference Module Layout:**
+2. **The Reliability Specification First Model:**
+   - A `@Sentinel`-annotated class is the primary authoring artifact — a plain Java reliability specification with no JUnit dependency.
+   - JUnit test classes inherit from the reliability specification. They add JUnit-specific concerns if needed, but the specification itself is engine-agnostic.
+   - The Sentinel consumes the specification class directly.
+   - This eliminates re-declaration, descriptors, and code generation.
+
+3. **Reference Module Layout:**
    ```
    app-stochastic          punit-core
      ↑         ↑              ↑
@@ -751,29 +933,35 @@ The `SentinelRunner` reads the PUnit annotation attributes (`samples`, `minPassR
                  ↑        ↑
             test suite    app-sentinel
    ```
+   - `app-stochastic` — Plain Java module containing stochastic service integrations (LLM clients, ML model wrappers). No DI framework, no PUnit dependency. Constructable via plain `new`.
+   - `app-usecases` — Plain Java + `punit-core`. Contains `@Sentinel`-annotated reliability specification classes, use case classes, service contracts. Each `@Sentinel` class has a `UseCaseFactory` field that registers factories constructing use cases with dependencies from `app-stochastic`.
+   - `app-main` — The main application. Uses DI framework (Spring, Guice, etc.) if desired. Depends on `app-stochastic` only. No PUnit dependency. DI layer instantiates stochastic service classes as beans.
+   - `test-suite` — JUnit test source set. Contains thin subclasses of the `@Sentinel` classes (e.g., `class ShoppingBasketReliabilityTest extends ShoppingBasketReliability {}`). Depends on `app-usecases` + `punit-junit5`.
+   - `app-sentinel` — Sentinel deployment. `SentinelRunner` bootstrap code, deployment configuration. Depends on `app-usecases` + `punit-sentinel`.
    - Detailed description of each module's role and dependencies.
    - Example `build.gradle.kts` for each module.
 
-3. **Why Use Cases Are Not Test Code:**
-   - Use cases define the contract between the application and its stochastic dependencies.
-   - They are consumed by both the JUnit test suite and the Sentinel.
+4. **Why Stochastic Services Must Be Plain Java (DD-08):**
+   - The Sentinel runtime has no DI container. Stochastic services must be constructable without one.
+   - This is not a limitation — it's a forcing function for clean API boundaries around non-deterministic behaviour.
+   - Applications using Spring/Guice isolate stochastic integrations in `app-stochastic` as plain Java objects. The main application's DI layer wraps them as beans. No code duplication.
+   - No framework-specific Sentinel variants are needed or provided.
+
+5. **Why Reliability Specifications Are Not Test Code:**
+   - Reliability specifications define what to measure and what to verify about stochastic behaviour.
+   - They are consumed by both the JUnit test suite (via inheritance) and the Sentinel (directly).
    - Placing them in a test source set makes them unavailable to the Sentinel.
-   - The `app-usecases` module is the bridge — it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `UseCaseOutcome`, `ServiceContract`, etc.).
+   - The `app-usecases` module is the bridge — it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `UseCaseFactory`, `UseCaseOutcome`, `ServiceContract`, annotations, etc.).
 
-4. **Why Stochastic Services Should Be Isolable:**
-   - The Sentinel binary should be lightweight.
-   - Separating stochastic integrations from the rest of the application keeps the Sentinel's dependency footprint minimal.
-   - This also forces a clean API boundary around non-deterministic behaviour, which improves testability regardless of PUnit.
-
-5. **The Sentinel Deployment Workflow:**
+6. **The Sentinel Deployment Workflow:**
    - Run experiments in the target environment → environment-local specs produced.
    - Run tests → specs consumed via layered fallback.
    - Verdicts dispatched to observability infrastructure.
    - Scheduling is external (cron, K8s CronJob, cloud scheduler).
 
-6. **Worked Example:**
+7. **Worked Example:**
    - A concrete example application (e.g., the existing shopping basket / payment gateway / LLM examples from `punitexamples`) structured according to the reference layout.
-   - Gradle build files, use case module, Sentinel bootstrap code.
+   - Shows the `@Sentinel` class, the JUnit subclass, the Sentinel bootstrap, and the Gradle build files.
 
 ### 5.2 Configuration Reference
 
@@ -801,7 +989,9 @@ Update or create `docs/CONFIGURATION.md` documenting:
 
 Update the PUnit user guide to cover:
 
-- **Module decomposition:** Which artifact to depend on and when (`punit-core` for use case authors, `punit-junit5` for test developers, `punit-sentinel` for Sentinel deployers). Migration guidance for consumers upgrading from the single `punit` artifact.
+- **The reliability specification first model (DD-06):** How to author `@Sentinel`-annotated classes. The relationship between the reliability specification and the JUnit test class. The inheritance pattern. Why the specification is not test code.
+- **`UseCaseFactory` and `UseCaseProvider` (DD-07):** How to register use case factories. `UseCaseFactory` (in `punit-core`) for `@Sentinel` classes; `UseCaseProvider` (in `punit-junit5`, extends `UseCaseFactory`) for traditional JUnit test classes with `@RegisterExtension`. The internal refactoring from composition to inheritance is transparent to existing users.
+- **Module decomposition:** Which artifact to depend on and when (`punit-core` for reliability spec authors, `punit-junit5` for test developers, `punit-sentinel` for Sentinel deployers). Migration guidance for consumers upgrading from the single `punit` artifact.
 - **Dimension-scoped assertions:** How to use `assertContract()`, `assertLatency()`, and `assertAll()`. When to use each. What misconfiguration errors look like and how to fix them.
 - **Per-dimension baselines:** How experiments now produce separate functional and latency spec files. How the framework handles legacy single-file specs. The spec naming convention (`{UseCaseId}.yaml` and `{UseCaseId}.latency.yaml`).
 - **Layered spec resolution:** How `PUNIT_SPEC_DIR` / `punit.spec.dir` works. The fallback order. How this supports the experiment-first Sentinel workflow.
@@ -832,9 +1022,17 @@ Ensure `docs/CONFIGURATION.md` (introduced in Phase 5) is complete and cross-ref
 
 ## Phase 7: PUnit Examples Update
 
-**Objective:** Update the companion project `punitexamples` to demonstrate the features introduced in this initiative. Examples are the primary learning tool for adopters — they must reflect current best practice.
+**Objective:** Update the companion project `punitexamples` to demonstrate the features introduced in this initiative, with particular emphasis on the reliability-specification-first authoring model (DD-06). Examples are the primary learning tool for adopters — they must reflect current best practice.
 
-### 7.1 Latency Experiments and Assertions
+### 7.1 Reliability Specification First Examples
+
+Restructure existing examples to demonstrate the recommended authoring model:
+
+- **`@Sentinel`-annotated reliability specification class** — pure PUnit, no JUnit types. Contains `UseCaseFactory` field, `@MeasureExperiment` methods, `@ProbabilisticTest` methods, `@InputSource` methods. Lives outside the test source set.
+- **JUnit test class** — thin subclass extending the reliability specification. Lives in the test source set. Demonstrates that a single line of inheritance is sufficient.
+- **JUnit test class with extras** — subclass that adds `@DisplayName`, `@Tag`, or additional JUnit-specific test methods, demonstrating that JUnit concerns layer on top of the specification without modifying it.
+
+### 7.2 Latency Experiments and Assertions
 
 Add examples demonstrating:
 
@@ -846,40 +1044,43 @@ Add examples demonstrating:
 
 These examples should use a realistic scenario (e.g., the existing LLM or payment gateway examples) where latency nondeterminism is a genuine concern.
 
-### 7.2 Sentinel Example
+### 7.3 Sentinel Example
 
 Add at least one complete Sentinel implementation example, structured according to the reference module layout from the architectural guidance (Phase 5):
 
 ```
 example-sentinel/
 ├── app-stochastic/          # Stochastic service integration (e.g., LLM client wrapper)
-├── app-usecases/            # Use case definitions and service contracts
+├── app-usecases/            # @Sentinel reliability specs, use case definitions, service contracts
 ├── app-main/                # Main application (depends on app-stochastic only)
 ├── app-sentinel/            # Sentinel deployment
 │   └── src/main/java/       # SentinelRunner bootstrap, configuration
-└── test-suite/              # JUnit probabilistic tests (depends on app-usecases + punit-junit5)
+└── test-suite/              # JUnit test classes extending @Sentinel specs (depends on app-usecases + punit-junit5)
 ```
 
 The example must demonstrate:
 
-- The `app-usecases` module as a shared dependency between the test suite and the Sentinel.
+- The `@Sentinel` class in `app-usecases` as the single source of truth, consumed by both `test-suite` and `app-sentinel`.
+- The JUnit test class in `test-suite` as a one-line subclass of the `@Sentinel` class.
 - `SentinelRunner` configuration with at least `LogVerdictSink`.
 - Running experiments to produce environment-local specs.
 - Running tests that consume those specs via layered fallback.
 - Environment metadata in verdict output.
-- The fact that the main application has no PUnit dependency.
+- The fact that `app-main` has no PUnit dependency.
 
-### 7.3 Existing Examples Update
+### 7.4 Existing Examples Update
 
 Review and update existing examples (shopping basket, payment gateway, LLM integration) to:
 
 - Use the new `punit-junit5` artifact dependency (instead of `punit`).
+- Adopt the reliability-specification-first pattern where appropriate.
 - Use `assertContract()` where appropriate (most existing examples assert functional correctness only).
 - Confirm they build and pass against the new multi-module artifacts.
 
-### 7.4 Verification Criteria
+### 7.5 Verification Criteria
 
 - All new examples build and run successfully.
+- Reliability specification first pattern is demonstrated clearly.
 - Latency examples produce latency spec files and latency-specific verdicts.
 - Sentinel example runs the full experiment → test workflow and produces verdicts.
 - Existing examples build and pass without regression.
@@ -890,13 +1091,13 @@ Review and update existing examples (shopping basket, payment gateway, LLM integ
 
 | Phase | Focus | Key Deliverables | Breaking Changes |
 |-------|-------|------------------|-----------------|
-| 1 | Module decomposition | `punit-core` + `punit-junit5` + `punit-sentinel` (skeleton) modules, `UseCaseFactory`, budget validation, meta-artifact, ArchUnit module constraints | None (meta-artifact preserves compatibility) |
+| 1 | Module decomposition | `punit-core` + `punit-junit5` + `punit-sentinel` (skeleton) modules, `UseCaseProvider` refactored to extend `UseCaseFactory` (DD-07), field scanning retargeted to `UseCaseFactory`, `@Sentinel` annotation, budget validation, meta-artifact, ArchUnit module constraints | None (meta-artifact preserves compatibility) |
 | 2 | Dimension-scoped assertions | `assertContract()`, `assertLatency()`, adaptive `assertAll()`, per-dimension verdict rendering | None |
 | 3 | Per-dimension baselines and spec resolution | Per-dimension spec files, `SpecRepository` interface, `LayeredSpecRepository`, `PUNIT_SPEC_DIR` | None (legacy specs handled) |
-| 4 | Sentinel runtime | `SentinelRunner`, `VerdictSink`, `WebhookVerdictSink`, `EnvironmentMetadata`, lifecycle API | None (new module) |
-| 5 | Architectural guidance | `docs/ARCHITECTURE-GUIDE.md`, configuration reference | None (documentation only) |
+| 4 | Sentinel runtime | `SentinelRunner` consuming `@Sentinel` classes (DD-06), `@Sentinel` annotation, `VerdictSink`, `WebhookVerdictSink`, `EnvironmentMetadata`, lifecycle API. Zero JUnit dependency. | None (new module) |
+| 5 | Architectural guidance | `docs/ARCHITECTURE-GUIDE.md` with reliability-specification-first model, reference module layout, configuration reference | None (documentation only) |
 | 6 | User documentation | User guide updates, statistical companion review, configuration reference | None (documentation only) |
-| 7 | Examples | Latency examples, Sentinel example, existing examples updated | None (companion project) |
+| 7 | Examples | Reliability-specification-first examples, latency examples, Sentinel example, existing examples updated | None (companion project) |
 
 Each phase is independently releasable. The version sequence could be:
 

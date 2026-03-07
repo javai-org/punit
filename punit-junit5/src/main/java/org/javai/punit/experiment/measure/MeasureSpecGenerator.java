@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Optional;
 import org.javai.punit.api.UseCaseContext;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.EmpiricalBaselineGenerator;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
@@ -69,9 +69,9 @@ public class MeasureSpecGenerator {
 
                 // Get use case instance for @CovariateSource resolution
                 Object useCaseInstance = null;
-                Optional<UseCaseProvider> providerOpt = findUseCaseProvider(context);
-                if (providerOpt.isPresent()) {
-                    useCaseInstance = providerOpt.get().getCurrentInstance(useCaseClass);
+                Optional<UseCaseFactory> factoryOpt = findUseCaseFactory(context);
+                if (factoryOpt.isPresent()) {
+                    useCaseInstance = factoryOpt.get().getCurrentInstance(useCaseClass);
                 }
 
                 DefaultCovariateResolutionContext resolutionContext =
@@ -160,13 +160,13 @@ public class MeasureSpecGenerator {
                 String.valueOf(aggregator.getTotalTokens()));
     }
 
-    private Optional<UseCaseProvider> findUseCaseProvider(ExtensionContext context) {
+    private Optional<UseCaseFactory> findUseCaseFactory(ExtensionContext context) {
         Object testInstance = context.getRequiredTestInstance();
         for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
-            if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
+            if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
                 field.setAccessible(true);
                 try {
-                    return Optional.of((UseCaseProvider) field.get(testInstance));
+                    return Optional.of((UseCaseFactory) field.get(testInstance));
                 } catch (IllegalAccessException e) {
                     // Continue searching
                 }

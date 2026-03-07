@@ -9,7 +9,7 @@ import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.registry.SpecificationIntegrityException;
 import org.javai.punit.spec.registry.SpecificationNotFoundException;
@@ -506,7 +506,7 @@ public class ConfigurationResolver {
         // Use case class reference determines spec ID
         Class<?> useCaseClass = annotation.useCase();
         if (useCaseClass != null && useCaseClass != Void.class) {
-            return Optional.of(UseCaseProvider.resolveId(useCaseClass));
+            return Optional.of(UseCaseFactory.resolveId(useCaseClass));
         }
 
         return Optional.empty();

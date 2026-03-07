@@ -16,7 +16,7 @@ import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
@@ -62,7 +62,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         }
 
         Class<?> useCaseClass = annotation.useCase();
-        String useCaseId = UseCaseProvider.resolveId(useCaseClass);
+        String useCaseId = UseCaseFactory.resolveId(useCaseClass);
 
         return new ExploreConfig(
                 useCaseClass,
@@ -292,9 +292,9 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                     "No aggregator found for configuration: " + configName);
         }
 
-        // Set factor values on the UseCaseProvider
-        Optional<UseCaseProvider> providerOpt = findUseCaseProvider(extensionContext);
-        providerOpt.ifPresent(provider -> {
+        // Set factor values on the UseCaseFactory
+        Optional<UseCaseFactory> factoryOpt = findUseCaseFactory(extensionContext);
+        factoryOpt.ifPresent(provider -> {
             if (factorValues != null && factorInfos != null) {
                 List<String> factorNames = factorInfos.stream()
                         .map(FactorInfo::name)
@@ -371,13 +371,13 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         return samplesPerConfig * argsList.size();
     }
 
-    private Optional<UseCaseProvider> findUseCaseProvider(ExtensionContext context) {
+    private Optional<UseCaseFactory> findUseCaseFactory(ExtensionContext context) {
         Object testInstance = context.getRequiredTestInstance();
         for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
-            if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
+            if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
                 field.setAccessible(true);
                 try {
-                    return Optional.of((UseCaseProvider) field.get(testInstance));
+                    return Optional.of((UseCaseFactory) field.get(testInstance));
                 } catch (IllegalAccessException e) {
                     // Continue searching
                 }
