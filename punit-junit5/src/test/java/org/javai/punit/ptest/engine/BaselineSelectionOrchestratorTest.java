@@ -211,6 +211,41 @@ class BaselineSelectionOrchestratorTest {
             assertThat(result.get()).isSameAs(outer.provider);
         }
 
+        @Test
+        @DisplayName("finds UseCaseFactory field (not UseCaseProvider) on instance")
+        void findsDirectUseCaseFactoryField() {
+            TestClassWithDirectFactory testInstance = new TestClassWithDirectFactory();
+
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
+                    testInstance, testInstance.getClass());
+
+            assertThat(result).isPresent();
+            assertThat(result.get()).isSameAs(testInstance.factory);
+        }
+
+        @Test
+        @DisplayName("finds UseCaseFactory field on superclass (DD-06 inheritance model)")
+        void findsInheritedUseCaseFactoryField() {
+            SubclassWithNoFields testInstance = new SubclassWithNoFields();
+
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
+                    testInstance, testInstance.getClass());
+
+            assertThat(result).isPresent();
+            assertThat(result.get()).isSameAs(testInstance.factory);
+        }
+
+        @Test
+        @DisplayName("finds UseCaseFactory on grandparent class")
+        void findsDeepInheritedUseCaseFactoryField() {
+            GrandchildWithNoFields testInstance = new GrandchildWithNoFields();
+
+            Optional<UseCaseFactory> result = orchestrator.findUseCaseFactory(
+                    testInstance, testInstance.getClass());
+
+            assertThat(result).isPresent();
+        }
+
         // Test helper classes
         static class TestClassWithInstanceProvider {
             UseCaseProvider provider = new UseCaseProvider();
@@ -224,6 +259,20 @@ class BaselineSelectionOrchestratorTest {
         static class TestClassWithBothProviders {
             static UseCaseProvider staticProvider = new UseCaseProvider();
             UseCaseProvider instanceProvider = new UseCaseProvider();
+        }
+
+        static class TestClassWithDirectFactory {
+            UseCaseFactory factory = new UseCaseFactory();
+        }
+
+        static class SuperclassWithFactory {
+            UseCaseFactory factory = new UseCaseFactory();
+        }
+
+        static class SubclassWithNoFields extends SuperclassWithFactory {
+        }
+
+        static class GrandchildWithNoFields extends SubclassWithNoFields {
         }
     }
 

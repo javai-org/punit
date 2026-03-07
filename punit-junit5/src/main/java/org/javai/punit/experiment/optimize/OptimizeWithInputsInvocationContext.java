@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.javai.punit.api.OutcomeCaptor;
+import org.javai.punit.experiment.engine.shared.UseCaseFactoryParameterResolver;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.input.InputParameterResolver;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -53,7 +54,8 @@ public record OptimizeWithInputsInvocationContext(
     public List<Extension> getAdditionalExtensions() {
         List<Extension> extensions = new ArrayList<>();
 
-        // IMPORTANT: ControlFactorInitializer must be first to set factor value
+        extensions.add(new UseCaseFactoryParameterResolver());
+        // IMPORTANT: ControlFactorInitializer must be before other resolvers to set factor value
         // before the use case is instantiated via parameter resolution
         extensions.add(new ControlFactorInitializer(treatmentValue, controlFactorName));
 

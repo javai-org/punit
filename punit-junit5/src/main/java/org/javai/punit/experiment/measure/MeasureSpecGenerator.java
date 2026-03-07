@@ -162,15 +162,20 @@ public class MeasureSpecGenerator {
 
     private Optional<UseCaseFactory> findUseCaseFactory(ExtensionContext context) {
         Object testInstance = context.getRequiredTestInstance();
-        for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
-            if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
-                field.setAccessible(true);
-                try {
-                    return Optional.of((UseCaseFactory) field.get(testInstance));
-                } catch (IllegalAccessException e) {
-                    // Continue searching
+        Class<?> clazz = testInstance.getClass();
+        while (clazz != null && clazz != Object.class) {
+            for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
+                if (field.isSynthetic()) continue;
+                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                    field.setAccessible(true);
+                    try {
+                        return Optional.of((UseCaseFactory) field.get(testInstance));
+                    } catch (IllegalAccessException e) {
+                        // Continue searching
+                    }
                 }
             }
+            clazz = clazz.getSuperclass();
         }
         return Optional.empty();
     }

@@ -5,6 +5,7 @@ import java.util.List;
 import org.javai.punit.api.TokenChargeRecorder;
 import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
 import org.javai.punit.experiment.engine.input.InputParameterResolver;
+import org.javai.punit.experiment.engine.shared.UseCaseFactoryParameterResolver;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -37,6 +38,7 @@ public record ProbabilisticTestWithInputsInvocationContext(
     @Override
     public List<Extension> getAdditionalExtensions() {
         List<Extension> extensions = new ArrayList<>();
+        extensions.add(new UseCaseFactoryParameterResolver());
         extensions.add(new InputParameterResolver(inputValue, inputType));
         if (tokenRecorder != null) {
             extensions.add(new TokenRecorderResolver(tokenRecorder));

@@ -3,6 +3,7 @@ package org.javai.punit.ptest.engine;
 import java.util.Collections;
 import java.util.List;
 import org.javai.punit.api.TokenChargeRecorder;
+import org.javai.punit.experiment.engine.shared.UseCaseFactoryParameterResolver;
 import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -38,9 +39,11 @@ public record ProbabilisticTestInvocationContext(
     @Override
     public List<Extension> getAdditionalExtensions() {
         if (tokenRecorder != null) {
-            return List.of(new TokenChargeRecorderParameterResolver(tokenRecorder));
+            return List.of(
+                    new UseCaseFactoryParameterResolver(),
+                    new TokenChargeRecorderParameterResolver(tokenRecorder));
         }
-        return Collections.emptyList();
+        return List.of(new UseCaseFactoryParameterResolver());
     }
 }
 

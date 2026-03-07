@@ -8,6 +8,7 @@ import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorParameterResolver;
 import org.javai.punit.experiment.engine.shared.FactorValuesInitializer;
 import org.javai.punit.experiment.engine.shared.FactorValuesResolver;
+import org.javai.punit.experiment.engine.shared.UseCaseFactoryParameterResolver;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 
@@ -38,7 +39,8 @@ public record ExploreInvocationContext(
     @Override
     public List<Extension> getAdditionalExtensions() {
         List<Extension> extensions = new ArrayList<>();
-        // IMPORTANT: FactorValuesInitializer must be first to set factor values
+        extensions.add(new UseCaseFactoryParameterResolver());
+        // IMPORTANT: FactorValuesInitializer must be before other resolvers to set factor values
         // on UseCaseProvider BEFORE any parameter resolution happens
         extensions.add(new FactorValuesInitializer(factorValues, factorInfos));
         extensions.add(new CaptorParameterResolver(captor, configName, sampleInConfig, factorValues));

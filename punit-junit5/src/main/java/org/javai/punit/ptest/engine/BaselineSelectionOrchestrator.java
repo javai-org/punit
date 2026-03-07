@@ -253,18 +253,29 @@ class BaselineSelectionOrchestrator {
      * @return the UseCaseFactory if found
      */
     Optional<UseCaseFactory> findUseCaseFactory(Object testInstance, Class<?> testClass) {
-        // Search instance fields, walking enclosing instances for @Nested classes
+        // Search instance fields, walking both the class hierarchy and
+        // enclosing instances for @Nested classes
         if (testInstance != null) {
             Object current = testInstance;
             while (current != null) {
-                for (Field field : current.getClass().getDeclaredFields()) {
-                    if (field.isSynthetic()) {
-                        continue;
-                    }
-                    if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                Optional<UseCaseFactory> found = findInInstanceFields(current);
+                if (found.isPresent()) {
+                    return found;
+                }
+                current = getEnclosingInstance(current);
+            }
+        }
+
+        // Fall back to static fields on the test class and its superclasses
+        if (testClass != null) {
+            Class<?> clazz = testClass;
+            while (clazz != null && clazz != Object.class) {
+                for (Field field : clazz.getDeclaredFields()) {
+                    if (UseCaseFactory.class.isAssignableFrom(field.getType())
+                            && Modifier.isStatic(field.getModifiers())) {
                         field.setAccessible(true);
                         try {
-                            UseCaseFactory factory = (UseCaseFactory) field.get(current);
+                            UseCaseFactory factory = (UseCaseFactory) field.get(null);
                             if (factory != null) {
                                 return Optional.of(factory);
                             }
@@ -273,18 +284,27 @@ class BaselineSelectionOrchestrator {
                         }
                     }
                 }
-                current = getEnclosingInstance(current);
+                clazz = clazz.getSuperclass();
             }
         }
 
-        // Fall back to static fields on the test class
-        if (testClass != null) {
-            for (Field field : testClass.getDeclaredFields()) {
-                if (UseCaseFactory.class.isAssignableFrom(field.getType())
-                        && Modifier.isStatic(field.getModifiers())) {
+        return Optional.empty();
+    }
+
+    /**
+     * Searches instance fields on the given object, walking the class hierarchy.
+     */
+    private Optional<UseCaseFactory> findInInstanceFields(Object instance) {
+        Class<?> clazz = instance.getClass();
+        while (clazz != null && clazz != Object.class) {
+            for (Field field : clazz.getDeclaredFields()) {
+                if (field.isSynthetic()) {
+                    continue;
+                }
+                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        UseCaseFactory factory = (UseCaseFactory) field.get(null);
+                        UseCaseFactory factory = (UseCaseFactory) field.get(instance);
                         if (factory != null) {
                             return Optional.of(factory);
                         }
@@ -293,8 +313,8 @@ class BaselineSelectionOrchestrator {
                     }
                 }
             }
+            clazz = clazz.getSuperclass();
         }
-
         return Optional.empty();
     }
 
