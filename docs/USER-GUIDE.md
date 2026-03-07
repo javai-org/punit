@@ -20,6 +20,7 @@ All attribution licensing is ARL.
   - [The Parameter Triangle](#the-parameter-triangle)
   - [Threshold Approaches](#threshold-approaches)
   - [Understanding Test Results](#understanding-test-results)
+  - [The Latency Attribute](#the-latency-attribute)
 - [Part 2: The MEASURE Experiment](#part-2-the-measure-experiment)
   - [When No Normative Threshold Exists](#when-no-normative-threshold-exists)
   - [Running a MEASURE Experiment](#running-a-measure-experiment)
@@ -32,6 +33,7 @@ All attribution licensing is ARL.
   - [The UseCaseOutcome](#the-usecaseoutcome)
   - [Instance Conformance](#instance-conformance)
   - [Duration Constraints](#duration-constraints)
+  - [Dimension-Scoped Assertions](#dimension-scoped-assertions)
   - [The UseCaseProvider Pattern](#the-usecaseprovider-pattern)
   - [Input Sources](#input-sources)
   - [The Use Case in Full](#the-use-case-in-full)
@@ -57,12 +59,19 @@ All attribution licensing is ARL.
   - [Latency Recording in Experiments](#latency-recording-in-experiments)
   - [Testing Latency with Contractual Thresholds](#testing-latency-with-contractual-thresholds)
   - [Baseline-Derived Thresholds](#baseline-derived-thresholds)
+  - [The Three Latency Mechanisms at a Glance](#the-three-latency-mechanisms-at-a-glance)
   - [Sample Size and Percentile Reliability](#sample-size-and-percentile-reliability)
 - [Part 9: The Statistical Core](#part-9-the-statistical-core)
   - [Bernoulli Trials](#bernoulli-trials)
   - [Latency: Empirical Percentiles with Confidence Bounds](#latency-empirical-percentiles-with-confidence-bounds)
   - [Transparent Statistics Mode](#transparent-statistics-mode)
   - [Further Reading](#further-reading)
+- [Part 10: The Sentinel](#part-10-the-sentinel)
+  - [Module Decomposition and Artifact Selection](#module-decomposition-and-artifact-selection)
+  - [The Reliability-Specification-First Model](#the-reliability-specification-first-model)
+  - [UseCaseFactory and UseCaseProvider](#usecasefactory-and-usecaseprovider)
+  - [Configuring and Running the Sentinel](#configuring-and-running-the-sentinel)
+  - [Verdicts as Triage Signals](#verdicts-as-triage-signals)
 - [Appendices](#appendices)
   - [A: Configuration Reference](#a-configuration-reference)
   - [B: Experiment Output Formats](#b-experiment-output-formats)
@@ -379,6 +388,65 @@ Every probabilistic test produces a verdict with statistical context:
 | **FAILED** | Observed rate is below expected threshold | Investigate; possible regression      |
 
 The report provides the evidence; operators provide the judgment.
+
+### The Latency Attribute
+
+Every `@ProbabilisticTest` has an optional `latency` attribute that controls whether and how PUnit evaluates response-time percentiles alongside the pass-rate verdict. Three situations determine how the attribute should be used:
+
+**1. Omit `latency` when using a baseline spec**
+
+When the test references a use case whose baseline spec contains latency data, PUnit **automatically** derives latency thresholds — no annotation is needed:
+
+```java
+@ProbabilisticTest(
+    useCase = PaymentGatewayUseCase.class,
+    samples = 200
+)
+void paymentServiceConformsToBaseline() {
+    paymentService.processPayment(testPayment()).assertAll();
+}
+```
+
+PUnit derives both the pass-rate threshold and the latency thresholds from the spec. If the spec has no latency section, latency is simply not evaluated.
+
+**2. Set explicit thresholds for contractual latency targets**
+
+When you have a known SLA or SLO that prescribes response-time limits, declare them directly:
+
+```java
+@ProbabilisticTest(
+    samples = 200,
+    minPassRate = 0.95,
+    latency = @Latency(p95Ms = 500, p99Ms = 1000)
+)
+void paymentServiceMeetsLatencySla() {
+    PaymentResult result = paymentService.processPayment(testPayment());
+    assertThat(result.isSuccessful()).isTrue();
+}
+```
+
+The `@Latency` annotation supports four percentiles: `p50Ms`, `p90Ms`, `p95Ms`, and `p99Ms`. Declare only the ones you care about — unset percentiles (default `-1`) are not asserted.
+
+> **Precedence rule:** When explicit `@Latency` thresholds are declared and the baseline spec also contains latency data, the explicit thresholds take precedence — the baseline latency data is ignored. This allows you to use a baseline for pass-rate derivation while asserting latency against your own contractual targets.
+
+**3. Use `@Latency(disabled = true)` to opt out**
+
+When a baseline spec contains latency data but you only want to assert pass-rate, disable latency evaluation explicitly:
+
+```java
+@ProbabilisticTest(
+    useCase = PaymentGatewayUseCase.class,
+    samples = 200,
+    latency = @Latency(disabled = true)
+)
+void passRateOnlyTest() { ... }
+```
+
+Without this opt-out, PUnit would automatically evaluate latency thresholds derived from the baseline. The `disabled = true` flag does not prevent derivation — the thresholds already exist in the spec — it simply tells PUnit to ignore them.
+
+**When none of the above applies** — inline threshold tests with no baseline and no explicit `@Latency` — the attribute can simply be omitted. PUnit evaluates pass-rate only.
+
+For full details on latency mechanics, enforcement modes, and sample-size requirements, see [Part 8: Latency](#part-8-latency).
 
 ---
 
@@ -721,9 +789,51 @@ Sample 47: FAIL
   ✗ Duration: 847ms exceeded limit of 500ms
 ```
 
+### Dimension-Scoped Assertions
+
+`UseCaseOutcome` provides three assertion methods that control which dimensions of stochasticity a probabilistic test exercises:
+
+| Method | Asserts | Use when |
+|---|---|---|
+| `assertContract()` | Functional postconditions and expected value only | You care about correctness but not latency |
+| `assertLatency()` | Duration constraint only | You care about response time but not functional correctness |
+| `assertAll()` | Both dimensions (adaptive) | You want a combined verdict — whichever dimensions are configured |
+
+```java
+// Assert functional correctness only — latency is not part of this verdict
+@ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
+void testFunctionalCorrectness(ShoppingBasketUseCase useCase, String instruction) {
+    useCase.translateInstruction(instruction).assertContract();
+}
+
+// Assert latency only — functional failures do not affect this verdict
+@ProbabilisticTest(useCase = PaymentGatewayUseCase.class, samples = 200)
+void testLatencySla(PaymentGatewayUseCase useCase) {
+    useCase.processPayment(testPayment()).assertLatency();
+}
+
+// Assert both — a sample passes only if both dimensions pass
+@ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
+void testReliability(ShoppingBasketUseCase useCase, String instruction) {
+    useCase.translateInstruction(instruction).assertAll();
+}
+```
+
+`assertAll()` is **adaptive**: it asserts whichever dimensions are configured on the `UseCaseOutcome`. If only a service contract is present (no duration constraint), it behaves like `assertContract()`. If only a duration constraint is present, it behaves like `assertLatency()`. If both are present, both must pass for the sample to succeed.
+
+**Misconfiguration errors.** Each method validates that the relevant criteria are actually configured:
+
+- `assertContract()` with no postconditions and no expected value throws `IllegalStateException`
+- `assertLatency()` with no duration constraint throws `IllegalStateException`
+- `assertAll()` with neither configured throws `IllegalStateException`
+
+These are authoring errors, not SUT failures — they indicate that the test is asking to assert something that the use case doesn't measure.
+
+**Per-dimension verdicts.** When both dimensions are asserted, PUnit tracks functional and latency results independently. The verdict shows a per-dimension breakdown, making it clear whether a failure is a correctness problem, a latency problem, or both.
+
 ### The UseCaseProvider Pattern
 
-Use cases are registered and injected via `UseCaseProvider`:
+Use cases are registered and injected via `UseCaseProvider`, which handles JUnit parameter resolution:
 
 ```java
 public class ShoppingBasketTest {
@@ -742,6 +852,10 @@ public class ShoppingBasketTest {
     }
 }
 ```
+
+`UseCaseProvider` extends `UseCaseFactory` (from `punit-core`), adding JUnit's `ParameterResolver` integration. The underlying `UseCaseFactory` is a plain Java class with no JUnit dependency — it handles factory registration, instance resolution, and singleton management. `UseCaseProvider` inherits all of this and adds the ability to inject use case instances into JUnit test method parameters.
+
+For traditional JUnit test classes, always use `UseCaseProvider` with `@RegisterExtension`. For `@Sentinel` reliability specifications (see [Part 10: The Sentinel](#part-10-the-sentinel)), use `UseCaseFactory` directly — no JUnit types involved.
 
 ### Input Sources
 
@@ -1112,6 +1226,54 @@ See [Appendix A: Configuration Reference](#a-configuration-reference) for all LL
 >
 > Use budget constraints (`tokenBudget`, `timeBudgetMs`) to cap costs. Start with mock mode or small sample sizes to verify your experiment works before running with real APIs.
 
+### Baseline Spec Resolution
+
+When a `@ProbabilisticTest` runs, PUnit needs to find the baseline specification that was produced by a prior `@MeasureExperiment`. This section describes where PUnit looks and in what order.
+
+#### Resolution Algorithm
+
+PUnit resolves specs through a **layered search** — it checks each location in priority order and uses the first match:
+
+| Priority | Source                          | How to configure                                                                      |
+|----------|---------------------------------|---------------------------------------------------------------------------------------|
+| 1        | **Environment-local directory** | System property `punit.spec.dir` or environment variable `PUNIT_SPEC_DIR`             |
+| 2        | **Classpath**                   | `punit/specs/` on the classpath (the default output location of `@MeasureExperiment`) |
+
+This layering enables environment-specific overrides without modifying checked-in specs. A staging environment can have its own baseline directory with specs that reflect staging-grade latency, while the classpath retains the production baselines committed to version control.
+
+**Example: overriding specs per environment**
+
+```bash
+# CI uses checked-in specs (classpath) — no configuration needed
+./gradlew test
+
+# Staging uses environment-specific baselines
+PUNIT_SPEC_DIR=/opt/punit/staging-specs ./gradlew test
+
+# Local development overrides via system property
+./gradlew test -Dpunit.spec.dir=./local-specs
+```
+
+#### Dimension-Qualified Specs
+
+A `@MeasureExperiment` may produce multiple spec files when the use case has both functional and latency dimensions:
+
+| File                                 | Contents                                                                      |
+|--------------------------------------|-------------------------------------------------------------------------------|
+| `ShoppingBasketUseCase.yaml`         | Functional baseline (success rate) — always produced                          |
+| `ShoppingBasketUseCase.latency.yaml` | Latency baseline (percentile timings) — produced when latency data is present |
+
+When a `@ProbabilisticTest` uses `assertLatency()` or `assertAll()`, PUnit first looks for the dedicated latency spec (`{UseCaseId}.latency.yaml`). If not found, it falls back to the combined spec and extracts latency data from it. This allows latency baselines to be maintained independently — useful when latency characteristics are more environment-sensitive than functional correctness.
+
+The layered search applies to each spec file independently. For example, an environment-local directory might override only the latency spec while the functional spec is resolved from the classpath.
+
+#### What Happens When No Spec is Found
+
+If no spec is found in any layer, the behaviour depends on the test configuration:
+
+- **With explicit `minPassRate`**: The test runs using the declared threshold directly (no baseline needed)
+- **Without `minPassRate`**: The test fails with a configuration error, since there is no basis for determining a threshold
+
 ### Covariate-Aware Baseline Selection
 
 Covariates are environmental factors that may affect system behaviour.
@@ -1203,7 +1365,7 @@ Budgets can be specified at different levels:
 |------------|--------------------|------------------------------------------|
 | **Method** | Single test method | `@ProbabilisticTest(timeBudgetMs = ...)` |
 | **Class**  | All tests in class | `@CostBudget` on class                   |
-| **Suite**  | All tests in run   | *Planned for future release*             |
+| **Suite**  | All tests in run   | System property or environment variable  |
 
 When budgets are set at multiple levels, PUnit enforces all of them — the first exhausted budget triggers termination.
 
@@ -1485,7 +1647,7 @@ If you want a baseline-backed test that asserts pass-rate but **not** latency, o
 void passRateOnlyTest() { ... }
 ```
 
-> **Misconfiguration guard:** Explicit `@Latency` thresholds (e.g. `@Latency(p95Ms = 500)`) and a baseline with latency data are mutually exclusive. If both are present, PUnit raises a configuration error. Either remove the explicit thresholds and let the baseline drive, or use `@Latency(disabled = true)` to opt out.
+> **Precedence rule:** When explicit `@Latency` thresholds (e.g. `@Latency(p95Ms = 500)`) are declared and the baseline also contains latency data, the explicit thresholds take precedence — the baseline latency data is ignored. This lets you use the baseline for pass-rate while asserting latency against contractual targets. To suppress latency evaluation entirely, use `@Latency(disabled = true)`.
 
 #### Latency enforcement mode
 
@@ -1515,6 +1677,49 @@ systemProp.punit.latency.enforce=true
 | `@Latency(disabled=true)` | No                            | N/A                         | Skipped                    |
 
 To suppress latency evaluation entirely (not even advisory warnings), use `@Latency(disabled = true)` on individual tests.
+
+### The Three Latency Mechanisms at a Glance
+
+PUnit evaluates latency through three distinct mechanisms. They operate at different granularities, draw their thresholds from different sources, and fire at different points in the test lifecycle. Understanding how they relate — and where the real analytical power lies — is important for choosing the right approach.
+
+#### Mechanism 1: Service Contract Duration Constraint
+
+A `DurationConstraint` declared on the use case's `ServiceContract` via `ensureDurationBelow()`. When the test method calls `assertLatency()` or `assertAll()`, each sample's execution time is checked against the declared duration. A breach is a sample failure in the latency dimension.
+
+This is the simplest of the three mechanisms: a fixed ceiling applied to each individual invocation in isolation. It can catch gross outliers — a single call that takes 30 seconds against a 5-second SLA — but it tells you nothing about the distribution. A service where 40% of calls narrowly miss the ceiling would pass every individual check while delivering a terrible user experience in aggregate. Per-sample duration constraints are a useful safety net, but they are not where the probabilistic approach adds value.
+
+#### Mechanism 2: Explicit `@Latency` Annotation
+
+Percentile thresholds declared directly on the `@ProbabilisticTest` via the `latency` attribute, e.g. `@Latency(p95Ms = 500, p99Ms = 1000)`.
+
+This is fundamentally different from mechanism 1. Rather than checking each sample in isolation, PUnit collects the wall-clock time of every successful sample, computes the observed percentile distribution after all samples complete, and compares each declared percentile against its threshold. The thresholds come from a contractual source — an SLA, SLO, or design target known to the test author.
+
+This aggregate evaluation is where the probabilistic framework delivers real insight. A per-sample check cannot distinguish between "occasionally slow" and "systematically slow". Percentile-based evaluation can: a p95 breach tells you the tail is too heavy; a p50 breach tells you the median is too slow. By evaluating the distribution rather than individual data points, mechanism 2 transforms latency testing from a blunt per-invocation gate into a statistically meaningful assessment of service behaviour.
+
+#### Mechanism 3: Baseline-Derived Percentile Thresholds
+
+Percentile thresholds automatically derived from a MEASURE experiment's baseline spec. When the spec contains latency data and no explicit `@Latency` annotation is present, PUnit computes upper-bound thresholds for each percentile using a confidence interval.
+
+Mechanism 3 operates at the same aggregate granularity as mechanism 2 — the difference is provenance. Where mechanism 2 uses contractual thresholds chosen by the test author, mechanism 3 derives thresholds empirically from the baseline. The formula `threshold = baselinePercentile + z × (σ / √n)` accommodates natural variance when re-running with a different sample size. This makes mechanism 3 the natural choice for regression testing: the system's own measured performance becomes the expectation, with a statistical margin that tightens as the sample size grows.
+
+#### Comparison
+
+| Aspect                   | Duration Constraint (1)                                | Explicit `@Latency` (2)                 | Baseline-Derived (3)                                |
+|--------------------------|--------------------------------------------------------|-----------------------------------------|-----------------------------------------------------|
+| **Declared on**          | `ServiceContract` (use case)                           | `@ProbabilisticTest` (test)             | MEASURE spec (automatic)                            |
+| **Granularity**          | Per-sample                                             | Aggregate (percentile)                  | Aggregate (percentile)                              |
+| **Threshold provenance** | Fixed value in code                                    | Contractual (SLA/SLO)                   | Empirical (baseline + confidence interval)          |
+| **Evaluation point**     | During each sample (`assertLatency()` / `assertAll()`) | After all samples complete              | After all samples complete                          |
+| **Opt-in/opt-out**       | Implicit when contract has duration constraint         | Explicit `latency = @Latency(...)`      | Automatic; opt out with `@Latency(disabled = true)` |
+| **Can coexist with**     | Either of the other two                                | Either (overrides baseline if present)  | Either (yields to explicit if present)              |
+
+#### How the Mechanisms Interact
+
+**Explicit thresholds (mechanism 2) take precedence over baseline-derived thresholds (mechanism 3).** Both mechanisms answer the same question — does the latency distribution conform? — but they draw thresholds from different sources. When both are available, the explicit thresholds win: PUnit uses the contractual values from the `@Latency` annotation and ignores the baseline-derived values. This allows a developer to use the baseline for pass-rate derivation while asserting latency against a known SLA or SLO. When no explicit thresholds are declared, baseline-derived thresholds apply automatically.
+
+**Mechanism 1 is independent of mechanisms 2 and 3.** A service contract's duration constraint operates per-sample during execution; the aggregate percentile mechanisms operate after all samples complete. Both can be active simultaneously. A sample could pass the per-sample duration check but the overall distribution could still breach a percentile threshold, or vice versa.
+
+**A test can exercise all applicable mechanisms.** When a test calls `assertAll()` on a use case that has a duration constraint, and the test also has percentile thresholds (either explicit or baseline-derived), all layers are active: per-sample duration checks during execution, and aggregate percentile checks after completion. In practice, the aggregate mechanisms (2 or 3) are the ones that provide the statistically grounded verdict — the per-sample constraint is a coarse-grained safety net that catches individual outliers but cannot characterise the distribution.
 
 ### Sample Size and Percentile Reliability
 
@@ -1664,20 +1869,361 @@ For the mathematical foundations — confidence interval calculations, power ana
 
 ---
 
+## Part 10: The Sentinel
+
+Parts 1–9 cover PUnit as a development-time testing framework integrated with JUnit 5. This part introduces the **Sentinel** — an execution engine that runs the same probabilistic tests and experiments in deployed environments, without JUnit.
+
+For the architectural rationale, reference module layout, and deployment patterns, see [ARCHITECTURE-GUIDE.md](ARCHITECTURE-GUIDE.md).
+
+### Module Decomposition and Artifact Selection
+
+PUnit is published as three artifacts, each serving a distinct consumer:
+
+| Artifact                   | Consumer                                       | Dependency scope              |
+|----------------------------|------------------------------------------------|-------------------------------|
+| `org.javai:punit-core`     | Reliability spec authors (`@Sentinel` classes) | `api` (production)            |
+| `org.javai:punit-junit5`   | JUnit test developers                          | `testImplementation`          |
+| `org.javai:punit-sentinel` | Sentinel deployers                             | `implementation` (production) |
+
+A backward-compatible meta-artifact (`org.javai:punit`) transitively includes `punit-core` and `punit-junit5`. Existing consumers who depend on `punit` see no change upon upgrade.
+
+**Dependency declarations:**
+
+```kotlin
+// Reliability spec author (app-usecases module)
+dependencies {
+    api("org.javai:punit-core:0.7.0")
+}
+
+// JUnit test developer
+dependencies {
+    testImplementation("org.javai:punit-junit5:0.7.0")  // includes punit-core transitively
+}
+
+// Sentinel deployer
+dependencies {
+    implementation("org.javai:punit-sentinel:0.7.0")  // includes punit-core transitively
+}
+
+// Existing consumer (unchanged)
+dependencies {
+    testImplementation("org.javai:punit:0.7.0")  // includes punit-core + punit-junit5
+}
+```
+
+**Migration from the single `punit` artifact:** If you only write JUnit probabilistic tests, replace `org.javai:punit` with `org.javai:punit-junit5`. No code changes are required — package paths and APIs are identical.
+
+### The Reliability-Specification-First Model
+
+A `@Sentinel`-annotated class is a **reliability specification** — a plain Java class that defines what to measure and what to verify about a stochastic use case. It contains no JUnit types and has no runtime JUnit dependency.
+
+```java
+@Sentinel
+public class ShoppingBasketReliability {
+
+    UseCaseFactory factory = new UseCaseFactory();
+    {
+        factory.register(ShoppingBasketUseCase.class,
+            () -> new ShoppingBasketUseCase(new OpenAiClient(System.getenv("OPENAI_API_KEY"))));
+    }
+
+    @MeasureExperiment(useCase = ShoppingBasketUseCase.class, experimentId = "baseline-v1")
+    @InputSource("instructions")
+    void measureBaseline(ShoppingBasketUseCase useCase, String instruction, OutcomeCaptor captor) {
+        captor.record(useCase.translateInstruction(instruction));
+    }
+
+    @ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
+    @InputSource("instructions")
+    void testInstructionTranslation(ShoppingBasketUseCase useCase, String instruction) {
+        useCase.translateInstruction(instruction).assertAll();
+    }
+
+    static Stream<String> instructions() {
+        return Stream.of("Add 2 apples", "Remove the milk", "Add 1 loaf of bread");
+    }
+}
+```
+
+This class is the **single source of truth** for the reliability specification. It is consumed by both the JUnit engine (via inheritance) and the Sentinel engine (directly).
+
+**JUnit consumption:** A one-line subclass in the test source set inherits all methods and input sources:
+
+```java
+public class ShoppingBasketReliabilityTest extends ShoppingBasketReliability {
+
+    @RegisterExtension
+    UseCaseProvider provider = new UseCaseProvider();
+
+    @BeforeEach
+    void setUp() {
+        provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
+    }
+}
+```
+
+The JUnit subclass may add `@DisplayName`, `@Tag`, additional `@BeforeEach` setup, or extra test methods, but the reliability specification itself is untouched.
+
+**Why the specification is not test code.** A reliability specification defines the stochastic contract between a use case and its environment. Because it is consumed by two independent engines, it must be packageable into a JAR — which means it belongs in a production source set (e.g. `src/main/java` of an `app-usecases` module), not in `src/test/java`. Code in a test source set is never packaged and would be invisible to the Sentinel.
+
+### UseCaseFactory and UseCaseProvider
+
+PUnit provides two classes for use case registration, each serving a different context:
+
+| Class             | Module         | JUnit dependency          | Used by                                |
+|-------------------|----------------|---------------------------|----------------------------------------|
+| `UseCaseFactory`  | `punit-core`   | None                      | `@Sentinel` reliability specifications |
+| `UseCaseProvider` | `punit-junit5` | Yes (`ParameterResolver`) | Traditional JUnit test classes         |
+
+`UseCaseProvider` extends `UseCaseFactory`, inheriting all factory logic (registration, instance resolution, singleton management) and adding JUnit parameter injection. Both classes share the same `register()` and `getInstance()` API.
+
+**In a `@Sentinel` class**, use `UseCaseFactory` directly — a field initialiser or instance initialiser populates the registry:
+
+```java
+UseCaseFactory factory = new UseCaseFactory();
+{
+    factory.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
+}
+```
+
+**In a JUnit test class**, use `UseCaseProvider` with `@RegisterExtension` — the JUnit engine injects use case instances into test method parameters:
+
+```java
+@RegisterExtension
+UseCaseProvider provider = new UseCaseProvider();
+
+@BeforeEach
+void setUp() {
+    provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
+}
+```
+
+When a JUnit test class extends a `@Sentinel` class, both the inherited `UseCaseFactory` field and the `@RegisterExtension UseCaseProvider` field are present. PUnit's field scanning finds any field assignable to `UseCaseFactory`, so both patterns work transparently.
+
+### Configuring and Running the Sentinel
+
+The Sentinel is configured via `SentinelConfiguration` and executed by `SentinelRunner`:
+
+```java
+SentinelConfiguration config = SentinelConfiguration.builder()
+    .sentinelClass(ShoppingBasketReliability.class)
+    .verdictSink(new WebhookVerdictSink("https://alerts.example.com/punit"))
+    .environmentMetadata(EnvironmentMetadata.fromEnvironment())
+    .build();
+
+SentinelRunner runner = new SentinelRunner(config);
+```
+
+**Configuration options:**
+
+| Method                                      | Description                                                   | Default                                 |
+|---------------------------------------------|---------------------------------------------------------------|-----------------------------------------|
+| `.sentinelClass(Class<?>)`                  | Register a `@Sentinel` class (at least one required)          | —                                       |
+| `.specRepository(SpecRepository)`           | Baseline spec resolution strategy                             | `LayeredSpecRepository`                 |
+| `.verdictSink(VerdictSink)`                 | Add a verdict sink (multiple allowed, composed automatically) | `LogVerdictSink`                        |
+| `.environmentMetadata(EnvironmentMetadata)` | Environment context attached to verdicts                      | `EnvironmentMetadata.fromEnvironment()` |
+
+**Execution modes:**
+
+```java
+// Run experiments — produces/refreshes baseline specs
+SentinelResult result = runner.runExperiments();
+
+// Run all probabilistic tests
+SentinelResult result = runner.runTests();
+
+// Run tests for a specific use case
+SentinelResult result = runner.runTests("ShoppingBasketUseCase");
+```
+
+**`SentinelResult`** provides the aggregate outcome:
+
+```java
+if (!result.allPassed()) {
+    System.err.println(result.failed() + " of " + result.totalTests() + " tests failed");
+    System.exit(1);
+}
+```
+
+**Verdict sinks.** Every verdict produced by the Sentinel is dispatched to all configured `VerdictSink` instances:
+
+- `LogVerdictSink` — logs verdicts via PUnit's standard reporting (default)
+- `WebhookVerdictSink` — posts verdicts as JSON to an HTTP endpoint, configurable with URL, timeout, and headers
+- `CompositeVerdictSink` — dispatches to multiple sinks (created automatically when multiple sinks are registered)
+
+Each verdict carries a **correlation ID** (e.g., `v:a3f8c2`) that appears in both the console verdict and the `VerdictEvent`, enabling operators to cross-reference JUnit CI reports with full verdict events in observability systems.
+
+**Environment metadata.** The Sentinel tags every verdict with environment context, resolved from system properties or environment variables:
+
+| Property            | Environment Variable | Default   | Description                                        |
+|---------------------|----------------------|-----------|----------------------------------------------------|
+| `punit.environment` | `PUNIT_ENVIRONMENT`  | `unknown` | Environment identifier (e.g., `staging`, `prod`)   |
+| `punit.instanceId`  | `PUNIT_INSTANCE_ID`  | hostname  | Instance identifier for multi-instance deployments |
+
+### Verdicts as Triage Signals
+
+A PUnit verdict of PASS does not mean "there were no failures." It means "the observed failure rate is within the expected statistical envelope for this system." A test with `minPassRate = 0.95` that observes 4 failures in 100 samples passes — but 4 failures still occurred.
+
+Conversely, a verdict of FAIL does not necessarily mean "the system is broken." It means "the observed failure rate deviates from the baseline by a statistically significant margin." The deviation may be caused by a genuine regression, a transient environmental issue, or a baseline that no longer reflects current conditions.
+
+**Raw failure counts matter.** PUnit always displays the raw counts (e.g., `91/100`) alongside the statistical verdict. Operators should pay attention to both:
+
+- A PASS with 0 failures is qualitatively different from a PASS with 5 failures, even though both meet the threshold
+- A FAIL with 89/100 against a threshold of 0.90 is a marginal miss; a FAIL with 50/100 is a catastrophic regression
+
+**Proportionate response.** The verdict determines the urgency and nature of the investigation, not whether to investigate at all. When a stochastic system reports failures — even within threshold — those failures may warrant examination. PUnit provides the statistical context to determine whether the failure rate is expected or anomalous; the operator decides what to do about it.
+
+---
+
 ## Appendices
 
 ### A: Configuration Reference
 
-PUnit configuration follows this resolution order: System property → Environment variable → Annotation value → Framework default.
+PUnit configuration follows a consistent resolution order across all properties:
 
-| Property                        | Environment Variable             | Description                                            |
-|---------------------------------|----------------------------------|--------------------------------------------------------|
-| `punit.samples`                 | `PUNIT_SAMPLES`                  | Override sample count                                  |
-| `punit.stats.transparent`       | `PUNIT_STATS_TRANSPARENT`        | Enable transparent statistics                          |
-| `punit.latency.enforce`         | `PUNIT_LATENCY_ENFORCE`          | Enforce latency assertions (default: false = advisory) |
-| `punit.specs.outputDir`         | `PUNIT_SPECS_OUTPUT_DIR`         | Spec output directory                                  |
-| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | Exploration output directory                           |
-| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | Optimization output directory                          |
+**System property > Environment variable > Annotation value > Framework default**
+
+This allows different configurations per environment (local dev, PR builds, nightly CI, staging, production) without code changes. System properties take highest precedence, enabling per-invocation overrides via `-D` flags or Gradle's `-P` forwarding.
+
+#### General Test Configuration
+
+These properties override the corresponding `@ProbabilisticTest` annotation attributes.
+
+| Property                  | Environment Variable       | Default | Description                                    |
+|---------------------------|----------------------------|---------|------------------------------------------------|
+| `punit.samples`           | `PUNIT_SAMPLES`            | `100`   | Override sample count per test                 |
+| `punit.minPassRate`       | `PUNIT_MIN_PASS_RATE`      | —       | Override minimum pass rate threshold (0.0–1.0) |
+| `punit.samplesMultiplier` | `PUNIT_SAMPLES_MULTIPLIER` | `1.0`   | Multiplier applied to sample count             |
+
+**Example:** Run a quick smoke check with 10 samples instead of the annotation-specified count:
+
+```bash
+./gradlew test -Dpunit.samples=10
+```
+
+**Example:** Double all sample counts for a nightly CI run:
+
+```bash
+export PUNIT_SAMPLES_MULTIPLIER=2.0
+./gradlew test
+```
+
+#### Method-Level Budget
+
+These override the corresponding `@ProbabilisticTest` annotation attributes. When both method-level and suite-level budgets are set, all are enforced — the first exhausted budget triggers termination.
+
+| Property             | Environment Variable   | Default | Description                                               |
+|----------------------|------------------------|---------|-----------------------------------------------------------|
+| `punit.timeBudgetMs` | `PUNIT_TIME_BUDGET_MS` | `0`     | Time budget per test in milliseconds (0 = unlimited)      |
+| `punit.tokenBudget`  | `PUNIT_TOKEN_BUDGET`   | `0`     | Token budget per test (0 = unlimited)                     |
+| `punit.tokenCharge`  | `PUNIT_TOKEN_CHARGE`   | `0`     | Fixed token charge per sample (0 = use dynamic recording) |
+
+**Example:** Cap each test at 30 seconds:
+
+```bash
+./gradlew test -Dpunit.timeBudgetMs=30000
+```
+
+#### Suite-Level Budget
+
+Suite budgets apply across **all** probabilistic tests in the JVM. They are configured exclusively via system properties or environment variables — there is no annotation equivalent.
+
+| Property                        | Environment Variable              | Default | Description                                   |
+|---------------------------------|-----------------------------------|---------|-----------------------------------------------|
+| `punit.suite.timeBudgetMs`      | `PUNIT_SUITE_TIME_BUDGET_MS`      | `0`     | Time budget for entire suite (0 = unlimited)  |
+| `punit.suite.tokenBudget`       | `PUNIT_SUITE_TOKEN_BUDGET`        | `0`     | Token budget for entire suite (0 = unlimited) |
+| `punit.suite.onBudgetExhausted` | `PUNIT_SUITE_ON_BUDGET_EXHAUSTED` | `FAIL`  | `FAIL` or `EVALUATE_PARTIAL`                  |
+
+**Budget exhaustion behaviour:**
+
+- `FAIL` — remaining tests are skipped and the suite fails.
+- `EVALUATE_PARTIAL` — remaining tests are skipped, but completed tests are evaluated normally (partial results are valid).
+
+**Budget hierarchy:** Suite > Class > Method. First exhausted budget triggers termination.
+
+#### Pacing
+
+Pacing controls request rates for rate-limited APIs (LLM providers, payment gateways). These override the corresponding `@Pacing` annotation attributes. When multiple constraints are specified, the most restrictive wins.
+
+| Property                       | Environment Variable             | Default | Description                                |
+|--------------------------------|----------------------------------|---------|--------------------------------------------|
+| `punit.pacing.maxRps`          | `PUNIT_PACING_MAX_RPS`           | `0`     | Maximum requests per second (0 = no limit) |
+| `punit.pacing.maxRpm`          | `PUNIT_PACING_MAX_RPM`           | `0`     | Maximum requests per minute (0 = no limit) |
+| `punit.pacing.maxRph`          | `PUNIT_PACING_MAX_RPH`           | `0`     | Maximum requests per hour (0 = no limit)   |
+| `punit.pacing.maxConcurrent`   | `PUNIT_PACING_MAX_CONCURRENT`    | `0`     | Maximum concurrent requests (0 = no limit) |
+| `punit.pacing.minMsPerSample`  | `PUNIT_PACING_MIN_MS_PER_SAMPLE` | `0`     | Minimum delay per sample in ms (0 = none)  |
+
+**Example:** Throttle to 60 requests per minute for a rate-limited API:
+
+```bash
+export PUNIT_PACING_MAX_RPM=60
+./gradlew test
+```
+
+#### Specification Resolution
+
+Specs resolve using **layered fallback**: environment-local directory first, classpath second. This enables environment-specific baselines without modifying checked-in specs.
+
+| Property         | Environment Variable | Default | Description                                            |
+|------------------|----------------------|---------|--------------------------------------------------------|
+| `punit.spec.dir` | `PUNIT_SPEC_DIR`     | —       | Environment-local spec directory (overrides classpath) |
+
+**Classpath fallback:** `punit/specs/` on the classpath (checked-in specs in `src/test/resources/punit/specs/`).
+
+**Per-dimension spec naming convention:**
+
+- `{UseCaseId}.yaml` — Functional baseline spec
+- `{UseCaseId}.latency.yaml` — Latency baseline spec
+
+Legacy single-file specs containing both dimensions are handled transparently — the framework extracts the relevant dimension's data.
+
+#### Experiment Output Directories
+
+| Property                        | Environment Variable             | Default                                      | Description                |
+|---------------------------------|----------------------------------|----------------------------------------------|----------------------------|
+| `punit.specs.outputDir`         | `PUNIT_SPECS_OUTPUT_DIR`         | `src/test/resources/punit/specs/`            | MEASURE experiment output  |
+| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | `src/test/resources/punit/explorations/`     | EXPLORE experiment output  |
+| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | `src/test/resources/punit/optimizations/`    | OPTIMIZE experiment output |
+
+#### Transparent Statistics
+
+Transparent mode produces verbose statistical explanations of test verdicts, designed for auditors, regulators, and stakeholders who need to understand how PUnit reaches its verdicts.
+
+| Property                  | Environment Variable       | Default   | Description                                  |
+|---------------------------|----------------------------|-----------|----------------------------------------------|
+| `punit.stats.transparent` | `PUNIT_STATS_TRANSPARENT`  | `false`   | Enable transparent statistics mode           |
+| `punit.stats.detailLevel` | `PUNIT_STATS_DETAIL_LEVEL` | `VERBOSE` | Detail level: `SUMMARY` or `VERBOSE`         |
+| `punit.stats.format`      | `PUNIT_STATS_FORMAT`       | `CONSOLE` | Output format: `CONSOLE`, `MARKDOWN`, `JSON` |
+
+`punit.stats.transparent` has an additional precedence level: the `@ProbabilisticTest(transparentStats = true)` annotation attribute takes highest priority, above the system property.
+
+**Detail levels:**
+
+- `SUMMARY` — verdict and key numbers only (observed rate, threshold, sample count).
+- `VERBOSE` — full explanation including hypothesis test, statistical inference (standard error, confidence interval, z-test, p-value).
+
+**Example:** Generate markdown-formatted summaries for a compliance report:
+
+```bash
+./gradlew test -Dpunit.stats.transparent=true -Dpunit.stats.detailLevel=SUMMARY -Dpunit.stats.format=MARKDOWN
+```
+
+#### Latency Enforcement
+
+| Property                | Environment Variable    | Default | Description                                         |
+|-------------------------|-------------------------|---------|-----------------------------------------------------|
+| `punit.latency.enforce` | `PUNIT_LATENCY_ENFORCE` | `false` | Enforce latency assertions (default: advisory only) |
+
+When disabled (default), latency breaches produce warnings but do not cause sample failures. When enabled, latency breaches contribute to the pass/fail verdict.
+
+#### Sentinel Environment Metadata
+
+These properties are used by the Sentinel runtime to tag verdicts with deployment context. They are resolved by `EnvironmentMetadata.fromEnvironment()`.
+
+| Property            | Environment Variable | Default   | Description                                        |
+|---------------------|----------------------|-----------|----------------------------------------------------|
+| `punit.environment` | `PUNIT_ENVIRONMENT`  | `unknown` | Environment identifier (e.g., `prod`, `staging`)   |
+| `punit.instanceId`  | `PUNIT_INSTANCE_ID`  | hostname  | Instance identifier for multi-instance deployments |
 
 #### LLM Provider Configuration
 
@@ -1723,103 +2269,199 @@ You only need API keys for the providers you're actually using. If your experime
 
 ### B: Experiment Output Formats
 
-Each experiment type produces YAML files in different directories with different structures:
+Each experiment type produces YAML files in different directories with different structures. The extracts below are taken from real experiment outputs. Sections omitted for brevity are marked with `# ...`.
 
 #### MEASURE Output
 
 Location: `src/test/resources/punit/specs/{UseCaseId}.yaml`
 
-MEASURE produces baseline specs used by probabilistic tests:
+MEASURE produces the baseline spec that probabilistic tests use to derive thresholds. Its distinguishing features are: **covariates** (the environmental conditions under which the baseline was recorded), **requirements** (the derived `minPassRate`), **extended statistics** (standard error, confidence interval), and optionally a **latency** section. When the use case declares covariates, the filename includes a **footprint** suffix that encodes the covariate combination.
 
 ```yaml
-schemaVersion: punit-spec-2
-specId: ShoppingBasketUseCase
+# Empirical Baseline for ShoppingBasketUseCase                          ← header comment
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
 useCaseId: ShoppingBasketUseCase
-generatedAt: 2026-01-15T10:30:00Z
-
-empiricalBasis:
-  samples: 1000
-  successes: 935
-  generatedAt: 2026-01-15T10:30:00Z
-
-covariates:
-  llm_model: gpt-4o
-  temperature: 0.3
+generatedAt: 2026-03-03T17:45:51.370476Z
+experimentClass: org.javai.punit.examples.experiments.ShoppingBasketMeasure
+experimentMethod: measureBaseline
+footprint: 8e7245de                                                     ← covariate fingerprint
+covariates:                                                             ← environmental conditions
   day_of_week: WEEKDAY
-
-extendedStatistics:
-  standardError: 0.0078
-  confidenceInterval:
-    lower: 0.919
-    upper: 0.949
-
-contentFingerprint: sha256:abc123...
+  time_of_day: 16:00/4h
+  llm_model: gpt-4o-mini
+  temperature: 0.3
+execution:
+  samplesPlanned: 1000
+  samplesExecuted: 1000
+  terminationReason: COMPLETED
+requirements:
+  minPassRate: 0.7418                                                   ← derived threshold
+statistics:
+  successRate:
+    observed: 0.7680
+    standardError: 0.0133
+    confidenceInterval95: [0.7418, 0.7942]                              ← 95% CI
+  successes: 768
+  failures: 232
+  failureDistribution:                                                  ← per-postcondition breakdown
+    Valid shopping action: 232
+latency:                                                                ← latency distribution
+  sampleCount: 768
+  meanMs: 0
+  standardDeviationMs: 0
+  p50Ms: 0
+  p90Ms: 0
+  p95Ms: 0
+  p99Ms: 0
+  maxMs: 3
+cost:
+  totalTimeMs: 557
+  avgTimePerSampleMs: 0
+  totalTokens: 197288
+  avgTokensPerSample: 197
+contentFingerprint: 90fc6a06ededa50e...                                 ← integrity hash
 ```
+
+When latency data is present, MEASURE also produces a dedicated latency spec at `{UseCaseId}-latency.yaml` containing only the `execution` and `latency` sections.
 
 #### EXPLORE Output
 
 Location: `src/test/resources/punit/explorations/{UseCaseId}/{configName}.yaml`
 
-EXPLORE produces one file per configuration tested, enabling comparison:
+EXPLORE produces **one file per configuration**, enabling side-by-side comparison. Its distinguishing feature is the **result projection** — a per-sample record of inputs, postcondition outcomes, and raw content that lets you inspect exactly what the system produced under each configuration. The `useCaseId` includes the configuration name as a path suffix.
 
 ```yaml
-schemaVersion: punit-exploration-1
-useCaseId: ShoppingBasketUseCase
-configurationId: model-gpt-4o_temp-0.3
-generatedAt: 2026-01-15T09:15:00Z
+# Empirical Baseline for ShoppingBasketUseCase/model-gpt-4o             ← config in ID
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
 
-configuration:
-  model: gpt-4o
-  temperature: 0.3
-
-results:
-  samples: 20
-  successes: 19
-  successRate: 0.95
-
-covariates:
-  day_of_week: WEEKDAY
+schemaVersion: punit-spec-1
+useCaseId: ShoppingBasketUseCase/model-gpt-4o                           ← use case + config
+generatedAt: 2026-03-03T17:41:25.667899Z
+experimentClass: org.javai.punit.examples.experiments.ShoppingBasketExplore
+experimentMethod: compareModels
+execution:
+  samplesPlanned: 20
+  samplesExecuted: 20
+  terminationReason: COMPLETED
+statistics:
+  observed: 0.9000
+  successes: 18
+  failures: 2
+latency:
+  sampleCount: 18
+  # ...
+cost:
+  totalTimeMs: 194
+  avgTimePerSampleMs: 9
+  totalTokens: 3922
+  avgTokensPerSample: 196
+resultProjection:                                                       ← per-sample detail
+# ────── anchor:0dfe8af7 ──────
+  sample[0]:
+    input: Add some apples
+    postconditions:
+      Contains valid actions: passed
+      Response has content: passed
+      Valid shopping action: passed
+    executionTimeMs: 0
+    content: |
+      ChatResponse[content={"actions": [...]}, promptTokens=177, completionTokens=20]
+# ────── anchor:0c45c028 ──────
+  sample[1]:
+    # ...
+# ────── anchor:17610c9a ──────
+  sample[4]:                                                            ← a failed sample
+    input: Add some apples
+    postconditions:
+      Contains valid actions: failed                                    ← postcondition failure
+      Response has content: passed
+      Valid shopping action: failed
+    executionTimeMs: 0
+    content: |
+      ChatResponse[content={"operations": [...]}, ...]                  ← wrong schema
+  # ... remaining samples
+contentFingerprint: b8c458e7da03edb9...
 ```
 
 #### OPTIMIZE Output
 
 Location: `src/test/resources/punit/optimizations/{UseCaseId}/{experimentId}_{timestamp}.yaml`
 
-OPTIMIZE produces a history of iterations showing the optimization trajectory:
+OPTIMIZE produces a history of iterations showing the optimization trajectory. Its distinguishing features are: the **control factor** being varied, the **optimization policy** (objective, scorer, mutator, termination), a **best iteration** summary (when at least one iteration scored above the minimum threshold), and the full **iteration log** with per-iteration scores, statistics, and the control factor value tried.
 
 ```yaml
-schemaVersion: punit-optimization-1
+# Optimization History for ShoppingBasketUseCase
+# Primary output: the best value for the control factor
+# Generated automatically by punit @OptimizeExperiment
+
+schemaVersion: punit-optimize-1
 useCaseId: ShoppingBasketUseCase
-experimentId: temperature-optimization-v1
-generatedAt: 2026-01-15T11:45:00Z
+experimentId: prompt-optimization-v1
+generatedAt: 2026-03-03T17:43:11.308105Z
+controlFactor:                                                          ← what is being optimized
+  name: systemPrompt
+  type: String
+optimization:                                                           ← optimization policy
+  objective: MAXIMIZE
+  scorer: Success rate (higher is better) - measures % of samples where all criteria passed
+  mutator: Mock (deterministic) prompt progression - scripted sequence of improvements
+  terminationPolicy: Max 10 iterations OR No improvement for 3 iterations
+timing:
+  startTime: 2026-03-03T17:43:11.308105Z
+  endTime: 2026-03-03T17:43:27.771902Z
+  totalDurationMs: 16463
+bestIteration:                                                          ← best result (when present)
+  iterationNumber: 3
+  score: 87.5%
+  bestControlFactor: |
+    You are a shopping assistant. Convert the user's request into JSON...
+  statistics:
+    sampleCount: 8
+    observed: 0.8750
+    successes: 7
+    failures: 1
+summary:
+  totalIterations: 10
+  totalTokens: 0
+  initialScore: 0.0%
+  bestScore: 87.5%
+  scoreImprovement: 87.5%
+terminationReason:
+  cause: MAX_ITERATIONS
+  message: "Reached maximum iterations: 10"
+iterations:                                                             ← full iteration history
+  - iterationNumber: 0
+    status: BELOW_THRESHOLD
+    score: 0.0%
+    controlFactor: |                                                    ← value tried
+      You are a shopping assistant. Convert the user's request into
+      a JSON list of shopping basket operations.
+    statistics:
+      sampleCount: 8
+      observed: 0.0000
+      successes: 0
+      failures: 8
+    totalTokens: 0
+    meanLatencyMs: 0.00
+    failureReason: Score 0.00 is below minimum threshold 0.50           ← why this iteration failed
+  - iterationNumber: 1
+    status: BELOW_THRESHOLD
+    score: 0.0%
+    controlFactor: |
+      You are a shopping assistant. Convert the user's request into
+      a JSON list of shopping basket operations.
 
-controlFactor: temperature
-objective: MAXIMIZE
-terminationReason: NO_IMPROVEMENT_WINDOW
-
-iterations:
-  - iteration: 1
-    controlValue: 1.0
-    samples: 20
-    successes: 15
-    score: 0.75
-  - iteration: 2
-    controlValue: 0.7
-    samples: 20
-    successes: 17
-    score: 0.85
-  - iteration: 3
-    controlValue: 0.4
-    samples: 20
-    successes: 19
-    score: 0.95
-  # ... more iterations
-
-bestIteration:
-  iteration: 5
-  controlValue: 0.3
-  score: 0.97
+      IMPORTANT: Respond with ONLY valid JSON. No explanations, ...
+    # ...
+  # ... remaining iterations
+contentFingerprint: b4f6de1a05ca9aff...
 ```
+
+When no iteration scores above the minimum threshold, the `bestIteration` section is omitted and `scoreImprovement` is `0.0%`.
 
 ### C: Glossary
 

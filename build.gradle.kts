@@ -22,22 +22,32 @@ signing {
 group = "org.javai"
 version = property("punitVersion") as String
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// Shared configuration for all subprojects
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Compile with -parameters flag to preserve method parameter names at runtime
-// This is required for use case argument injection
-tasks.withType<JavaCompile> {
-    options.compilerArgs.add("-parameters")
-}
+subprojects {
+    apply(plugin = "java-library")
 
-repositories {
-    mavenCentral()
-}
+    group = rootProject.group
+    version = rootProject.version
 
-dependencies {
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    // Compile with -parameters flag to preserve method parameter names at runtime
+    // This is required for use case argument injection
+    tasks.withType<JavaCompile> {
+        options.compilerArgs.add("-parameters")
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
     // JUnit 5 Jupiter API - needed at compile time for the extension
     // Using 'api' so consumers get transitive access to JUnit types
     // Version 5.13.3 includes failureThreshold for @RepeatedTest
@@ -76,23 +86,53 @@ dependencies {
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
     testImplementation("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    }
+
+    tasks.test {
+        useJUnitPlatform()
+        testLogging {
+            events("passed", "skipped", "failed")
+            showStandardStreams = true
+        }
+    }
+
+    tasks.javadoc {
+        options {
+            (this as StandardJavadocDocletOptions).apply {
+                encoding = "UTF-8"
+                charSet = "UTF-8"
+                addStringOption("Xdoclint:none", "-quiet")
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Root meta-artifact: depends on punit-core + punit-junit5 transitively
+// ═══════════════════════════════════════════════════════════════════════════
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("-parameters")
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api(project(":punit-core"))
+    api(project(":punit-junit5"))
 }
 
 tasks.test {
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
-    }
-}
-
-tasks.javadoc {
-    options {
-        (this as StandardJavadocDocletOptions).apply {
-            encoding = "UTF-8"
-            charSet = "UTF-8"
-            // Suppress warnings for missing javadoc
-            addStringOption("Xdoclint:none", "-quiet")
-        }
     }
 }
 

@@ -50,6 +50,8 @@ class PunitPlugin : Plugin<Project> {
                 exclude("**/testsubjects/**")
             }
 
+            systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+
             forwardPunitSystemProperties(this)
             applyRunFilter(project, this)
         }
@@ -97,6 +99,7 @@ class PunitPlugin : Plugin<Project> {
             val explorationsDir = extension.explorationsDir.get()
             val optimizationsDir = extension.optimizationsDir.get()
 
+            systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
             systemProperty("punit.specs.outputDir", specsDir)
             systemProperty("punit.explorations.outputDir", explorationsDir)
             systemProperty("punit.optimizations.outputDir", optimizationsDir)

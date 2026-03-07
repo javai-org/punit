@@ -374,9 +374,9 @@ $$
 
 The difference lies in how $p_{\text{threshold}}$ is determined and interpreted:
 
-| Paradigm        | Threshold                           | $H_0$ Interpretation         | $H_1$ Interpretation    |
-|-----------------|-------------------------------------|------------------------------|-------------------------|
-| **Compliance**  | $p_{\text{SLA}}$ (given)            | System meets requirement     | System violates SLA     |
+| Paradigm       | Threshold                           | $H_0$ Interpretation         | $H_1$ Interpretation    |
+|----------------|-------------------------------------|------------------------------|-------------------------|
+| **Compliance** | $p_{\text{SLA}}$ (given)            | System meets requirement     | System violates SLA     |
 | **Regression** | Derived from $\hat{p}_{\text{exp}}$ | No degradation from baseline | Regression has occurred |
 
 We seek a decision rule that:
@@ -417,14 +417,14 @@ $$= \frac{0.951 + 0.0135 - 1.645 \times 0.0218}{1.027} = \frac{0.9286}{1.027} \a
 
 ### 3.5 Reference Table: Wilson Score Lower Bounds
 
-For experimental rate $\hat{p}_{\text{exp}} = 0.951$ from $n_{\text{exp}} = 1000$:
+For baseline success-rate estimate $\hat{p} = 0.951$:
 
 | Test Samples | 95% Lower Bound | 99% Lower Bound |
 |--------------|-----------------|-----------------|
-| 50           | 0.890           | 0.869           |
-| 100          | 0.904           | 0.889           |
-| 200          | 0.918           | 0.907           |
-| 500          | 0.932           | 0.925           |
+| 50           | 0.874           | 0.826           |
+| 100          | 0.902           | 0.874           |
+| 200          | 0.919           | 0.902           |
+| 500          | 0.933           | 0.923           |
 
 **Observation**: Smaller test samples require lower bounds (and hence lower thresholds) to maintain the same false positive rate.
 
@@ -464,12 +464,12 @@ To verify $p \geq p_{\text{SLA}}$ with 95% confidence and 80% power:
 
 | $p_{\text{SLA}}$ | Min Detectable Effect ($\delta$) | Required Samples |
 |------------------|----------------------------------|------------------|
-| 0.95             | 0.05 (detect drop to 90%)        | 73               |
-| 0.95             | 0.02 (detect drop to 93%)        | 456              |
-| 0.99             | 0.02 (detect drop to 97%)        | 152              |
-| 0.99             | 0.01 (detect drop to 98%)        | 609              |
-| 0.999            | 0.005 (detect drop to 99.4%)     | 609              |
-| 0.999            | 0.001 (detect drop to 99.8%)     | 15,252           |
+| 0.95             | 0.05 (detect drop to 90%)        | 150              |
+| 0.95             | 0.02 (detect drop to 93%)        | 822              |
+| 0.99             | 0.02 (detect drop to 97%)        | 236              |
+| 0.99             | 0.01 (detect drop to 98%)        | 793              |
+| 0.999            | 0.005 (detect drop to 99.4%)     | 548              |
+| 0.999            | 0.001 (detect drop to 99.8%)     | 8,031            |
 
 **Key insight**: Higher SLAs and smaller detectable effects require dramatically more samples. This is why `minDetectableEffect` is essential for the confidence-first approach—without it, the question "how many samples to verify 99.9%?" has no finite answer.
 
@@ -553,10 +553,10 @@ $$p_{\text{threshold}} = 0.9973 - 1.645 \times 0.0052 = 0.9973 - 0.0086 \approx 
 
 | Baseline $n$ | $p_0$ (Wilson 95%) | Test $n=50$ threshold | Test $n=100$ threshold |
 |--------------|--------------------|-----------------------|------------------------|
-| 100          | 0.9647             | 0.922                 | 0.935                  |
-| 300          | 0.9883             | 0.964                 | 0.973                  |
+| 100          | 0.9737             | 0.936                 | 0.947                  |
+| 300          | 0.9911             | 0.969                 | 0.976                  |
 | 1000         | 0.9973             | 0.985                 | 0.989                  |
-| 3000         | 0.9991             | 0.993                 | 0.996                  |
+| 3000         | 0.9991             | 0.992                 | 0.994                  |
 
 ### 4.4 Extended Example: Highly Reliable API
 
@@ -688,21 +688,21 @@ n = \left(\frac{1.645 \times \sqrt{0.995 \times 0.005} + 0.842 \times \sqrt{0.98
 $$
 
 $$
-= \left(\frac{1.645 \times 0.0705 + 0.842 \times 0.1215}{0.01}\right)^2 = \left(\frac{0.116 + 0.102}{0.01}\right)^2 = (21.8)^2 \approx 476
+= \left(\frac{1.645 \times 0.0705 + 0.842 \times 0.1215}{0.01}\right)^2 = \left(\frac{0.116 + 0.102}{0.01}\right)^2 = (21.8)^2 \approx 477
 $$
 
 **Reference Table: Sample Sizes for High SLAs**
 
 | SLA Threshold | Effect Size ($\delta$) | 95% Confidence, 80% Power |
 |---------------|------------------------|---------------------------|
-| 99.0%         | 2% (detect ≤97%)       | 152                       |
-| 99.0%         | 1% (detect ≤98%)       | 609                       |
-| 99.5%         | 1% (detect ≤98.5%)     | 476                       |
-| 99.5%         | 0.5% (detect ≤99%)     | 1,903                     |
-| 99.9%         | 0.5% (detect ≤99.4%)   | 609                       |
-| 99.9%         | 0.1% (detect ≤99.8%)   | 15,252                    |
+| 99.0%         | 2% (detect ≤97%)       | 236                       |
+| 99.0%         | 1% (detect ≤98%)       | 793                       |
+| 99.5%         | 1% (detect ≤98.5%)     | 477                       |
+| 99.5%         | 0.5% (detect ≤99%)     | 1,597                     |
+| 99.9%         | 0.5% (detect ≤99.4%)   | 548                       |
+| 99.9%         | 0.1% (detect ≤99.8%)   | 8,031                     |
 
-**Key insight**: Verifying high SLAs with small detectable effects requires substantial sample sizes. A 99.9% SLA with 0.1% detection requires over 15,000 samples.
+**Key insight**: Verifying high SLAs with small detectable effects requires substantial sample sizes. A 99.9% SLA with 0.1% detection requires about 8,031 samples.
 
 ### 5.6 The Role of Minimum Detectable Effect
 
@@ -742,10 +742,10 @@ Without `minDetectableEffect`, PUnit cannot compute a finite sample size and wil
 
 PUnit distinguishes between two epistemic intentions when running a probabilistic test. The choice of intent governs whether the framework enforces a statistical feasibility gate and how verdicts are framed.
 
-| Intent           | Purpose                                              | Feasibility gate | Verdict language              |
-|------------------|------------------------------------------------------|------------------|-------------------------------|
+| Intent           | Purpose                                               | Feasibility gate | Verdict language              |
+|------------------|-------------------------------------------------------|------------------|-------------------------------|
 | **VERIFICATION** | Evidential — produce statistically defensible verdict | Enforced         | Full compliance framing       |
-| **SMOKE**        | Sentinel — detect gross regressions cheaply          | Bypassed         | Softened, exploratory framing |
+| **SMOKE**        | Sentinel — detect gross regressions cheaply           | Bypassed         | Softened, exploratory framing |
 
 The default intent is **VERIFICATION**. Developers may opt into SMOKE via the annotation:
 
@@ -773,14 +773,14 @@ where $z = \Phi^{-1}(1 - \alpha)$ and $\alpha = 1 - \text{confidence}$.
 **Reference table: $N_{\min}$ at default confidence (0.95, $\alpha = 0.05$, $z \approx 1.645$)**
 
 | Target ($p_0$) | $N_{\min}$ | Interpretation                                         |
-|-----------------|------------|--------------------------------------------------------|
-| 0.50            | 3          | Almost any sample size suffices                        |
-| 0.80            | 14         | Low bar                                                |
-| 0.90            | 25         | Moderate                                               |
-| 0.95            | 52         | Common threshold — needs at least 52 samples           |
-| 0.99            | 268        | High reliability — needs substantial samples           |
-| 0.999           | 2,704      | Very high reliability                                  |
-| 0.9999          | 27,054     | Extreme reliability — impractical for most test suites |
+|----------------|------------|--------------------------------------------------------|
+| 0.50           | 3          | Almost any sample size suffices                        |
+| 0.80           | 11         | Low bar                                                |
+| 0.90           | 25         | Moderate                                               |
+| 0.95           | 52         | Common threshold — needs at least 52 samples           |
+| 0.99           | 268        | High reliability — needs substantial samples           |
+| 0.999          | 2,704      | Very high reliability                                  |
+| 0.9999         | 27,058     | Extreme reliability — impractical for most test suites |
 
 **What happens when infeasible**: A VERIFICATION test with $N < N_{\min}$ fails immediately with `ExtensionConfigurationException`. The failure message includes:
 - The configured sample size and target
@@ -814,10 +814,10 @@ In other words: small samples can reliably detect gross failures but cannot prov
 
 When a SMOKE test runs against a normative threshold (SLA, SLO, or POLICY):
 
-| Condition | Caveat |
-|-----------|--------|
-| $N < N_{\min}$ | "Sample not sized for verification ($N = x$, need $y$). A PASS is a directional signal, not a compliance determination." |
-| $N \geq N_{\min}$ | "Sample is sized for verification. Consider setting `intent = VERIFICATION` for evidential strength." |
+| Condition         | Caveat                                                                                                                   |
+|-------------------|--------------------------------------------------------------------------------------------------------------------------|
+| $N < N_{\min}$    | "Sample not sized for verification ($N = x$, need $y$). A PASS is a directional signal, not a compliance determination." |
+| $N \geq N_{\min}$ | "Sample is sized for verification. Consider setting `intent = VERIFICATION` for evidential strength."                    |
 
 These caveats appear in both summary and verbose output modes.
 
@@ -897,7 +897,7 @@ $$
 - $p_{\text{SLA}} = 0.995$, $\delta = 0.01$, $z_\alpha = 1.645$, $z_\beta = 0.842$
 
 $$
-n = \left(\frac{1.645 \times 0.0705 + 0.842 \times 0.1215}{0.01}\right)^2 \approx 476
+n = \left(\frac{1.645 \times 0.0705 + 0.842 \times 0.1215}{0.01}\right)^2 \approx 477
 $$
 
 **Trade-off**: Fixed confidence and detection capability; cost (sample size) is determined.
@@ -1003,13 +1003,13 @@ STATISTICAL INFERENCE
                        z = (0.87 - 0.904) / √(0.904 × 0.096 / 100)
                        z = -1.15
   
-  p-value:             P(Z > -1.15) = 0.875
+  p-value:             P(Z < -1.15) = 0.125
 
 VERDICT
-  Result:              PASS
+  Result:              FAIL
   Interpretation:      The observed success rate of 87% is below the threshold
-                       of 90.4%, but the evidence is insufficient to conclude
-                       a true degradation at the 95% confidence level.
+                       of 90.4%. Under PUnit's threshold-comparison semantics,
+                       this test fails verification.
 ```
 
 See Section 10 for complete example outputs including both compliance and regression paradigms.
@@ -1082,7 +1082,7 @@ When `transparentStats = true`, the provenance appears in the output:
 ╔══════════════════════════════════════════════════════════════════════╗
 ║ THRESHOLD PROVENANCE                                                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ Threshold origin    : SLA                                               ║
+║ Threshold origin    : SLA                                            ║
 ║ Contract ref     : Payment Gateway SLA v3.2 §5.1.2                   ║
 ║ Threshold origin : Normative claim from external contract            ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -1394,7 +1394,7 @@ $$n = \left(\frac{z_\alpha \sqrt{p_0(1-p_0)} + z_\beta \sqrt{p_1(1-p_1)}}{p_0 - 
 
 $$Q(p) = t_{(\lceil p \cdot n_s \rceil)}, \quad t_{(1)} \leq \cdots \leq t_{(n_s)}$$
 
-### Latency Threshold Derivation (upper confidence bound)
+### Latency Threshold Derivation (conservative percentile tolerance)
 
 $$\tau_j = \max\left(Q_{\text{baseline}}(p_j), \; \left\lceil Q_{\text{baseline}}(p_j) + z_\alpha \cdot \frac{s}{\sqrt{n_s}} \right\rceil\right)$$
 
@@ -1500,7 +1500,7 @@ THRESHOLD REFERENCE
 
 STATISTICAL INFERENCE
   Standard error:      SE = √(p̂(1-p̂)/n) = √(0.992 × 0.008 / 500) = 0.0040
-  95% Confidence interval: [0.984, 1.000]
+  95% Confidence interval: [0.980, 0.997]
   
   Test statistic:      z = (p̂ - π₀) / √(π₀(1-π₀)/n)
                        z = (0.992 - 0.995) / √(0.995 × 0.005 / 500)
@@ -1542,7 +1542,7 @@ The output uses proper mathematical symbols where terminal capabilities allow:
 | Null hypothesis        | $H_0$          | H0             |
 | Alternative hypothesis | $H_1$          | H1             |
 | Less than or equal     | $\leq$         | <=             |
-| Greater than or equal  | $\geq$         | >=             |
+| Greater than or equal  | $\geq$         | \>=            |
 | Square root            | $\sqrt{}$      | sqrt           |
 | Approximately          | $\approx$      | ~=             |
 | Alpha (significance)   | $\alpha$       | alpha          |
@@ -1729,13 +1729,19 @@ These characteristics violate the assumptions of parametric models such as the n
 
 #### 12.2.1 Population Definition
 
-Not all samples contribute to the latency distribution. PUnit defines the **latency population** as:
+Not all samples contribute to the latency distribution. PUnit defines the **latency population** as the distribution of **successful-response latency**:
 
 $$\mathcal{L} = \{ t_i : X_i = 1 \}$$
 
+Equivalently, the latency estimand is the conditional distribution:
+
+$$T \mid X = 1$$
+
 where $t_i$ is the wall-clock execution time of the $i$-th trial and $X_i$ is its Bernoulli outcome. Only successful samples ($X_i = 1$) are included.
 
-**Rationale**: Failed samples produce execution times that are statistically meaningless for latency characterisation. A fast failure (immediate validation rejection, $t \approx 0$) and a slow failure (timeout at $t = 30{,}000\text{ms}$) both reflect error paths, not the system's operational response time. Including them would contaminate the distribution and produce percentile estimates that describe neither the successful nor the failed population.
+**Rationale**: Failed samples produce execution times that are not directly comparable with successful response times. A fast failure (immediate validation rejection, $t \approx 0$) and a slow failure (timeout at $t = 30{,}000\text{ms}$) both reflect error paths, not the latency of successful operation. Including them would contaminate the distribution and produce percentile estimates that describe neither the successful nor the failed population.
+
+**Important semantic note**: This is a **conditional latency distribution**, not the unconditional user-experienced response-time distribution over all attempts. Pass rate and latency therefore describe two complementary dimensions: the probability of success, and the latency distribution given success.
 
 Let $n_s = |\mathcal{L}|$ denote the number of successful samples and let $t_{(1)} \leq t_{(2)} \leq \cdots \leq t_{(n_s)}$ be the order statistics of the successful latencies.
 
@@ -1837,15 +1843,17 @@ The ceiling ensures integer millisecond thresholds, and the $\max$ ensures the t
 
 #### 12.4.3 Statistical Interpretation
 
-This derivation answers: "What is the upper bound of the $(1-\alpha)$ confidence interval for the true percentile, given the baseline observations?"
+This derivation answers a more modest engineering question:
 
-A test with observed $Q(p_j) \leq \tau_j$ means: the observed percentile is within the range expected from a system whose true latency profile matches the baseline, at the specified confidence level.
+> "What is a conservative upper tolerance for this baseline percentile, allowing for ordinary sampling variation?"
 
-A breach ($Q(p_j) > \tau_j$) means: the observed percentile exceeds what we would expect from normal sampling variance alone, providing evidence of latency degradation.
+A test with observed $Q(p_j) \leq \tau_j$ means: the observed percentile is within the tolerance PUnit derives from the measured baseline and its overall spread.
+
+A breach ($Q(p_j) > \tau_j$) means: the observed percentile exceeds that baseline-derived tolerance, providing evidence suggestive of latency degradation.
 
 #### 12.4.4 Limitations of this Approach
 
-The formula $\hat{\tau}_j = Q(p_j) + z \cdot s / \sqrt{n_s}$ uses the standard error of the *mean* as a proxy for the standard error of the *percentile*. For the true standard error of an order statistic, the density of the distribution at the percentile point is required — which is unknown in the non-parametric setting.
+The formula $\hat{\tau}_j = Q(p_j) + z \cdot s / \sqrt{n_s}$ uses the standard error of the *mean* as a proxy for the uncertainty of the *percentile*. It should therefore be understood as an engineering approximation, not as a formal non-parametric confidence interval for the quantile. For the true sampling distribution of an order statistic, the density of the distribution at the percentile point is required — which is unknown in the non-parametric setting.
 
 The approximation is conservative in practice for the following reasons:
 

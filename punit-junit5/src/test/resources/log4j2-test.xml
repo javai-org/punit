@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="OFF">
+    <Appenders>
+        <!-- Plain console for tests (no ANSI colors to avoid polluting captured messages) -->
+        <Console name="PUnitConsole" target="SYSTEM_OUT">
+            <PatternLayout pattern="%msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <!-- PUnit reporter - plain output for tests -->
+        <Logger name="org.javai.punit.reporting.PUnitReporter" level="info" additivity="false">
+            <AppenderRef ref="PUnitConsole"/>
+        </Logger>
+        
+        <!-- Silence everything else during tests -->
+        <Root level="off"/>
+    </Loggers>
+</Configuration>
