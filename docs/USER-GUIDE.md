@@ -20,6 +20,7 @@ All attribution licensing is ARL.
   - [The Parameter Triangle](#the-parameter-triangle)
   - [Threshold Approaches](#threshold-approaches)
   - [Understanding Test Results](#understanding-test-results)
+  - [The Latency Attribute](#the-latency-attribute)
 - [Part 2: The MEASURE Experiment](#part-2-the-measure-experiment)
   - [When No Normative Threshold Exists](#when-no-normative-threshold-exists)
   - [Running a MEASURE Experiment](#running-a-measure-experiment)
@@ -386,6 +387,65 @@ Every probabilistic test produces a verdict with statistical context:
 | **FAILED** | Observed rate is below expected threshold | Investigate; possible regression      |
 
 The report provides the evidence; operators provide the judgment.
+
+### The Latency Attribute
+
+Every `@ProbabilisticTest` has an optional `latency` attribute that controls whether and how PUnit evaluates response-time percentiles alongside the pass-rate verdict. Three situations determine how the attribute should be used:
+
+**1. Omit `latency` when using a baseline spec**
+
+When the test references a use case whose baseline spec contains latency data, PUnit **automatically** derives latency thresholds — no annotation is needed:
+
+```java
+@ProbabilisticTest(
+    useCase = PaymentGatewayUseCase.class,
+    samples = 200
+)
+void paymentServiceConformsToBaseline() {
+    paymentService.processPayment(testPayment()).assertAll();
+}
+```
+
+PUnit derives both the pass-rate threshold and the latency thresholds from the spec. If the spec has no latency section, latency is simply not evaluated.
+
+**2. Set explicit thresholds for contractual latency targets**
+
+When you have a known SLA or SLO that prescribes response-time limits, declare them directly:
+
+```java
+@ProbabilisticTest(
+    samples = 200,
+    minPassRate = 0.95,
+    latency = @Latency(p95Ms = 500, p99Ms = 1000)
+)
+void paymentServiceMeetsLatencySla() {
+    PaymentResult result = paymentService.processPayment(testPayment());
+    assertThat(result.isSuccessful()).isTrue();
+}
+```
+
+The `@Latency` annotation supports four percentiles: `p50Ms`, `p90Ms`, `p95Ms`, and `p99Ms`. Declare only the ones you care about — unset percentiles (default `-1`) are not asserted.
+
+> **Misconfiguration guard:** Explicit `@Latency` thresholds and a baseline spec with latency data are mutually exclusive. If both are present, PUnit raises a configuration error.
+
+**3. Use `@Latency(disabled = true)` to opt out**
+
+When a baseline spec contains latency data but you only want to assert pass-rate, disable latency evaluation explicitly:
+
+```java
+@ProbabilisticTest(
+    useCase = PaymentGatewayUseCase.class,
+    samples = 200,
+    latency = @Latency(disabled = true)
+)
+void passRateOnlyTest() { ... }
+```
+
+Without this opt-out, PUnit would automatically derive and evaluate latency thresholds from the baseline.
+
+**When none of the above applies** — inline threshold tests with no baseline and no explicit `@Latency` — the attribute can simply be omitted. PUnit evaluates pass-rate only.
+
+For full details on latency mechanics, enforcement modes, and sample-size requirements, see [Part 8: Latency](#part-8-latency).
 
 ---
 
