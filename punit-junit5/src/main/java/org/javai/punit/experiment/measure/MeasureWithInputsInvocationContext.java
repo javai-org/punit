@@ -5,7 +5,6 @@ import java.util.List;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.experiment.engine.input.InputParameterResolver;
 import org.javai.punit.experiment.engine.shared.CaptorParameterResolver;
-import org.javai.punit.experiment.engine.shared.UseCaseFactoryParameterResolver;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 
@@ -36,7 +35,6 @@ public record MeasureWithInputsInvocationContext(
     @Override
     public List<Extension> getAdditionalExtensions() {
         List<Extension> extensions = new ArrayList<>();
-        extensions.add(new UseCaseFactoryParameterResolver());
         extensions.add(new CaptorParameterResolver(captor, null, sampleNumber));
         extensions.add(new InputParameterResolver(inputValue, inputType));
         return extensions;

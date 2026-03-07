@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.reporting.PUnitReporter;
@@ -243,22 +243,22 @@ class BaselineSelectionOrchestrator {
     }
 
     /**
-     * Finds a UseCaseFactory from the test instance or class.
+     * Finds a UseCaseProvider from the test instance or class.
      *
      * <p>Walks enclosing class instances for {@code @Nested} test classes,
      * since the factory is typically declared on the outermost test class.
      *
      * @param testInstance the test instance (may be null)
      * @param testClass the test class (may be null)
-     * @return the UseCaseFactory if found
+     * @return the UseCaseProvider if found
      */
-    Optional<UseCaseFactory> findUseCaseFactory(Object testInstance, Class<?> testClass) {
+    Optional<UseCaseProvider> findUseCaseFactory(Object testInstance, Class<?> testClass) {
         // Search instance fields, walking both the class hierarchy and
         // enclosing instances for @Nested classes
         if (testInstance != null) {
             Object current = testInstance;
             while (current != null) {
-                Optional<UseCaseFactory> found = findInInstanceFields(current);
+                Optional<UseCaseProvider> found = findInInstanceFields(current);
                 if (found.isPresent()) {
                     return found;
                 }
@@ -271,11 +271,11 @@ class BaselineSelectionOrchestrator {
             Class<?> clazz = testClass;
             while (clazz != null && clazz != Object.class) {
                 for (Field field : clazz.getDeclaredFields()) {
-                    if (UseCaseFactory.class.isAssignableFrom(field.getType())
+                    if (UseCaseProvider.class.isAssignableFrom(field.getType())
                             && Modifier.isStatic(field.getModifiers())) {
                         field.setAccessible(true);
                         try {
-                            UseCaseFactory factory = (UseCaseFactory) field.get(null);
+                            UseCaseProvider factory = (UseCaseProvider) field.get(null);
                             if (factory != null) {
                                 return Optional.of(factory);
                             }
@@ -294,17 +294,17 @@ class BaselineSelectionOrchestrator {
     /**
      * Searches instance fields on the given object, walking the class hierarchy.
      */
-    private Optional<UseCaseFactory> findInInstanceFields(Object instance) {
+    private Optional<UseCaseProvider> findInInstanceFields(Object instance) {
         Class<?> clazz = instance.getClass();
         while (clazz != null && clazz != Object.class) {
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isSynthetic()) {
                     continue;
                 }
-                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        UseCaseFactory factory = (UseCaseFactory) field.get(instance);
+                        UseCaseProvider factory = (UseCaseProvider) field.get(instance);
                         if (factory != null) {
                             return Optional.of(factory);
                         }
@@ -348,20 +348,20 @@ class BaselineSelectionOrchestrator {
     }
 
     /**
-     * Resolves the use case instance from a factory.
+     * Resolves the use case instance from a provider.
      *
-     * @param factory the UseCaseFactory
+     * @param provider the UseCaseProvider
      * @param useCaseClass the use case class
      * @return the use case instance, or null if not available
      */
-    Object resolveUseCaseInstance(UseCaseFactory factory, Class<?> useCaseClass) {
-        if (factory == null || !factory.isRegistered(useCaseClass)) {
+    Object resolveUseCaseInstance(UseCaseProvider provider, Class<?> useCaseClass) {
+        if (provider == null || !provider.isRegistered(useCaseClass)) {
             return null;
         }
         try {
-            return factory.getInstance(useCaseClass);
+            return provider.getInstance(useCaseClass);
         } catch (IllegalStateException e) {
-            // Factory not registered - covariate resolution will use fallback
+            // Provider not registered - covariate resolution will use fallback
             return null;
         }
     }

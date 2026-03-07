@@ -17,6 +17,7 @@ import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
@@ -291,12 +292,12 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
                     "@OptimizeExperiment requires useCase to be specified");
         }
 
-        // Try to get from UseCaseFactory
-        Optional<UseCaseFactory> factoryOpt = findUseCaseFactory(context);
-        if (factoryOpt.isPresent()) {
-            UseCaseFactory factory = factoryOpt.get();
-            if (factory.isRegistered(useCaseClass)) {
-                return factory.getInstance(useCaseClass);
+        // Try to get from UseCaseProvider
+        Optional<UseCaseProvider> providerOpt = findUseCaseFactory(context);
+        if (providerOpt.isPresent()) {
+            UseCaseProvider provider = providerOpt.get();
+            if (provider.isRegistered(useCaseClass)) {
+                return provider.getInstance(useCaseClass);
             }
         }
 
@@ -375,7 +376,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         return new OptimizeCompositeTerminationPolicy(policies);
     }
 
-    private Optional<UseCaseFactory> findUseCaseFactory(ExtensionContext context) {
+    private Optional<UseCaseProvider> findUseCaseFactory(ExtensionContext context) {
         // Use getTestInstance() instead of getRequiredTestInstance() because
         // during provideInvocationContexts(), the test instance may not exist yet
         Optional<Object> testInstanceOpt = context.getTestInstance();
@@ -388,10 +389,10 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         while (clazz != null && clazz != Object.class) {
             for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
                 if (field.isSynthetic()) continue;
-                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        return Optional.of((UseCaseFactory) field.get(testInstance));
+                        return Optional.of((UseCaseProvider) field.get(testInstance));
                     } catch (IllegalAccessException e) {
                         // Continue searching
                     }

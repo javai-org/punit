@@ -10,19 +10,24 @@ import org.javai.punit.api.InputSource;
 import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.Sentinel;
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.outcome.Outcome;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
- * Test subjects for verifying the DD-06 inheritance model.
+ * Test subjects for verifying the Sentinel inheritance model.
  *
- * <p>These classes simulate the Sentinel authoring pattern where a reliability
- * specification superclass declares the {@link UseCaseFactory}, test methods,
- * and input sources — and a JUnit test subclass inherits everything.
+ * <p>These classes simulate the pattern where a {@code @Sentinel} reliability
+ * specification superclass declares test methods and input sources, and a JUnit
+ * test subclass provides its own {@link UseCaseProvider} with
+ * {@code @RegisterExtension} and {@code @BeforeEach} setup.
  *
  * <p>These are NOT meant to be run directly. They are executed via TestKit
  * from {@code InheritanceIntegrationTest}.
@@ -71,8 +76,9 @@ public class InheritanceTestSubjects {
 
     /**
      * Superclass simulating a @Sentinel reliability spec.
-     * Declares UseCaseFactory, @ProbabilisticTest method, and @InputSource.
+     * Declares UseCaseFactory, @ProbabilisticTest method — pure PUnit, no JUnit.
      */
+    @Sentinel
     public static class ProbabilisticTestSpec {
         UseCaseFactory factory = new UseCaseFactory();
         {
@@ -87,9 +93,16 @@ public class InheritanceTestSubjects {
     }
 
     /**
-     * Subclass with no declarations — mirrors the one-line JUnit test class pattern.
+     * JUnit subclass — adds UseCaseProvider with @RegisterExtension.
      */
     public static class InheritedProbabilisticTest extends ProbabilisticTestSpec {
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleUseCase.class, SimpleUseCase::new);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -99,6 +112,7 @@ public class InheritanceTestSubjects {
     /**
      * Superclass with @ProbabilisticTest + @InputSource, both inherited.
      */
+    @Sentinel
     public static class ProbabilisticTestWithInputsSpec {
         UseCaseFactory factory = new UseCaseFactory();
         {
@@ -118,10 +132,17 @@ public class InheritanceTestSubjects {
     }
 
     /**
-     * Subclass inheriting @ProbabilisticTest + @InputSource.
+     * JUnit subclass inheriting @ProbabilisticTest + @InputSource.
      */
     public static class InheritedProbabilisticTestWithInputs
             extends ProbabilisticTestWithInputsSpec {
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleUseCase.class, SimpleUseCase::new);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -131,6 +152,7 @@ public class InheritanceTestSubjects {
     /**
      * Superclass with @MeasureExperiment.
      */
+    @Sentinel
     public static class MeasureExperimentSpec {
         UseCaseFactory factory = new UseCaseFactory();
         {
@@ -144,8 +166,15 @@ public class InheritanceTestSubjects {
     }
 
     /**
-     * Subclass inheriting @MeasureExperiment.
+     * JUnit subclass inheriting @MeasureExperiment.
      */
     public static class InheritedMeasureExperiment extends MeasureExperimentSpec {
+        @RegisterExtension
+        UseCaseProvider provider = new UseCaseProvider();
+
+        @BeforeEach
+        void setUp() {
+            provider.register(SimpleUseCase.class, SimpleUseCase::new);
+        }
     }
 }

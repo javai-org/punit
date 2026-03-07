@@ -2,7 +2,7 @@ package org.javai.punit.experiment.engine.shared;
 
 import java.util.List;
 import java.util.Optional;
-import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.api.UseCaseProvider;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -39,19 +39,19 @@ public class FactorValuesInitializer implements BeforeEachCallback, AfterEachCal
 
     @Override
     public void afterEach(ExtensionContext context) {
-        findFactory(context).ifPresent(UseCaseFactory::clearCurrentFactorValues);
+        findFactory(context).ifPresent(UseCaseProvider::clearCurrentFactorValues);
     }
 
-    private Optional<UseCaseFactory> findFactory(ExtensionContext context) {
+    private Optional<UseCaseProvider> findFactory(ExtensionContext context) {
         Object testInstance = context.getRequiredTestInstance();
         Class<?> clazz = testInstance.getClass();
         while (clazz != null && clazz != Object.class) {
             for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
                 if (field.isSynthetic()) continue;
-                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        return Optional.of((UseCaseFactory) field.get(testInstance));
+                        return Optional.of((UseCaseProvider) field.get(testInstance));
                     } catch (IllegalAccessException e) {
                         // Continue searching
                     }

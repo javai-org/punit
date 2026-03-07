@@ -114,7 +114,7 @@ class SpecificationRegistryTest {
         void loadsSpecByUseCaseId() throws IOException {
             createSpecFile("TestUseCase", 0.85);
 
-            var spec = registry.resolve("TestUseCase");
+            var spec = registry.resolveOrThrow("TestUseCase");
 
             assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
             assertThat(spec.getMinPassRate()).isEqualTo(0.85);
@@ -125,7 +125,7 @@ class SpecificationRegistryTest {
         void loadsV2SpecWithEmpiricalBasis() throws IOException {
             createV2SpecFile("TestUseCase", 1000, 900);
 
-            var spec = registry.resolve("TestUseCase");
+            var spec = registry.resolveOrThrow("TestUseCase");
 
             assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
             assertThat(spec.hasEmpiricalBasis()).isTrue();
@@ -139,7 +139,7 @@ class SpecificationRegistryTest {
         void stripsLegacyVersionSuffix() throws IOException {
             createSpecFile("TestUseCase", 0.9);
 
-            var spec = registry.resolve("TestUseCase:v1");
+            var spec = registry.resolveOrThrow("TestUseCase:v1");
 
             assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
         }
@@ -149,25 +149,37 @@ class SpecificationRegistryTest {
         void cachesLoadedSpecs() throws IOException {
             createSpecFile("TestUseCase", 0.85);
 
-            var spec1 = registry.resolve("TestUseCase");
-            var spec2 = registry.resolve("TestUseCase");
+            var spec1 = registry.resolveOrThrow("TestUseCase");
+            var spec2 = registry.resolveOrThrow("TestUseCase");
 
             assertThat(spec1).isSameAs(spec2);
         }
 
         @Test
-        @DisplayName("throws when spec not found")
+        @DisplayName("throws when spec not found via resolveOrThrow")
         void throwsWhenSpecNotFound() {
-            assertThatThrownBy(() -> registry.resolve("NonExistent"))
+            assertThatThrownBy(() -> registry.resolveOrThrow("NonExistent"))
                 .isInstanceOf(SpecificationNotFoundException.class)
                 .hasMessageContaining("NonExistent");
         }
 
         @Test
+        @DisplayName("returns empty when spec not found via resolve")
+        void returnsEmptyWhenSpecNotFound() {
+            assertThat(registry.resolve("NonExistent")).isEmpty();
+        }
+
+        @Test
         @DisplayName("throws on null spec ID")
         void throwsOnNullSpecId() {
-            assertThatThrownBy(() -> registry.resolve(null))
+            assertThatThrownBy(() -> registry.resolveOrThrow(null))
                 .isInstanceOf(NullPointerException.class);
+        }
+
+        @Test
+        @DisplayName("returns empty for null via resolve")
+        void returnsEmptyForNull() {
+            assertThat(registry.resolve(null)).isEmpty();
         }
 
         @Test
@@ -206,7 +218,7 @@ class SpecificationRegistryTest {
             sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
             Files.writeString(tempDir.resolve("YmlCase.yml"), sb.toString());
 
-            var spec = registry.resolve("YmlCase");
+            var spec = registry.resolveOrThrow("YmlCase");
 
             assertThat(spec.getUseCaseId()).isEqualTo("YmlCase");
         }
@@ -216,7 +228,7 @@ class SpecificationRegistryTest {
         void validatesV2SpecWithoutApprovalMetadata() throws IOException {
             createV2SpecFile("TestUseCase", 500, 450);
 
-            var spec = registry.resolve("TestUseCase");
+            var spec = registry.resolveOrThrow("TestUseCase");
 
             // v2 specs without approval should still be valid
             assertThat(spec.hasApprovalMetadata()).isFalse();
@@ -261,7 +273,7 @@ class SpecificationRegistryTest {
         @DisplayName("returns true for cached spec")
         void returnsTrueForCachedSpec() throws IOException {
             createSpecFile("TestUseCase", 0.9);
-            registry.resolve("TestUseCase"); // Load into cache
+            registry.resolveOrThrow("TestUseCase"); // Load into cache
 
             assertThat(registry.exists("TestUseCase")).isTrue();
         }
@@ -283,12 +295,50 @@ class SpecificationRegistryTest {
         @DisplayName("clears cached specs")
         void clearsCachedSpecs() throws IOException {
             createSpecFile("TestUseCase", 0.85);
-            var spec1 = registry.resolve("TestUseCase");
-            
+            var spec1 = registry.resolveOrThrow("TestUseCase");
+
             registry.clearCache();
-            var spec2 = registry.resolve("TestUseCase");
+            var spec2 = registry.resolveOrThrow("TestUseCase");
 
             assertThat(spec1).isNotSameAs(spec2);
+        }
+    }
+
+    @Nested
+    @DisplayName("SpecRepository interface")
+    class SpecRepositoryInterface {
+
+        @Test
+        @DisplayName("resolves spec via SpecRepository interface")
+        void resolvesSpecViaInterface() throws IOException {
+            createSpecFile("TestUseCase", 0.85);
+
+            SpecRepository repo = registry;
+            var result = repo.resolve("TestUseCase");
+
+            assertThat(result).isPresent();
+            assertThat(result.get().getUseCaseId()).isEqualTo("TestUseCase");
+        }
+
+        @Test
+        @DisplayName("returns empty for non-existing spec via SpecRepository interface")
+        void returnsEmptyForNonExistingSpec() {
+            SpecRepository repo = registry;
+            var result = repo.resolve("NonExistent");
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("resolves dimension-qualified latency spec")
+        void resolvesDimensionQualifiedLatencySpec() throws IOException {
+            createLatencySpecFile("TestUseCase");
+
+            SpecRepository repo = registry;
+            var result = repo.resolve("TestUseCase.latency");
+
+            assertThat(result).isPresent();
+            assertThat(result.get().hasLatencyBaseline()).isTrue();
         }
     }
 
@@ -302,5 +352,46 @@ class SpecificationRegistryTest {
             assertThatThrownBy(() -> new SpecificationRegistry(null))
                 .isInstanceOf(NullPointerException.class);
         }
+    }
+
+    private void createLatencySpecFile(String useCaseId) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("schemaVersion: punit-spec-2\n");
+        sb.append("useCaseId: ").append(useCaseId).append(".latency\n");
+        sb.append("generatedAt: 2026-03-07T10:00:00Z\n");
+        sb.append("execution:\n");
+        sb.append("  samplesPlanned: 1000\n");
+        sb.append("  samplesExecuted: 1000\n");
+        sb.append("  terminationReason: COMPLETED\n");
+        sb.append("statistics:\n");
+        sb.append("  successRate:\n");
+        sb.append("    observed: 0.9500\n");
+        sb.append("    standardError: 0.0069\n");
+        sb.append("    confidenceInterval95: [0.9365, 0.9635]\n");
+        sb.append("  successes: 950\n");
+        sb.append("  failures: 50\n");
+        sb.append("empiricalBasis:\n");
+        sb.append("  samples: 1000\n");
+        sb.append("  successes: 950\n");
+        sb.append("latency:\n");
+        sb.append("  sampleCount: 950\n");
+        sb.append("  meanMs: 450\n");
+        sb.append("  standardDeviationMs: 120\n");
+        sb.append("  p50Ms: 380\n");
+        sb.append("  p90Ms: 620\n");
+        sb.append("  p95Ms: 750\n");
+        sb.append("  p99Ms: 1100\n");
+        sb.append("  maxMs: 1400\n");
+        sb.append("cost:\n");
+        sb.append("  totalTimeMs: 450000\n");
+        sb.append("  avgTimePerSampleMs: 450\n");
+        sb.append("  totalTokens: 100000\n");
+        sb.append("  avgTokensPerSample: 100\n");
+        sb.append("requirements:\n");
+        sb.append("  minPassRate: 0.9000\n");
+        String content = sb.toString();
+        sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
+
+        Files.writeString(tempDir.resolve(useCaseId + ".latency.yaml"), sb.toString());
     }
 }

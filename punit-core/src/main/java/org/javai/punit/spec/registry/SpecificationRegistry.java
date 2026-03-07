@@ -17,9 +17,15 @@ import org.javai.punit.spec.model.ExecutionSpecification;
  *
  * <h2>Spec ID Format</h2>
  * <p>Spec IDs are simply the use case ID (e.g., "ShoppingUseCase").
+ * Dimension-qualified IDs are also supported (e.g., "ShoppingUseCase.latency").
  * Specs are stored as flat files: {@code punit/specs/{useCaseId}.yaml}
+ *
+ * <h2>Dimension-Qualified Resolution</h2>
+ * <p>When a spec ID ends with ".latency", the registry looks for a dedicated
+ * latency spec file ({@code {useCaseId}.latency.yaml}). If not found, it falls
+ * back to the legacy single-file spec and extracts latency data from it.
  */
-public class SpecificationRegistry {
+public class SpecificationRegistry implements SpecRepository {
 
 	private final Path specsRoot;
 	private final Map<String, ExecutionSpecification> cache = new ConcurrentHashMap<>();
@@ -61,18 +67,39 @@ public class SpecificationRegistry {
 	}
 
 	/**
-	 * Resolves a specification by its ID.
+	 * Resolves a specification by its ID, returning it as an Optional.
+	 *
+	 * <p>This is the {@link SpecRepository} interface method. It returns empty
+	 * instead of throwing when a spec is not found.
+	 *
+	 * @param specId the specification ID
+	 * @return the specification if found, or empty
+	 */
+	@Override
+	public Optional<ExecutionSpecification> resolve(String specId) {
+		if (specId == null) {
+			return Optional.empty();
+		}
+		try {
+			return Optional.of(resolveOrThrow(specId));
+		} catch (SpecificationNotFoundException e) {
+			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Resolves a specification by its ID, throwing if not found.
 	 *
 	 * @param specId the specification ID (the use case ID, e.g., "ShoppingUseCase")
 	 * @return the loaded specification
 	 * @throws SpecificationNotFoundException if not found
 	 * @throws org.javai.punit.spec.model.SpecificationValidationException if invalid
 	 */
-	public ExecutionSpecification resolve(String specId) {
+	public ExecutionSpecification resolveOrThrow(String specId) {
 		Objects.requireNonNull(specId, "specId must not be null");
 		// Strip any legacy version suffix (e.g., ":v1") for backwards compatibility
-		String useCaseId = stripVersionSuffix(specId);
-		return cache.computeIfAbsent(useCaseId, this::loadSpec);
+		String normalizedId = stripVersionSuffix(specId);
+		return cache.computeIfAbsent(normalizedId, this::loadSpec);
 	}
 
 	private String stripVersionSuffix(String specId) {
@@ -83,13 +110,13 @@ public class SpecificationRegistry {
 		return specId;
 	}
 
-	private ExecutionSpecification loadSpec(String useCaseId) {
-		Optional<Path> specPathOpt = resolveSpecPath(useCaseId);
+	private ExecutionSpecification loadSpec(String specId) {
+		Optional<Path> specPathOpt = resolveSpecPath(specId);
 
 		if (specPathOpt.isEmpty()) {
 			throw new SpecificationNotFoundException(
-					"Specification not found: " + useCaseId +
-							" (tried " + useCaseId + ".yaml/.yml in " + specsRoot + ")");
+					"Specification not found: " + specId +
+							" (tried " + specId + ".yaml/.yml in " + specsRoot + ")");
 		}
 
 		try {
@@ -98,16 +125,16 @@ public class SpecificationRegistry {
 			return spec;
 		} catch (IOException e) {
 			throw new SpecificationLoadException(
-					"Failed to load specification: " + useCaseId, e);
+					"Failed to load specification: " + specId, e);
 		}
 	}
 
-	private Optional<Path> resolveSpecPath(String useCaseId) {
-		// Flat structure: specs/{useCaseId}.yaml
-		Path yamlPath = specsRoot.resolve(useCaseId + ".yaml");
+	private Optional<Path> resolveSpecPath(String specId) {
+		// Flat structure: specs/{specId}.yaml
+		Path yamlPath = specsRoot.resolve(specId + ".yaml");
 		if (Files.exists(yamlPath)) return Optional.of(yamlPath);
 
-		Path ymlPath = specsRoot.resolve(useCaseId + ".yml");
+		Path ymlPath = specsRoot.resolve(specId + ".yml");
 		if (Files.exists(ymlPath)) return Optional.of(ymlPath);
 
 		return Optional.empty();
@@ -122,10 +149,10 @@ public class SpecificationRegistry {
 	public boolean exists(String specId) {
 		if (specId == null) return false;
 
-		String useCaseId = stripVersionSuffix(specId);
-		if (cache.containsKey(useCaseId)) return true;
+		String normalizedId = stripVersionSuffix(specId);
+		if (cache.containsKey(normalizedId)) return true;
 
-		return resolveSpecPath(useCaseId).isPresent();
+		return resolveSpecPath(normalizedId).isPresent();
 	}
 
 	/**
@@ -135,5 +162,11 @@ public class SpecificationRegistry {
 		cache.clear();
 	}
 
-}
+	/**
+	 * Returns the specs root directory.
+	 */
+	public Path getSpecsRoot() {
+		return specsRoot;
+	}
 
+}

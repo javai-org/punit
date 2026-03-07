@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Optional;
 import org.javai.punit.api.UseCaseContext;
-import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.EmpiricalBaselineGenerator;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
@@ -69,9 +69,9 @@ public class MeasureSpecGenerator {
 
                 // Get use case instance for @CovariateSource resolution
                 Object useCaseInstance = null;
-                Optional<UseCaseFactory> factoryOpt = findUseCaseFactory(context);
-                if (factoryOpt.isPresent()) {
-                    useCaseInstance = factoryOpt.get().getCurrentInstance(useCaseClass);
+                Optional<UseCaseProvider> providerOpt = findUseCaseFactory(context);
+                if (providerOpt.isPresent()) {
+                    useCaseInstance = providerOpt.get().getCurrentInstance(useCaseClass);
                 }
 
                 DefaultCovariateResolutionContext resolutionContext =
@@ -104,13 +104,23 @@ public class MeasureSpecGenerator {
                 covariateProfile
         );
 
-        // Write spec to file using measure-specific output format
+        // Write spec files using measure-specific output format.
+        // Produces per-dimension files: functional spec + latency spec (when latency data exists).
+        // The combined spec is also written for backward compatibility.
         try {
-            Path outputPath = resolveOutputPath(useCaseId, footprint, covariateProfile);
             MeasureOutputWriter writer = new MeasureOutputWriter();
-            writer.write(baseline, outputPath);
 
+            // Write combined spec (backward compatibility)
+            Path outputPath = resolveOutputPath(useCaseId, footprint, covariateProfile);
+            writer.write(baseline, outputPath);
             context.publishReportEntry("punit.spec.outputPath", outputPath.toString());
+
+            // Write latency-only spec when latency data is available
+            if (baseline.hasLatencyDistribution()) {
+                Path latencyPath = resolveOutputPath(useCaseId + ".latency", footprint, covariateProfile);
+                writer.write(baseline, latencyPath);
+                context.publishReportEntry("punit.spec.latencyOutputPath", latencyPath.toString());
+            }
         } catch (IOException e) {
             context.publishReportEntry("punit.spec.error", e.getMessage());
         }
@@ -160,16 +170,16 @@ public class MeasureSpecGenerator {
                 String.valueOf(aggregator.getTotalTokens()));
     }
 
-    private Optional<UseCaseFactory> findUseCaseFactory(ExtensionContext context) {
+    private Optional<UseCaseProvider> findUseCaseFactory(ExtensionContext context) {
         Object testInstance = context.getRequiredTestInstance();
         Class<?> clazz = testInstance.getClass();
         while (clazz != null && clazz != Object.class) {
             for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
                 if (field.isSynthetic()) continue;
-                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        return Optional.of((UseCaseFactory) field.get(testInstance));
+                        return Optional.of((UseCaseProvider) field.get(testInstance));
                     } catch (IllegalAccessException e) {
                         // Continue searching
                     }

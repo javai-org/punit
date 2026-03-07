@@ -566,7 +566,9 @@ Concrete mechanism:
 
 ---
 
-## Phase 3: Per-Dimension Baselines and Spec Resolution
+## Phase 3: Per-Dimension Baselines and Spec Resolution — COMPLETE
+
+**Status:** Complete (2026-03-07)
 
 **Addresses:** DD-01 (per-dimension specs), REQ-S02
 

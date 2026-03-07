@@ -16,6 +16,7 @@ import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
@@ -292,8 +293,8 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                     "No aggregator found for configuration: " + configName);
         }
 
-        // Set factor values on the UseCaseFactory
-        Optional<UseCaseFactory> factoryOpt = findUseCaseFactory(extensionContext);
+        // Set factor values on the UseCaseProvider
+        Optional<UseCaseProvider> factoryOpt = findUseCaseFactory(extensionContext);
         factoryOpt.ifPresent(provider -> {
             if (factorValues != null && factorInfos != null) {
                 List<String> factorNames = factorInfos.stream()
@@ -371,16 +372,16 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         return samplesPerConfig * argsList.size();
     }
 
-    private Optional<UseCaseFactory> findUseCaseFactory(ExtensionContext context) {
+    private Optional<UseCaseProvider> findUseCaseFactory(ExtensionContext context) {
         Object testInstance = context.getRequiredTestInstance();
         Class<?> clazz = testInstance.getClass();
         while (clazz != null && clazz != Object.class) {
             for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
                 if (field.isSynthetic()) continue;
-                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        return Optional.of((UseCaseFactory) field.get(testInstance));
+                        return Optional.of((UseCaseProvider) field.get(testInstance));
                     } catch (IllegalAccessException e) {
                         // Continue searching
                     }

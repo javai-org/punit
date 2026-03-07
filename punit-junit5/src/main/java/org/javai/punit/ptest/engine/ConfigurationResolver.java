@@ -11,9 +11,9 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.spec.registry.LayeredSpecRepository;
+import org.javai.punit.spec.registry.SpecRepository;
 import org.javai.punit.spec.registry.SpecificationIntegrityException;
-import org.javai.punit.spec.registry.SpecificationNotFoundException;
-import org.javai.punit.spec.registry.SpecificationRegistry;
 import org.javai.punit.statistics.StatisticalDefaults;
 
 /**
@@ -34,6 +34,24 @@ import org.javai.punit.statistics.StatisticalDefaults;
 public class ConfigurationResolver {
 
     private static final Logger logger = LogManager.getLogger(ConfigurationResolver.class);
+
+    private final SpecRepository specRepository;
+
+    /**
+     * Creates a configuration resolver with the default layered spec repository.
+     */
+    public ConfigurationResolver() {
+        this(LayeredSpecRepository.createDefault());
+    }
+
+    /**
+     * Creates a configuration resolver with a specific spec repository.
+     *
+     * @param specRepository the spec repository to use for spec resolution
+     */
+    public ConfigurationResolver(SpecRepository specRepository) {
+        this.specRepository = specRepository;
+    }
 
     // System property names
     public static final String PROP_SAMPLES = "punit.samples";
@@ -518,8 +536,11 @@ public class ConfigurationResolver {
      * <p>This method is used both for loading minPassRate and for factor consistency
      * validation. It handles all error cases gracefully.
      *
+     * <p>Uses the configured {@link SpecRepository} for resolution, which supports
+     * layered fallback (environment-local → classpath) via {@link LayeredSpecRepository}.
+     *
      * @param specId the specification ID
-     * @return the loaded spec, or null if not found or loading failed
+     * @return the loaded spec, or empty if not found or loading failed
      * @throws SpecificationIntegrityException if spec file fails integrity validation
      */
     public Optional<ExecutionSpecification> loadSpec(String specId) {
@@ -527,19 +548,47 @@ public class ConfigurationResolver {
             return Optional.empty();
         }
         try {
-            SpecificationRegistry registry = new SpecificationRegistry();
-            return Optional.of(registry.resolve(specId));
+            return specRepository.resolve(specId);
         } catch (SpecificationIntegrityException e) {
             // Integrity failures must propagate - indicates tampering or corruption
             throw e;
-        } catch (SpecificationNotFoundException e) {
-            // Spec not found
-            return Optional.empty();
         } catch (Exception e) {
             // Log warning but don't fail
             logger.warn("Warning: Failed to load spec {}: {}", specId, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Loads the latency spec for a use case, using dimension-qualified resolution.
+     *
+     * <p>Resolution order:
+     * <ol>
+     *   <li>Dedicated latency spec: {@code {specId}.latency.yaml}</li>
+     *   <li>Legacy combined spec: {@code {specId}.yaml} — extracts latency data if present</li>
+     * </ol>
+     *
+     * @param specId the base spec ID (use case ID)
+     * @return the latency spec if found, or empty
+     */
+    public Optional<ExecutionSpecification> loadLatencySpec(String specId) {
+        if (specId == null || specId.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // Try dedicated latency spec first
+        Optional<ExecutionSpecification> latencySpec = loadSpec(specId + ".latency");
+        if (latencySpec.isPresent()) {
+            return latencySpec;
+        }
+
+        // Fall back to combined spec — only if it has latency baseline data
+        Optional<ExecutionSpecification> combinedSpec = loadSpec(specId);
+        if (combinedSpec.isPresent() && combinedSpec.get().hasLatencyBaseline()) {
+            return combinedSpec;
+        }
+
+        return Optional.empty();
     }
 
     /**
@@ -552,5 +601,12 @@ public class ConfigurationResolver {
      */
     public Optional<String> resolveSpecIdFromAnnotation(ProbabilisticTest annotation) {
         return resolveSpecId(annotation);
+    }
+
+    /**
+     * Returns the underlying spec repository.
+     */
+    public SpecRepository getSpecRepository() {
+        return specRepository;
     }
 }

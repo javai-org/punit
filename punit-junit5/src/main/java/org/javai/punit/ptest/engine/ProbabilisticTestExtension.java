@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
 import org.javai.punit.controls.budget.ProbabilisticTestBudgetExtension;
@@ -429,6 +429,10 @@ public class ProbabilisticTestExtension implements
 	 * <p>Resolution is triggered when explicit thresholds are present OR
 	 * when the baseline contains latency data (automatic derivation).
 	 * Skipped when latency is disabled or when neither source is available.
+	 *
+	 * <p>Per-dimension spec resolution: if the provided baseline does not contain
+	 * latency data, attempts to load a dedicated latency spec via
+	 * {@link ConfigurationResolver#loadLatencySpec(String)}.
 	 */
 	private void resolveLatencyThresholds(ExtensionContext.Store store,
 										  ExecutionSpecification baseline,
@@ -444,13 +448,25 @@ public class ProbabilisticTestExtension implements
 			return;
 		}
 
-		boolean hasBaselineLatency = baseline != null && baseline.hasLatencyBaseline();
+		// Attempt per-dimension latency spec resolution
+		ExecutionSpecification latencySource = baseline;
+		if ((latencySource == null || !latencySource.hasLatencyBaseline())) {
+			TestConfiguration config = store.get(CONFIG_KEY, TestConfiguration.class);
+			if (config != null && config.specId() != null) {
+				Optional<ExecutionSpecification> latencySpec = configResolver.loadLatencySpec(config.specId());
+				if (latencySpec.isPresent()) {
+					latencySource = latencySpec.get();
+				}
+			}
+		}
+
+		boolean hasBaselineLatency = latencySource != null && latencySource.hasLatencyBaseline();
 		if (!latencyConfig.hasExplicitThresholds() && !hasBaselineLatency) {
 			return;
 		}
 
 		org.javai.punit.spec.model.LatencyBaseline latencyBaseline =
-				hasBaselineLatency ? baseline.getLatencyBaseline() : null;
+				hasBaselineLatency ? latencySource.getLatencyBaseline() : null;
 
 		TestConfiguration config = store.get(CONFIG_KEY, TestConfiguration.class);
 		double confidence = config != null ? config.resolvedConfidence() : 0.95;
@@ -825,11 +841,11 @@ public class ProbabilisticTestExtension implements
 
 		store.getOrComputeIfAbsent(SELECTION_RESULT_KEY, key -> {
 			// Resolve use case instance for covariate resolution
-			Optional<UseCaseFactory> factoryOpt = baselineOrchestrator.findUseCaseFactory(
+			Optional<UseCaseProvider> providerOpt = baselineOrchestrator.findUseCaseFactory(
 					context.getTestInstance().orElse(null),
 					context.getTestClass().orElse(null));
-			Object useCaseInstance = factoryOpt
-					.map(f -> baselineOrchestrator.resolveUseCaseInstance(f, pending.useCaseClass()))
+			Object useCaseInstance = providerOpt
+					.map(p -> baselineOrchestrator.resolveUseCaseInstance(p, pending.useCaseClass()))
 					.orElse(null);
 
 			// Perform baseline selection

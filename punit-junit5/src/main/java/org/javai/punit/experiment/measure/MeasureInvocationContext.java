@@ -3,7 +3,6 @@ package org.javai.punit.experiment.measure;
 import java.util.List;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.experiment.engine.shared.CaptorParameterResolver;
-import org.javai.punit.experiment.engine.shared.UseCaseFactoryParameterResolver;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 
@@ -27,8 +26,6 @@ public record MeasureInvocationContext(
 
     @Override
     public List<Extension> getAdditionalExtensions() {
-        return List.of(
-                new UseCaseFactoryParameterResolver(),
-                new CaptorParameterResolver(captor, null, sampleNumber));
+        return List.of(new CaptorParameterResolver(captor, null, sampleNumber));
     }
 }

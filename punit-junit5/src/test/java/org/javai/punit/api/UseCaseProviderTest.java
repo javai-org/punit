@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -320,7 +321,7 @@ class UseCaseProviderTest {
         @Test
         @DisplayName("uses @UseCase value when present")
         void usesUseCaseValueWhenPresent() {
-            String id = UseCaseProvider.resolveId(AnnotatedUseCase.class);
+            String id = UseCaseFactory.resolveId(AnnotatedUseCase.class);
 
             assertThat(id).isEqualTo("custom-id");
         }
@@ -328,7 +329,7 @@ class UseCaseProviderTest {
         @Test
         @DisplayName("uses simple class name when @UseCase has empty value")
         void usesSimpleClassNameWhenEmpty() {
-            String id = UseCaseProvider.resolveId(DefaultAnnotatedUseCase.class);
+            String id = UseCaseFactory.resolveId(DefaultAnnotatedUseCase.class);
 
             assertThat(id).isEqualTo("DefaultAnnotatedUseCase");
         }
@@ -336,7 +337,7 @@ class UseCaseProviderTest {
         @Test
         @DisplayName("uses simple class name when no annotation")
         void usesSimpleClassNameWhenNoAnnotation() {
-            String id = UseCaseProvider.resolveId(SimpleUseCase.class);
+            String id = UseCaseFactory.resolveId(SimpleUseCase.class);
 
             assertThat(id).isEqualTo("SimpleUseCase");
         }

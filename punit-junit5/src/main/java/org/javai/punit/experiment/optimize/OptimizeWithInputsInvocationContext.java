@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.experiment.engine.shared.UseCaseFactoryParameterResolver;
-import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.input.InputParameterResolver;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -54,7 +53,6 @@ public record OptimizeWithInputsInvocationContext(
     public List<Extension> getAdditionalExtensions() {
         List<Extension> extensions = new ArrayList<>();
 
-        extensions.add(new UseCaseFactoryParameterResolver());
         // IMPORTANT: ControlFactorInitializer must be before other resolvers to set factor value
         // before the use case is instantiated via parameter resolution
         extensions.add(new ControlFactorInitializer(treatmentValue, controlFactorName));
@@ -96,16 +94,16 @@ public record OptimizeWithInputsInvocationContext(
 
         @Override
         public void afterEach(ExtensionContext context) {
-            findProvider(context).ifPresent(UseCaseFactory::clearCurrentFactorValues);
+            findProvider(context).ifPresent(UseCaseProvider::clearCurrentFactorValues);
         }
 
-        private Optional<UseCaseFactory> findProvider(ExtensionContext context) {
+        private Optional<UseCaseProvider> findProvider(ExtensionContext context) {
             Object testInstance = context.getRequiredTestInstance();
             for (java.lang.reflect.Field field : testInstance.getClass().getDeclaredFields()) {
-                if (UseCaseFactory.class.isAssignableFrom(field.getType())) {
+                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     try {
-                        return Optional.of((UseCaseFactory) field.get(testInstance));
+                        return Optional.of((UseCaseProvider) field.get(testInstance));
                     } catch (IllegalAccessException e) {
                         // Continue searching
                     }
