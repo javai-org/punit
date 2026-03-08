@@ -11,6 +11,11 @@ dependencies {
     api(project(":punit-core"))
 }
 
+tasks.test {
+    // Test subjects are executed via SentinelRunner, not directly by JUnit
+    exclude("**/testsubjects/**")
+}
+
 tasks.jar {
     manifest {
         attributes(
