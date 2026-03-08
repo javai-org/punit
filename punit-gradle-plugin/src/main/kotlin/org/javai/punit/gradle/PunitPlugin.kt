@@ -4,10 +4,14 @@ import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import java.io.File
+import java.net.URLClassLoader
 
 /**
  * Gradle plugin that configures PUnit probabilistic testing tasks.
@@ -15,6 +19,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
  * Applies to any project using PUnit:
  * - Configures the `test` task to exclude experiment-tagged tests
  * - Registers `experiment` and `exp` tasks for running experiments
+ * - Registers `createSentinel` task to build an executable sentinel JAR
  * - Forwards `punit.*` system properties and supports `-Prun=` filter syntax
  */
 class PunitPlugin : Plugin<Project> {
@@ -37,6 +42,8 @@ class PunitPlugin : Plugin<Project> {
                 "Runs experiments (mode determined from @Experiment annotation)")
             registerExperimentTask(project, extension, "exp",
                 "Shorthand for 'experiment' task")
+
+            registerCreateSentinelTask(project, extension)
         }
     }
 
@@ -155,6 +162,139 @@ class PunitPlugin : Plugin<Project> {
                 }
             }
         }
+    }
+
+    private fun registerCreateSentinelTask(
+        project: Project,
+        extension: PunitExperimentExtension
+    ) {
+        project.tasks.register("createSentinel", Jar::class.java).configure {
+            description = "Builds an executable sentinel JAR with all @Sentinel classes"
+            group = "build"
+
+            val testSourceSet = project.extensions
+                .getByType(JavaPluginExtension::class.java)
+                .sourceSets.getByName("test")
+            val mainSourceSet = project.extensions
+                .getByType(JavaPluginExtension::class.java)
+                .sourceSets.getByName("main")
+
+            archiveClassifier.set("sentinel")
+
+            manifest {
+                attributes(mapOf(
+                    "Main-Class" to "org.javai.punit.sentinel.SentinelMain",
+                    "Implementation-Title" to "${project.name}-sentinel",
+                    "Implementation-Version" to project.version
+                ))
+            }
+
+            // Include compiled test and main classes
+            from(testSourceSet.output)
+            from(mainSourceSet.output)
+
+            // Include all runtime dependencies, unpacking JARs
+            from(testSourceSet.runtimeClasspath
+                .filter { it.exists() }
+                .map { if (it.isDirectory) it else project.zipTree(it) }
+            )
+
+            // Merge service files; first-wins for everything else
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+            // Exclude testsubjects from the sentinel JAR if configured
+            if (extension.excludeTestSubjects.get()) {
+                exclude("**/testsubjects/**")
+            }
+
+            // Exclude test framework classes that are not needed at runtime
+            exclude("**/archunit/**")
+            exclude("META-INF/maven/**")
+            exclude("META-INF/LICENSE*")
+            exclude("META-INF/NOTICE*")
+
+            dependsOn("compileTestJava", "processTestResources")
+
+            // Scan for @Sentinel classes and generate the manifest at build time
+            doFirst {
+                val sentinelClasses = scanForSentinelClasses(testSourceSet.output.classesDirs.files,
+                    testSourceSet.runtimeClasspath.files)
+
+                if (sentinelClasses.isEmpty()) {
+                    throw org.gradle.api.GradleException(
+                        "No @Sentinel-annotated classes found in test sources. " +
+                        "Annotate at least one reliability spec class with @Sentinel.")
+                }
+
+                // Write manifest to a temp directory that gets included in the JAR
+                val manifestDir = project.layout.buildDirectory
+                    .dir("generated/sentinel-manifest").get().asFile
+                val manifestFile = File(manifestDir, "META-INF/punit/sentinel-classes")
+                manifestFile.parentFile.mkdirs()
+                manifestFile.writeText(sentinelClasses.joinToString("\n") + "\n")
+
+                from(manifestDir)
+
+                project.logger.lifecycle("Sentinel classes discovered:")
+                sentinelClasses.forEach { project.logger.lifecycle("  $it") }
+            }
+
+            doLast {
+                project.logger.lifecycle(
+                    "Sentinel JAR created: ${archiveFile.get().asFile.relativeTo(project.projectDir)}")
+            }
+        }
+    }
+
+    /**
+     * Scans compiled test class directories for classes annotated with @Sentinel.
+     * Uses an isolated URLClassLoader to avoid polluting the plugin's classloader.
+     */
+    private fun scanForSentinelClasses(
+        classesDirs: Set<File>,
+        classpathFiles: Set<File>
+    ): List<String> {
+        val urls = (classesDirs + classpathFiles)
+            .filter { it.exists() }
+            .map { it.toURI().toURL() }
+            .toTypedArray()
+
+        val classLoader = URLClassLoader(urls, ClassLoader.getSystemClassLoader())
+        val sentinelAnnotation = try {
+            classLoader.loadClass("org.javai.punit.api.Sentinel")
+        } catch (e: ClassNotFoundException) {
+            throw org.gradle.api.GradleException(
+                "Could not find @Sentinel annotation on classpath. " +
+                "Ensure punit-core or punit-sentinel is a dependency.")
+        }
+
+        val sentinelClasses = mutableListOf<String>()
+
+        for (classesDir in classesDirs) {
+            if (!classesDir.isDirectory) continue
+
+            classesDir.walkTopDown()
+                .filter { it.isFile && it.extension == "class" }
+                .filter { !it.path.contains("testsubjects") }
+                .forEach { classFile ->
+                    val relativePath = classFile.relativeTo(classesDir).path
+                    val className = relativePath
+                        .removeSuffix(".class")
+                        .replace(File.separatorChar, '.')
+
+                    try {
+                        val clazz = classLoader.loadClass(className)
+                        if (clazz.annotations.any { sentinelAnnotation.isInstance(it) }) {
+                            sentinelClasses.add(className)
+                        }
+                    } catch (e: Throwable) {
+                        // Skip classes that can't be loaded (inner classes, etc.)
+                    }
+                }
+        }
+
+        classLoader.close()
+        return sentinelClasses.sorted()
     }
 
     private fun forwardPunitSystemProperties(task: Test) {

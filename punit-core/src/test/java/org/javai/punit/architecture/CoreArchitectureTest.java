@@ -65,5 +65,123 @@ class CoreArchitectureTest {
 
             rule.check(classes);
         }
+
+        /**
+         * The usecase package in punit-core must not depend on JUnit at all.
+         * This ensures UseCaseFactory remains usable outside JUnit (e.g. Sentinel).
+         */
+        @Test
+        @DisplayName("usecase package must not depend on JUnit")
+        void useCaseFactoryMustNotDependOnJUnit() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("org.javai.punit.usecase..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("org.junit..")
+                    .because("usecase package is in punit-core and must be JUnit-free for Sentinel support");
+
+            rule.check(classes);
+        }
+
+        /**
+         * punit-core packages (statistics, model, usecase, contract) must not depend
+         * on JUnit extension types. The controls package is excluded because
+         * ProbabilisticTestBudgetExtension in punit-junit5 shares the controls.budget
+         * package namespace.
+         */
+        @Test
+        @DisplayName("punit-core packages must not depend on JUnit extension API")
+        void corePackagesMustNotDependOnJUnitExtensions() {
+            ArchRule rule = noClasses()
+                    .that().resideInAnyPackage(
+                            "org.javai.punit.statistics..",
+                            "org.javai.punit.model..",
+                            "org.javai.punit.usecase..",
+                            "org.javai.punit.contract.."
+                    )
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("org.junit.jupiter.api.extension..")
+                    .because("punit-core packages must be JUnit-free to support Sentinel and other engines");
+
+            rule.check(classes);
+        }
+    }
+
+    @Nested
+    @DisplayName("Module Isolation")
+    class ModuleIsolation {
+
+        /**
+         * The statistics module is intentionally isolated from all other PUnit packages.
+         *
+         * <p>This isolation enables:
+         * <ul>
+         *   <li><strong>Independent scrutiny:</strong> Statisticians can review calculations
+         *       without understanding the broader framework.</li>
+         *   <li><strong>Rigorous testing:</strong> Statistical concepts have dedicated unit tests
+         *       with worked examples using real-world variable names.</li>
+         *   <li><strong>Trust building:</strong> Calculations map directly to formulations in
+         *       the STATISTICAL-COMPANION document.</li>
+         * </ul>
+         */
+        @Test
+        @DisplayName("Statistics module must not depend on any framework packages")
+        void statisticsModuleMustBeIsolated() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("org.javai.punit.statistics..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage(
+                            "org.javai.punit.api..",
+                            "org.javai.punit.ptest.engine..",
+                            "org.javai.punit.experiment..",
+                            "org.javai.punit.spec..",
+                            "org.javai.punit.model.."
+                    );
+
+            rule.check(classes);
+        }
+
+        /**
+         * The util package contains general-purpose utilities (hashing, lazy evaluation).
+         * It must not depend on any framework-specific packages.
+         */
+        @Test
+        @DisplayName("util package must be self-contained")
+        void utilPackageMustBeSelfContained() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..util..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage(
+                            "org.javai.punit.api..",
+                            "org.javai.punit.ptest..",
+                            "org.javai.punit.experiment..",
+                            "org.javai.punit.spec..",
+                            "org.javai.punit.statistics..",
+                            "org.javai.punit.model..",
+                            "org.javai.punit.controls..",
+                            "org.javai.punit.reporting.."
+                    )
+                    .because("utilities must be self-contained and not depend on framework internals");
+
+            rule.check(classes);
+        }
+
+        /**
+         * The usecase package in punit-core must not depend on JUnit engine types.
+         * It provides JUnit-free factory logic for use case creation.
+         */
+        @Test
+        @DisplayName("usecase package must not depend on JUnit engine types")
+        void useCaseFactoryMustNotDependOnJUnitEngine() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("org.javai.punit.usecase..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage(
+                            "org.javai.punit.ptest.engine..",
+                            "org.javai.punit.experiment.engine.."
+                    )
+                    .because("usecase package is in punit-core and must not depend on JUnit engine layer");
+
+            rule.check(classes);
+        }
     }
 }
