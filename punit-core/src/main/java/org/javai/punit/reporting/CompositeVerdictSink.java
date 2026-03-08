@@ -1,9 +1,7 @@
-package org.javai.punit.sentinel.verdict;
+package org.javai.punit.reporting;
 
 import java.util.List;
 import java.util.Objects;
-import org.javai.punit.reporting.VerdictEvent;
-import org.javai.punit.reporting.VerdictSink;
 
 /**
  * A {@link VerdictSink} that dispatches each verdict event to multiple sinks.

@@ -112,6 +112,19 @@ Budgets are checked in order: Suite → Class → Method. First exhausted budget
 | `ThresholdDeriver`           | Derives thresholds from baseline using statistics |
 | `CostBudgetMonitor`          | Enforces time/token budgets                       |
 
+### Module Dependency Rules (ArchUnit-enforced)
+
+The following constraints are enforced by ArchUnit tests and verified on every build. Do not manually scan for JUnit dependencies in punit-core or punit-sentinel — the architecture tests guarantee compliance.
+
+| Module | Rule | Enforced by |
+|--------|------|-------------|
+| **punit-core** (non-api packages) | Zero `org.junit` dependencies | `CoreArchitectureTest` |
+| **punit-core** (api package) | May reference JUnit annotation types (`@TestTemplate`, `@Tag`) as meta-annotations only — never extension, engine, or platform types | `CoreArchitectureTest` |
+| **punit-sentinel** | Zero `org.junit` dependencies | `SentinelArchitectureTest` |
+| **punit-junit5** | Pillar independence, statistics isolation, abstraction levels | `ArchitectureTest` |
+
+To verify: `./gradlew test --tests "*ArchitectureTest"` (runs all three modules' architecture tests).
+
 ## Conventions
 
 - Java 21 required

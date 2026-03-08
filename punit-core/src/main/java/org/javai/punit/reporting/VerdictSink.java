@@ -5,7 +5,7 @@ package org.javai.punit.reporting;
  *
  * <p>Implementations dispatch verdicts to external systems — logging, webhooks,
  * observability platforms, or custom integrations. Multiple sinks can be
- * composed via {@code CompositeVerdictSink} in {@code punit-sentinel}.
+ * composed via {@link CompositeVerdictSink}.
  *
  * <p>Implementations must be thread-safe if used from concurrent test execution.
  */
