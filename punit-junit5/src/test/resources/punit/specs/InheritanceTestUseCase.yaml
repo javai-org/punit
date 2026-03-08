@@ -1,0 +1,28 @@
+# Empirical Baseline for InheritanceTestUseCase
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
+useCaseId: InheritanceTestUseCase
+generatedAt: 2026-03-08T08:16:03.030286Z
+experimentClass: org.javai.punit.testsubjects.InheritanceTestSubjects$InheritedMeasureExperiment
+experimentMethod: measureBaseline
+execution:
+  samplesPlanned: 3
+  samplesExecuted: 3
+  terminationReason: COMPLETED
+requirements:
+  minPassRate: 1.0000
+statistics:
+  successRate:
+    observed: 1.0000
+    standardError: 0.0000
+    confidenceInterval95: [1.0000, 1.0000]
+  successes: 3
+  failures: 0
+cost:
+  totalTimeMs: 11
+  avgTimePerSampleMs: 3
+  totalTokens: 0
+  avgTokensPerSample: 0
+contentFingerprint: a50d637fde28f54a19aed5d7069981b8d9ecfd255ac68ffb4bcd7c525c07a48c
