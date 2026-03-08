@@ -1,0 +1,194 @@
+package org.javai.punit.sentinel;
+
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.javai.punit.api.BudgetExhaustedBehavior;
+import org.javai.punit.api.MeasureExperiment;
+import org.javai.punit.api.OutcomeCaptor;
+import org.javai.punit.contract.UseCaseOutcome;
+import org.javai.punit.controls.budget.CostBudgetMonitor;
+import org.javai.punit.experiment.engine.EmpiricalBaselineGenerator;
+import org.javai.punit.experiment.engine.ExperimentResultAggregator;
+import org.javai.punit.experiment.measure.MeasureOutputWriter;
+import org.javai.punit.experiment.model.EmpiricalBaseline;
+import org.javai.punit.reporting.VerdictEvent;
+import org.javai.punit.usecase.UseCaseFactory;
+
+/**
+ * Executes a single {@code @MeasureExperiment} method in the Sentinel runtime,
+ * producing a {@link VerdictEvent} and writing baseline spec files.
+ *
+ * <p>Responsibilities:
+ * <ul>
+ *   <li>Budget monitor creation from annotation values</li>
+ *   <li>Delegation to {@link SentinelSampleExecutor} for the experiment sample loop</li>
+ *   <li>Outcome aggregation and empirical baseline generation</li>
+ *   <li>Spec file writing (functional and latency) to the resolved output directory</li>
+ *   <li>Experiment report entry construction</li>
+ * </ul>
+ *
+ * <p>Package-private: constructed and used exclusively by {@link SentinelRunner}.
+ */
+class SentinelExperimentExecutor {
+
+    private static final Logger logger = LogManager.getLogger(SentinelExperimentExecutor.class);
+
+    private final SentinelSampleExecutor sampleExecutor;
+    private final SentinelClassIntrospector introspector;
+    private final EnvironmentMetadata environmentMetadata;
+
+    SentinelExperimentExecutor(
+            SentinelSampleExecutor sampleExecutor,
+            SentinelClassIntrospector introspector,
+            EnvironmentMetadata environmentMetadata) {
+        this.sampleExecutor = sampleExecutor;
+        this.introspector = introspector;
+        this.environmentMetadata = environmentMetadata;
+    }
+
+    /**
+     * Executes a single measure experiment method, writes baseline specs,
+     * and returns the verdict.
+     *
+     * @param method the experiment method
+     * @param annotation the method's {@code @MeasureExperiment} annotation
+     * @param instance the sentinel class instance
+     * @param factory the use case factory
+     * @param sentinelClass the sentinel class (for naming, input resolution, and baseline generation)
+     * @return the verdict event
+     */
+    VerdictEvent execute(
+            Method method,
+            MeasureExperiment annotation,
+            Object instance,
+            UseCaseFactory factory,
+            Class<?> sentinelClass) {
+
+        String experimentName = sentinelClass.getSimpleName() + "." + method.getName();
+        Class<?> useCaseClass = annotation.useCase();
+        String useCaseId = UseCaseFactory.resolveId(useCaseClass);
+        logger.info("Executing experiment: {} (useCase: {})", experimentName, useCaseId);
+
+        List<Object> inputs = introspector.resolveInputs(method, sentinelClass);
+        int samples = annotation.samples();
+        CostBudgetMonitor budgetMonitor = createBudgetMonitor(annotation);
+
+        List<OutcomeCaptor> capturedOutcomes = new ArrayList<>();
+        sampleExecutor.executeExperimentLoop(
+                method, instance, factory, useCaseClass,
+                inputs, samples, capturedOutcomes, budgetMonitor);
+
+        boolean experimentPassed = generateSpec(
+                capturedOutcomes, useCaseId, sentinelClass, method, annotation);
+
+        Map<String, String> reportEntries = buildReportEntries(
+                capturedOutcomes, useCaseId, experimentPassed);
+
+        return new VerdictEvent(
+                VerdictEvent.newCorrelationId(),
+                experimentName,
+                useCaseId,
+                experimentPassed,
+                reportEntries,
+                environmentMetadata.toMap(),
+                Instant.now());
+    }
+
+    private CostBudgetMonitor createBudgetMonitor(MeasureExperiment annotation) {
+        if (annotation.timeBudgetMs() <= 0 && annotation.tokenBudget() <= 0) {
+            return null;
+        }
+        return new CostBudgetMonitor(
+                annotation.timeBudgetMs(), annotation.tokenBudget(),
+                0, CostBudgetMonitor.TokenMode.NONE,
+                BudgetExhaustedBehavior.FAIL);
+    }
+
+    private boolean generateSpec(
+            List<OutcomeCaptor> capturedOutcomes,
+            String useCaseId,
+            Class<?> sentinelClass,
+            Method method,
+            MeasureExperiment annotation) {
+
+        ExperimentResultAggregator aggregator = new ExperimentResultAggregator(
+                useCaseId, capturedOutcomes.size());
+
+        for (OutcomeCaptor captor : capturedOutcomes) {
+            if (captor.hasResult()) {
+                UseCaseOutcome<?> outcome = captor.getContractOutcome();
+                if (outcome.allPostconditionsSatisfied()) {
+                    aggregator.recordSuccess(outcome);
+                } else {
+                    aggregator.recordFailure(outcome, "postcondition_failure");
+                }
+            } else if (captor.hasException()) {
+                aggregator.recordException(captor.getException());
+            }
+        }
+
+        EmpiricalBaselineGenerator baselineGenerator = new EmpiricalBaselineGenerator();
+        EmpiricalBaseline baseline = baselineGenerator.generate(
+                aggregator, sentinelClass, method, null, annotation.expiresInDays());
+
+        try {
+            Path specDir = resolveSpecOutputDir();
+            Files.createDirectories(specDir);
+            MeasureOutputWriter writer = new MeasureOutputWriter();
+
+            Path functionalPath = specDir.resolve(useCaseId.replace('.', '-') + ".yaml");
+            writer.writeFunctional(baseline, functionalPath);
+            logger.info("Functional spec written to {}", functionalPath);
+
+            if (baseline.hasLatencyDistribution()) {
+                Path latencyPath = specDir.resolve(useCaseId.replace('.', '-') + ".latency.yaml");
+                writer.writeLatency(baseline, latencyPath);
+                logger.info("Latency spec written to {}", latencyPath);
+            }
+
+            return true;
+        } catch (IOException e) {
+            logger.error("Failed to write spec for {}: {}", useCaseId, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    Path resolveSpecOutputDir() {
+        String dir = System.getProperty("punit.spec.dir");
+        if (dir != null && !dir.isEmpty()) {
+            return Paths.get(dir);
+        }
+        dir = System.getenv("PUNIT_SPEC_DIR");
+        if (dir != null && !dir.isEmpty()) {
+            return Paths.get(dir);
+        }
+        return Paths.get("punit/specs");
+    }
+
+    private Map<String, String> buildReportEntries(
+            List<OutcomeCaptor> capturedOutcomes,
+            String useCaseId,
+            boolean passed) {
+
+        long successes = capturedOutcomes.stream().filter(OutcomeCaptor::hasResult).count();
+        long failures = capturedOutcomes.size() - successes;
+
+        Map<String, String> entries = new LinkedHashMap<>();
+        entries.put("punit.experiment.useCaseId", useCaseId);
+        entries.put("punit.experiment.samples", String.valueOf(capturedOutcomes.size()));
+        entries.put("punit.experiment.successes", String.valueOf(successes));
+        entries.put("punit.experiment.failures", String.valueOf(failures));
+        entries.put("punit.experiment.verdict", passed ? "PASS" : "FAIL");
+        return entries;
+    }
+}

@@ -130,6 +130,31 @@ class PunitPluginFunctionalTest {
     }
 
     @Nested
+    @DisplayName("Create Sentinel Task")
+    inner class CreateSentinelTask {
+
+        @Test
+        @DisplayName("createSentinel task is registered")
+        fun taskIsRegistered() {
+            buildFile.writeText(buildFileWithPlugin())
+
+            val result = runner("tasks", "--group=build").build()
+
+            assertTrue(result.output.contains("createSentinel"))
+        }
+
+        @Test
+        @DisplayName("createSentinel task appears in task list with correct description")
+        fun taskHasDescription() {
+            buildFile.writeText(buildFileWithPlugin())
+
+            val result = runner("tasks", "--all").build()
+
+            assertTrue(result.output.contains("createSentinel - Builds an executable sentinel JAR"))
+        }
+    }
+
+    @Nested
     @DisplayName("Extension Customization")
     inner class ExtensionCustomization {
 
