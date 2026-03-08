@@ -1,0 +1,5 @@
+[
+  {"instruction": "add milk", "expected": "{\"action\":\"add\",\"product\":\"milk\"}"},
+  {"instruction": "remove bread", "expected": "{\"action\":\"remove\",\"product\":\"bread\"}"},
+  {"instruction": "clear cart", "expected": "{\"action\":\"clear\"}"}
+]
