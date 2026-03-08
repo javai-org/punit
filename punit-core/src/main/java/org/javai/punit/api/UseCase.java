@@ -65,7 +65,6 @@ import java.lang.annotation.Target;
  *   <li>Logging and diagnostics</li>
  * </ul>
  *
- * @see UseCaseProvider
  * @see ProbabilisticTest#useCase()
  */
 @Documented

@@ -8,7 +8,7 @@ import java.util.List;
  * <p>Used in two contexts:
  * <ol>
  *   <li>As a parameter in experiment methods for accessing factor values</li>
- *   <li>In {@link UseCaseProvider#registerWithFactors} callbacks for configuring use cases</li>
+ *   <li>In {@code UseCaseProvider.registerWithFactors()} callbacks for configuring use cases</li>
  * </ol>
  *
  * <h2>In Experiment Methods</h2>
@@ -29,7 +29,7 @@ import java.util.List;
  * });
  * }</pre>
  *
- * @see UseCaseProvider#registerWithFactors
+ * @see FactorSource
  */
 public record FactorValues(Object[] values, List<String> names) {
 

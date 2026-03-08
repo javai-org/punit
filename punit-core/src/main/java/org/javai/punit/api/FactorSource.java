@@ -68,7 +68,6 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see Factor
- * @see Experiment
  * @see ExperimentMode#EXPLORE
  */
 @Target(ElementType.METHOD)

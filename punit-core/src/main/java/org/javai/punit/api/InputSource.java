@@ -65,7 +65,6 @@ import java.lang.annotation.Target;
  * </ul>
  *
  * @see MeasureExperiment
- * @see ExploreExperiment
  * @see ProbabilisticTest
  */
 @Target(ElementType.METHOD)

@@ -5,7 +5,7 @@
  * multiple scopes:
  * <ul>
  *   <li><b>Method-level:</b> {@link CostBudgetMonitor} tracks budgets for individual test methods</li>
- *   <li><b>Class-level:</b> {@link SharedBudgetMonitor} with {@link ProbabilisticTestBudgetExtension}
+ *   <li><b>Class-level:</b> {@link SharedBudgetMonitor} with {@code ProbabilisticTestBudgetExtension}
  *       enforces shared budgets across all tests in a class</li>
  *   <li><b>Suite-level:</b> {@link SuiteBudgetManager} manages JVM-wide budget limits</li>
  * </ul>

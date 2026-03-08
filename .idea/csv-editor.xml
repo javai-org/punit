@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="/punit-core/src/test/resources/input/test-inputs.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/punit-junit5/src/test/resources/input/test-inputs.csv">
           <value>
             <Attribute>

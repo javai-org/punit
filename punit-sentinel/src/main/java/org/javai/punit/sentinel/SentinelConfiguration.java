@@ -10,7 +10,7 @@ import org.javai.punit.spec.registry.LayeredSpecRepository;
 import org.javai.punit.spec.registry.SpecRepository;
 
 /**
- * Configuration for a {@link SentinelRunner} execution.
+ * Configuration for a {@code SentinelRunner} execution.
  *
  * <p>Built via a fluent builder pattern. The only required element is at least
  * one {@code @Sentinel}-annotated class.

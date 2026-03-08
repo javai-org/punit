@@ -39,7 +39,6 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see FactorGetter
- * @see UseCaseProvider#registerAutoWired
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

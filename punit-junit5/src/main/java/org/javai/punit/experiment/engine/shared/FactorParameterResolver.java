@@ -8,10 +8,10 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
 /**
- * Parameter resolver that provides factor values for @Factor-annotated parameters.
+ * Parameter resolver that provides factor values for {@link Factor}-annotated parameters.
  *
  * <p>Matches factor values to parameters by the factor name specified in the
- * @Factor annotation.
+ * {@link Factor} annotation.
  */
 public class FactorParameterResolver implements ParameterResolver {
 

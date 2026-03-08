@@ -56,7 +56,7 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <h2>Experiments</h2>
- * <p>Pacing is equally applicable to {@link Experiment} methods. Experiments
+ * <p>Pacing is equally applicable to experiment methods. Experiments
  * are often long-running with many samples, making rate limit management
  * essential.
  *
@@ -88,7 +88,7 @@ import java.lang.annotation.Target;
  * may be terminated by the time budget before all samples complete.
  *
  * @see ProbabilisticTest
- * @see Experiment
+ * @see MeasureExperiment
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

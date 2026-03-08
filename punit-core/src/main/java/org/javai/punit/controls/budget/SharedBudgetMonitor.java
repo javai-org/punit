@@ -14,7 +14,7 @@ import org.javai.punit.model.TerminationReason;
  * 
  * <h2>Usage</h2>
  * <ul>
- *   <li>Class-level: Created by {@link ProbabilisticTestBudgetExtension} in BeforeAll</li>
+ *   <li>Class-level: Created by {@code ProbabilisticTestBudgetExtension} in BeforeAll</li>
  *   <li>Suite-level: Managed by {@link SuiteBudgetManager} singleton</li>
  * </ul>
  */

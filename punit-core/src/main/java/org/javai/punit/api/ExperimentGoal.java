@@ -35,7 +35,7 @@ import java.lang.annotation.Target;
  * </ul>
  *
  * @see ExperimentDesign
- * @see Experiment
+ * @see ExperimentMode
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

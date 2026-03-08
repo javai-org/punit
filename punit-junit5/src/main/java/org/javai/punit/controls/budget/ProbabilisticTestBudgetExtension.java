@@ -13,12 +13,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * <ul>
  *   <li>Creates a {@link SharedBudgetMonitor} for the class in BeforeAll</li>
  *   <li>Stores the monitor in the extension context store for method-level access</li>
- *   <li>Enables the {@link ProbabilisticTestExtension} to check class-level budgets</li>
+ *   <li>Enables the {@code ProbabilisticTestExtension} to check class-level budgets</li>
  * </ul>
  * 
  * <h2>Extension Context Store</h2>
  * <p>The class budget monitor is stored with key {@code "classBudgetMonitor"} in the
- * class-level extension context store. The {@link ProbabilisticTestExtension} 
+ * class-level extension context store. The {@code ProbabilisticTestExtension} 
  * retrieves it during sample execution to check and update budgets.
  */
 public class ProbabilisticTestBudgetExtension implements BeforeAllCallback {

@@ -25,12 +25,10 @@ import org.javai.punit.spec.model.ExecutionSpecification;
  * </ul>
  *
  * <h2>Relationship to OperationalApproachResolver</h2>
- * <p>This validator checks <em>validity</em>. The {@link OperationalApproachResolver}
+ * <p>This validator checks <em>validity</em>. The {@code OperationalApproachResolver}
  * determines <em>which approach</em> to use and documents the tradeoffs between
  * approaches. The resolver calls this validator first; if validation fails,
  * the resolver throws with the validator's error message.
- *
- * @see OperationalApproachResolver
  */
 public final class ProbabilisticTestValidator {
 

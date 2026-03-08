@@ -39,9 +39,7 @@ import org.junit.jupiter.api.TestTemplate;
  * <h2>Output</h2>
  * <p>Produces a spec file at: {@code src/test/resources/punit/specs/{UseCaseId}.yaml}
  *
- * @see ExploreExperiment
  * @see UseCase
- * @see UseCaseProvider
  * @see OutcomeCaptor
  */
 @Target(ElementType.METHOD)
@@ -59,7 +57,7 @@ public @interface MeasureExperiment {
      *   <li>Otherwise, use the simple class name</li>
      * </ol>
      *
-     * <p>The use case instance is obtained from a {@link UseCaseProvider} registered
+     * <p>The use case instance is obtained from a {@code UseCaseProvider} registered
      * as a JUnit extension. Configure the provider in {@code @BeforeEach}.
      *
      * @return the use case class

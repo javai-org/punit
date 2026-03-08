@@ -323,7 +323,7 @@ public @interface ProbabilisticTest {
      * <ol>
      *   <li>Resolves the use case ID from the class (via {@code @UseCase} or class name)</li>
      *   <li>Looks up the spec automatically: {@code punit/specs/{useCaseId}.yaml}</li>
-     *   <li>Injects the use case instance via {@link UseCaseProvider}</li>
+     *   <li>Injects the use case instance via {@code UseCaseProvider}</li>
      *   <li>Uses the spec's {@code minPassRate} as the threshold</li>
      * </ol>
      *
@@ -347,7 +347,6 @@ public @interface ProbabilisticTest {
      * }</pre>
      *
      * @return the use case class, or {@code Void.class} for inline threshold mode
-     * @see UseCaseProvider
      * @see UseCase
      */
     Class<?> useCase() default Void.class;

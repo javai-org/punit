@@ -7,7 +7,7 @@ import java.lang.annotation.Target;
 
 /**
  * Marks a parameter to receive the current control factor value in an
- * {@link OptimizeExperiment}.
+ * {@code OptimizeExperiment}.
  *
  * <p>The value is resolved from the use case instance via a method annotated
  * with {@link FactorGetter}, then injected into this parameter. During optimization,
@@ -42,7 +42,6 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see FactorGetter
- * @see OptimizeExperiment
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)

@@ -23,8 +23,7 @@ package org.javai.punit.api;
  * </pre>
  *
  * @see MeasureExperiment
- * @see ExploreExperiment
- * @see OptimizeExperiment
+ * @see ExperimentMode
  * @see FactorSource
  */
 public enum ExperimentMode {
@@ -62,7 +61,7 @@ public enum ExperimentMode {
     /**
      * EXPLORE compares multiple configurations to understand factor effects.
      *
-     * <p>Use {@link ExploreExperiment} when you want to:
+     * <p>Use {@code ExploreExperiment} when you want to:
      * <ul>
      *   <li>Compare different LLM models</li>
      *   <li>Evaluate temperature/prompt variations</li>
@@ -108,7 +107,7 @@ public enum ExperimentMode {
     /**
      * OPTIMIZE iteratively refines a single treatment factor to find its optimal value.
      *
-     * <p>Use {@link OptimizeExperiment} when you want to:
+     * <p>Use {@code OptimizeExperiment} when you want to:
      * <ul>
      *   <li>Automatically tune a parameter (e.g., system prompt)</li>
      *   <li>Find the best value through iterative mutation and evaluation</li>
@@ -128,7 +127,7 @@ public enum ExperimentMode {
      * EXPLORE → Select winning config → OPTIMIZE one factor → MEASURE (establish baseline)
      * }</pre>
      *
-     * @see org.javai.punit.api.OptimizeExperiment
+     * @see ExperimentMode#OPTIMIZE
      */
     OPTIMIZE(20);
 
@@ -150,7 +149,7 @@ public enum ExperimentMode {
      * Returns the default sample size for this experiment mode.
      *
      * <p>This value is used when the sample count is not explicitly specified
-     * in the {@link Experiment} annotation:
+     * in the experiment annotation:
      * <ul>
      *   <li>{@link #MEASURE}: Returns 1000 - sufficient for tight confidence intervals</li>
      *   <li>{@link #EXPLORE}: Returns 1 - fast pass to filter broken configurations</li>

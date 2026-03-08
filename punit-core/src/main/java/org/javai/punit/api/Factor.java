@@ -48,7 +48,6 @@ import java.lang.annotation.Target;
  * </pre>
  *
  * @see FactorSource
- * @see Experiment
  * @see ExperimentMode#EXPLORE
  */
 @Target(ElementType.PARAMETER)
