@@ -1873,7 +1873,9 @@ For the mathematical foundations — confidence interval calculations, power ana
 
 Parts 1–9 cover PUnit as a development-time testing framework integrated with JUnit 5. This part introduces the **Sentinel** — an execution engine that runs the same probabilistic tests and experiments in deployed environments, without JUnit.
 
-For the architectural rationale, reference module layout, and deployment patterns, see [ARCHITECTURE-GUIDE.md](ARCHITECTURE-GUIDE.md).
+If the notion of running a "test" in production feels uncomfortable, it is worth examining why. Traditional software engineering testing assumes largely deterministic behaviour: once a test passes in CI, the feature is safe to deploy. For a truly deterministic feature, this is perfectly reasonable. But for features whose behaviour is shaped by stochasticity — randomness, non-determinism — reliability often depends on the environment in which the feature operates. The Sentinel is PUnit's tool for this: a lightweight test runner, independent of JUnit and its dependency graph; purpose-built for deployed environments.
+
+For project structure, module layout, and operational deployment, see the [Sentinel Deployment Guide](SENTINEL-DEPLOYMENT-GUIDE.md).
 
 ### Module Decomposition and Artifact Selection
 

@@ -268,7 +268,7 @@ These concerns are not PUnit framework requirements, but adopters will face them
     - `app-sentinel` — The Sentinel deployment. Depends on `app-usecases` + `punit-sentinel`. Runs the same use cases and experiments in the target environment.
   - **Why use cases are not test code:** Use cases are consumed by both the test suite and the Sentinel. They define the contract between the application and its stochastic dependencies. They belong in a shared module, not in a test source set.
   - **Why stochastic services should be isolable:** The Sentinel binary should be lightweight. Separating stochastic integrations from the rest of the application keeps the Sentinel's dependency footprint minimal and forces a clean API boundary around non-deterministic behaviour.
-- The documentation should be published as part of the PUnit project (e.g., `docs/ARCHITECTURE-GUIDE.md`).
+- The documentation should be published as part of the PUnit project (e.g., `docs/SENTINEL-DEPLOYMENT-GUIDE.md`).
 
 ---
 

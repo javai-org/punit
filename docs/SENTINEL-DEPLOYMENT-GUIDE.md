@@ -1,6 +1,6 @@
-# Architecture Guide: Application Module Layout for PUnit
+# Sentinel Deployment Guide
 
-This guide describes the recommended application module layout for projects that use PUnit for probabilistic testing and, optionally, deploy a Sentinel for environment-aware reliability monitoring.
+This guide covers project structure and operational deployment for PUnit Sentinel — the execution engine for running probabilistic tests and experiments in deployed environments. For authoring reliability specifications and the Sentinel programming model, see [Part 10 of the User Guide](USER-GUIDE.md#part-10-the-sentinel).
 
 ---
 
@@ -15,89 +15,6 @@ However, covariate-aware baseline selection works best when baselines are availa
 Because environmental factors change over time — model updates, infrastructure migrations, provider degradation — a one-off baseline is insufficient. We require a mechanism that continuously guards against regression by re-measuring baselines and re-verifying reliability within the target environment.
 
 This is the PUnit Sentinel: an execution engine that runs the same probabilistic tests and experiments defined for development-time testing, but in the deployed environment, producing environment-specific baselines and dispatching verdicts to observability infrastructure.
-
----
-
-## The Reliability-Specification-First Model
-
-A `@Sentinel`-annotated class is the **primary authoring artifact** for stochastic reliability monitoring. It is a plain Java class with no runtime JUnit dependencies, containing:
-
-- A `UseCaseFactory` field with registered use case factories
-- `@MeasureExperiment` methods (for establishing baselines)
-- `@ProbabilisticTest` methods (for ongoing verification)
-- `@InputSource` methods (shared input data)
-
-```java
-@Sentinel
-public class ShoppingBasketReliability {
-
-    UseCaseFactory factory = new UseCaseFactory();
-    {
-        factory.register(ShoppingBasketUseCase.class,
-            () -> new ShoppingBasketUseCase(new OpenAiClient(System.getenv("OPENAI_API_KEY"))));
-    }
-
-    @MeasureExperiment(useCase = ShoppingBasketUseCase.class, experimentId = "baseline-v1")
-    @InputSource("instructions")
-    void measureBaseline(ShoppingBasketUseCase useCase, String instruction, OutcomeCaptor captor) {
-        captor.record(useCase.translateInstruction(instruction));
-    }
-
-    @ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
-    @InputSource("instructions")
-    void testInstructionTranslation(ShoppingBasketUseCase useCase, String instruction) {
-        useCase.translateInstruction(instruction).assertAll();
-    }
-
-    static Stream<String> instructions() {
-        return Stream.of(
-                "Add 2 apples",
-                "Remove the milk",
-                "Add 1 loaf of bread"
-        );
-    }
-}
-```
-
-This class is the **single source of truth** for the reliability specification. It is consumed by both the Sentinel engine and the JUnit engine. No descriptors, no code generation, no re-declaration.
-
-### JUnit Consumption via Inheritance
-
-JUnit test classes may derive from the reliability specification via inheritance:
-
-```java
-// Lives in the test source set — one line plus JUnit setup
-public class ShoppingBasketReliabilityTest extends ShoppingBasketReliability {
-
-    @RegisterExtension
-    UseCaseProvider provider = new UseCaseProvider();
-
-    @BeforeEach
-    void setUp() {
-        provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
-    }
-}
-```
-
-PUnit's JUnit extension discovers the inherited `@ProbabilisticTest` and `@MeasureExperiment` annotations, finds the inherited `UseCaseFactory` field, and executes normally. The JUnit subclass may add JUnit-specific concerns (`@DisplayName`, `@Tag`, additional `@BeforeEach` setup, JUnit-only test methods) but the reliability specification itself is untouched.
-
-### Sentinel Consumption
-
-The Sentinel engine instantiates `@Sentinel`-annotated classes directly:
-
-1. Instantiate the class via its no-arg constructor (field initialisers and instance initialisers run, populating the `UseCaseFactory`).
-2. Find the `UseCaseFactory` field, read its registry.
-3. Scan for `@MeasureExperiment` / `@ProbabilisticTest` methods.
-4. Resolve `@InputSource` methods.
-5. Execute the sample loop using the same statistical core from `punit-core`.
-
-No JUnit types are involved at any point.
-
-### Why This Model Works
-
-The insight is that a reliability specification for a stochastic service is an independent concept that predates any particular execution engine. It is not "a JUnit test that we also want to run elsewhere." It is a specification of what to measure and what to verify, authored in pure PUnit, that JUnit happens to be one way of running.
-
-By authoring the specification in pure PUnit — without JUnit lifecycle annotations, extension registrations, or JUnit types in the bytecode — it remains consumable by any execution engine. JUnit is one such engine; the Sentinel is another.
 
 ---
 
@@ -154,7 +71,7 @@ dependencies {
 
 This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`@Sentinel`, `UseCaseFactory`, `UseCaseOutcome`, `ServiceContract`, etc.) are production dependencies in this module because the reliability specification is a production artifact.
 
-The module must **not** depend on `punit-junit5` or `junit-jupiter-api`. The reliability specification is JUnit-free.
+The module must **not** depend on `punit-junit5` or `junit-jupiter-api`. The reliability specification is JUnit-free. For how to author a `@Sentinel` class and the reliability-specification-first model, see [Part 10 of the User Guide](USER-GUIDE.md#part-10-the-sentinel).
 
 #### `app-main` — Main Application
 

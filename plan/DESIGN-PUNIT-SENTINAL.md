@@ -919,7 +919,7 @@ This is an opt-in mechanism. Sentinel deployment is a significant operational de
 
 **Objective:** Produce documentation guiding PUnit adopters on application module layout for projects that use probabilistic testing and deploy a Sentinel. This documentation reflects the reliability-specification-first authoring model (DD-06).
 
-### 5.1 `docs/ARCHITECTURE-GUIDE.md`
+### 5.1 `docs/SENTINEL-DEPLOYMENT-GUIDE.md`
 
 **Contents:**
 
@@ -1101,7 +1101,7 @@ Review and update existing examples (shopping basket, payment gateway, LLM integ
 | 2     | Dimension-scoped assertions                 | `assertContract()`, `assertLatency()`, adaptive `assertAll()`, per-dimension verdict rendering                                                                                                                                                                                           | None                                         |
 | 3     | Per-dimension baselines and spec resolution | Per-dimension spec files, `SpecRepository` interface, `LayeredSpecRepository`, `PUNIT_SPEC_DIR`                                                                                                                                                                                          | None (legacy specs handled)                  |
 | 4     | Sentinel runtime                            | `SentinelRunner` consuming `@Sentinel` classes (DD-06), `@Sentinel` annotation, `VerdictSink`, `WebhookVerdictSink`, `EnvironmentMetadata`, lifecycle API. Zero JUnit dependency.                                                                                                        | None (new module)                            |
-| 5     | Architectural guidance                      | `docs/ARCHITECTURE-GUIDE.md` with reliability-specification-first model, reference module layout, configuration reference                                                                                                                                                                | None (documentation only)                    |
+| 5     | Architectural guidance                      | `docs/SENTINEL-DEPLOYMENT-GUIDE.md` with reference module layout, deployment workflow, configuration reference                                                                                                                                                                           | None (documentation only)                    |
 | 6     | User documentation                          | User guide updates, statistical companion review, configuration reference                                                                                                                                                                                                                | None (documentation only)                    |
 | 7     | Examples                                    | Reliability-specification-first examples, latency examples, Sentinel example, existing examples updated                                                                                                                                                                                  | None (companion project)                     |
 
