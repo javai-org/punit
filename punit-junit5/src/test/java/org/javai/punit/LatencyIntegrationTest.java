@@ -41,10 +41,9 @@ class LatencyIntegrationTest {
     }
 
     @Test
-    @DisplayName("should fail when latency exceeds threshold and enforcement is enabled")
-    void shouldFailWhenLatencyExceedsThreshold() {
-        System.setProperty(PROP_LATENCY_ENFORCE, "true");
-
+    @DisplayName("should fail when explicit latency threshold is breached")
+    void shouldFailWhenExplicitLatencyThresholdBreached() {
+        // No global flag needed — explicit @Latency thresholds are enforced by default
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
                 .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(LatencyFailingTest.class))

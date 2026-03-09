@@ -36,6 +36,21 @@ import java.lang.annotation.Target;
  * observed_p95 &gt; p95Ms    → FAIL for p95
  * </pre>
  *
+ * <h2>Enforcement model</h2>
+ * <ul>
+ *   <li><strong>Explicit thresholds</strong> (at least one percentile value ≥ 0): breaches
+ *       fail the test by default. No global flag is required — the annotation is the
+ *       developer's declaration of intent.</li>
+ *   <li><strong>Baseline-derived thresholds</strong> (no explicit values; thresholds inferred
+ *       from a baseline spec): breaches are advisory by default — warnings are produced but
+ *       the test does not fail. Set {@code -Dpunit.latency.enforce=true} or
+ *       {@code PUNIT_LATENCY_ENFORCE=true} to enforce baseline-derived thresholds.</li>
+ *   <li>{@code @Latency} with no percentile values (all default {@code -1}) is equivalent
+ *       to no latency assertion — no enforcement occurs.</li>
+ *   <li>Set {@link #disabled()} to suppress latency evaluation entirely — no warnings,
+ *       no enforcement.</li>
+ * </ul>
+ *
  * @see ProbabilisticTest#latency()
  */
 @Retention(RetentionPolicy.RUNTIME)
@@ -78,13 +93,12 @@ public @interface Latency {
      * Opts out of latency evaluation entirely (suppresses even advisory warnings).
      *
      * <p>When a baseline spec contains latency data, PUnit automatically derives
-     * latency thresholds — no explicit opt-in is needed. By default, latency
-     * assertions are <em>advisory</em>: breaches produce warnings in the output
-     * but do not fail the test. To make breaches fail the test, set
-     * {@code -Dpunit.latency.enforce=true} or {@code PUNIT_LATENCY_ENFORCE=true}.
+     * latency thresholds — no explicit opt-in is needed.
      *
      * <p>Set {@code disabled = true} to suppress latency evaluation entirely —
-     * no warnings, no enforcement, no latency line in the output.
+     * no warnings, no enforcement, no latency line in the output. This is
+     * orthogonal to the enforcement model: it opts out of evaluation altogether,
+     * regardless of whether thresholds would otherwise be enforced.
      *
      * <p>Default: {@code false} (latency is evaluated when thresholds are available,
      * either explicit or baseline-derived).

@@ -41,7 +41,9 @@ class LatencySummaryRenderer {
                 sb.append("<= ").append(pr.thresholdMs()).append("ms");
             } else {
                 sb.append("> ").append(pr.thresholdMs()).append("ms \u2190 BREACH");
-                if (!LatencyAssertionConfig.isEnforced()) {
+                boolean hasExplicitThresholds = result.percentileResults().stream()
+                        .anyMatch(p -> "explicit".equals(p.source()));
+                if (!LatencyAssertionConfig.isEffectivelyEnforced(hasExplicitThresholds)) {
                     sb.append(" (advisory)");
                 }
             }

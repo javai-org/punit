@@ -41,15 +41,38 @@ record LatencyAssertionConfig(
     }
 
     /**
-     * Checks whether latency assertions are enforced (breaches fail the test).
+     * Determines whether latency assertions are effectively enforced, considering
+     * both the threshold origin and the global enforcement flag.
      *
-     * <p>By default, latency assertions are advisory — breaches produce warnings but
-     * do not fail the test. Set {@code -Dpunit.latency.enforce=true} or
-     * {@code PUNIT_LATENCY_ENFORCE=true} to make breaches fail the test.
+     * <p>The enforcement model is context-aware:
+     * <ul>
+     *   <li>Explicit thresholds (developer declared {@code @Latency} with at least one
+     *       percentile value ≥ 0) are always enforced. The global flag has no effect.</li>
+     *   <li>Baseline-derived thresholds (no explicit {@code @Latency} values) are advisory
+     *       by default. Set {@code -Dpunit.latency.enforce=true} or
+     *       {@code PUNIT_LATENCY_ENFORCE=true} to enforce them.</li>
+     * </ul>
      *
+     * @param hasExplicitThresholds true if the {@code @Latency} annotation declares
+     *                              at least one percentile value ≥ 0
      * @return true if latency breaches should fail the test
      */
-    static boolean isEnforced() {
+    static boolean isEffectivelyEnforced(boolean hasExplicitThresholds) {
+        if (hasExplicitThresholds) {
+            return true;
+        }
+        return isGlobalFlagSet();
+    }
+
+    /**
+     * Checks whether the global latency enforcement flag is set.
+     *
+     * <p>This flag promotes baseline-derived thresholds from advisory to enforced.
+     * It has no effect on explicit thresholds, which are always enforced.
+     *
+     * @return true if the global enforcement flag is set
+     */
+    static boolean isGlobalFlagSet() {
         String sysProp = System.getProperty(PROP_LATENCY_ENFORCE);
         if (sysProp != null) {
             return Boolean.parseBoolean(sysProp.trim());

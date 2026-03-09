@@ -42,10 +42,9 @@ class LatencyVerdictIntegrationTest {
     }
 
     @Test
-    @DisplayName("VERIFICATION intent with undersized latency p99 should trigger feasibility gate when enforced")
+    @DisplayName("VERIFICATION intent with undersized latency p99 should trigger feasibility gate for explicit thresholds")
     void verificationUndersizedLatencyShouldTriggerFeasibilityGate() {
-        System.setProperty("punit.latency.enforce", "true");
-
+        // No global flag needed — explicit @Latency thresholds trigger the feasibility gate
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
                 .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(VerificationUndersizedLatencyTest.class))
@@ -93,35 +92,17 @@ class LatencyVerdictIntegrationTest {
     }
 
     @Test
-    @DisplayName("should warn but not fail when latency breaches in advisory mode")
-    void shouldWarnButNotFailWhenLatencyBreachesInAdvisoryMode() {
-        // Advisory mode is the default (enforce not set)
+    @DisplayName("should fail when explicit latency threshold is breached even without global flag")
+    void shouldFailWhenExplicitLatencyThresholdBreached() {
+        // Explicit @Latency thresholds are enforced by default — no global flag needed
         var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
                 .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(AdvisoryLatencyBreachTest.class))
                 .execute()
                 .testEvents();
 
-        // Test should pass despite latency breach — advisory mode doesn't fail tests
+        // Test should fail — explicit latency thresholds are enforced
         long failedCount = testEvents.failed().count();
-        assertThat(failedCount).isEqualTo(0);
-
-        long succeededCount = testEvents.succeeded().count();
-        assertThat(succeededCount).isGreaterThan(0);
-    }
-
-    @Test
-    @DisplayName("VERIFICATION intent with undersized latency should bypass feasibility gate in advisory mode")
-    void verificationUndersizedLatencyShouldBypassGateInAdvisoryMode() {
-        // Advisory mode is the default (enforce not set)
-        var testEvents = EngineTestKit.engine(JUNIT_ENGINE_ID)
-                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
-                .selectors(DiscoverySelectors.selectClass(VerificationUndersizedLatencyTest.class))
-                .execute()
-                .testEvents();
-
-        // Should pass — feasibility gate is skipped in advisory mode
-        long failedCount = testEvents.failed().count();
-        assertThat(failedCount).isEqualTo(0);
+        assertThat(failedCount).isGreaterThan(0);
     }
 }

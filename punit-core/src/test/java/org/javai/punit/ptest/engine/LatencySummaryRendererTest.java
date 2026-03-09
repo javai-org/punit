@@ -103,6 +103,37 @@ class LatencySummaryRendererTest {
     }
 
     @Nested
+    @DisplayName("Advisory label")
+    class AdvisoryLabel {
+
+        @Test
+        @DisplayName("should not show advisory for breach with explicit thresholds")
+        void shouldNotShowAdvisoryForExplicitThresholds() {
+            var pr = new LatencyAssertionResult.PercentileResult("p99", 1200, 1000, false, false, "explicit");
+            LatencyAssertionResult result = new LatencyAssertionResult(
+                    false, List.of(pr), 199, false, List.of());
+
+            String rendered = renderer.render(result);
+
+            assertThat(rendered).contains("BREACH");
+            assertThat(rendered).doesNotContain("(advisory)");
+        }
+
+        @Test
+        @DisplayName("should show advisory for breach with baseline-derived thresholds")
+        void shouldShowAdvisoryForBaselineDerivedThresholds() {
+            var pr = new LatencyAssertionResult.PercentileResult("p99", 1200, 1000, false, false, "from baseline");
+            LatencyAssertionResult result = new LatencyAssertionResult(
+                    false, List.of(pr), 199, false, List.of());
+
+            String rendered = renderer.render(result);
+
+            assertThat(rendered).contains("BREACH");
+            assertThat(rendered).contains("(advisory)");
+        }
+    }
+
+    @Nested
     @DisplayName("Indicative marker")
     class IndicativeMarker {
 

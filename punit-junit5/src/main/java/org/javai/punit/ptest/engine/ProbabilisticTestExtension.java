@@ -402,7 +402,9 @@ public class ProbabilisticTestExtension implements
 		// Evaluate latency assertions
 		LatencyAssertionResult latencyResult = evaluateLatency(context, aggregator);
 		boolean latencyPassed = latencyResult.passed();
-		boolean latencyEnforced = LatencyAssertionConfig.isEnforced();
+		LatencyAssertionConfig latencyConfig = getLatencyConfig(context);
+		boolean hasExplicitThresholds = latencyConfig != null && latencyConfig.hasExplicitThresholds();
+		boolean latencyEnforced = LatencyAssertionConfig.isEffectivelyEnforced(hasExplicitThresholds);
 		boolean passed = passRatePassed && (latencyPassed || !latencyEnforced);
 
 		// Publish structured results via TestReporter
@@ -1018,17 +1020,18 @@ public class ProbabilisticTestExtension implements
 	 * @throws ExtensionConfigurationException if latency assertions are infeasible
 	 */
 	private void enforceLatencyFeasibility(ExtensionContext context) {
-		if (!LatencyAssertionConfig.isEnforced()) {
+		LatencyAssertionConfig latencyConfig = getLatencyConfig(context);
+		if (latencyConfig == null || latencyConfig.disabled()) {
+			return;
+		}
+
+		boolean hasExplicitThresholds = latencyConfig.hasExplicitThresholds();
+		if (!LatencyAssertionConfig.isEffectivelyEnforced(hasExplicitThresholds)) {
 			return;
 		}
 
 		TestConfiguration config = getConfiguration(context);
 		if (config == null || config.intent() != TestIntent.VERIFICATION) {
-			return;
-		}
-
-		LatencyAssertionConfig latencyConfig = getLatencyConfig(context);
-		if (latencyConfig == null || latencyConfig.disabled()) {
 			return;
 		}
 

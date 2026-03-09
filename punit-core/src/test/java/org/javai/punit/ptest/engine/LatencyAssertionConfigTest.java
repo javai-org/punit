@@ -90,25 +90,63 @@ class LatencyAssertionConfigTest {
         }
 
         @Test
-        @DisplayName("should not be enforced by default")
-        void shouldNotBeEnforcedByDefault() {
-            assertThat(LatencyAssertionConfig.isEnforced()).isFalse();
+        @DisplayName("should not be set by default")
+        void shouldNotBeSetByDefault() {
+            assertThat(LatencyAssertionConfig.isGlobalFlagSet()).isFalse();
         }
 
         @Test
-        @DisplayName("should be enforced when system property is true")
-        void shouldBeEnforcedWhenSystemPropertyTrue() {
+        @DisplayName("should be set when system property is true")
+        void shouldBeSetWhenSystemPropertyTrue() {
             System.setProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE, "true");
 
-            assertThat(LatencyAssertionConfig.isEnforced()).isTrue();
+            assertThat(LatencyAssertionConfig.isGlobalFlagSet()).isTrue();
         }
 
         @Test
-        @DisplayName("should not be enforced when system property is false")
-        void shouldNotBeEnforcedWhenSystemPropertyFalse() {
+        @DisplayName("should not be set when system property is false")
+        void shouldNotBeSetWhenSystemPropertyFalse() {
             System.setProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE, "false");
 
-            assertThat(LatencyAssertionConfig.isEnforced()).isFalse();
+            assertThat(LatencyAssertionConfig.isGlobalFlagSet()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("Context-aware enforcement")
+    class ContextAwareEnforcement {
+
+        @AfterEach
+        void clearSystemProperty() {
+            System.clearProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE);
+        }
+
+        @Test
+        @DisplayName("should enforce explicit thresholds without global flag")
+        void shouldEnforceExplicitThresholdsWithoutGlobalFlag() {
+            assertThat(LatencyAssertionConfig.isEffectivelyEnforced(true)).isTrue();
+        }
+
+        @Test
+        @DisplayName("should enforce explicit thresholds even when global flag is false")
+        void shouldEnforceExplicitThresholdsEvenWhenGlobalFlagFalse() {
+            System.setProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE, "false");
+
+            assertThat(LatencyAssertionConfig.isEffectivelyEnforced(true)).isTrue();
+        }
+
+        @Test
+        @DisplayName("should not enforce baseline-derived thresholds by default")
+        void shouldNotEnforceBaselineDerivedByDefault() {
+            assertThat(LatencyAssertionConfig.isEffectivelyEnforced(false)).isFalse();
+        }
+
+        @Test
+        @DisplayName("should enforce baseline-derived thresholds when global flag is set")
+        void shouldEnforceBaselineDerivedWhenGlobalFlagSet() {
+            System.setProperty(LatencyAssertionConfig.PROP_LATENCY_ENFORCE, "true");
+
+            assertThat(LatencyAssertionConfig.isEffectivelyEnforced(false)).isTrue();
         }
     }
 }

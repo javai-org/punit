@@ -437,9 +437,22 @@ public @interface ProbabilisticTest {
      * measures wall-clock time per successful sample and evaluates the observed
      * latency distribution against the declared thresholds after all samples complete.
      *
-     * <p>The test fails if any observed percentile exceeds its declared threshold.
-     * Latency assertions are independent of pass-rate: a test can pass on pass-rate
+     * <p>Latency assertions are independent of pass-rate: a test can pass on pass-rate
      * but fail on latency, or vice versa.
+     *
+     * <h3>Enforcement model</h3>
+     * <ul>
+     *   <li><strong>Explicit thresholds</strong> (at least one percentile value ≥ 0):
+     *       breaches fail the test by default. The developer's declaration of specific
+     *       threshold values is honoured without requiring a global flag.</li>
+     *   <li><strong>Baseline-derived thresholds</strong> (no explicit values; thresholds
+     *       inferred from a baseline spec): breaches are advisory by default. Set
+     *       {@code -Dpunit.latency.enforce=true} or {@code PUNIT_LATENCY_ENFORCE=true}
+     *       to enforce them.</li>
+     *   <li>{@code @ProbabilisticTest(latency = @Latency)} with no percentile values
+     *       (all default {@code -1}) is equivalent to no latency assertion — no
+     *       enforcement occurs.</li>
+     * </ul>
      *
      * <h3>Automatic baseline derivation</h3>
      * <p>When the referenced baseline spec contains latency data, PUnit
@@ -451,7 +464,7 @@ public @interface ProbabilisticTest {
      * latency data, the explicit thresholds take precedence — the baseline
      * latency data is ignored.
      *
-     * <h3>Example — explicit thresholds</h3>
+     * <h3>Example — explicit thresholds (enforced)</h3>
      * <pre>{@code
      * @ProbabilisticTest(
      *     samples = 100,
