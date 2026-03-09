@@ -69,8 +69,8 @@ public class LatencyVerdictTestSubjects {
     }
 
     /**
-     * Test with a latency threshold that will be breached (p95 = 0ms on a test that sleeps).
-     * In advisory mode (default), the test should pass despite the latency breach.
+     * Test with an explicit latency threshold that will be breached (p95 = 0ms on a test that sleeps).
+     * Explicit thresholds are enforced by default, so this test should fail.
      */
     public static class AdvisoryLatencyBreachTest {
         @ProbabilisticTest(
@@ -79,7 +79,7 @@ public class LatencyVerdictTestSubjects {
                 intent = TestIntent.SMOKE,
                 latency = @Latency(p95Ms = 0)
         )
-        void shouldBreachLatencyButPassInAdvisoryMode() throws InterruptedException {
+        void shouldFailWhenExplicitLatencyBreached() throws InterruptedException {
             Thread.sleep(5);
             assertThat(true).isTrue();
         }

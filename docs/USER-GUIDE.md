@@ -427,6 +427,8 @@ void paymentServiceMeetsLatencySla() {
 
 The `@Latency` annotation supports four percentiles: `p50Ms`, `p90Ms`, `p95Ms`, and `p99Ms`. Declare only the ones you care about — unset percentiles (default `-1`) are not asserted.
 
+Explicit thresholds are **enforced by default** — breaches fail the test without requiring any global flag. The annotation is the developer's declaration of intent; no second opt-in is needed.
+
 > **Precedence rule:** When explicit `@Latency` thresholds are declared and the baseline spec also contains latency data, the explicit thresholds take precedence — the baseline latency data is ignored. This allows you to use a baseline for pass-rate derivation while asserting latency against your own contractual targets.
 
 **3. Use `@Latency(disabled = true)` to opt out**
@@ -1617,7 +1619,7 @@ The `@Latency` annotation supports four percentiles: `p50Ms`, `p90Ms`, `p95Ms`, 
 ══════════════════════════════════════════════════════════════════════════════
 ```
 
-The pass rate is fine (96% >= 95%), but the observed p99 of 1350ms exceeds the 1000ms threshold. With enforcement enabled (-Dpunit.latency.enforce=true), the test fails — latency is treated as a first-class assertion. In advisory mode (the default), the breach is reported but does not fail the test.
+The pass rate is fine (96% >= 95%), but the observed p99 of 1350ms exceeds the 1000ms threshold. Because the thresholds are declared explicitly via `@Latency`, they are enforced by default — the test fails. No global flag is required.
 
 ### Baseline-Derived Thresholds
 
@@ -1651,9 +1653,13 @@ void passRateOnlyTest() { ... }
 
 #### Latency enforcement mode
 
-Latency assertions are **advisory by default** — breaches produce warnings in the output but do not fail the test. This is because latency profiles are environment-dependent: a baseline generated on CI hardware may not match a developer laptop.
+Latency enforcement is **context-aware** — it depends on where the thresholds came from.
 
-To make latency breaches fail the test (e.g. on CI with consistent hardware), enable enforcement:
+**Explicit thresholds are enforced by default.** When you write `@Latency(p95Ms = 500)`, you are declaring intent. PUnit honours that intent — breaches fail the test without requiring any global flag. The annotation is the developer's declaration that latency matters for this test.
+
+**Baseline-derived thresholds are advisory by default.** When latency thresholds are automatically derived from a baseline spec (no explicit `@Latency` values), breaches produce warnings but do not fail the test. This is because latency profiles are environment-dependent: a baseline generated on CI hardware may not match a developer laptop.
+
+To promote baseline-derived thresholds to enforced (e.g. on CI with consistent hardware):
 
 ```bash
 # System property
@@ -1663,18 +1669,21 @@ To make latency breaches fail the test (e.g. on CI with consistent hardware), en
 PUNIT_LATENCY_ENFORCE=true
 ```
 
-A typical setup is to enforce latency in CI and leave advisory mode (the default) for local development:
+A typical setup is to enforce baseline-derived latency in CI while keeping advisory mode for local development:
 
 ```properties
 # CI gradle.properties
 systemProp.punit.latency.enforce=true
 ```
 
-| Enforce flag              | Latency evaluated             | Breach behaviour            | Feasibility gate           |
-|---------------------------|-------------------------------|-----------------------------|----------------------------|
-| `false` (default)         | Yes (if thresholds available) | Warn in output, test passes | Skipped                    |
-| `true`                    | Yes                           | Test fails                  | Active (VERIFICATION only) |
-| `@Latency(disabled=true)` | No                            | N/A                         | Skipped                    |
+The global flag only affects baseline-derived thresholds. It does not override or disable enforcement of explicit thresholds.
+
+| Threshold origin          | Global flag | Breach behaviour            | Feasibility gate           |
+|---------------------------|-------------|-----------------------------|----------------------------|
+| Explicit `@Latency`       | (any)       | Test fails                  | Active (VERIFICATION only) |
+| Baseline-derived          | `false`     | Warn in output, test passes | Skipped                    |
+| Baseline-derived          | `true`      | Test fails                  | Active (VERIFICATION only) |
+| `@Latency(disabled=true)` | (any)       | N/A (not evaluated)         | Skipped                    |
 
 To suppress latency evaluation entirely (not even advisory warnings), use `@Latency(disabled = true)` on individual tests.
 
@@ -1785,9 +1794,9 @@ The derived threshold is clamped to be at least the baseline value, ensuring it 
 | p95        | 20                         |
 | p99        | 100                        |
 
-When enforcement is active (`-Dpunit.latency.enforce=true`) and the test has VERIFICATION intent, these minimums are enforced as a feasibility gate before any samples execute. The relevant count is the *expected* number of successful samples — total samples multiplied by the expected pass rate. If this falls below the minimum for any asserted percentile, the test is rejected with a configuration error rather than producing unreliable results.
+When latency thresholds are effectively enforced (explicit `@Latency` thresholds, or baseline-derived with `-Dpunit.latency.enforce=true`) and the test has VERIFICATION intent, these minimums are enforced as a feasibility gate before any samples execute. The relevant count is the *expected* number of successful samples — total samples multiplied by the expected pass rate. If this falls below the minimum for any asserted percentile, the test is rejected with a configuration error rather than producing unreliable results.
 
-When the sample count is below the minimum but the feasibility gate is inactive (advisory mode or SMOKE intent), PUnit still evaluates latency but marks the results as **indicative** — a signal that the numbers should be taken with a grain of salt.
+When the sample count is below the minimum but the feasibility gate is inactive (baseline-derived advisory mode or SMOKE intent), PUnit still evaluates latency but marks the results as **indicative** — a signal that the numbers should be taken with a grain of salt.
 
 ### Transparent Statistics Mode
 
@@ -2212,11 +2221,11 @@ Transparent mode produces verbose statistical explanations of test verdicts, des
 
 #### Latency Enforcement
 
-| Property                | Environment Variable    | Default | Description                                         |
-|-------------------------|-------------------------|---------|-----------------------------------------------------|
-| `punit.latency.enforce` | `PUNIT_LATENCY_ENFORCE` | `false` | Enforce latency assertions (default: advisory only) |
+| Property                | Environment Variable    | Default | Description                                                         |
+|-------------------------|-------------------------|---------|---------------------------------------------------------------------|
+| `punit.latency.enforce` | `PUNIT_LATENCY_ENFORCE` | `false` | Enforce baseline-derived latency assertions (default: advisory only) |
 
-When disabled (default), latency breaches produce warnings but do not cause sample failures. When enabled, latency breaches contribute to the pass/fail verdict.
+Explicit `@Latency` thresholds (at least one percentile value ≥ 0) are always enforced — this flag has no effect on them. This flag controls baseline-derived thresholds only: when disabled (default), baseline-derived latency breaches produce warnings but do not fail the test; when enabled, they are enforced like explicit thresholds.
 
 #### Sentinel Environment Metadata
 
