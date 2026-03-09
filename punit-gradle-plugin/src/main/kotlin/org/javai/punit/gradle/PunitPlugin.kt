@@ -189,16 +189,6 @@ class PunitPlugin : Plugin<Project> {
                 ))
             }
 
-            // Include compiled test and main classes
-            from(testSourceSet.output)
-            from(mainSourceSet.output)
-
-            // Include all runtime dependencies, unpacking JARs
-            from(testSourceSet.runtimeClasspath
-                .filter { it.exists() }
-                .map { if (it.isDirectory) it else project.zipTree(it) }
-            )
-
             // Merge service files; first-wins for everything else
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
@@ -215,14 +205,26 @@ class PunitPlugin : Plugin<Project> {
 
             dependsOn("compileTestJava", "processTestResources")
 
-            // Scan for @Sentinel classes and generate the manifest at build time
+            // All from() calls are deferred to doFirst to avoid resolving
+            // testRuntimeClasspath at configuration time, which breaks
+            // composite builds where included projects are not yet evaluated.
             doFirst {
+                // Include compiled test and main classes
+                from(testSourceSet.output)
+                from(mainSourceSet.output)
+
+                // Include all runtime dependencies, unpacking JARs
+                from(testSourceSet.runtimeClasspath
+                    .filter { it.exists() }
+                    .map { if (it.isDirectory) it else project.zipTree(it) }
+                )
+
                 val sentinelClasses = scanForSentinelClasses(testSourceSet.output.classesDirs.files,
                     testSourceSet.runtimeClasspath.files)
 
                 if (sentinelClasses.isEmpty()) {
                     throw org.gradle.api.GradleException(
-                        "No @Sentinel-annotated classes found in test sources. " +
+                        "No @Sentinel-annotated classes found on the test classpath. " +
                         "Annotate at least one reliability spec class with @Sentinel.")
                 }
 
@@ -247,8 +249,15 @@ class PunitPlugin : Plugin<Project> {
     }
 
     /**
-     * Scans compiled test class directories for classes annotated with @Sentinel.
-     * Uses an isolated URLClassLoader to avoid polluting the plugin's classloader.
+     * Scans compiled class directories and JARs on the classpath for classes
+     * annotated with @Sentinel. Uses an isolated URLClassLoader to avoid
+     * polluting the plugin's classloader.
+     *
+     * @param classesDirs  test source output directories (always scanned)
+     * @param classpathFiles  full runtime classpath — directories are scanned
+     *                        for @Sentinel classes; JARs provide the classloader
+     *                        context but are not scanned (sentinel classes must
+     *                        come from project sources, not third-party libraries)
      */
     private fun scanForSentinelClasses(
         classesDirs: Set<File>,
@@ -270,31 +279,80 @@ class PunitPlugin : Plugin<Project> {
 
         val sentinelClasses = mutableListOf<String>()
 
-        for (classesDir in classesDirs) {
-            if (!classesDir.isDirectory) continue
+        // Scan test output dirs and all class directories on the classpath
+        val allClassesDirs = (classesDirs + classpathFiles)
+            .filter { it.isDirectory && it.exists() }
+            .distinct()
 
-            classesDir.walkTopDown()
-                .filter { it.isFile && it.extension == "class" }
-                .filter { !it.path.contains("testsubjects") }
-                .forEach { classFile ->
-                    val relativePath = classFile.relativeTo(classesDir).path
-                    val className = relativePath
-                        .removeSuffix(".class")
-                        .replace(File.separatorChar, '.')
+        for (classesDir in allClassesDirs) {
+            scanDirectory(classesDir, classLoader, sentinelAnnotation, sentinelClasses)
+        }
 
-                    try {
-                        val clazz = classLoader.loadClass(className)
-                        if (clazz.annotations.any { sentinelAnnotation.isInstance(it) }) {
-                            sentinelClasses.add(className)
-                        }
-                    } catch (e: Throwable) {
-                        // Skip classes that can't be loaded (inner classes, etc.)
-                    }
-                }
+        // Also scan JARs on the classpath — project dependencies are packaged
+        // as JARs by Gradle, so @Sentinel classes from sibling modules appear here
+        for (jar in classpathFiles) {
+            if (!jar.isFile || !jar.name.endsWith(".jar")) continue
+            scanJar(jar, classLoader, sentinelAnnotation, sentinelClasses)
         }
 
         classLoader.close()
         return sentinelClasses.sorted()
+    }
+
+    private fun scanDirectory(
+        classesDir: File,
+        classLoader: URLClassLoader,
+        sentinelAnnotation: Class<*>,
+        results: MutableList<String>
+    ) {
+        classesDir.walkTopDown()
+            .filter { it.isFile && it.extension == "class" }
+            .filter { !it.path.contains("testsubjects") }
+            .forEach { classFile ->
+                val className = classFile.relativeTo(classesDir).path
+                    .removeSuffix(".class")
+                    .replace(File.separatorChar, '.')
+                checkForSentinel(className, classLoader, sentinelAnnotation, results)
+            }
+    }
+
+    private fun scanJar(
+        jar: File,
+        classLoader: URLClassLoader,
+        sentinelAnnotation: Class<*>,
+        results: MutableList<String>
+    ) {
+        try {
+            java.util.jar.JarFile(jar).use { jarFile ->
+                jarFile.entries().asSequence()
+                    .filter { it.name.endsWith(".class") }
+                    .filter { !it.name.contains("testsubjects") }
+                    .forEach { entry ->
+                        val className = entry.name
+                            .removeSuffix(".class")
+                            .replace('/', '.')
+                        checkForSentinel(className, classLoader, sentinelAnnotation, results)
+                    }
+            }
+        } catch (_: Exception) {
+            // Skip JARs that can't be read
+        }
+    }
+
+    private fun checkForSentinel(
+        className: String,
+        classLoader: URLClassLoader,
+        sentinelAnnotation: Class<*>,
+        results: MutableList<String>
+    ) {
+        try {
+            val clazz = classLoader.loadClass(className)
+            if (clazz.annotations.any { sentinelAnnotation.isInstance(it) }) {
+                results.add(className)
+            }
+        } catch (_: Throwable) {
+            // Skip classes that can't be loaded
+        }
     }
 
     private fun forwardPunitSystemProperties(task: Test) {
