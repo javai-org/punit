@@ -66,7 +66,7 @@ subprojects {
 
     // Outcome - result types for contract postconditions
     // Resolved locally via composite build (settings.gradle.kts), or from Maven Central on CI
-    api("org.javai:outcome:0.1.0")
+    api("org.javai:outcome:0.2.0")
 
     // Optional JSON matching support for instance conformance
     // Users who want JsonMatcher need to add this dependency to their project

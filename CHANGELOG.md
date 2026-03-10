@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-10
+
+### Changed
+- Bumped `org.javai:outcome` transitive dependency from 0.1.0 to 0.2.0 — see [outcome 0.2.0 changelog](https://github.com/javai-org/outcome/releases/tag/v0.2.0) for breaking changes to `Failure` record fields (`exception`, `retryAfter`, `correlationId` now return `Optional`)
+
 ## [0.4.0] - 2026-03-10
 
 ### Added
@@ -80,7 +85,8 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/javai-org/punit/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/javai-org/punit/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/javai-org/punit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/javai-org/punit/compare/v0.2.0...v0.3.0
