@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-10
+
+### Added
+- **PUnit Sentinel** — a JUnit-free execution engine for running probabilistic tests and experiments in deployed environments (staging, production). The Sentinel runs the same `@ProbabilisticTest` and `@MeasureExperiment` methods defined for development-time testing, producing environment-specific baselines and dispatching verdicts to observability infrastructure.
+- `@Sentinel` annotation for marking reliability specification classes consumed by both JUnit and the Sentinel engine
+- `SentinelRunner` API for programmatic test and experiment execution with use-case-level filtering
+- `SentinelMain` CLI with commands (`test`, `exp`), options (`--list`, `--useCase <id>`, `--verbose`, `--help`), and structured exit codes
+- `createSentinel` Gradle task (via the `org.javai.punit` plugin) that builds an executable fat JAR containing all `@Sentinel` classes, their dependencies, and the Sentinel runtime
+- `WebhookVerdictSink` for dispatching verdicts as JSON to HTTP endpoints with configurable URL, timeout, and headers
+- Environment metadata tagging on verdicts (`PUNIT_ENVIRONMENT`, `PUNIT_INSTANCE_ID`)
+- Three-module decomposition: `punit-core` (JUnit-free engine), `punit-junit5` (JUnit 5 extensions), `punit-sentinel` (Sentinel runtime)
+- `UseCaseFactory` in `punit-core` for JUnit-free use case registration, independent of `UseCaseProvider`
+- `SpecRepository` interface with `LayeredSpecRepository` for environment-local-first spec resolution
+- Dimension-scoped assertion API: `UseCaseOutcome.assertContract()`, `assertLatency()`, `assertAll()`
+- Per-dimension baselines and spec resolution (functional and latency specs as separate files)
+- ArchUnit-enforced module boundaries: `punit-core` and `punit-sentinel` have zero `org.junit` dependencies
+
+### Changed
+- Reliability specifications now use the spec-first model: `@Sentinel` classes in production source sets, consumed by both JUnit (via inheritance) and the Sentinel engine (directly)
+- Explicit `@Latency` attribute on `@ProbabilisticTest` overrides baseline-derived thresholds without causing a misconfiguration error
+
 ## [0.3.1] - 2026-03-02
 
 ### Fixed
@@ -59,7 +80,8 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/javai-org/punit/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/javai-org/punit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/javai-org/punit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/javai-org/punit/compare/v0.1.0...v0.2.0

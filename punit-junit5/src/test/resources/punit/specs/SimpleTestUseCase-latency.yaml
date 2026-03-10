@@ -4,7 +4,7 @@
 
 schemaVersion: punit-spec-1
 useCaseId: SimpleTestUseCase
-generatedAt: 2026-03-10T06:26:20.672191Z
+generatedAt: 2026-03-10T06:36:18.521578Z
 experimentClass: org.javai.punit.experiment.engine.ExperimentPacingIntegrationTest$UnpacedMeasureExperiment
 experimentMethod: experimentWithoutPacing
 execution:
@@ -25,4 +25,4 @@ cost:
   avgTimePerSampleMs: 0
   totalTokens: 0
   avgTokensPerSample: 0
-contentFingerprint: 5011982472f0217f92d01fecc49c8a324991d66c6ad35f74f1434f7ce3164635
+contentFingerprint: a9d4176096502ac40ca6596a9dc254ae0abc7f74b1a13ef3a1b87c98aa1d00f1
