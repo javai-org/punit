@@ -384,17 +384,7 @@ class PunitPlugin : Plugin<Project> {
         }
     }
 
-    private fun loadPunitVersion(): String {
-        val props = java.util.Properties()
-        PunitPlugin::class.java.classLoader
-            .getResourceAsStream("punit-plugin.properties")
-            ?.use { props.load(it) }
-            ?: throw org.gradle.api.GradleException(
-                "Could not load punit-plugin.properties from plugin classpath.")
-        return props.getProperty("punitVersion")
-            ?: throw org.gradle.api.GradleException(
-                "punitVersion not found in punit-plugin.properties.")
-    }
+    private fun loadPunitVersion(): String = PunitVersion.VERSION
 
     private fun forwardPunitSystemProperties(task: Test) {
         System.getProperties()

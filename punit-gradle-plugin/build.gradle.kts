@@ -39,13 +39,29 @@ dependencies {
     functionalTestRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// Embed the PUnit version so the plugin can add punit-sentinel at runtime
+// Generate a Kotlin source file with the PUnit version baked in at compile time.
+// This avoids classloader/resource-loading issues with Gradle's pluginManagement { includeBuild }.
 val punitVersion = property("punitVersion") as String
-tasks.named<Copy>("processResources") {
-    filesMatching("punit-plugin.properties") {
-        expand("punitVersion" to punitVersion)
+val generateVersionFile = tasks.register("generateVersionFile") {
+    val outputDir = layout.buildDirectory.dir("generated/punit-version")
+    outputs.dir(outputDir)
+    inputs.property("punitVersion", punitVersion)
+    doLast {
+        val dir = outputDir.get().asFile.resolve("org/javai/punit/gradle")
+        dir.mkdirs()
+        dir.resolve("PunitVersion.kt").writeText(
+            """
+            package org.javai.punit.gradle
+
+            internal object PunitVersion {
+                const val VERSION = "$punitVersion"
+            }
+            """.trimIndent() + "\n"
+        )
     }
 }
+sourceSets.main.get().kotlin.srcDir(generateVersionFile.map { layout.buildDirectory.dir("generated/punit-version").get() })
+tasks.named("compileKotlin") { dependsOn(generateVersionFile) }
 
 val functionalTestTask = tasks.register<Test>("functionalTest") {
     description = "Runs the functional tests for the plugin"
