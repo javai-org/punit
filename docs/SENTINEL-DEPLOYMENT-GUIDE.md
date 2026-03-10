@@ -24,8 +24,8 @@ This is the PUnit Sentinel: an execution engine that runs the same probabilistic
 app-stochastic          punit-core
   ↑         ↑              ↑
 app-main    app-usecases ──┘
-              ↑        ↑
-         test suite    app-sentinel
+              ↑
+         test suite ──→ createSentinel task ──→ sentinel.jar
 ```
 
 ### Module Responsibilities
@@ -101,37 +101,22 @@ dependencies {
 }
 ```
 
-#### `app-sentinel` — Sentinel Deployment
+#### Sentinel JAR — Built by the PUnit Gradle Plugin
 
-The Sentinel deployment module. Contains `SentinelRunner` bootstrap code and deployment configuration. This is the binary that runs in production/staging environments.
+The PUnit Gradle plugin provides a `createSentinel` task that builds an executable fat JAR from the test classpath. No dedicated `app-sentinel` module is needed — the task discovers all `@Sentinel`-annotated classes, packages them with their dependencies and the Sentinel runtime, and produces a self-contained executable:
 
-```kotlin
-// app-sentinel/build.gradle.kts
-dependencies {
-    implementation(project(":app-usecases"))
-    implementation("org.javai:punit-sentinel:0.7.0")  // Transitively includes punit-core
-    // No JUnit dependency
-}
+```bash
+./gradlew createSentinel
 ```
 
-```java
-public class SentinelMain {
-    public static void main(String[] args) {
-        SentinelConfiguration config = SentinelConfiguration.builder()
-            .sentinelClass(ShoppingBasketReliability.class)
-            .verdictSink(new WebhookVerdictSink("https://alerts.example.com/punit"))
-            .environmentMetadata(EnvironmentMetadata.fromEnvironment())
-            .build();
+The resulting JAR (`build/libs/<project>-sentinel.jar`) includes:
 
-        SentinelRunner runner = new SentinelRunner(config);
+- All `@Sentinel`-annotated classes (from test and main source sets, plus transitive project dependencies)
+- The `punit-sentinel` runtime (`SentinelMain`, `SentinelRunner`, verdict sinks)
+- All runtime dependencies, unpacked into the fat JAR
+- A generated `META-INF/punit/sentinel-classes` manifest
 
-        // Run probabilistic tests against current baselines
-        SentinelResult result = runner.runTests();
-
-        System.exit(result.allPassed() ? 0 : 1);
-    }
-}
-```
+The task requires at least one `@Sentinel`-annotated class on the test classpath. The plugin automatically adds `punit-sentinel` as a dependency — no manual dependency declaration is needed beyond the standard `org.javai.punit` plugin application.
 
 ---
 
@@ -157,31 +142,67 @@ No framework-specific Sentinel variants are needed or provided. There is no `Spr
 
 ## The Sentinel Deployment Workflow
 
-### 1. Establish Baselines (Experiment Mode)
+### 0. Build the Sentinel JAR
+
+Build the executable sentinel JAR from the project that contains the `@Sentinel` classes:
+
+```bash
+./gradlew createSentinel
+```
+
+Deploy the resulting `build/libs/<project>-sentinel.jar` to the target environment.
+
+### 1. Discover Available Use Cases
+
+List the tests and experiments packaged in the JAR:
+
+```bash
+java -jar sentinel.jar --list
+```
+
+```
+Use Case Id            Type        Name                                      Samples
+──────────────────────────────────────────────────────────────────────────────────────
+PaymentGatewayUseCase  experiment  PaymentGatewayReliability.measureBaseline  200
+PaymentGatewayUseCase  test        PaymentGatewayReliability.testLatency      50
+ShoppingBasketUseCase  experiment  ShoppingBasketReliability.measureBaseline  1000
+ShoppingBasketUseCase  test        ShoppingBasketReliability.testBaseline     100
+```
+
+The **Use Case Id** column is the value to pass to `--useCase` for selective execution.
+
+### 2. Establish Baselines (Experiment Mode)
 
 Run measure experiments in the target environment to produce environment-local baseline specs:
 
 ```bash
-# In the target environment (staging, production, etc.)
-export PUNIT_SPEC_DIR=/opt/sentinel/specs
-export PUNIT_ENVIRONMENT=staging
+# Run all experiments
+java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp
 
-java -jar app-sentinel.jar --experiments
+# Run experiments for a specific use case
+java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp --useCase ShoppingBasketUseCase
 ```
 
-This invokes `SentinelRunner.runExperiments()`, which scans `@MeasureExperiment` methods in each `@Sentinel` class, executes the sample loops, and writes per-dimension spec files to `PUNIT_SPEC_DIR`.
+This scans `@MeasureExperiment` methods in each `@Sentinel` class, executes the sample loops, and writes per-dimension spec files to the specified directory. The spec directory is required for experiment mode and can be set via `-Dpunit.spec.dir` or the `PUNIT_SPEC_DIR` environment variable.
 
-### 2. Verify Against Baselines (Test Mode)
+### 3. Verify Against Baselines (Test Mode)
 
 Run probabilistic tests against the current baselines:
 
 ```bash
-java -jar app-sentinel.jar --tests
+# Run all tests
+java -jar sentinel.jar test
+
+# Run tests for a specific use case
+java -jar sentinel.jar test --useCase PaymentGatewayUseCase
+
+# Run with per-sample progress output
+java -jar sentinel.jar test --verbose
 ```
 
-This invokes `SentinelRunner.runTests()`, which scans `@ProbabilisticTest` methods, loads specs via the layered `SpecRepository` (environment-local first, classpath fallback), derives thresholds, and executes the sample loops.
+This scans `@ProbabilisticTest` methods, loads specs via the layered `SpecRepository` (environment-local first, classpath fallback), derives thresholds, and executes the sample loops.
 
-### 3. Verdict Dispatch
+### 4. Verdict Dispatch
 
 Verdicts are dispatched to all configured `VerdictSink` instances. Each verdict carries:
 
@@ -209,13 +230,14 @@ The Sentinel's exit code (`SentinelResult.allPassed()`) and verdict dispatch (`V
 
 ## Dependency Summary
 
-| Module           | PUnit Dependency              | JUnit Dependency       | Purpose                         |
-|------------------|-------------------------------|------------------------|---------------------------------|
-| `app-stochastic` | None                          | None                   | Stochastic service integrations |
-| `app-main`       | None                          | None                   | Main application                |
-| `app-usecases`   | `punit-core` (production)     | None                   | Reliability specifications      |
-| Test suite       | `punit-junit5` (test)         | `junit-jupiter` (test) | JUnit probabilistic tests       |
-| `app-sentinel`   | `punit-sentinel` (production) | None                   | Sentinel deployment             |
+| Module           | PUnit Dependency          | JUnit Dependency       | Purpose                         |
+|------------------|---------------------------|------------------------|---------------------------------|
+| `app-stochastic` | None                      | None                   | Stochastic service integrations |
+| `app-main`       | None                      | None                   | Main application                |
+| `app-usecases`   | `punit-core` (production) | None                   | Reliability specifications      |
+| Test suite       | `punit-junit5` (test)     | `junit-jupiter` (test) | JUnit probabilistic tests       |
+
+The sentinel JAR is built by the PUnit Gradle plugin's `createSentinel` task from the test classpath — no dedicated sentinel module is needed. The plugin automatically includes `punit-sentinel` and its transitive dependencies.
 
 ---
 
@@ -225,5 +247,6 @@ The Sentinel's exit code (`SentinelResult.allPassed()`) and verdict dispatch (`V
 |-------------------------------|----------------------------|----------------------------------------------------------|
 | Reliability spec author       | `org.javai:punit-core`     | `api` (production)                                       |
 | JUnit test developer          | `org.javai:punit-junit5`   | `testImplementation`                                     |
-| Sentinel deployer             | `org.javai:punit-sentinel` | `implementation` (production)                            |
 | Existing consumer (pre-split) | `org.javai:punit`          | `testImplementation` (backward-compatible meta-artifact) |
+
+The `punit-sentinel` artifact is included automatically by the PUnit Gradle plugin when building the sentinel JAR via `createSentinel`. No manual dependency declaration is needed for sentinel deployment.

@@ -2011,9 +2011,114 @@ void setUp() {
 
 When a JUnit test class extends a `@Sentinel` class, both the inherited `UseCaseFactory` field and the `@RegisterExtension UseCaseProvider` field are present. PUnit's field scanning finds any field assignable to `UseCaseFactory`, so both patterns work transparently.
 
-### Configuring and Running the Sentinel
+### Building the Sentinel JAR
 
-The Sentinel is configured via `SentinelConfiguration` and executed by `SentinelRunner`:
+The PUnit Gradle plugin provides a `createSentinel` task that builds an executable fat JAR containing all `@Sentinel`-annotated classes, their dependencies, and the Sentinel runtime. The task scans the test classpath for `@Sentinel` classes and packages everything needed into a single JAR:
+
+```bash
+./gradlew createSentinel
+```
+
+The resulting JAR is written to `build/libs/<project>-sentinel.jar`. The task:
+
+- Discovers all `@Sentinel`-annotated classes on the test classpath (including transitive project dependencies)
+- Packages compiled test and main classes, runtime dependencies, and the `punit-sentinel` runtime
+- Generates a `META-INF/punit/sentinel-classes` manifest listing discovered sentinel classes
+- Sets `SentinelMain` as the JAR's main class
+
+At least one `@Sentinel`-annotated class must exist on the classpath, or the task will fail with an error.
+
+### Running the Sentinel
+
+The Sentinel CLI provides commands and options for running tests and experiments:
+
+```
+Usage: java [-Dpunit.spec.dir=<dir>] -jar sentinel.jar <command> [options]
+
+Commands:
+  test         Run probabilistic tests against baseline specs
+  exp          Run experiments to produce baseline specs
+
+Options:
+  --help       Show this help message and exit
+  --list       List available use cases and exit
+  --verbose    Show per-sample progress during execution
+  --useCase <id>  Run only the specified use case
+
+Configuration:
+  -Dpunit.spec.dir=<dir>   Spec directory (JVM system property)
+  PUNIT_SPEC_DIR=<dir>     Spec directory (environment variable)
+
+Exit codes:
+  0  All tests/experiments passed (or --help/--list)
+  1  One or more tests/experiments failed, or no use cases matched
+  2  Usage error
+```
+
+**Discovering available use cases.** Use `--list` to see all available tests and experiments with their use case IDs:
+
+```bash
+java -jar sentinel.jar --list
+```
+
+This produces a table showing the use case ID, type, method name, and sample count:
+
+```
+Use Case Id            Type        Name                                      Samples
+──────────────────────────────────────────────────────────────────────────────────────
+PaymentGatewayUseCase  experiment  PaymentGatewayReliability.measureBaseline  200
+PaymentGatewayUseCase  test        PaymentGatewayReliability.testLatency      50
+ShoppingBasketUseCase  experiment  ShoppingBasketReliability.measureBaseline  1000
+ShoppingBasketUseCase  test        ShoppingBasketReliability.testBaseline     100
+```
+
+**Running experiments.** Experiments produce baseline spec files. A spec output directory is required:
+
+```bash
+java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp
+```
+
+To run experiments for a single use case, pass the use case ID from the `--list` output:
+
+```bash
+java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp --useCase ShoppingBasketUseCase
+```
+
+**Running tests.** Tests verify behaviour against existing baseline specs:
+
+```bash
+java -jar sentinel.jar test
+java -jar sentinel.jar test --useCase PaymentGatewayUseCase
+```
+
+**Verbose mode.** Add `--verbose` to see per-sample progress during execution:
+
+```bash
+java -jar sentinel.jar test --verbose --useCase ShoppingBasketUseCase
+```
+
+```
+ShoppingBasketReliability.testBaseline (100 samples)
+  sample 1/100 pass
+  sample 2/100 pass
+  sample 3/100 FAIL
+  ...
+  -> PASS
+
+Sentinel Test Summary
+────────────────────────────────────────
+Total:    1
+Passed:   1
+Failed:   0
+Skipped:  0
+Duration: 45230ms
+
+Result: PASS
+```
+
+### Programmatic API
+
+For custom deployment scenarios (embedded scheduling, CI/CD integration, custom verdict routing), the Sentinel can be configured and invoked programmatically:
 
 ```java
 SentinelConfiguration config = SentinelConfiguration.builder()
@@ -2023,6 +2128,11 @@ SentinelConfiguration config = SentinelConfiguration.builder()
     .build();
 
 SentinelRunner runner = new SentinelRunner(config);
+SentinelResult result = runner.runTests();
+
+if (!result.allPassed()) {
+    System.exit(1);
+}
 ```
 
 **Configuration options:**
@@ -2033,28 +2143,6 @@ SentinelRunner runner = new SentinelRunner(config);
 | `.specRepository(SpecRepository)`           | Baseline spec resolution strategy                             | `LayeredSpecRepository`                 |
 | `.verdictSink(VerdictSink)`                 | Add a verdict sink (multiple allowed, composed automatically) | `LogVerdictSink`                        |
 | `.environmentMetadata(EnvironmentMetadata)` | Environment context attached to verdicts                      | `EnvironmentMetadata.fromEnvironment()` |
-
-**Execution modes:**
-
-```java
-// Run experiments — produces/refreshes baseline specs
-SentinelResult result = runner.runExperiments();
-
-// Run all probabilistic tests
-SentinelResult result = runner.runTests();
-
-// Run tests for a specific use case
-SentinelResult result = runner.runTests("ShoppingBasketUseCase");
-```
-
-**`SentinelResult`** provides the aggregate outcome:
-
-```java
-if (!result.allPassed()) {
-    System.err.println(result.failed() + " of " + result.totalTests() + " tests failed");
-    System.exit(1);
-}
-```
 
 **Verdict sinks.** Every verdict produced by the Sentinel is dispatched to all configured `VerdictSink` instances:
 
