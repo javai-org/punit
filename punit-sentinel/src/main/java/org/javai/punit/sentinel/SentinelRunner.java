@@ -4,7 +4,9 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -60,6 +62,7 @@ public class SentinelRunner {
     private final SentinelClassIntrospector introspector;
     private final SentinelTestExecutor testExecutor;
     private final SentinelExperimentExecutor experimentExecutor;
+    private SentinelProgressListener progressListener;
 
     public SentinelRunner(SentinelConfiguration configuration) {
         this.configuration = configuration;
@@ -80,6 +83,17 @@ public class SentinelRunner {
                 sampleExecutor,
                 introspector,
                 metadata);
+    }
+
+    /**
+     * Sets a progress listener for verbose output during execution.
+     *
+     * @param listener the progress listener
+     */
+    public void setProgressListener(SentinelProgressListener listener) {
+        this.progressListener = listener;
+        this.testExecutor.setProgressListener(listener);
+        this.experimentExecutor.setProgressListener(listener);
     }
 
     /**
@@ -149,6 +163,22 @@ public class SentinelRunner {
      * @return the aggregate result
      */
     public SentinelResult runExperiments() {
+        return executeExperiments(useCaseId -> true);
+    }
+
+    /**
+     * Executes {@code @MeasureExperiment} methods for a specific use case.
+     *
+     * @param useCaseId the use case to run experiments for
+     * @return the aggregate result
+     * @throws NullPointerException if useCaseId is null
+     */
+    public SentinelResult runExperiments(String useCaseId) {
+        Objects.requireNonNull(useCaseId, "useCaseId must not be null; use runExperiments() for all");
+        return executeExperiments(id -> id.equals(useCaseId));
+    }
+
+    private SentinelResult executeExperiments(Predicate<String> filter) {
         Instant start = Instant.now();
         List<VerdictEvent> verdicts = new ArrayList<>();
         int passed = 0, failed = 0;
@@ -161,6 +191,12 @@ public class SentinelRunner {
 
             for (Method method : experimentMethods) {
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
+                String useCaseId = UseCaseFactory.resolveId(annotation.useCase());
+
+                if (!filter.test(useCaseId)) {
+                    continue;
+                }
+
                 VerdictEvent verdict = experimentExecutor.execute(
                         method, annotation, instance, factory, sentinelClass);
                 verdicts.add(verdict);
@@ -178,4 +214,53 @@ public class SentinelRunner {
                 passed + failed, passed, failed, 0,
                 List.copyOf(verdicts), Duration.between(start, Instant.now()));
     }
+
+    /**
+     * Discovers all use cases across all registered sentinel classes,
+     * grouped by type (test or experiment).
+     *
+     * <p>Each entry maps a use case ID to its source method name. A use case
+     * may appear in both the test and experiment lists if it has both types.
+     *
+     * @return a record containing test and experiment use case maps
+     */
+    public UseCaseCatalog listUseCases() {
+        Map<String, String> tests = new LinkedHashMap<>();
+        Map<String, String> experiments = new LinkedHashMap<>();
+
+        for (Class<?> sentinelClass : configuration.sentinelClasses()) {
+            String className = sentinelClass.getSimpleName();
+
+            for (Method method : introspector.findTestMethods(sentinelClass)) {
+                ProbabilisticTest annotation = method.getAnnotation(ProbabilisticTest.class);
+                Optional<String> useCaseId = testExecutor.resolveUseCaseId(annotation);
+                useCaseId.ifPresent(id -> {
+                    String methodRef = className + "." + method.getName();
+                    int samples = annotation.samples();
+                    tests.put(id, methodRef + " (" + samples + " samples)");
+                });
+            }
+
+            for (Method method : introspector.findExperimentMethods(sentinelClass)) {
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
+                String useCaseId = UseCaseFactory.resolveId(annotation.useCase());
+                String methodRef = className + "." + method.getName();
+                int samples = annotation.samples();
+                experiments.put(useCaseId, methodRef + " (" + samples + " samples)");
+            }
+        }
+
+        return new UseCaseCatalog(Map.copyOf(tests), Map.copyOf(experiments));
+    }
+
+    /**
+     * Catalog of available use cases discovered from sentinel classes.
+     *
+     * @param tests map of use case ID to source method for tests
+     * @param experiments map of use case ID to source method (with sample count) for experiments
+     */
+    public record UseCaseCatalog(
+            Map<String, String> tests,
+            Map<String, String> experiments
+    ) {}
 }

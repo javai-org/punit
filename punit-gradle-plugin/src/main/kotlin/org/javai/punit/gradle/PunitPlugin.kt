@@ -33,6 +33,16 @@ class PunitPlugin : Plugin<Project> {
             excludeTestSubjects.convention(true)
         }
 
+        // Create a dedicated configuration for punit-sentinel so it is only
+        // resolved when the createSentinel task actually runs, not on every build
+        val sentinelConfig = project.configurations.create("punitSentinel") {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+        }
+        val punitVersion = loadPunitVersion()
+        project.dependencies.add("punitSentinel",
+            "org.javai:punit-sentinel:$punitVersion")
+
         project.afterEvaluate {
             if (extension.configureTestTask.get()) {
                 configureTestTask(project, extension)
@@ -43,7 +53,7 @@ class PunitPlugin : Plugin<Project> {
             registerExperimentTask(project, extension, "exp",
                 "Shorthand for 'experiment' task")
 
-            registerCreateSentinelTask(project, extension)
+            registerCreateSentinelTask(project, extension, sentinelConfig)
         }
     }
 
@@ -166,7 +176,8 @@ class PunitPlugin : Plugin<Project> {
 
     private fun registerCreateSentinelTask(
         project: Project,
-        extension: PunitExperimentExtension
+        extension: PunitExperimentExtension,
+        sentinelConfig: org.gradle.api.artifacts.Configuration
     ) {
         project.tasks.register("createSentinel", Jar::class.java).configure {
             description = "Builds an executable sentinel JAR with all @Sentinel classes"
@@ -204,6 +215,18 @@ class PunitPlugin : Plugin<Project> {
             exclude("META-INF/NOTICE*")
 
             dependsOn("compileTestJava", "processTestResources")
+            // Ensure all upstream project JARs (including transitive) are built
+            // before we resolve the classpath. Without this, transitive project
+            // dependencies (e.g., app -> app-usecases -> app-tests) may be
+            // missing from the fat JAR.
+            dependsOn(testSourceSet.runtimeClasspath.buildDependencies)
+            dependsOn(sentinelConfig.buildDependencies)
+
+            // Because all from() calls are deferred to doFirst (to avoid
+            // configuration-time classpath resolution in composite builds),
+            // Gradle has no visibility of the actual inputs and cannot
+            // determine staleness. Force re-execution every time.
+            outputs.upToDateWhen { false }
 
             // All from() calls are deferred to doFirst to avoid resolving
             // testRuntimeClasspath at configuration time, which breaks
@@ -219,8 +242,14 @@ class PunitPlugin : Plugin<Project> {
                     .map { if (it.isDirectory) it else project.zipTree(it) }
                 )
 
+                // Include punit-sentinel runtime (SentinelMain, SentinelRunner)
+                from(sentinelConfig.resolve()
+                    .filter { it.exists() }
+                    .map { if (it.isDirectory) it else project.zipTree(it) }
+                )
+
                 val sentinelClasses = scanForSentinelClasses(testSourceSet.output.classesDirs.files,
-                    testSourceSet.runtimeClasspath.files)
+                    testSourceSet.runtimeClasspath.files + sentinelConfig.resolve())
 
                 if (sentinelClasses.isEmpty()) {
                     throw org.gradle.api.GradleException(
@@ -353,6 +382,18 @@ class PunitPlugin : Plugin<Project> {
         } catch (_: Throwable) {
             // Skip classes that can't be loaded
         }
+    }
+
+    private fun loadPunitVersion(): String {
+        val props = java.util.Properties()
+        PunitPlugin::class.java.classLoader
+            .getResourceAsStream("punit-plugin.properties")
+            ?.use { props.load(it) }
+            ?: throw org.gradle.api.GradleException(
+                "Could not load punit-plugin.properties from plugin classpath.")
+        return props.getProperty("punitVersion")
+            ?: throw org.gradle.api.GradleException(
+                "punitVersion not found in punit-plugin.properties.")
     }
 
     private fun forwardPunitSystemProperties(task: Test) {

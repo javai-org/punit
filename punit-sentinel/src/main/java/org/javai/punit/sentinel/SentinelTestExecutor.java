@@ -47,6 +47,7 @@ class SentinelTestExecutor {
     private final ThresholdDeriver thresholdDeriver;
     private final FinalVerdictDecider verdictDecider;
     private final EnvironmentMetadata environmentMetadata;
+    private SentinelProgressListener progressListener;
 
     SentinelTestExecutor(
             SentinelSampleExecutor sampleExecutor,
@@ -61,6 +62,10 @@ class SentinelTestExecutor {
         this.thresholdDeriver = thresholdDeriver;
         this.verdictDecider = verdictDecider;
         this.environmentMetadata = environmentMetadata;
+    }
+
+    void setProgressListener(SentinelProgressListener listener) {
+        this.progressListener = listener;
     }
 
     /**
@@ -89,6 +94,10 @@ class SentinelTestExecutor {
         double minPassRate = resolveMinPassRate(config);
         List<Object> inputs = introspector.resolveInputs(method, sentinelClass);
 
+        if (progressListener != null) {
+            progressListener.onMethodStart(testName, config.samples());
+        }
+
         SampleResultAggregator aggregator = new SampleResultAggregator(
                 config.samples(), config.maxExampleFailures());
         EarlyTerminationEvaluator evaluator = new EarlyTerminationEvaluator(
@@ -98,9 +107,14 @@ class SentinelTestExecutor {
         sampleExecutor.executeTestLoop(
                 method, instance, factory, annotation.useCase(),
                 inputs, config.samples(), aggregator, evaluator,
-                budgetMonitor, config.onException());
+                budgetMonitor, config.onException(), progressListener);
 
         boolean passed = verdictDecider.isPassing(aggregator, minPassRate);
+
+        if (progressListener != null) {
+            progressListener.onTestComplete(testName, passed);
+        }
+
         Map<String, String> reportEntries = buildReportEntries(
                 aggregator, config, minPassRate, passed);
 

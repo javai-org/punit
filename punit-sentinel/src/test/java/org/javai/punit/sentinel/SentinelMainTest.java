@@ -203,6 +203,144 @@ class SentinelMainTest {
     }
 
     @Nested
+    @DisplayName("verbose flag")
+    class VerboseFlag {
+
+        @Test
+        @DisplayName("--verbose flag produces per-verdict output")
+        void verboseFlagProducesVerdictOutput(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.PassingSentinel");
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"test", "--verbose"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("VERDICT:");
+            assertThat(output).contains("Observed pass rate:");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+
+        @Test
+        @DisplayName("--verbose flag works before command")
+        void verboseFlagBeforeCommand(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.PassingSentinel");
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"--verbose", "test"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("VERDICT:");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+
+        @Test
+        @DisplayName("without --verbose, no per-verdict framing is produced")
+        void withoutVerboseNoVerdictFraming(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.PassingSentinel");
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"test"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            // Without verbose, the output should have the summary table but not per-verdict framing
+            assertThat(output).contains("Sentinel Test Summary");
+            assertThat(output).doesNotContain("VERDICT: PASS");
+        }
+
+        @Test
+        @DisplayName("--verbose experiment shows per-sample progress")
+        void verboseExperimentShowsSampleProgress(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.ExperimentSentinel");
+            system.properties.put("punit.spec.dir", tempDir.toString());
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"exp", "--verbose"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("ExperimentSentinel.measureStub");
+            assertThat(output).contains("5 samples");
+            assertThat(output).contains("sample 1/5");
+            assertThat(output).contains("sample 5/5");
+            assertThat(output).contains("-> done (5/5 samples passed)");
+        }
+
+        @Test
+        @DisplayName("--verbose experiment does not show verdict framing")
+        void verboseExperimentDoesNotShowVerdictFraming(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.ExperimentSentinel");
+            system.properties.put("punit.spec.dir", tempDir.toString());
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"exp", "--verbose"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).doesNotContain("VERDICT:");
+            assertThat(output).doesNotContain("Observed pass rate:");
+            assertThat(output).doesNotContain("Result: PASS");
+            assertThat(output).doesNotContain("Result: FAIL");
+        }
+
+        @Test
+        @DisplayName("experiment without --verbose shows no sample progress")
+        void experimentWithoutVerboseShowsNoSampleProgress(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.ExperimentSentinel");
+            system.properties.put("punit.spec.dir", tempDir.toString());
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"exp"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("Sentinel Experiment Summary");
+            assertThat(output).contains("Result: COMPLETE");
+            assertThat(output).contains("Samples:");
+            assertThat(output).doesNotContain("sample 1/");
+            assertThat(output).doesNotContain("Result: PASS");
+        }
+    }
+
+    @Nested
     @DisplayName("console output")
     class ConsoleOutput {
 
@@ -245,6 +383,162 @@ class SentinelMainTest {
             String output = captured.toString(StandardCharsets.UTF_8);
             assertThat(output).contains("Result: FAIL");
             assertThat(output).contains("FAILED:");
+        }
+    }
+
+    @Nested
+    @DisplayName("--help")
+    class Help {
+
+        @Test
+        @DisplayName("--help prints help and exits with success")
+        void helpFlag() {
+            TestSystemBridge system = new TestSystemBridge();
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"--help"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("Commands:");
+            assertThat(output).contains("test");
+            assertThat(output).contains("exp");
+            assertThat(output).contains("--verbose");
+            assertThat(output).contains("--useCase");
+            assertThat(output).contains("--list");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+
+        @Test
+        @DisplayName("-h is a shorthand for --help")
+        void shortHelpFlag() {
+            TestSystemBridge system = new TestSystemBridge();
+            new SentinelMain(new String[]{"-h"}, system).run();
+
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+    }
+
+    @Nested
+    @DisplayName("--list")
+    class ListUseCases {
+
+        @Test
+        @DisplayName("lists test and experiment use cases")
+        void listsUseCases(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.PassingSentinel\n" +
+                    "org.javai.punit.sentinel.testsubjects.ExperimentSentinel");
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(new String[]{"--list"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("Tests:");
+            assertThat(output).contains("stub-use-case");
+            assertThat(output).contains("Experiments:");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+
+        @Test
+        @DisplayName("--list does not require a command")
+        void listWithoutCommand(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.PassingSentinel");
+
+            new SentinelMain(new String[]{"--list"}, system).run();
+
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+    }
+
+    @Nested
+    @DisplayName("--useCase")
+    class UseCaseFilter {
+
+        @Test
+        @DisplayName("runs only the specified test use case")
+        void filtersTestByUseCase(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.PassingSentinel");
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(
+                        new String[]{"test", "--useCase", "stub-use-case"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("Total:    1");
+            assertThat(output).contains("Passed:   1");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+
+        @Test
+        @DisplayName("non-matching use case produces zero results")
+        void nonMatchingUseCase(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.PassingSentinel");
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(
+                        new String[]{"test", "--useCase", "nonexistent"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("Total:    0");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+
+        @Test
+        @DisplayName("filters experiments by use case")
+        void filtersExperimentByUseCase(@TempDir Path tempDir) throws IOException {
+            TestSystemBridge system = systemWithManifest(tempDir,
+                    "org.javai.punit.sentinel.testsubjects.ExperimentSentinel");
+            system.properties.put("punit.spec.dir", tempDir.toString());
+
+            PrintStream originalOut = System.out;
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            try {
+                System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+                new SentinelMain(
+                        new String[]{"exp", "--useCase", "stub-use-case"}, system).run();
+            } finally {
+                System.setOut(originalOut);
+            }
+
+            String output = captured.toString(StandardCharsets.UTF_8);
+            assertThat(output).contains("Result: COMPLETE");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+        }
+
+        @Test
+        @DisplayName("--useCase without value shows help")
+        void useCaseWithoutValue() {
+            TestSystemBridge system = new TestSystemBridge();
+            new SentinelMain(new String[]{"test", "--useCase"}, system).run();
+
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS); // treated as --help
         }
     }
 

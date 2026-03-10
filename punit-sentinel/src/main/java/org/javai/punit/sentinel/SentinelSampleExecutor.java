@@ -55,6 +55,22 @@ class SentinelSampleExecutor {
             EarlyTerminationEvaluator evaluator,
             CostBudgetMonitor budgetMonitor,
             ExceptionHandling onException) {
+        executeTestLoop(method, instance, factory, useCaseClass, inputs, samples,
+                aggregator, evaluator, budgetMonitor, onException, null);
+    }
+
+    void executeTestLoop(
+            Method method,
+            Object instance,
+            UseCaseFactory factory,
+            Class<?> useCaseClass,
+            List<Object> inputs,
+            int samples,
+            SampleResultAggregator aggregator,
+            EarlyTerminationEvaluator evaluator,
+            CostBudgetMonitor budgetMonitor,
+            ExceptionHandling onException,
+            SentinelProgressListener progressListener) {
 
         for (int i = 0; i < samples; i++) {
             // Check time budget before sample
@@ -71,8 +87,14 @@ class SentinelSampleExecutor {
                 }
             }
 
+            int prevSuccesses = aggregator.getSuccesses();
             executeSingleSample(method, instance, factory, useCaseClass, inputs, i,
                     aggregator, onException);
+
+            if (progressListener != null) {
+                boolean samplePassed = aggregator.getSuccesses() > prevSuccesses;
+                progressListener.onSampleComplete(i + 1, samples, samplePassed);
+            }
 
             // Record static token charge
             if (budgetMonitor != null) {
@@ -116,6 +138,20 @@ class SentinelSampleExecutor {
             int samples,
             List<OutcomeCaptor> capturedOutcomes,
             CostBudgetMonitor budgetMonitor) {
+        executeExperimentLoop(method, instance, factory, useCaseClass,
+                inputs, samples, capturedOutcomes, budgetMonitor, null);
+    }
+
+    void executeExperimentLoop(
+            Method method,
+            Object instance,
+            UseCaseFactory factory,
+            Class<?> useCaseClass,
+            List<Object> inputs,
+            int samples,
+            List<OutcomeCaptor> capturedOutcomes,
+            CostBudgetMonitor budgetMonitor,
+            SentinelProgressListener progressListener) {
 
         for (int i = 0; i < samples; i++) {
             // Check budget before sample
@@ -131,13 +167,20 @@ class SentinelSampleExecutor {
             Object input = resolveInput(inputs, i);
             Object[] args = buildExperimentArgs(method, useCaseClass, useCaseInstance, input, captor);
 
+            boolean samplePassed;
             try {
                 method.invoke(instance, args);
                 capturedOutcomes.add(captor);
+                samplePassed = captor.hasResult();
             } catch (Exception e) {
                 // Record exception in captor for the experiment to handle
                 captor.recordException(e.getCause() != null ? e.getCause() : e);
                 capturedOutcomes.add(captor);
+                samplePassed = false;
+            }
+
+            if (progressListener != null) {
+                progressListener.onSampleComplete(i + 1, samples, samplePassed);
             }
         }
     }

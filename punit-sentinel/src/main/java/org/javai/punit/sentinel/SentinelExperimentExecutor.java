@@ -46,6 +46,7 @@ class SentinelExperimentExecutor {
     private final SentinelSampleExecutor sampleExecutor;
     private final SentinelClassIntrospector introspector;
     private final EnvironmentMetadata environmentMetadata;
+    private SentinelProgressListener progressListener;
 
     SentinelExperimentExecutor(
             SentinelSampleExecutor sampleExecutor,
@@ -54,6 +55,10 @@ class SentinelExperimentExecutor {
         this.sampleExecutor = sampleExecutor;
         this.introspector = introspector;
         this.environmentMetadata = environmentMetadata;
+    }
+
+    void setProgressListener(SentinelProgressListener listener) {
+        this.progressListener = listener;
     }
 
     /**
@@ -83,22 +88,33 @@ class SentinelExperimentExecutor {
         int samples = annotation.samples();
         CostBudgetMonitor budgetMonitor = createBudgetMonitor(annotation);
 
+        if (progressListener != null) {
+            progressListener.onMethodStart(experimentName, samples);
+        }
+
         List<OutcomeCaptor> capturedOutcomes = new ArrayList<>();
         sampleExecutor.executeExperimentLoop(
                 method, instance, factory, useCaseClass,
-                inputs, samples, capturedOutcomes, budgetMonitor);
+                inputs, samples, capturedOutcomes, budgetMonitor, progressListener);
 
-        boolean experimentPassed = generateSpec(
+        long successes = capturedOutcomes.stream().filter(OutcomeCaptor::hasResult).count();
+
+        boolean specWritten = generateSpec(
                 capturedOutcomes, useCaseId, sentinelClass, method, annotation);
 
+        if (progressListener != null) {
+            progressListener.onExperimentComplete(
+                    experimentName, capturedOutcomes.size(), (int) successes);
+        }
+
         Map<String, String> reportEntries = buildReportEntries(
-                capturedOutcomes, useCaseId, experimentPassed);
+                capturedOutcomes, useCaseId, specWritten);
 
         return new VerdictEvent(
                 VerdictEvent.newCorrelationId(),
                 experimentName,
                 useCaseId,
-                experimentPassed,
+                specWritten,
                 reportEntries,
                 environmentMetadata.toMap(),
                 Instant.now());
@@ -136,6 +152,7 @@ class SentinelExperimentExecutor {
                 aggregator.recordException(captor.getException());
             }
         }
+        aggregator.setCompleted();
 
         EmpiricalBaselineGenerator baselineGenerator = new EmpiricalBaselineGenerator();
         EmpiricalBaseline baseline = baselineGenerator.generate(

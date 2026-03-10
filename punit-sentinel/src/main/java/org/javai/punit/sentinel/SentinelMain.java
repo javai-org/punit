@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import org.javai.punit.reporting.ConsoleVerdictSink;
 
 /**
  * CLI entrypoint for Sentinel execution.
@@ -21,13 +22,15 @@ import java.util.List;
  *
  * <h2>Usage</h2>
  * <pre>
- * java -Dpunit.spec.dir=/path/to/specs -jar sentinel.jar test
- * java -Dpunit.spec.dir=/path/to/specs -jar sentinel.jar exp
+ * java -jar sentinel.jar --help
+ * java -jar sentinel.jar --list
+ * java -jar sentinel.jar test [--verbose] [--useCase &lt;id&gt;]
+ * java -Dpunit.spec.dir=/path/to/specs -jar sentinel.jar exp [--verbose] [--useCase &lt;id&gt;]
  * </pre>
  *
  * <h2>Exit codes</h2>
  * <ul>
- *   <li>0 — all tests/experiments passed</li>
+ *   <li>0 — all tests/experiments passed (or --help/--list)</li>
  *   <li>1 — one or more tests/experiments failed</li>
  *   <li>2 — usage error (bad arguments, missing configuration)</li>
  * </ul>
@@ -66,22 +69,38 @@ public class SentinelMain {
     }
 
     void run() {
-        if (args.length < 1) {
-            printUsage();
+        // Parse flags, options, and command
+        ParsedArgs parsed = parseArgs();
+
+        if (parsed.help) {
+            printHelp(System.out);
+            system.exit(EXIT_SUCCESS);
+            return;
+        }
+
+        if (parsed.list) {
+            runList();
+            return;
+        }
+
+        if (parsed.command == null) {
+            printHelp(System.err);
             system.exit(EXIT_USAGE);
             return;
         }
 
-        String command = args[0];
-        if (!command.equals("test") && !command.equals("exp") && !command.equals("experiment")) {
-            System.err.println("Unknown command: " + command);
-            printUsage();
+        if (!parsed.command.equals("test") && !parsed.command.equals("exp")
+                && !parsed.command.equals("experiment")) {
+            System.err.println("Unknown command: " + parsed.command);
+            printHelp(System.err);
             system.exit(EXIT_USAGE);
             return;
         }
 
-        // For experiments, spec dir is mandatory (experiments write specs)
-        if (command.equals("exp") || command.equals("experiment")) {
+        boolean isTest = parsed.command.equals("test");
+
+        // For experiments, spec dir is mandatory
+        if (!isTest) {
             String specDir = resolveSpecDir();
             if (specDir == null) {
                 System.err.println(
@@ -98,14 +117,71 @@ public class SentinelMain {
             }
         }
 
-        // Discover sentinel classes from manifest
+        // Discover sentinel classes
+        List<Class<?>> sentinelClasses = discoverSentinelClasses();
+        if (sentinelClasses == null) {
+            return; // error already reported and exit called
+        }
+
+        // Build configuration and run
+        SentinelConsoleReporter reporter = new SentinelConsoleReporter(System.out);
+        SentinelConfiguration.Builder configBuilder = SentinelConfiguration.builder()
+                .sentinelClasses(sentinelClasses);
+        if (parsed.verbose && isTest) {
+            configBuilder.verdictSink(new ConsoleVerdictSink());
+        }
+        SentinelConfiguration config = configBuilder.build();
+
+        SentinelRunner runner = new SentinelRunner(config);
+        if (parsed.verbose) {
+            runner.setProgressListener(reporter);
+        }
+        SentinelResult result;
+
+        if (isTest) {
+            result = parsed.useCase != null
+                    ? runner.runTests(parsed.useCase)
+                    : runner.runTests();
+            reporter.printTestSummary(result);
+        } else {
+            result = parsed.useCase != null
+                    ? runner.runExperiments(parsed.useCase)
+                    : runner.runExperiments();
+            reporter.printExperimentSummary(result);
+        }
+
+        system.exit(result.allPassed() ? EXIT_SUCCESS : EXIT_FAILURE);
+    }
+
+    private void runList() {
+        List<Class<?>> sentinelClasses = discoverSentinelClasses();
+        if (sentinelClasses == null) {
+            return;
+        }
+
+        SentinelConfiguration config = SentinelConfiguration.builder()
+                .sentinelClasses(sentinelClasses)
+                .build();
+        SentinelRunner runner = new SentinelRunner(config);
+        SentinelRunner.UseCaseCatalog catalog = runner.listUseCases();
+
+        SentinelConsoleReporter reporter = new SentinelConsoleReporter(System.out);
+        reporter.printUseCaseCatalog(catalog);
+        system.exit(EXIT_SUCCESS);
+    }
+
+    /**
+     * Discovers sentinel classes from the manifest. Returns null if discovery
+     * fails (error is reported and exit is called).
+     */
+    private List<Class<?>> discoverSentinelClasses() {
         List<Class<?>> sentinelClasses;
         try {
             sentinelClasses = loadSentinelClasses();
         } catch (SentinelExecutionException e) {
             System.err.println(e.getMessage());
             system.exit(EXIT_USAGE);
-            return;
+            return null;
         }
 
         if (sentinelClasses.isEmpty()) {
@@ -114,28 +190,78 @@ public class SentinelMain {
                     "createSentinel Gradle task, which generates the " + MANIFEST_RESOURCE +
                     " manifest.");
             system.exit(EXIT_USAGE);
-            return;
+            return null;
         }
-
-        // Build configuration and run
-        SentinelConfiguration config = SentinelConfiguration.builder()
-                .sentinelClasses(sentinelClasses)
-                .build();
-
-        SentinelRunner runner = new SentinelRunner(config);
-        SentinelResult result;
-
-        if (command.equals("test")) {
-            result = runner.runTests();
-        } else {
-            result = runner.runExperiments();
-        }
-
-        // Print summary
-        printSummary(command, result);
-
-        system.exit(result.allPassed() ? EXIT_SUCCESS : EXIT_FAILURE);
+        return sentinelClasses;
     }
+
+    // ── Argument parsing ─────────────────────────────────────────────────
+
+    static class ParsedArgs {
+        String command;
+        boolean verbose;
+        boolean help;
+        boolean list;
+        String useCase;
+    }
+
+    ParsedArgs parseArgs() {
+        ParsedArgs parsed = new ParsedArgs();
+        List<String> positional = new ArrayList<>();
+
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "--help", "-h" -> parsed.help = true;
+                case "--list" -> parsed.list = true;
+                case "--verbose" -> parsed.verbose = true;
+                case "--useCase" -> {
+                    if (i + 1 < args.length) {
+                        parsed.useCase = args[++i];
+                    } else {
+                        System.err.println("--useCase requires a value");
+                        parsed.help = true;
+                    }
+                }
+                default -> positional.add(args[i]);
+            }
+        }
+
+        if (!positional.isEmpty()) {
+            parsed.command = positional.getFirst();
+        }
+        return parsed;
+    }
+
+    // ── Help ─────────────────────────────────────────────────────────────
+
+    private void printHelp(java.io.PrintStream stream) {
+        stream.println("PUnit Sentinel — probabilistic test and experiment runner");
+        stream.println();
+        stream.println("Usage: java [-Dpunit.spec.dir=<dir>] -jar sentinel.jar <command> [options]");
+        stream.println();
+        stream.println("Commands:");
+        stream.println("  test         Run probabilistic tests against baseline specs");
+        stream.println("  exp          Run experiments to produce baseline specs");
+        stream.println();
+        stream.println("Options:");
+        stream.println("  --help       Show this help message and exit");
+        stream.println("  --list       List available use cases and exit");
+        stream.println("  --verbose    Show per-sample progress during execution");
+        stream.println("  --useCase <id>  Run only the specified use case");
+        stream.println();
+        stream.println("Configuration:");
+        stream.println("  -Dpunit.spec.dir=<dir>   Spec directory (JVM system property)");
+        stream.println("  PUNIT_SPEC_DIR=<dir>     Spec directory (environment variable)");
+        stream.println();
+        stream.println("  For experiments (exp), the spec directory is required.");
+        stream.println();
+        stream.println("Exit codes:");
+        stream.println("  0  All tests/experiments passed (or --help/--list)");
+        stream.println("  1  One or more tests/experiments failed");
+        stream.println("  2  Usage error");
+    }
+
+    // ── Infrastructure ───────────────────────────────────────────────────
 
     private String resolveSpecDir() {
         String dir = system.getProperty(PROP_SPEC_DIR);
@@ -190,42 +316,6 @@ public class SentinelMain {
         }
 
         return entries;
-    }
-
-    private void printSummary(String command, SentinelResult result) {
-        String mode = command.equals("test") ? "Test" : "Experiment";
-        System.out.println();
-        System.out.println("Sentinel " + mode + " Summary");
-        System.out.println("─".repeat(40));
-        System.out.println("Total:   " + result.totalTests());
-        System.out.println("Passed:  " + result.passed());
-        System.out.println("Failed:  " + result.failed());
-        System.out.println("Skipped: " + result.skipped());
-        System.out.println("Duration: " + result.totalDuration().toMillis() + "ms");
-        System.out.println();
-
-        if (result.allPassed()) {
-            System.out.println("Result: PASS");
-        } else {
-            System.out.println("Result: FAIL");
-            result.verdicts().stream()
-                    .filter(v -> !v.passed())
-                    .forEach(v -> System.out.println("  FAILED: " + v.testName()));
-        }
-    }
-
-    private void printUsage() {
-        System.err.println("Usage: java [-Dpunit.spec.dir=<dir>] -jar sentinel.jar <command>");
-        System.err.println();
-        System.err.println("Commands:");
-        System.err.println("  test  Run probabilistic tests against baseline specs");
-        System.err.println("  exp   Run experiments to produce baseline specs");
-        System.err.println();
-        System.err.println("The spec directory can be set via:");
-        System.err.println("  -Dpunit.spec.dir=<dir>   JVM system property");
-        System.err.println("  PUNIT_SPEC_DIR=<dir>     Environment variable");
-        System.err.println();
-        System.err.println("For experiments (exp), the spec directory is required.");
     }
 
     private static class RealSystemBridge implements SystemBridge {

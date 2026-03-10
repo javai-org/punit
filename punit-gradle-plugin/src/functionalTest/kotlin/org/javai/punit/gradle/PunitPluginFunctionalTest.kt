@@ -1,6 +1,7 @@
 package org.javai.punit.gradle
 
 import java.io.File
+import java.util.jar.JarFile
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.BeforeEach
@@ -151,6 +152,85 @@ class PunitPluginFunctionalTest {
             val result = runner("tasks", "--all").build()
 
             assertTrue(result.output.contains("createSentinel - Builds an executable sentinel JAR"))
+        }
+
+        @Test
+        @DisplayName("createSentinel produces a JAR with sentinel manifest, main class, and sentinel runtime")
+        fun sentinelJarContainsRequisiteElements() {
+            val punitRootDir = System.getProperty("punitRootDir")
+                ?: throw IllegalStateException("punitRootDir system property not set")
+
+            settingsFile.writeText("""
+                pluginManagement {
+                    includeBuild("$punitRootDir/punit-gradle-plugin")
+                }
+                rootProject.name = "test-project"
+                includeBuild("$punitRootDir") {
+                    dependencySubstitution {
+                        substitute(module("org.javai:punit-core")).using(project(":punit-core"))
+                        substitute(module("org.javai:punit-junit5")).using(project(":punit-junit5"))
+                        substitute(module("org.javai:punit-sentinel")).using(project(":punit-sentinel"))
+                    }
+                }
+            """.trimIndent())
+
+            buildFile.writeText("""
+                plugins {
+                    java
+                    id("org.javai.punit")
+                }
+                repositories {
+                    mavenCentral()
+                }
+                dependencies {
+                    testImplementation("org.javai:punit-core:0.0.0")
+                    testImplementation(platform("org.junit:junit-bom:5.14.2"))
+                    testImplementation("org.junit.jupiter:junit-jupiter")
+                    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+                }
+            """.trimIndent())
+
+            val testDir = File(projectDir, "src/test/java/sentinel")
+            testDir.mkdirs()
+            File(testDir, "MyReliabilitySpec.java").writeText("""
+                package sentinel;
+                import org.javai.punit.api.Sentinel;
+                @Sentinel
+                public class MyReliabilitySpec {}
+            """.trimIndent())
+
+            val result = runner("createSentinel").build()
+
+            assertEquals(TaskOutcome.SUCCESS, result.task(":createSentinel")?.outcome)
+
+            val sentinelJar = File(projectDir, "build/libs/test-project-sentinel.jar")
+            assertTrue(sentinelJar.exists(), "Sentinel JAR should exist")
+
+            JarFile(sentinelJar).use { jar ->
+                val entryNames = jar.entries().asSequence().map { it.name }.toSet()
+
+                // Sentinel class manifest
+                assertTrue(entryNames.contains("META-INF/punit/sentinel-classes"),
+                    "JAR should contain sentinel-classes manifest")
+                val manifest = jar.getInputStream(jar.getEntry("META-INF/punit/sentinel-classes"))
+                    .bufferedReader().readText().trim()
+                assertTrue(manifest.contains("sentinel.MyReliabilitySpec"),
+                    "Manifest should list the @Sentinel class")
+
+                // Main-Class attribute
+                val mainClass = jar.manifest.mainAttributes.getValue("Main-Class")
+                assertEquals("org.javai.punit.sentinel.SentinelMain", mainClass)
+
+                // Sentinel runtime classes
+                assertTrue(entryNames.contains("org/javai/punit/sentinel/SentinelMain.class"),
+                    "JAR should contain SentinelMain")
+                assertTrue(entryNames.contains("org/javai/punit/sentinel/SentinelRunner.class"),
+                    "JAR should contain SentinelRunner")
+
+                // The @Sentinel-annotated class itself
+                assertTrue(entryNames.contains("sentinel/MyReliabilitySpec.class"),
+                    "JAR should contain the @Sentinel class")
+            }
         }
     }
 
