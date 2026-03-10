@@ -4,9 +4,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -225,8 +223,7 @@ public class SentinelRunner {
      * @return a record containing test and experiment use case maps
      */
     public UseCaseCatalog listUseCases() {
-        Map<String, String> tests = new LinkedHashMap<>();
-        Map<String, String> experiments = new LinkedHashMap<>();
+        List<UseCaseCatalog.Entry> entries = new ArrayList<>();
 
         for (Class<?> sentinelClass : configuration.sentinelClasses()) {
             String className = sentinelClass.getSimpleName();
@@ -234,33 +231,40 @@ public class SentinelRunner {
             for (Method method : introspector.findTestMethods(sentinelClass)) {
                 ProbabilisticTest annotation = method.getAnnotation(ProbabilisticTest.class);
                 Optional<String> useCaseId = testExecutor.resolveUseCaseId(annotation);
-                useCaseId.ifPresent(id -> {
-                    String methodRef = className + "." + method.getName();
-                    int samples = annotation.samples();
-                    tests.put(id, methodRef + " (" + samples + " samples)");
-                });
+                useCaseId.ifPresent(id -> entries.add(new UseCaseCatalog.Entry(
+                        "test", id, className + "." + method.getName(), annotation.samples())));
             }
 
             for (Method method : introspector.findExperimentMethods(sentinelClass)) {
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
                 String useCaseId = UseCaseFactory.resolveId(annotation.useCase());
-                String methodRef = className + "." + method.getName();
-                int samples = annotation.samples();
-                experiments.put(useCaseId, methodRef + " (" + samples + " samples)");
+                entries.add(new UseCaseCatalog.Entry(
+                        "experiment", useCaseId, className + "." + method.getName(), annotation.samples()));
             }
         }
 
-        return new UseCaseCatalog(Map.copyOf(tests), Map.copyOf(experiments));
+        return new UseCaseCatalog(List.copyOf(entries));
     }
 
     /**
      * Catalog of available use cases discovered from sentinel classes.
      *
-     * @param tests map of use case ID to source method for tests
-     * @param experiments map of use case ID to source method (with sample count) for experiments
+     * @param entries the list of discovered use case entries
      */
-    public record UseCaseCatalog(
-            Map<String, String> tests,
-            Map<String, String> experiments
-    ) {}
+    public record UseCaseCatalog(List<Entry> entries) {
+
+        public boolean isEmpty() {
+            return entries.isEmpty();
+        }
+
+        /**
+         * A single entry in the use case catalog.
+         *
+         * @param type "test" or "experiment"
+         * @param useCaseId the use case identifier
+         * @param name the class and method name
+         * @param samples the configured sample count
+         */
+        public record Entry(String type, String useCaseId, String name, int samples) {}
+    }
 }

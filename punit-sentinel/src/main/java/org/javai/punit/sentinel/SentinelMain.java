@@ -150,7 +150,11 @@ public class SentinelMain {
             reporter.printExperimentSummary(result);
         }
 
-        system.exit(result.allPassed() ? EXIT_SUCCESS : EXIT_FAILURE);
+        if (result.noneExecuted()) {
+            system.exit(EXIT_FAILURE);
+        } else {
+            system.exit(result.allPassed() ? EXIT_SUCCESS : EXIT_FAILURE);
+        }
     }
 
     private void runList() {

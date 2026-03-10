@@ -1,15 +1,13 @@
 package org.javai.punit.sentinel;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
-import java.lang.reflect.Method;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.reporting.VerdictEvent;
 import org.javai.punit.sentinel.testsubjects.ExperimentSentinel;
-import org.javai.punit.sentinel.testsubjects.StubUseCase;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -184,7 +182,7 @@ class SentinelExperimentExecutorTest {
                         "punit.experiment.samples",
                         "punit.experiment.successes",
                         "punit.experiment.failures",
-                        "punit.experiment.verdict");
+                        "punit.experiment.specWritten");
             } finally {
                 System.clearProperty("punit.spec.dir");
             }
@@ -212,8 +210,8 @@ class SentinelExperimentExecutorTest {
         }
 
         @Test
-        @DisplayName("records PASS verdict in entries for successful experiment")
-        void passVerdictInEntries(@TempDir Path tempDir) {
+        @DisplayName("records specWritten=true for successful experiment")
+        void specWrittenInEntries(@TempDir Path tempDir) {
             System.setProperty("punit.spec.dir", tempDir.toString());
             try {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
@@ -224,7 +222,7 @@ class SentinelExperimentExecutorTest {
                 VerdictEvent verdict = executor.execute(
                         method, annotation, sentinel, factory, ExperimentSentinel.class);
 
-                assertThat(verdict.reportEntries().get("punit.experiment.verdict")).isEqualTo("PASS");
+                assertThat(verdict.reportEntries().get("punit.experiment.specWritten")).isEqualTo("true");
             } finally {
                 System.clearProperty("punit.spec.dir");
             }

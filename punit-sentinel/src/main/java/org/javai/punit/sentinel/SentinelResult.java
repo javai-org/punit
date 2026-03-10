@@ -28,9 +28,16 @@ public record SentinelResult(
 ) {
 
     /**
-     * Returns {@code true} if all tests passed and none were skipped.
+     * Returns {@code true} if at least one test executed and all passed.
      */
     public boolean allPassed() {
-        return failed == 0 && skipped == 0;
+        return totalTests > 0 && failed == 0 && skipped == 0;
+    }
+
+    /**
+     * Returns {@code true} if no tests or experiments were executed.
+     */
+    public boolean noneExecuted() {
+        return totalTests == 0;
     }
 }

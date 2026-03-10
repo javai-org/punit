@@ -1,7 +1,8 @@
 package org.javai.punit.sentinel;
 
 import java.io.PrintStream;
-import java.util.Map;
+import java.util.Comparator;
+import java.util.List;
 import org.javai.punit.reporting.VerdictEvent;
 
 /**
@@ -71,7 +72,9 @@ class SentinelConsoleReporter implements SentinelProgressListener {
         out.println("Duration: " + result.totalDuration().toMillis() + "ms");
         out.println();
 
-        if (result.allPassed()) {
+        if (result.noneExecuted()) {
+            out.println("Result: NO MATCH");
+        } else if (result.allPassed()) {
             out.println("Result: PASS");
         } else {
             out.println("Result: FAIL");
@@ -103,26 +106,35 @@ class SentinelConsoleReporter implements SentinelProgressListener {
     // ── Use case listing ───────────────────────────────────────────────
 
     void printUseCaseCatalog(SentinelRunner.UseCaseCatalog catalog) {
-        Map<String, String> tests = catalog.tests();
-        Map<String, String> experiments = catalog.experiments();
-
-        if (experiments.isEmpty() && tests.isEmpty()) {
+        if (catalog.isEmpty()) {
             out.println("No use cases found.");
             return;
         }
 
-        if (!experiments.isEmpty()) {
-            out.println("Experiments:");
-            experiments.forEach((id, detail) ->
-                    out.println("  " + id + "  " + detail));
-            out.println();
+        List<SentinelRunner.UseCaseCatalog.Entry> sorted = catalog.entries().stream()
+                .sorted(Comparator.comparing(SentinelRunner.UseCaseCatalog.Entry::useCaseId)
+                        .thenComparing(SentinelRunner.UseCaseCatalog.Entry::type)
+                        .thenComparing(SentinelRunner.UseCaseCatalog.Entry::name)
+                        .thenComparing(SentinelRunner.UseCaseCatalog.Entry::samples))
+                .toList();
+
+        // Compute column widths
+        int idWidth = "Use Case Id".length();
+        int typeWidth = "Type".length();
+        int nameWidth = "Name".length();
+        for (var entry : sorted) {
+            idWidth = Math.max(idWidth, entry.useCaseId().length());
+            typeWidth = Math.max(typeWidth, entry.type().length());
+            nameWidth = Math.max(nameWidth, entry.name().length());
         }
 
-        if (!tests.isEmpty()) {
-            out.println("Tests:");
-            tests.forEach((id, detail) ->
-                    out.println("  " + id + "  " + detail));
-            out.println();
+        String format = "%-" + idWidth + "s  %-" + typeWidth + "s  %-" + nameWidth + "s  %s%n";
+        out.printf(format, "Use Case Id", "Type", "Name", "Samples");
+        out.println("\u2500".repeat(idWidth + typeWidth + nameWidth + "Samples".length() + 6));
+
+        for (var entry : sorted) {
+            out.printf(format, entry.useCaseId(), entry.type(), entry.name(),
+                    String.valueOf(entry.samples()));
         }
     }
 

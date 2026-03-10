@@ -1,7 +1,6 @@
 package org.javai.punit.sentinel;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.javai.punit.api.ExceptionHandling;
@@ -171,7 +170,8 @@ class SentinelSampleExecutor {
             try {
                 method.invoke(instance, args);
                 capturedOutcomes.add(captor);
-                samplePassed = captor.hasResult();
+                samplePassed = captor.hasResult()
+                        && captor.getContractOutcome().allPostconditionsSatisfied();
             } catch (Exception e) {
                 // Record exception in captor for the experiment to handle
                 captor.recordException(e.getCause() != null ? e.getCause() : e);

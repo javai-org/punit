@@ -1,7 +1,6 @@
 package org.javai.punit.sentinel;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -10,7 +9,6 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -445,9 +443,10 @@ class SentinelMainTest {
             }
 
             String output = captured.toString(StandardCharsets.UTF_8);
-            assertThat(output).contains("Tests:");
+            assertThat(output).contains("Use Case Id");
             assertThat(output).contains("stub-use-case");
-            assertThat(output).contains("Experiments:");
+            assertThat(output).contains("test");
+            assertThat(output).contains("experiment");
             assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
         }
 
@@ -507,7 +506,8 @@ class SentinelMainTest {
 
             String output = captured.toString(StandardCharsets.UTF_8);
             assertThat(output).contains("Total:    0");
-            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_SUCCESS);
+            assertThat(output).contains("Result: NO MATCH");
+            assertThat(system.exitCode).isEqualTo(SentinelMain.EXIT_FAILURE);
         }
 
         @Test

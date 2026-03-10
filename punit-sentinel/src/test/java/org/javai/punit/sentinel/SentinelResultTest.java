@@ -49,11 +49,12 @@ class SentinelResultTest {
         }
 
         @Test
-        @DisplayName("returns true for zero total tests with no failures or skips")
-        void trueForEmptyRun() {
+        @DisplayName("returns false for zero total tests — nothing ran")
+        void falseForEmptyRun() {
             var result = new SentinelResult(0, 0, 0, 0, List.of(), Duration.ZERO);
 
-            assertThat(result.allPassed()).isTrue();
+            assertThat(result.allPassed()).isFalse();
+            assertThat(result.noneExecuted()).isTrue();
         }
     }
 

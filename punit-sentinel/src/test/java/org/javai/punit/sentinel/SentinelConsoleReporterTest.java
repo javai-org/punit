@@ -1,7 +1,6 @@
 package org.javai.punit.sentinel;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -262,6 +261,19 @@ class SentinelConsoleReporterTest {
                     "\n" +
                     "Result: PASS\n");
         }
+
+        @Test
+        @DisplayName("empty run shows Result: NO MATCH")
+        void emptyRun() {
+            SentinelResult result = new SentinelResult(
+                    0, 0, 0, 0, List.of(), Duration.ofMillis(0));
+
+            reporter.printTestSummary(result);
+
+            assertThat(output()).contains("Result: NO MATCH");
+            assertThat(output()).doesNotContain("Result: PASS");
+            assertThat(output()).doesNotContain("Result: FAIL");
+        }
     }
 
     // ── Use case catalog ───────────────────────────────────────────────
@@ -271,25 +283,50 @@ class SentinelConsoleReporterTest {
     class UseCaseCatalogOutput {
 
         @Test
-        @DisplayName("lists experiments and tests grouped by type")
-        void listsGroupedByType() {
+        @DisplayName("heading order is Use Case Id, Type, Name, Samples")
+        void headingOrder() {
             SentinelRunner.UseCaseCatalog catalog = new SentinelRunner.UseCaseCatalog(
-                    Map.of("shopping-basket", "ShoppingBasketReliability.testBaseline (100 samples)"),
-                    Map.of("shopping-basket", "ShoppingBasketReliability.measureBaseline (1000 samples)"));
+                    List.of(new SentinelRunner.UseCaseCatalog.Entry(
+                            "test", "shopping-basket", "Reliability.test", 100)));
 
             reporter.printUseCaseCatalog(catalog);
 
-            assertThat(output()).contains("Experiments:");
-            assertThat(output()).contains("  shopping-basket  ShoppingBasketReliability.measureBaseline (1000 samples)");
-            assertThat(output()).contains("Tests:");
-            assertThat(output()).contains("  shopping-basket  ShoppingBasketReliability.testBaseline (100 samples)");
+            String header = output().split("\n")[0];
+            int idPos = header.indexOf("Use Case Id");
+            int typePos = header.indexOf("Type");
+            int namePos = header.indexOf("Name");
+            int samplesPos = header.indexOf("Samples");
+            assertThat(idPos).isLessThan(typePos);
+            assertThat(typePos).isLessThan(namePos);
+            assertThat(namePos).isLessThan(samplesPos);
+        }
+
+        @Test
+        @DisplayName("entries are sorted alphabetically by use case id, then type")
+        void sortedAlphabetically() {
+            SentinelRunner.UseCaseCatalog catalog = new SentinelRunner.UseCaseCatalog(
+                    List.of(
+                            new SentinelRunner.UseCaseCatalog.Entry(
+                                    "test", "shopping-basket", "Reliability.testBaseline", 100),
+                            new SentinelRunner.UseCaseCatalog.Entry(
+                                    "experiment", "payment-gateway", "Gateway.measure", 500),
+                            new SentinelRunner.UseCaseCatalog.Entry(
+                                    "experiment", "shopping-basket", "Reliability.measureBaseline", 1000)));
+
+            reporter.printUseCaseCatalog(catalog);
+
+            String out = output();
+            int paymentPos = out.indexOf("payment-gateway");
+            int shoppingExpPos = out.indexOf("Reliability.measureBaseline");
+            int shoppingTestPos = out.indexOf("Reliability.testBaseline");
+            assertThat(paymentPos).isLessThan(shoppingExpPos);
+            assertThat(shoppingExpPos).isLessThan(shoppingTestPos);
         }
 
         @Test
         @DisplayName("shows message when no use cases found")
         void emptyCase() {
-            SentinelRunner.UseCaseCatalog catalog = new SentinelRunner.UseCaseCatalog(
-                    Map.of(), Map.of());
+            SentinelRunner.UseCaseCatalog catalog = new SentinelRunner.UseCaseCatalog(List.of());
 
             reporter.printUseCaseCatalog(catalog);
 
@@ -297,29 +334,17 @@ class SentinelConsoleReporterTest {
         }
 
         @Test
-        @DisplayName("omits experiments section when none exist")
-        void testsOnly() {
+        @DisplayName("separator spans full table width")
+        void separatorSpansWidth() {
             SentinelRunner.UseCaseCatalog catalog = new SentinelRunner.UseCaseCatalog(
-                    Map.of("payment-gateway", "PaymentGatewayReliability.test (50 samples)"),
-                    Map.of());
+                    List.of(new SentinelRunner.UseCaseCatalog.Entry(
+                            "test", "id", "Name.method", 50)));
 
             reporter.printUseCaseCatalog(catalog);
 
-            assertThat(output()).doesNotContain("Experiments:");
-            assertThat(output()).contains("Tests:");
-        }
-
-        @Test
-        @DisplayName("omits tests section when none exist")
-        void experimentsOnly() {
-            SentinelRunner.UseCaseCatalog catalog = new SentinelRunner.UseCaseCatalog(
-                    Map.of(),
-                    Map.of("payment-gateway", "PaymentGatewayReliability.measure (500 samples)"));
-
-            reporter.printUseCaseCatalog(catalog);
-
-            assertThat(output()).contains("Experiments:");
-            assertThat(output()).doesNotContain("Tests:");
+            String[] lines = output().split("\n");
+            assertThat(lines.length).isGreaterThanOrEqualTo(3);
+            assertThat(lines[1]).matches("─+");
         }
     }
 

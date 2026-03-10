@@ -97,18 +97,18 @@ class SentinelExperimentExecutor {
                 method, instance, factory, useCaseClass,
                 inputs, samples, capturedOutcomes, budgetMonitor, progressListener);
 
-        long successes = capturedOutcomes.stream().filter(OutcomeCaptor::hasResult).count();
+        ExperimentResultAggregator aggregator = aggregate(capturedOutcomes, useCaseId);
 
-        boolean specWritten = generateSpec(
-                capturedOutcomes, useCaseId, sentinelClass, method, annotation);
+        boolean specWritten = writeSpec(
+                aggregator, useCaseId, sentinelClass, method, annotation);
 
         if (progressListener != null) {
             progressListener.onExperimentComplete(
-                    experimentName, capturedOutcomes.size(), (int) successes);
+                    experimentName, aggregator.getSamplesExecuted(),
+                    aggregator.getSuccesses());
         }
 
-        Map<String, String> reportEntries = buildReportEntries(
-                capturedOutcomes, useCaseId, specWritten);
+        Map<String, String> reportEntries = buildReportEntries(aggregator, useCaseId, specWritten);
 
         return new VerdictEvent(
                 VerdictEvent.newCorrelationId(),
@@ -130,12 +130,8 @@ class SentinelExperimentExecutor {
                 BudgetExhaustedBehavior.FAIL);
     }
 
-    private boolean generateSpec(
-            List<OutcomeCaptor> capturedOutcomes,
-            String useCaseId,
-            Class<?> sentinelClass,
-            Method method,
-            MeasureExperiment annotation) {
+    private ExperimentResultAggregator aggregate(
+            List<OutcomeCaptor> capturedOutcomes, String useCaseId) {
 
         ExperimentResultAggregator aggregator = new ExperimentResultAggregator(
                 useCaseId, capturedOutcomes.size());
@@ -153,6 +149,15 @@ class SentinelExperimentExecutor {
             }
         }
         aggregator.setCompleted();
+        return aggregator;
+    }
+
+    private boolean writeSpec(
+            ExperimentResultAggregator aggregator,
+            String useCaseId,
+            Class<?> sentinelClass,
+            Method method,
+            MeasureExperiment annotation) {
 
         EmpiricalBaselineGenerator baselineGenerator = new EmpiricalBaselineGenerator();
         EmpiricalBaseline baseline = baselineGenerator.generate(
@@ -193,19 +198,16 @@ class SentinelExperimentExecutor {
     }
 
     private Map<String, String> buildReportEntries(
-            List<OutcomeCaptor> capturedOutcomes,
+            ExperimentResultAggregator aggregator,
             String useCaseId,
-            boolean passed) {
-
-        long successes = capturedOutcomes.stream().filter(OutcomeCaptor::hasResult).count();
-        long failures = capturedOutcomes.size() - successes;
+            boolean specWritten) {
 
         Map<String, String> entries = new LinkedHashMap<>();
         entries.put("punit.experiment.useCaseId", useCaseId);
-        entries.put("punit.experiment.samples", String.valueOf(capturedOutcomes.size()));
-        entries.put("punit.experiment.successes", String.valueOf(successes));
-        entries.put("punit.experiment.failures", String.valueOf(failures));
-        entries.put("punit.experiment.verdict", passed ? "PASS" : "FAIL");
+        entries.put("punit.experiment.samples", String.valueOf(aggregator.getSamplesExecuted()));
+        entries.put("punit.experiment.successes", String.valueOf(aggregator.getSuccesses()));
+        entries.put("punit.experiment.failures", String.valueOf(aggregator.getFailures()));
+        entries.put("punit.experiment.specWritten", String.valueOf(specWritten));
         return entries;
     }
 }
