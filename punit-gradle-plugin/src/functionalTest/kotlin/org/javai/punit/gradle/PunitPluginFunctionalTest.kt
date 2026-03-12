@@ -235,6 +235,31 @@ class PunitPluginFunctionalTest {
     }
 
     @Nested
+    @DisplayName("PUnit Report Task")
+    inner class PunitReportTaskTests {
+
+        @Test
+        @DisplayName("punitReport task is registered with correct description")
+        fun taskIsRegistered() {
+            buildFile.writeText(buildFileWithPlugin())
+
+            val result = runner("tasks", "--all").build()
+
+            assertTrue(result.output.contains("punitReport - Generates an HTML report from PUnit test verdict XML files"))
+        }
+
+        @Test
+        @DisplayName("punitReport task appears in verification group")
+        fun taskInVerificationGroup() {
+            buildFile.writeText(buildFileWithPlugin())
+
+            val result = runner("tasks", "--group=verification").build()
+
+            assertTrue(result.output.contains("punitReport"))
+        }
+    }
+
+    @Nested
     @DisplayName("Extension Customization")
     inner class ExtensionCustomization {
 

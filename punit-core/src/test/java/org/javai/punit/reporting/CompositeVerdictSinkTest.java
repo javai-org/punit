@@ -2,20 +2,24 @@ package org.javai.punit.reporting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
+import org.javai.punit.verdict.VerdictSink;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class CompositeVerdictSinkTest {
 
-    private static VerdictEvent sampleEvent() {
-        return new VerdictEvent(
-                "v:abc123", "testMethod", "useCase1", true,
-                Map.of(), Map.of(), Instant.now());
+    private static ProbabilisticTestVerdict sampleVerdict() {
+        return new ProbabilisticTestVerdictBuilder()
+                .identity("TestClass", "testMethod", "useCase1")
+                .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
+                .junitPassed(true)
+                .passedStatistically(true)
+                .build();
     }
 
     @Nested
@@ -32,8 +36,8 @@ class CompositeVerdictSinkTest {
         @Test
         @DisplayName("reports correct size")
         void reportsCorrectSize() {
-            VerdictSink s1 = event -> {};
-            VerdictSink s2 = event -> {};
+            VerdictSink s1 = verdict -> {};
+            VerdictSink s2 = verdict -> {};
             var composite = new CompositeVerdictSink(List.of(s1, s2));
 
             assertThat(composite.size()).isEqualTo(2);
@@ -45,31 +49,31 @@ class CompositeVerdictSinkTest {
     class Dispatch {
 
         @Test
-        @DisplayName("dispatches event to all sinks in order")
+        @DisplayName("dispatches verdict to all sinks in order")
         void dispatchesToAllSinksInOrder() {
             List<String> callOrder = new ArrayList<>();
-            VerdictSink first = event -> callOrder.add("first");
-            VerdictSink second = event -> callOrder.add("second");
-            VerdictSink third = event -> callOrder.add("third");
+            VerdictSink first = verdict -> callOrder.add("first");
+            VerdictSink second = verdict -> callOrder.add("second");
+            VerdictSink third = verdict -> callOrder.add("third");
 
             var composite = new CompositeVerdictSink(List.of(first, second, third));
-            composite.accept(sampleEvent());
+            composite.accept(sampleVerdict());
 
             assertThat(callOrder).containsExactly("first", "second", "third");
         }
 
         @Test
-        @DisplayName("passes the same event to each sink")
-        void passesSameEventToEachSink() {
-            List<VerdictEvent> received = new ArrayList<>();
+        @DisplayName("passes the same verdict to each sink")
+        void passesSameVerdictToEachSink() {
+            List<ProbabilisticTestVerdict> received = new ArrayList<>();
             VerdictSink collector = received::add;
 
             var composite = new CompositeVerdictSink(List.of(collector, collector));
-            var event = sampleEvent();
-            composite.accept(event);
+            var verdict = sampleVerdict();
+            composite.accept(verdict);
 
             assertThat(received).hasSize(2);
-            assertThat(received).allSatisfy(e -> assertThat(e).isSameAs(event));
+            assertThat(received).allSatisfy(v -> assertThat(v).isSameAs(verdict));
         }
     }
 
@@ -81,12 +85,12 @@ class CompositeVerdictSinkTest {
         @DisplayName("continues dispatching when a sink throws")
         void continuesWhenSinkThrows() {
             List<String> callOrder = new ArrayList<>();
-            VerdictSink first = event -> callOrder.add("first");
-            VerdictSink failing = event -> { throw new RuntimeException("boom"); };
-            VerdictSink third = event -> callOrder.add("third");
+            VerdictSink first = verdict -> callOrder.add("first");
+            VerdictSink failing = verdict -> { throw new RuntimeException("boom"); };
+            VerdictSink third = verdict -> callOrder.add("third");
 
             var composite = new CompositeVerdictSink(List.of(first, failing, third));
-            composite.accept(sampleEvent());
+            composite.accept(sampleVerdict());
 
             assertThat(callOrder).containsExactly("first", "third");
         }
@@ -95,12 +99,12 @@ class CompositeVerdictSinkTest {
         @DisplayName("isolates exceptions from multiple failing sinks")
         void isolatesMultipleFailures() {
             List<String> callOrder = new ArrayList<>();
-            VerdictSink failing1 = event -> { throw new RuntimeException("fail-1"); };
-            VerdictSink healthy = event -> callOrder.add("healthy");
-            VerdictSink failing2 = event -> { throw new RuntimeException("fail-2"); };
+            VerdictSink failing1 = verdict -> { throw new RuntimeException("fail-1"); };
+            VerdictSink healthy = verdict -> callOrder.add("healthy");
+            VerdictSink failing2 = verdict -> { throw new RuntimeException("fail-2"); };
 
             var composite = new CompositeVerdictSink(List.of(failing1, healthy, failing2));
-            composite.accept(sampleEvent());
+            composite.accept(sampleVerdict());
 
             assertThat(callOrder).containsExactly("healthy");
         }

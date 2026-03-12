@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * Captures metadata about the environment in which the Sentinel is running.
  *
- * <p>This information is attached to every {@link org.javai.punit.reporting.VerdictEvent}
+ * <p>This information is attached to every {@link org.javai.punit.verdict.ProbabilisticTestVerdict}
  * produced by the Sentinel, enabling operators to distinguish verdicts from different
  * environments (staging vs production) and instances (in multi-instance deployments).
  *
@@ -44,7 +44,7 @@ public record EnvironmentMetadata(
 
     /**
      * Returns this metadata as a map suitable for inclusion in a
-     * {@link org.javai.punit.reporting.VerdictEvent}.
+     * {@link org.javai.punit.verdict.ProbabilisticTestVerdict}.
      *
      * @return an unmodifiable map of metadata key-value pairs
      */

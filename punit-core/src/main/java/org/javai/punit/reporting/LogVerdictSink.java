@@ -2,6 +2,8 @@ package org.javai.punit.reporting;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.VerdictSink;
 
 /**
  * A {@link VerdictSink} that logs verdict events via the PUnit logger.
@@ -15,12 +17,13 @@ public final class LogVerdictSink implements VerdictSink {
     private static final Logger logger = LogManager.getLogger(LogVerdictSink.class);
 
     @Override
-    public void accept(VerdictEvent event) {
-        String verdict = event.passed() ? "PASS" : "FAIL";
+    public void accept(ProbabilisticTestVerdict verdict) {
+        String testName = verdict.identity().className() + "." + verdict.identity().methodName();
+        String useCaseId = verdict.identity().useCaseId().orElse(testName);
         logger.info("[{}] {} — {} — {}",
-                event.correlationId(),
-                event.testName(),
-                event.useCaseId(),
-                verdict);
+                verdict.correlationId(),
+                testName,
+                useCaseId,
+                verdict.punitVerdict());
     }
 }

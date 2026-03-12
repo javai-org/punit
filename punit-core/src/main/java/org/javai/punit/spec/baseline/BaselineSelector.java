@@ -226,7 +226,13 @@ public final class BaselineSelector {
             if (cmp != 0) return cmp;
         }
 
-        // Tertiary: recency (more recent baseline preferred)
+        // Tertiary: source priority (ENVIRONMENT_LOCAL ordinal 0 wins over BUNDLED ordinal 1)
+        int sourceDiff = Integer.compare(
+            a.candidate().source().ordinal(),
+            b.candidate().source().ordinal());
+        if (sourceDiff != 0) return sourceDiff;
+
+        // Quaternary: recency (more recent baseline preferred)
         var aTime = a.candidate().generatedAt();
         var bTime = b.candidate().generatedAt();
         if (aTime != null && bTime != null) {

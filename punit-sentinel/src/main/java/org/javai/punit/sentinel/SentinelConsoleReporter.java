@@ -3,7 +3,7 @@ package org.javai.punit.sentinel;
 import java.io.PrintStream;
 import java.util.Comparator;
 import java.util.List;
-import org.javai.punit.reporting.VerdictEvent;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
 
 /**
  * Owns all console output for the Sentinel CLI.
@@ -79,8 +79,11 @@ class SentinelConsoleReporter implements SentinelProgressListener {
         } else {
             out.println("Result: FAIL");
             result.verdicts().stream()
-                    .filter(v -> !v.passed())
-                    .forEach(v -> out.println("  FAILED: " + v.testName()));
+                    .filter(v -> !v.junitPassed())
+                    .forEach(v -> {
+                        String testName = v.identity().className() + "." + v.identity().methodName();
+                        out.println("  FAILED: " + testName);
+                    });
         }
     }
 
@@ -89,11 +92,12 @@ class SentinelConsoleReporter implements SentinelProgressListener {
         out.println("Sentinel Experiment Summary");
         out.println(SEPARATOR);
 
-        for (VerdictEvent verdict : result.verdicts()) {
-            int samples = parseReportInt(verdict, "punit.experiment.samples");
-            int successes = parseReportInt(verdict, "punit.experiment.successes");
-            int failures = parseReportInt(verdict, "punit.experiment.failures");
-            out.println(verdict.testName());
+        for (ProbabilisticTestVerdict verdict : result.verdicts()) {
+            String testName = verdict.identity().className() + "." + verdict.identity().methodName();
+            int samples = verdict.execution().samplesExecuted();
+            int successes = verdict.execution().successes();
+            int failures = verdict.execution().failures();
+            out.println(testName);
             out.printf("  Samples:   %d  Successes: %d  Failures: %d%n",
                     samples, successes, failures);
         }
@@ -135,18 +139,6 @@ class SentinelConsoleReporter implements SentinelProgressListener {
         for (var entry : sorted) {
             out.printf(format, entry.useCaseId(), entry.type(), entry.name(),
                     String.valueOf(entry.samples()));
-        }
-    }
-
-    private int parseReportInt(VerdictEvent verdict, String key) {
-        String value = verdict.reportEntries().get(key);
-        if (value == null) {
-            return 0;
-        }
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return 0;
         }
     }
 }

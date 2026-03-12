@@ -7,9 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
@@ -21,12 +19,14 @@ import org.javai.punit.experiment.engine.EmpiricalBaselineGenerator;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
 import org.javai.punit.experiment.measure.MeasureOutputWriter;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
-import org.javai.punit.reporting.VerdictEvent;
+import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.javai.punit.usecase.UseCaseFactory;
 
 /**
  * Executes a single {@code @MeasureExperiment} method in the Sentinel runtime,
- * producing a {@link VerdictEvent} and writing baseline spec files.
+ * producing a {@link ProbabilisticTestVerdict} and writing baseline spec files.
  *
  * <p>Responsibilities:
  * <ul>
@@ -70,9 +70,9 @@ class SentinelExperimentExecutor {
      * @param instance the sentinel class instance
      * @param factory the use case factory
      * @param sentinelClass the sentinel class (for naming, input resolution, and baseline generation)
-     * @return the verdict event
+     * @return the probabilistic test verdict
      */
-    VerdictEvent execute(
+    ProbabilisticTestVerdict execute(
             Method method,
             MeasureExperiment annotation,
             Object instance,
@@ -108,16 +108,25 @@ class SentinelExperimentExecutor {
                     aggregator.getSuccesses());
         }
 
-        Map<String, String> reportEntries = buildReportEntries(aggregator, useCaseId, specWritten);
+        double observedRate = aggregator.getSamplesExecuted() > 0
+                ? (double) aggregator.getSuccesses() / aggregator.getSamplesExecuted()
+                : 0.0;
 
-        return new VerdictEvent(
-                VerdictEvent.newCorrelationId(),
-                experimentName,
-                useCaseId,
-                specWritten,
-                reportEntries,
-                environmentMetadata.toMap(),
-                Instant.now());
+        return new ProbabilisticTestVerdictBuilder()
+                .identity(sentinelClass.getName(), method.getName(), useCaseId)
+                .execution(
+                        samples,
+                        aggregator.getSamplesExecuted(),
+                        aggregator.getSuccesses(),
+                        aggregator.getFailures(),
+                        0.0,
+                        observedRate,
+                        0)
+                .termination(TerminationReason.COMPLETED, null)
+                .junitPassed(specWritten)
+                .passedStatistically(specWritten)
+                .environmentMetadata(environmentMetadata.toMap())
+                .build();
     }
 
     private CostBudgetMonitor createBudgetMonitor(MeasureExperiment annotation) {
@@ -197,17 +206,4 @@ class SentinelExperimentExecutor {
         return Paths.get("punit/specs");
     }
 
-    private Map<String, String> buildReportEntries(
-            ExperimentResultAggregator aggregator,
-            String useCaseId,
-            boolean specWritten) {
-
-        Map<String, String> entries = new LinkedHashMap<>();
-        entries.put("punit.experiment.useCaseId", useCaseId);
-        entries.put("punit.experiment.samples", String.valueOf(aggregator.getSamplesExecuted()));
-        entries.put("punit.experiment.successes", String.valueOf(aggregator.getSuccesses()));
-        entries.put("punit.experiment.failures", String.valueOf(aggregator.getFailures()));
-        entries.put("punit.experiment.specWritten", String.valueOf(specWritten));
-        return entries;
-    }
 }

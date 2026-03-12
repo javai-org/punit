@@ -248,5 +248,23 @@ class ThresholdDeriverTest {
                 .isLessThan(0.05);
         }
     }
+
+    @Nested
+    @DisplayName("Scenario Validation — pipeline plan Scenarios A/B")
+    class ScenarioValidation {
+
+        @Test
+        @DisplayName("derives π₀=0.9374 from baseline 950/1000 at 95% confidence")
+        void scenarioAB_thresholdMatchesPlanValue() {
+            // Scenarios A and B use baseline: 1000 samples, 950 successes, rate=0.9500
+            // At 95% confidence, Wilson one-sided lower bound → π₀ ≈ 0.9374
+            DerivedThreshold result =
+                    deriver.deriveSampleSizeFirst(1000, 950, 100, 0.95);
+
+            assertThat(result.value())
+                    .as("Threshold used in Scenarios A and B")
+                    .isCloseTo(0.9374, within(0.001));
+        }
+    }
 }
 

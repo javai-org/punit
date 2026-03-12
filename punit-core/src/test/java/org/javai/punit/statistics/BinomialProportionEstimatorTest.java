@@ -285,7 +285,7 @@ class BinomialProportionEstimatorTest {
     }
 
     @Nested
-    @DisplayName("One-Sided P-Value: P(Z > z)")
+    @DisplayName("One-Sided P-Value: P(Z ≤ z) — left-tailed test for degradation detection")
     class OneSidedPValue {
 
         @Test
@@ -296,38 +296,46 @@ class BinomialProportionEstimatorTest {
         }
 
         @Test
-        @DisplayName("p-value is small for large positive z")
-        void smallPValueForLargePositiveZ() {
-            // z = 1.645 → upper tail ≈ 0.05
-            double p = estimator.oneSidedPValue(1.645);
+        @DisplayName("p-value is small for large negative z (strong evidence of degradation)")
+        void smallPValueForLargeNegativeZ() {
+            // z = -1.645 → lower tail ≈ 0.05
+            double p = estimator.oneSidedPValue(-1.645);
             assertThat(p).isCloseTo(0.05, within(0.001));
         }
 
         @Test
-        @DisplayName("p-value approaches 1 for large negative z")
-        void largePValueForNegativeZ() {
-            // z = -3.0 → upper tail ≈ 0.9987
-            double p = estimator.oneSidedPValue(-3.0);
+        @DisplayName("p-value approaches 1 for large positive z (no evidence of degradation)")
+        void largePValueForPositiveZ() {
+            // z = 3.0 → lower tail ≈ 0.9987
+            double p = estimator.oneSidedPValue(3.0);
             assertThat(p).isCloseTo(0.9987, within(0.001));
         }
 
         @Test
-        @DisplayName("p-value decreases as z increases")
-        void pValueDecreasesWithZ() {
-            double p1 = estimator.oneSidedPValue(1.0);
-            double p2 = estimator.oneSidedPValue(2.0);
-            double p3 = estimator.oneSidedPValue(3.0);
-            assertThat(p1).isGreaterThan(p2);
-            assertThat(p2).isGreaterThan(p3);
+        @DisplayName("p-value increases as z increases (further above threshold = less evidence of degradation)")
+        void pValueIncreasesWithZ() {
+            double p1 = estimator.oneSidedPValue(-2.0);
+            double p2 = estimator.oneSidedPValue(0.0);
+            double p3 = estimator.oneSidedPValue(2.0);
+            assertThat(p1).isLessThan(p2);
+            assertThat(p2).isLessThan(p3);
         }
 
         @Test
-        @DisplayName("p-value is consistent with z-test statistic")
-        void consistentWithZTestStatistic() {
-            // If observed significantly below threshold, p-value should be large (upper tail of negative z)
+        @DisplayName("observed far below threshold produces small p-value (strong evidence of degradation)")
+        void observedBelowThresholdProducesSmallPValue() {
+            // observed 0.80 vs threshold 0.95 with n=100 → z is strongly negative
             double z = estimator.zTestStatistic(0.80, 0.95, 100);
             double p = estimator.oneSidedPValue(z);
-            // z is strongly negative → P(Z > z) ≈ 1
+            assertThat(p).isLessThan(0.01);
+        }
+
+        @Test
+        @DisplayName("observed above threshold produces large p-value (no evidence of degradation)")
+        void observedAboveThresholdProducesLargePValue() {
+            // observed 0.98 vs threshold 0.90 with n=100 → z is positive
+            double z = estimator.zTestStatistic(0.98, 0.90, 100);
+            double p = estimator.oneSidedPValue(z);
             assertThat(p).isGreaterThan(0.99);
         }
     }
@@ -370,6 +378,217 @@ class BinomialProportionEstimatorTest {
             assertThatThrownBy(() -> estimator.estimate(50, 100, 1.0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Confidence level");
+        }
+    }
+
+    @Nested
+    @DisplayName("Scenario Validation — hand-computed values from rendering pipeline plan")
+    class ScenarioValidation {
+
+        @Test
+        @DisplayName("Scenario A: SE(p̂) for 96/100")
+        void scenarioA_standardError() {
+            // SE(p̂) = √(0.96 × 0.04 / 100) = 0.0196
+            assertThat(estimator.standardError(96, 100))
+                    .isCloseTo(0.0196, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario A: Wilson CI lower for 96/100")
+        void scenarioA_wilsonCiLower() {
+            assertThat(estimator.estimate(96, 100, 0.95).lowerBound())
+                    .isCloseTo(0.9016, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario A: Z-test statistic for p̂=0.96, π₀=0.9374, n=100")
+        void scenarioA_zTestStatistic() {
+            assertThat(estimator.zTestStatistic(0.96, 0.9374, 100))
+                    .isCloseTo(0.9331, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario A: p-value for z=0.9331")
+        void scenarioA_pValue() {
+            double z = estimator.zTestStatistic(0.96, 0.9374, 100);
+            assertThat(estimator.oneSidedPValue(z))
+                    .isCloseTo(0.8246, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario B: SE(p̂) for 85/100")
+        void scenarioB_standardError() {
+            assertThat(estimator.standardError(85, 100))
+                    .isCloseTo(0.0357, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario B: Wilson CI lower for 85/100")
+        void scenarioB_wilsonCiLower() {
+            assertThat(estimator.estimate(85, 100, 0.95).lowerBound())
+                    .isCloseTo(0.7672, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario B: Z-test statistic for p̂=0.85, π₀=0.9374, n=100")
+        void scenarioB_zTestStatistic() {
+            // Z = (0.85 - 0.9374) / √(0.9374 × 0.0626 / 100) ≈ -3.6080
+            assertThat(estimator.zTestStatistic(0.85, 0.9374, 100))
+                    .isCloseTo(-3.6080, within(0.001));
+        }
+
+        @Test
+        @DisplayName("Scenario B: p-value for z≈-3.61")
+        void scenarioB_pValue() {
+            double z = estimator.zTestStatistic(0.85, 0.9374, 100);
+            assertThat(estimator.oneSidedPValue(z))
+                    .isCloseTo(0.0002, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario C: SE(p̂) for 40/50")
+        void scenarioC_standardError() {
+            assertThat(estimator.standardError(40, 50))
+                    .isCloseTo(0.0566, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario C: Wilson CI lower for 40/50")
+        void scenarioC_wilsonCiLower() {
+            assertThat(estimator.estimate(40, 50, 0.95).lowerBound())
+                    .isCloseTo(0.6696, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario C: Z-test statistic for p̂=0.80, π₀=0.90, n=50")
+        void scenarioC_zTestStatistic() {
+            assertThat(estimator.zTestStatistic(0.80, 0.90, 50))
+                    .isCloseTo(-2.3570, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario C: p-value for z≈-2.36")
+        void scenarioC_pValue() {
+            double z = estimator.zTestStatistic(0.80, 0.90, 50);
+            assertThat(estimator.oneSidedPValue(z))
+                    .isCloseTo(0.0092, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario D: SE(p̂) for 180/200")
+        void scenarioD_standardError() {
+            assertThat(estimator.standardError(180, 200))
+                    .isCloseTo(0.0212, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario D: Wilson CI lower for 180/200")
+        void scenarioD_wilsonCiLower() {
+            assertThat(estimator.estimate(180, 200, 0.95).lowerBound())
+                    .isCloseTo(0.8506, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario D: Z-test statistic for p̂=0.90, π₀=0.85, n=200")
+        void scenarioD_zTestStatistic() {
+            assertThat(estimator.zTestStatistic(0.90, 0.85, 200))
+                    .isCloseTo(1.9802, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario D: p-value for z≈1.98")
+        void scenarioD_pValue() {
+            double z = estimator.zTestStatistic(0.90, 0.85, 200);
+            assertThat(estimator.oneSidedPValue(z))
+                    .isCloseTo(0.9762, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario E: SE(p̂) for 95/100")
+        void scenarioE_standardError() {
+            assertThat(estimator.standardError(95, 100))
+                    .isCloseTo(0.0218, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario E: Wilson CI lower for 95/100")
+        void scenarioE_wilsonCiLower() {
+            assertThat(estimator.estimate(95, 100, 0.95).lowerBound())
+                    .isCloseTo(0.8883, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario E: Z-test statistic for p̂=0.95, π₀=0.90, n=100")
+        void scenarioE_zTestStatistic() {
+            assertThat(estimator.zTestStatistic(0.95, 0.90, 100))
+                    .isCloseTo(1.6667, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario E: p-value for z≈1.67")
+        void scenarioE_pValue() {
+            double z = estimator.zTestStatistic(0.95, 0.90, 100);
+            assertThat(estimator.oneSidedPValue(z))
+                    .isCloseTo(0.9522, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario F: SE(p̂) for 93/100")
+        void scenarioF_standardError() {
+            assertThat(estimator.standardError(93, 100))
+                    .isCloseTo(0.0255, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario F: Wilson CI lower for 93/100")
+        void scenarioF_wilsonCiLower() {
+            // Wilson two-sided CI lower for 93/100 at 95% ≈ 0.8625
+            assertThat(estimator.estimate(93, 100, 0.95).lowerBound())
+                    .isCloseTo(0.8625, within(0.001));
+        }
+
+        @Test
+        @DisplayName("Scenario F: Z-test statistic for p̂=0.93, π₀=0.90, n=100")
+        void scenarioF_zTestStatistic() {
+            assertThat(estimator.zTestStatistic(0.93, 0.90, 100))
+                    .isCloseTo(1.0000, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario F: p-value for z=1.0")
+        void scenarioF_pValue() {
+            double z = estimator.zTestStatistic(0.93, 0.90, 100);
+            assertThat(estimator.oneSidedPValue(z))
+                    .isCloseTo(0.8413, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario G: SE(p̂) for 20/30")
+        void scenarioG_standardError() {
+            assertThat(estimator.standardError(20, 30))
+                    .isCloseTo(0.0861, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario G: Wilson CI lower for 20/30")
+        void scenarioG_wilsonCiLower() {
+            assertThat(estimator.estimate(20, 30, 0.95).lowerBound())
+                    .isCloseTo(0.4880, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario G: Z-test statistic for p̂=0.6667, π₀=0.90, n=30")
+        void scenarioG_zTestStatistic() {
+            assertThat(estimator.zTestStatistic(0.6667, 0.90, 30))
+                    .isCloseTo(-4.2597, within(0.0005));
+        }
+
+        @Test
+        @DisplayName("Scenario G: p-value for z≈-4.26")
+        void scenarioG_pValue() {
+            double z = estimator.zTestStatistic(0.6667, 0.90, 30);
+            assertThat(estimator.oneSidedPValue(z))
+                    .isCloseTo(0.0000, within(0.0005));
         }
     }
 }

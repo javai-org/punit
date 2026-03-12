@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.javai.punit.reporting.CompositeVerdictSink;
 import org.javai.punit.reporting.LogVerdictSink;
-import org.javai.punit.reporting.VerdictSink;
+import org.javai.punit.verdict.VerdictSink;
 import org.javai.punit.spec.registry.SpecRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -120,7 +120,7 @@ class SentinelConfigurationTest {
         @Test
         @DisplayName("uses single sink directly without wrapping in composite")
         void singleSinkNotWrapped() {
-            VerdictSink sink = event -> {};
+            VerdictSink sink = verdict -> {};
             var config = SentinelConfiguration.builder()
                     .sentinelClass(Object.class)
                     .verdictSink(sink)
@@ -132,8 +132,8 @@ class SentinelConfigurationTest {
         @Test
         @DisplayName("wraps multiple sinks in CompositeVerdictSink")
         void multipleSinksWrappedInComposite() {
-            VerdictSink sink1 = event -> {};
-            VerdictSink sink2 = event -> {};
+            VerdictSink sink1 = verdict -> {};
+            VerdictSink sink2 = verdict -> {};
             var config = SentinelConfiguration.builder()
                     .sentinelClass(Object.class)
                     .verdictSink(sink1)

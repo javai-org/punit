@@ -2,12 +2,14 @@ package org.javai.punit.reporting;
 
 import java.util.List;
 import java.util.Objects;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.VerdictSink;
 
 /**
- * A {@link VerdictSink} that dispatches each verdict event to multiple sinks.
+ * A {@link VerdictSink} that dispatches each verdict to multiple sinks.
  *
  * <p>Sinks are invoked in registration order. If a sink throws an exception,
- * it is logged and the remaining sinks still receive the event.
+ * it is logged and the remaining sinks still receive the verdict.
  */
 public final class CompositeVerdictSink implements VerdictSink {
 
@@ -19,10 +21,10 @@ public final class CompositeVerdictSink implements VerdictSink {
     }
 
     @Override
-    public void accept(VerdictEvent event) {
+    public void accept(ProbabilisticTestVerdict verdict) {
         for (VerdictSink sink : sinks) {
             try {
-                sink.accept(event);
+                sink.accept(verdict);
             } catch (Exception e) {
                 System.err.println("VerdictSink " + sink.getClass().getSimpleName()
                         + " failed: " + e.getMessage());

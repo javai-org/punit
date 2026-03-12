@@ -1,22 +1,18 @@
 /**
- * Transparent Statistics Mode for PUnit.
+ * Transparent Statistics Mode configuration and vocabulary.
  *
- * <p>This package provides comprehensive statistical explanations for probabilistic
- * test verdicts. When enabled, it produces detailed output documenting the complete
- * statistical reasoning behind every pass/fail decision.
+ * <p>This package provides configuration and symbol constants for transparent
+ * statistics output. Rendering is handled by
+ * {@link org.javai.punit.verdict.VerdictTextRenderer}.
  *
  * <h2>Key Components</h2>
  * <ul>
- *   <li>{@link org.javai.punit.statistics.transparent.TransparentStatsConfig} - 
- *       Configuration with precedence: annotation > system property > env var > default</li>
- *   <li>{@link org.javai.punit.statistics.transparent.StatisticalExplanation} - 
- *       Immutable record holding all explanation components</li>
- *   <li>{@link org.javai.punit.statistics.transparent.StatisticalExplanationBuilder} - 
- *       Builds explanations from test execution context</li>
- *   <li>{@link org.javai.punit.statistics.transparent.ExplanationRenderer} - 
- *       Interface for rendering explanations in various formats</li>
- *   <li>{@link org.javai.punit.statistics.transparent.TextExplanationRenderer} -
- *       Human-readable text output with box drawing</li>
+ *   <li>{@link org.javai.punit.statistics.transparent.TransparentStatsConfig} -
+ *       Configuration with precedence: annotation &gt; system property &gt; env var &gt; default</li>
+ *   <li>{@link org.javai.punit.statistics.transparent.StatisticalVocabulary} -
+ *       Mathematical symbols with Unicode/ASCII fallback</li>
+ *   <li>{@link org.javai.punit.statistics.transparent.BaselineData} -
+ *       Baseline data transfer object</li>
  * </ul>
  *
  * <h2>Enabling Transparent Mode</h2>
@@ -35,4 +31,3 @@
  * @see org.javai.punit.statistics.transparent.TransparentStatsConfig
  */
 package org.javai.punit.statistics.transparent;
-

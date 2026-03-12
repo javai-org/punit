@@ -7,11 +7,11 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
-import org.javai.punit.reporting.VerdictEvent;
-import org.javai.punit.reporting.VerdictSink;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.VerdictSink;
 
 /**
- * A {@link VerdictSink} that posts verdict events as JSON to an HTTP endpoint.
+ * A {@link VerdictSink} that posts verdicts as JSON to an HTTP endpoint.
  *
  * <p>Uses {@link java.net.http.HttpClient} — no additional dependencies required.
  *
@@ -41,8 +41,8 @@ public final class WebhookVerdictSink implements VerdictSink {
     }
 
     @Override
-    public void accept(VerdictEvent event) {
-        String json = toJson(event);
+    public void accept(ProbabilisticTestVerdict verdict) {
+        String json = toJson(verdict);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(endpoint)
@@ -75,16 +75,19 @@ public final class WebhookVerdictSink implements VerdictSink {
         return new Builder(url);
     }
 
-    static String toJson(VerdictEvent event) {
+    static String toJson(ProbabilisticTestVerdict verdict) {
+        String testName = verdict.identity().className() + "." + verdict.identity().methodName();
+        String useCaseId = verdict.identity().useCaseId().orElse(testName);
+
         StringBuilder sb = new StringBuilder();
         sb.append("{");
-        sb.append("\"correlationId\":").append(quote(event.correlationId())).append(",");
-        sb.append("\"testName\":").append(quote(event.testName())).append(",");
-        sb.append("\"useCaseId\":").append(quote(event.useCaseId())).append(",");
-        sb.append("\"passed\":").append(event.passed()).append(",");
-        sb.append("\"timestamp\":").append(quote(event.timestamp().toString())).append(",");
-        sb.append("\"reportEntries\":").append(mapToJson(event.reportEntries())).append(",");
-        sb.append("\"environmentMetadata\":").append(mapToJson(event.environmentMetadata()));
+        sb.append("\"correlationId\":").append(quote(verdict.correlationId())).append(",");
+        sb.append("\"testName\":").append(quote(testName)).append(",");
+        sb.append("\"useCaseId\":").append(quote(useCaseId)).append(",");
+        sb.append("\"passed\":").append(verdict.junitPassed()).append(",");
+        sb.append("\"punitVerdict\":").append(quote(verdict.punitVerdict().name())).append(",");
+        sb.append("\"timestamp\":").append(quote(verdict.timestamp().toString())).append(",");
+        sb.append("\"environmentMetadata\":").append(mapToJson(verdict.environmentMetadata()));
         sb.append("}");
         return sb.toString();
     }

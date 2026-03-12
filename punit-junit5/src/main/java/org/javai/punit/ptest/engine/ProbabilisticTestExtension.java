@@ -29,8 +29,14 @@ import org.javai.punit.ptest.strategy.InterceptResult;
 import org.javai.punit.ptest.strategy.ProbabilisticTestStrategy;
 import org.javai.punit.ptest.strategy.SampleExecutionContext;
 import org.opentest4j.TestAbortedException;
+import org.javai.punit.report.ReportConfiguration;
+import org.javai.punit.report.VerdictXmlSink;
 import org.javai.punit.reporting.PUnitReporter;
+import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.javai.punit.spec.baseline.BaselineRepository;
+import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineSource;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.SelectionResult;
 import org.javai.punit.spec.baseline.BaselineSelector;
 import org.javai.punit.spec.baseline.FootprintComputer;
@@ -39,7 +45,6 @@ import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.transparent.BaselineData;
-import org.javai.punit.statistics.transparent.StatisticalExplanationBuilder;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -80,6 +85,7 @@ public class ProbabilisticTestExtension implements
 	private static final FinalConfigurationLogger configurationLogger = new FinalConfigurationLogger(reporter);
 	private static final SampleFailureFormatter sampleFailureFormatter = new SampleFailureFormatter();
 	private static final ResultPublisher resultPublisher = new ResultPublisher(reporter);
+	private static final VerdictXmlSink xmlSink = new VerdictXmlSink(ReportConfiguration.resolve());
 
 	private static final String AGGREGATOR_KEY = "aggregator";
 	private static final String CONFIG_KEY = "config";
@@ -567,82 +573,183 @@ public class ProbabilisticTestExtension implements
 								boolean passed,
 								LatencyAssertionResult latencyResult) {
 
-		String testName = context.getParent()
-				.map(ExtensionContext::getDisplayName)
-				.orElse(context.getDisplayName());
-
 		ExecutionSpecification spec = getSpec(context);
-		List<StatisticalExplanationBuilder.CovariateMisalignment> misalignments = extractMisalignments(context);
+		List<ProbabilisticTestVerdictBuilder.MisalignmentInput> misalignments = extractMisalignments(context);
 		boolean hasSelectedBaseline = spec != null;
 		BaselineData baseline = hasSelectedBaseline ? loadBaselineDataFromContext(context) : BaselineData.empty();
 		SelectionResult selectionResult = getSelectionResult(context);
 		String baselineFilename = selectionResult != null ? selectionResult.selected().filename() : null;
 
-		ResultPublisher.DimensionResults dimensionResults = new ResultPublisher.DimensionResults(
-				aggregator.isFunctionalAsserted(),
-				aggregator.isLatencyAsserted(),
-				aggregator.functionalSuccesses().orElse(null),
-				aggregator.functionalFailures().orElse(null),
-				aggregator.latencySuccesses().orElse(null),
-				aggregator.latencyFailures().orElse(null)
-		);
+		// Build structured verdict model — the single source of truth
+		ProbabilisticTestVerdict verdict = buildProbabilisticTestVerdict(
+				context, aggregator, config, methodBudget, classBudget, suiteBudget,
+				passed, latencyResult, spec, misalignments, baseline, baselineFilename, selectionResult);
+		logger.debug("Verdict [{}]: junit={}, punit={}",
+				verdict.correlationId(), verdict.junitPassed(), verdict.punitVerdict());
 
-		ResultPublisher.PublishContext publishCtx = new ResultPublisher.PublishContext(
-				testName,
-				config.samples(),
-				aggregator.getSamplesExecuted(),
-				aggregator.getSuccesses(),
-				aggregator.getFailures(),
-				config.minPassRate(),
-				aggregator.getObservedPassRate(),
-				passed,
-				aggregator.getTerminationReason(),
-				aggregator.getTerminationDetails(),
-				aggregator.getElapsedMs(),
-				config.hasMultiplier(),
-				config.appliedMultiplier(),
-				config.timeBudgetMs(),
-				config.tokenBudget(),
-				methodBudget.getTokensConsumed(),
-				config.tokenMode(),
-				classBudget,
-				suiteBudget,
-				spec,
-				config.transparentStats(),
-				config.thresholdOrigin(),
-				config.contractRef(),
-				config.confidence(),
-				baseline,
-				misalignments,
-				baselineFilename,
-				config.intent(),
-				config.resolvedConfidence(),
-				latencyResult,
-				dimensionResults
-		);
+		// Print console summary from verdict model
+		resultPublisher.printConsoleSummary(verdict, config.transparentStats(), spec);
 
-		// Print console summary
-		resultPublisher.printConsoleSummary(publishCtx);
+		// Write XML report from verdict model
+		xmlSink.accept(verdict);
 
-		// Build and publish report entries
-		Map<String, String> entries = resultPublisher.buildReportEntries(publishCtx);
+		// Build and publish report entries from verdict model
+		Map<String, String> entries = resultPublisher.buildReportEntries(verdict, spec);
 		context.publishReportEntry(entries);
+	}
+
+	/**
+	 * Builds a {@link ProbabilisticTestVerdict} from the available execution data.
+	 *
+	 * <p>This is the single source of truth for all verdict rendering — both console
+	 * summary and TestReporter entries are derived from this model.
+	 */
+	private ProbabilisticTestVerdict buildProbabilisticTestVerdict(
+			ExtensionContext context,
+			SampleResultAggregator aggregator,
+			TestConfiguration config,
+			CostBudgetMonitor methodBudget,
+			SharedBudgetMonitor classBudget,
+			SharedBudgetMonitor suiteBudget,
+			boolean passed,
+			LatencyAssertionResult latencyResult,
+			ExecutionSpecification spec,
+			List<ProbabilisticTestVerdictBuilder.MisalignmentInput> misalignments,
+			BaselineData baseline,
+			String baselineFilename,
+			SelectionResult selectionResult) {
+
+		// Identity: class name and method name from the parent context (test method level)
+		String className = context.getParent()
+				.flatMap(ExtensionContext::getTestClass)
+				.map(Class::getName)
+				.orElse("unknown");
+		String methodName = context.getParent()
+				.flatMap(ExtensionContext::getTestMethod)
+				.map(java.lang.reflect.Method::getName)
+				.orElse(context.getDisplayName());
+
+		ProbabilisticTestVerdictBuilder builder = new ProbabilisticTestVerdictBuilder()
+				.identity(className, methodName, config.specId())
+				.execution(
+						config.samples(),
+						aggregator.getSamplesExecuted(),
+						aggregator.getSuccesses(),
+						aggregator.getFailures(),
+						config.minPassRate(),
+						aggregator.getObservedPassRate(),
+						aggregator.getElapsedMs())
+				.intent(config.intent(), config.resolvedConfidence())
+				.termination(
+						aggregator.getTerminationReason().orElse(TerminationReason.COMPLETED),
+						aggregator.getTerminationDetails())
+				.junitPassed(aggregator.getFailures() == 0)
+				.passedStatistically(passed)
+				.cost(
+						methodBudget.getTokensConsumed(),
+						config.timeBudgetMs(),
+						config.tokenBudget(),
+						config.tokenMode())
+				.sharedBudgets(classBudget, suiteBudget);
+
+		// Applied multiplier
+		if (config.hasMultiplier()) {
+			builder.appliedMultiplier(config.appliedMultiplier());
+		}
+
+		// Functional dimension
+		if (aggregator.isFunctionalAsserted()) {
+			builder.functionalDimension(
+					aggregator.functionalSuccesses().orElse(0),
+					aggregator.functionalFailures().orElse(0));
+		}
+
+		// Latency dimension
+		if (latencyResult.wasEvaluated()) {
+			List<ProbabilisticTestVerdictBuilder.PercentileAssertionInput> assertions =
+					latencyResult.percentileResults().stream()
+							.map(pr -> new ProbabilisticTestVerdictBuilder.PercentileAssertionInput(
+									pr.label(), pr.observedMs(), pr.thresholdMs(),
+									pr.passed(), pr.indicative(), pr.source()))
+							.toList();
+
+			builder.latencyDimension(new ProbabilisticTestVerdictBuilder.LatencyInput(
+					latencyResult.successfulSampleCount(),
+					aggregator.getSamplesExecuted(),
+					latencyResult.skipped(),
+					latencyResult.skipped() && !latencyResult.caveats().isEmpty()
+							? latencyResult.caveats().getFirst() : null,
+					latencyResult.observedP50Ms(),
+					latencyResult.observedP90Ms(),
+					latencyResult.observedP95Ms(),
+					latencyResult.observedP99Ms(),
+					latencyResult.maxLatencyMs(),
+					assertions,
+					latencyResult.caveats(),
+					aggregator.latencySuccesses().orElse(0),
+					aggregator.latencyFailures().orElse(0)));
+		}
+
+		// Covariates
+		if (!misalignments.isEmpty()) {
+			builder.misalignments(misalignments);
+		}
+
+		// Pacing
+		if (config.hasPacing()) {
+			builder.pacing(config.pacing());
+		}
+
+		// Provenance
+		if (config.thresholdOrigin() != null || (config.contractRef() != null && !config.contractRef().isEmpty())) {
+			String sourceLabel = deriveBaselineSourceLabel(selectionResult);
+			builder.provenance(config.thresholdOrigin(), config.contractRef(), baselineFilename, sourceLabel);
+		}
+
+		// Spec and baseline
+		if (spec != null) {
+			builder.spec(spec);
+		}
+		if (baseline != null) {
+			builder.baseline(baseline);
+		}
+
+		return builder.build();
 	}
 
 	/**
 	 * Extracts covariate misalignments from the selection result, if present.
 	 */
-	private List<StatisticalExplanationBuilder.CovariateMisalignment> extractMisalignments(ExtensionContext context) {
+	private List<ProbabilisticTestVerdictBuilder.MisalignmentInput> extractMisalignments(ExtensionContext context) {
 		SelectionResult result = getSelectionResult(context);
 		if (result == null || !result.hasNonConformance()) {
 			return List.of();
 		}
 		return result.nonConformingDetails().stream()
-				.map(d -> new StatisticalExplanationBuilder.CovariateMisalignment(
+				.map(d -> new ProbabilisticTestVerdictBuilder.MisalignmentInput(
 						d.covariateKey(),
 						d.baselineValue().toCanonicalString(),
 						d.testValue().toCanonicalString()))
 				.toList();
+	}
+
+	/**
+	 * Derives a human-readable label for the baseline source.
+	 */
+	private String deriveBaselineSourceLabel(SelectionResult selectionResult) {
+		if (selectionResult == null || selectionResult.selected() == null) {
+			return null;
+		}
+		return switch (selectionResult.selected().source()) {
+			case ENVIRONMENT_LOCAL -> {
+				String specDir = System.getProperty("punit.spec.dir");
+				if (specDir == null || specDir.isBlank()) {
+					specDir = System.getenv("PUNIT_SPEC_DIR");
+				}
+				yield specDir != null ? specDir : "(env-local)";
+			}
+			case BUNDLED -> "(bundled)";
+		};
 	}
 
 	/**

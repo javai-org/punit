@@ -12,7 +12,7 @@ import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.ptest.bernoulli.FinalVerdictDecider;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
-import org.javai.punit.reporting.VerdictEvent;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.statistics.ThresholdDeriver;
 import org.javai.punit.usecase.UseCaseFactory;
 
@@ -118,7 +118,7 @@ public class SentinelRunner {
 
     private SentinelResult executeTests(Predicate<Optional<String>> filter) {
         Instant start = Instant.now();
-        List<VerdictEvent> verdicts = new ArrayList<>();
+        List<ProbabilisticTestVerdict> verdicts = new ArrayList<>();
         int passed = 0, failed = 0;
 
         for (Class<?> sentinelClass : configuration.sentinelClasses()) {
@@ -135,13 +135,13 @@ public class SentinelRunner {
                     continue;
                 }
 
-                VerdictEvent verdict = testExecutor.execute(
+                ProbabilisticTestVerdict verdict = testExecutor.execute(
                         method, annotation, instance, factory,
                         sentinelClass, methodUseCaseId);
                 verdicts.add(verdict);
                 configuration.verdictSink().accept(verdict);
 
-                if (verdict.passed()) {
+                if (verdict.junitPassed()) {
                     passed++;
                 } else {
                     failed++;
@@ -178,7 +178,7 @@ public class SentinelRunner {
 
     private SentinelResult executeExperiments(Predicate<String> filter) {
         Instant start = Instant.now();
-        List<VerdictEvent> verdicts = new ArrayList<>();
+        List<ProbabilisticTestVerdict> verdicts = new ArrayList<>();
         int passed = 0, failed = 0;
 
         for (Class<?> sentinelClass : configuration.sentinelClasses()) {
@@ -195,12 +195,12 @@ public class SentinelRunner {
                     continue;
                 }
 
-                VerdictEvent verdict = experimentExecutor.execute(
+                ProbabilisticTestVerdict verdict = experimentExecutor.execute(
                         method, annotation, instance, factory, sentinelClass);
                 verdicts.add(verdict);
                 configuration.verdictSink().accept(verdict);
 
-                if (verdict.passed()) {
+                if (verdict.junitPassed()) {
                     passed++;
                 } else {
                     failed++;

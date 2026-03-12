@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.Optional;
+import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,7 +24,7 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("renders pass verdict with observed and required pass rates")
         void rendersPassVerdict() {
-            String output = renderVerdict(passingEntries());
+            String output = renderVerdict(passingVerdict());
 
             assertThat(output).contains("VERDICT: PASS");
             assertThat(output).contains("Observed pass rate:");
@@ -32,7 +34,7 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("includes test name in output")
         void includesTestName() {
-            String output = renderVerdict(passingEntries());
+            String output = renderVerdict(passingVerdict());
 
             assertThat(output).contains("MySpec.shouldPass");
         }
@@ -40,7 +42,7 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("includes elapsed time")
         void includesElapsedTime() {
-            String output = renderVerdict(passingEntries());
+            String output = renderVerdict(passingVerdict());
 
             assertThat(output).contains("Elapsed:");
             assertThat(output).contains("150ms");
@@ -54,7 +56,7 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("renders fail verdict with less-than comparison")
         void rendersFailVerdict() {
-            String output = renderVerdict(failingEntries(), false);
+            String output = renderVerdict(failingVerdict());
 
             assertThat(output).contains("VERDICT: FAIL");
             assertThat(output).contains("< required:");
@@ -63,12 +65,15 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("renders budget exhaustion")
         void rendersBudgetExhaustion() {
-            Map<String, String> entries = failingEntries();
-            entries.put("punit.terminationReason", "TIME_BUDGET_EXHAUSTED");
-            entries.put("punit.samples", "100");
-            entries.put("punit.samplesExecuted", "42");
+            ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdictBuilder()
+                    .identity("MySpec", "shouldPass", null)
+                    .execution(100, 42, 30, 12, 0.9, 0.7143, 200)
+                    .termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED, "Time budget exceeded")
+                    .junitPassed(false)
+                    .passedStatistically(false)
+                    .build();
 
-            String output = renderVerdict(entries, false);
+            String output = renderVerdict(verdict);
 
             assertThat(output).contains("budget exhausted");
             assertThat(output).contains("Termination:");
@@ -82,15 +87,19 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("shows per-dimension breakdown when both dimensions are asserted")
         void showsBothDimensions() {
-            Map<String, String> entries = passingEntries();
-            entries.put("punit.dimension.functional", "true");
-            entries.put("punit.dimension.functional.successes", "95");
-            entries.put("punit.dimension.functional.failures", "5");
-            entries.put("punit.dimension.latency", "true");
-            entries.put("punit.dimension.latency.successes", "90");
-            entries.put("punit.dimension.latency.failures", "10");
+            ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdictBuilder()
+                    .identity("MySpec", "shouldPass", null)
+                    .execution(100, 100, 95, 5, 0.9, 0.95, 150)
+                    .functionalDimension(95, 5)
+                    .latencyDimension(new ProbabilisticTestVerdictBuilder.LatencyInput(
+                            90, 100, false, null,
+                            10, 20, 30, 50, 100,
+                            List.of(), List.of(), 90, 10))
+                    .junitPassed(true)
+                    .passedStatistically(true)
+                    .build();
 
-            String output = renderVerdict(entries);
+            String output = renderVerdict(verdict);
 
             assertThat(output).contains("Contract:");
             assertThat(output).contains("95/100 passed");
@@ -101,12 +110,15 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("omits breakdown when only one dimension is asserted")
         void omitsForSingleDimension() {
-            Map<String, String> entries = passingEntries();
-            entries.put("punit.dimension.functional", "true");
-            entries.put("punit.dimension.functional.successes", "95");
-            entries.put("punit.dimension.functional.failures", "5");
+            ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdictBuilder()
+                    .identity("MySpec", "shouldPass", null)
+                    .execution(100, 100, 95, 5, 0.9, 0.95, 150)
+                    .functionalDimension(95, 5)
+                    .junitPassed(true)
+                    .passedStatistically(true)
+                    .build();
 
-            String output = renderVerdict(entries);
+            String output = renderVerdict(verdict);
 
             assertThat(output).doesNotContain("Contract:");
             assertThat(output).doesNotContain("Latency:");
@@ -120,7 +132,7 @@ class ConsoleVerdictSinkTest {
         @Test
         @DisplayName("includes PUnit header and footer dividers")
         void includesFraming() {
-            String output = renderVerdict(passingEntries());
+            String output = renderVerdict(passingVerdict());
 
             assertThat(output).contains("PUnit");
             // Footer is a line of ═ characters
@@ -130,48 +142,30 @@ class ConsoleVerdictSinkTest {
 
     // ── Test helpers ──────────────────────────────────────────────────────
 
-    private Map<String, String> passingEntries() {
-        Map<String, String> entries = new LinkedHashMap<>();
-        entries.put("punit.samples", "100");
-        entries.put("punit.samplesExecuted", "100");
-        entries.put("punit.successes", "95");
-        entries.put("punit.failures", "5");
-        entries.put("punit.minPassRate", "0.9000");
-        entries.put("punit.observedPassRate", "0.9500");
-        entries.put("punit.verdict", "PASS");
-        entries.put("punit.terminationReason", "COMPLETED");
-        entries.put("punit.elapsedMs", "150");
-        return entries;
+    private ProbabilisticTestVerdict passingVerdict() {
+        return new ProbabilisticTestVerdictBuilder()
+                .identity("MySpec", "shouldPass", null)
+                .execution(100, 100, 95, 5, 0.9, 0.95, 150)
+                .junitPassed(true)
+                .passedStatistically(true)
+                .build();
     }
 
-    private Map<String, String> failingEntries() {
-        Map<String, String> entries = new LinkedHashMap<>();
-        entries.put("punit.samples", "100");
-        entries.put("punit.samplesExecuted", "100");
-        entries.put("punit.successes", "80");
-        entries.put("punit.failures", "20");
-        entries.put("punit.minPassRate", "0.9000");
-        entries.put("punit.observedPassRate", "0.8000");
-        entries.put("punit.verdict", "FAIL");
-        entries.put("punit.terminationReason", "COMPLETED");
-        entries.put("punit.elapsedMs", "200");
-        return entries;
+    private ProbabilisticTestVerdict failingVerdict() {
+        return new ProbabilisticTestVerdictBuilder()
+                .identity("MySpec", "shouldPass", null)
+                .execution(100, 100, 80, 20, 0.9, 0.80, 200)
+                .junitPassed(false)
+                .passedStatistically(false)
+                .build();
     }
 
-    private String renderVerdict(Map<String, String> entries) {
-        return renderVerdict(entries, true);
-    }
-
-    private String renderVerdict(Map<String, String> entries, boolean passed) {
+    private String renderVerdict(ProbabilisticTestVerdict verdict) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8);
         ConsoleVerdictSink sink = new ConsoleVerdictSink(ps);
 
-        VerdictEvent event = new VerdictEvent(
-                "v:test01", "MySpec.shouldPass", "MyUseCase",
-                passed, entries, Map.of(), Instant.now());
-
-        sink.accept(event);
+        sink.accept(verdict);
         return baos.toString(StandardCharsets.UTF_8);
     }
 }

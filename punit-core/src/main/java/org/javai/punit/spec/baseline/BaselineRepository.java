@@ -12,40 +12,94 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
+import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineSource;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.registry.SpecificationLoader;
 
 /**
  * Repository for finding and loading baseline specification files.
  *
- * <p>This repository scans the specs directory for all baseline files
- * matching a use case and filters by footprint.
+ * <p>This repository scans one or more spec directories for baseline files
+ * matching a use case and filters by footprint. When multiple roots are
+ * configured, candidates from all roots are pooled and each is tagged with
+ * its {@link BaselineSource} so that downstream selection can apply source
+ * priority as a tiebreaker.
+ *
+ * <p>Default construction mirrors {@code LayeredSpecRepository.createDefault()}:
+ * if {@code punit.spec.dir} (or {@code PUNIT_SPEC_DIR}) is set and points to
+ * an existing directory, that directory is scanned first with
+ * {@link BaselineSource#ENVIRONMENT_LOCAL}. The classpath default is always
+ * added with {@link BaselineSource#BUNDLED}.
  */
 public final class BaselineRepository {
 
+    static final String PROP_SPEC_DIR = "punit.spec.dir";
+    static final String ENV_SPEC_DIR = "PUNIT_SPEC_DIR";
+
     private static final Logger logger = LogManager.getLogger(BaselineRepository.class);
 
-    private final Path specsRoot;
+    private final List<TaggedRoot> roots;
+
+    private record TaggedRoot(Path path, BaselineSource source) {}
 
     /**
      * Creates a repository with the specified specs root directory.
+     * The root is tagged as {@link BaselineSource#BUNDLED}.
      *
      * @param specsRoot the root directory for specifications
      */
     public BaselineRepository(Path specsRoot) {
-        this.specsRoot = Objects.requireNonNull(specsRoot, "specsRoot must not be null");
+        Objects.requireNonNull(specsRoot, "specsRoot must not be null");
+        this.roots = List.of(new TaggedRoot(specsRoot, BaselineSource.BUNDLED));
     }
 
     /**
-     * Creates a repository with the default specs root.
+     * Creates a repository with explicit roots and their sources.
      *
-     * <p>Default: {@code src/test/resources/punit/specs}
+     * @param envLocalRoot the environment-local root (may be null)
+     * @param bundledRoot the classpath-bundled root
      */
-    public BaselineRepository() {
-        this(detectDefaultSpecsRoot());
+    public BaselineRepository(Path envLocalRoot, Path bundledRoot) {
+        Objects.requireNonNull(bundledRoot, "bundledRoot must not be null");
+        List<TaggedRoot> list = new ArrayList<>();
+        if (envLocalRoot != null) {
+            list.add(new TaggedRoot(envLocalRoot, BaselineSource.ENVIRONMENT_LOCAL));
+        }
+        list.add(new TaggedRoot(bundledRoot, BaselineSource.BUNDLED));
+        this.roots = List.copyOf(list);
     }
 
-    private static Path detectDefaultSpecsRoot() {
+    /**
+     * Creates a repository with the default spec roots.
+     *
+     * <p>Checks {@code punit.spec.dir} / {@code PUNIT_SPEC_DIR} for an
+     * environment-local directory, then adds the classpath default.
+     */
+    public BaselineRepository() {
+        this.roots = detectDefaultRoots();
+    }
+
+    private static List<TaggedRoot> detectDefaultRoots() {
+        List<TaggedRoot> result = new ArrayList<>();
+
+        // Environment-local layer
+        String specDir = System.getProperty(PROP_SPEC_DIR);
+        if (specDir == null || specDir.isBlank()) {
+            specDir = System.getenv(ENV_SPEC_DIR);
+        }
+        if (specDir != null && !specDir.isBlank()) {
+            Path envPath = Paths.get(specDir);
+            if (Files.isDirectory(envPath)) {
+                result.add(new TaggedRoot(envPath, BaselineSource.ENVIRONMENT_LOCAL));
+            }
+        }
+
+        // Bundled classpath layer
+        result.add(new TaggedRoot(detectDefaultBundledRoot(), BaselineSource.BUNDLED));
+        return List.copyOf(result);
+    }
+
+    private static Path detectDefaultBundledRoot() {
         Path[] candidates = {
                 Paths.get("src", "test", "resources", "punit", "specs"),
                 Paths.get("punit", "specs"),
@@ -64,13 +118,8 @@ public final class BaselineRepository {
     /**
      * Finds all baseline candidates for a use case with matching footprint.
      *
-     * <p>This method:
-     * <ol>
-     *   <li>Scans the specs directory for files starting with the use case ID</li>
-     *   <li>Loads each file and extracts its footprint</li>
-     *   <li>Filters to only those matching the expected footprint</li>
-     *   <li>Returns a list of candidates for selection</li>
-     * </ol>
+     * <p>Scans all configured roots and pools the results. Each candidate
+     * is tagged with the {@link BaselineSource} of the root it was loaded from.
      *
      * @param useCaseId the use case identifier
      * @param expectedFootprint the footprint to match (null matches any)
@@ -80,21 +129,10 @@ public final class BaselineRepository {
         Objects.requireNonNull(useCaseId, "useCaseId must not be null");
 
         List<BaselineCandidate> candidates = new ArrayList<>();
-
-        if (!Files.isDirectory(specsRoot)) {
-            return candidates;
-        }
-
-        // Sanitize useCaseId for file matching
         String sanitizedUseCaseId = sanitize(useCaseId);
 
-        try (Stream<Path> files = Files.list(specsRoot)) {
-            files.filter(this::isYamlFile)
-                 .filter(path -> matchesUseCaseId(path, sanitizedUseCaseId))
-                 .forEach(path -> loadCandidate(path, expectedFootprint, candidates));
-        } catch (IOException e) {
-            // Log warning but return empty list
-            logger.warn("Warning: Failed to scan specs directory: {}", e.getMessage());
+        for (TaggedRoot root : roots) {
+            scanRoot(root, sanitizedUseCaseId, expectedFootprint, candidates);
         }
 
         return candidates;
@@ -123,6 +161,21 @@ public final class BaselineRepository {
                 .toList();
     }
 
+    private void scanRoot(TaggedRoot root, String sanitizedUseCaseId,
+                           String expectedFootprint, List<BaselineCandidate> candidates) {
+        if (!Files.isDirectory(root.path())) {
+            return;
+        }
+
+        try (Stream<Path> files = Files.list(root.path())) {
+            files.filter(this::isYamlFile)
+                 .filter(path -> matchesUseCaseId(path, sanitizedUseCaseId))
+                 .forEach(path -> loadCandidate(path, expectedFootprint, root.source(), candidates));
+        } catch (IOException e) {
+            logger.warn("Warning: Failed to scan specs directory: {}", e.getMessage());
+        }
+    }
+
     private boolean isYamlFile(Path path) {
         String filename = path.getFileName().toString().toLowerCase();
         return filename.endsWith(".yaml") || filename.endsWith(".yml");
@@ -130,52 +183,46 @@ public final class BaselineRepository {
 
     private boolean matchesUseCaseId(Path path, String sanitizedUseCaseId) {
         String filename = path.getFileName().toString();
-        // Files can be:
-        // 1. Simple: {useCaseId}.yaml
-        // 2. With footprint: {useCaseId}-{footprintHash}.yaml
-        // 3. With footprint and covariates: {useCaseId}-{footprintHash}-{covHash1}-{covHash2}.yaml
         return filename.startsWith(sanitizedUseCaseId + ".") ||
                filename.startsWith(sanitizedUseCaseId + "-");
     }
 
-    private void loadCandidate(Path path, String expectedFootprint, List<BaselineCandidate> candidates) {
+    private void loadCandidate(Path path, String expectedFootprint,
+                                BaselineSource source, List<BaselineCandidate> candidates) {
         try {
             ExecutionSpecification spec = SpecificationLoader.load(path);
-            
+
             String footprint = spec.getFootprint();
             CovariateProfile profile = spec.getCovariateProfile();
-            
-            // If no footprint in spec, skip (legacy spec)
+
             if (footprint == null || footprint.isEmpty()) {
-                // For backward compatibility, allow loading legacy specs without footprint
-                // when no footprint filter is specified
                 if (expectedFootprint == null) {
                     candidates.add(new BaselineCandidate(
                             path.getFileName().toString(),
                             "",
                             profile != null ? profile : CovariateProfile.empty(),
                             spec.getGeneratedAt(),
-                            spec
+                            spec,
+                            source
                     ));
                 }
                 return;
             }
-            
-            // Filter by footprint if specified
+
             if (expectedFootprint != null && !expectedFootprint.equals(footprint)) {
                 return;
             }
-            
+
             candidates.add(new BaselineCandidate(
                     path.getFileName().toString(),
                     footprint,
                     profile != null ? profile : CovariateProfile.empty(),
                     spec.getGeneratedAt(),
-                    spec
+                    spec,
+                    source
             ));
-            
+
         } catch (Exception e) {
-            // Skip files that fail to load
             logger.warn("Warning: Failed to load baseline {}: {}", path, e.getMessage());
         }
     }
@@ -185,10 +232,16 @@ public final class BaselineRepository {
     }
 
     /**
-     * Returns the specs root directory.
+     * Returns the first specs root directory (primary root).
      */
     public Path getSpecsRoot() {
-        return specsRoot;
+        return roots.getFirst().path();
+    }
+
+    /**
+     * Returns all configured roots with their sources (for testing).
+     */
+    List<Path> getRoots() {
+        return roots.stream().map(TaggedRoot::path).toList();
     }
 }
-

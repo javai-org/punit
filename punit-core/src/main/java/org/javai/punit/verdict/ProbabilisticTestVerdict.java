@@ -1,0 +1,390 @@
+package org.javai.punit.verdict;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.javai.punit.api.TestIntent;
+import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
+import org.javai.punit.model.ExpirationStatus;
+import org.javai.punit.model.TerminationReason;
+
+/**
+ * The single source of truth for a probabilistic test verdict.
+ *
+ * <p>This record captures everything needed to render a verdict at any detail level —
+ * from a summary table row to a full statistical explanation. It is constructed after
+ * test execution completes and before any rendering takes place.
+ *
+ * <p>All rendering paths (text logs, XML report, HTML report) consume this model.
+ * No rendering target has access to information that another lacks.
+ */
+public record ProbabilisticTestVerdict(
+        String correlationId,
+        Instant timestamp,
+        TestIdentity identity,
+        ExecutionSummary execution,
+        Optional<FunctionalDimension> functional,
+        Optional<LatencyDimension> latency,
+        StatisticalAnalysis statistics,
+        CovariateStatus covariates,
+        CostSummary cost,
+        Optional<PacingSummary> pacing,
+        Optional<SpecProvenance> provenance,
+        Termination termination,
+        Map<String, String> environmentMetadata,
+        boolean junitPassed,
+        PunitVerdict punitVerdict
+) {
+
+    // ── TestIdentity ──────────────────────────────────────────────────────
+
+    /**
+     * Identifies the test that produced this verdict.
+     *
+     * @param className the test class name
+     * @param methodName the test method name
+     * @param useCaseId the use case identifier, if the test is associated with a use case
+     */
+    public record TestIdentity(
+            String className,
+            String methodName,
+            Optional<String> useCaseId
+    ) {
+        public TestIdentity {
+            if (className == null || className.isBlank()) {
+                throw new IllegalArgumentException("className must not be blank");
+            }
+            if (methodName == null || methodName.isBlank()) {
+                throw new IllegalArgumentException("methodName must not be blank");
+            }
+            useCaseId = useCaseId != null ? useCaseId : Optional.empty();
+        }
+    }
+
+    // ── ExecutionSummary ──────────────────────────────────────────────────
+
+    /**
+     * Summarises how the test was executed.
+     *
+     * @param plannedSamples the number of samples planned
+     * @param samplesExecuted the number of samples actually executed
+     * @param successes the number of successful samples
+     * @param failures the number of failed samples
+     * @param minPassRate the minimum pass rate threshold (p₀)
+     * @param observedPassRate the observed pass rate (p̂)
+     * @param elapsedMs wall-clock time in milliseconds
+     * @param appliedMultiplier sample multiplier, if one was applied
+     * @param intent the test intent (VERIFICATION or SMOKE)
+     * @param resolvedConfidence the confidence level used for statistical analysis
+     */
+    public record ExecutionSummary(
+            int plannedSamples,
+            int samplesExecuted,
+            int successes,
+            int failures,
+            double minPassRate,
+            double observedPassRate,
+            long elapsedMs,
+            Optional<Double> appliedMultiplier,
+            TestIntent intent,
+            double resolvedConfidence
+    ) {
+        public ExecutionSummary {
+            appliedMultiplier = appliedMultiplier != null ? appliedMultiplier : Optional.empty();
+        }
+    }
+
+    // ── FunctionalDimension ───────────────────────────────────────────────
+
+    /**
+     * Contract/functional assertion results for the functional dimension.
+     *
+     * @param successes samples where the functional assertion passed
+     * @param failures samples where the functional assertion failed
+     * @param passRate functional pass rate
+     */
+    public record FunctionalDimension(
+            int successes,
+            int failures,
+            double passRate
+    ) {}
+
+    // ── LatencyDimension ──────────────────────────────────────────────────
+
+    /**
+     * Latency assertion results.
+     *
+     * @param successfulSamples samples used for latency computation
+     * @param totalSamples all samples including failures
+     * @param skipped whether latency evaluation was skipped
+     * @param skipReason reason for skipping, if applicable
+     * @param p50Ms observed p50 latency (-1 if unavailable)
+     * @param p90Ms observed p90 latency (-1 if unavailable)
+     * @param p95Ms observed p95 latency (-1 if unavailable)
+     * @param p99Ms observed p99 latency (-1 if unavailable)
+     * @param maxMs observed max latency (-1 if unavailable)
+     * @param assertions per-percentile assertion results
+     * @param caveats advisory messages
+     * @param dimensionSuccesses latency dimension success count from aggregator
+     * @param dimensionFailures latency dimension failure count from aggregator
+     */
+    public record LatencyDimension(
+            int successfulSamples,
+            int totalSamples,
+            boolean skipped,
+            Optional<String> skipReason,
+            long p50Ms,
+            long p90Ms,
+            long p95Ms,
+            long p99Ms,
+            long maxMs,
+            List<PercentileAssertion> assertions,
+            List<String> caveats,
+            int dimensionSuccesses,
+            int dimensionFailures
+    ) {
+        public LatencyDimension {
+            skipReason = skipReason != null ? skipReason : Optional.empty();
+            assertions = assertions != null ? List.copyOf(assertions) : List.of();
+            caveats = caveats != null ? List.copyOf(caveats) : List.of();
+        }
+    }
+
+    /**
+     * Individual percentile assertion result.
+     *
+     * @param label percentile label (e.g., "p95")
+     * @param observedMs observed value in milliseconds
+     * @param thresholdMs threshold value in milliseconds
+     * @param passed whether observed &lt;= threshold
+     * @param indicative true if sample size is undersized for this percentile
+     * @param source threshold source (e.g., "explicit", "from baseline")
+     */
+    public record PercentileAssertion(
+            String label,
+            long observedMs,
+            long thresholdMs,
+            boolean passed,
+            boolean indicative,
+            String source
+    ) {}
+
+    // ── StatisticalAnalysis ───────────────────────────────────────────────
+
+    /**
+     * The statistical narrative — always computed regardless of display mode.
+     *
+     * @param confidenceLevel the confidence level used (e.g., 0.95)
+     * @param standardError SE = √(p̂(1-p̂)/n)
+     * @param ciLower Wilson score confidence interval lower bound
+     * @param ciUpper Wilson score confidence interval upper bound
+     * @param testStatistic z-test statistic, if computable
+     * @param pValue one-sided p-value, if computable
+     * @param thresholdDerivation description of how the threshold was derived, if spec-driven
+     * @param baseline baseline data summary, if spec-driven
+     * @param caveats advisory notes about the statistical analysis
+     */
+    public record StatisticalAnalysis(
+            double confidenceLevel,
+            double standardError,
+            double ciLower,
+            double ciUpper,
+            Optional<Double> testStatistic,
+            Optional<Double> pValue,
+            Optional<String> thresholdDerivation,
+            Optional<BaselineSummary> baseline,
+            List<String> caveats
+    ) {
+        public StatisticalAnalysis {
+            testStatistic = testStatistic != null ? testStatistic : Optional.empty();
+            pValue = pValue != null ? pValue : Optional.empty();
+            thresholdDerivation = thresholdDerivation != null ? thresholdDerivation : Optional.empty();
+            baseline = baseline != null ? baseline : Optional.empty();
+            caveats = caveats != null ? List.copyOf(caveats) : List.of();
+        }
+    }
+
+    /**
+     * Baseline data when the test is spec-driven.
+     *
+     * @param sourceFile the spec filename
+     * @param generatedAt when the baseline was generated
+     * @param baselineSamples number of samples in the baseline
+     * @param baselineSuccesses number of successes in the baseline
+     * @param baselineRate baseline pass rate
+     * @param derivedThreshold the threshold derived from the baseline
+     */
+    public record BaselineSummary(
+            String sourceFile,
+            Instant generatedAt,
+            int baselineSamples,
+            int baselineSuccesses,
+            double baselineRate,
+            double derivedThreshold
+    ) {}
+
+    // ── CovariateStatus ───────────────────────────────────────────────────
+
+    /**
+     * Covariate alignment status between test conditions and baseline conditions.
+     *
+     * @param aligned true if all covariates match the baseline
+     * @param misalignments list of misaligned covariates (empty if aligned)
+     */
+    public record CovariateStatus(
+            boolean aligned,
+            List<Misalignment> misalignments
+    ) {
+        public CovariateStatus {
+            misalignments = misalignments != null ? List.copyOf(misalignments) : List.of();
+        }
+
+        public static CovariateStatus allAligned() {
+            return new CovariateStatus(true, List.of());
+        }
+    }
+
+    /**
+     * A single covariate that does not match the baseline.
+     *
+     * @param covariateKey the covariate name
+     * @param baselineValue the value in the baseline
+     * @param testValue the value in the current test
+     */
+    public record Misalignment(
+            String covariateKey,
+            String baselineValue,
+            String testValue
+    ) {}
+
+    // ── CostSummary ───────────────────────────────────────────────────────
+
+    /**
+     * Token and cost information from test execution.
+     *
+     * @param methodTokensConsumed tokens consumed at the method level
+     * @param methodTimeBudgetMs method-level time budget (0 = unlimited)
+     * @param methodTokenBudget method-level token budget (0 = unlimited)
+     * @param tokenMode token tracking mode
+     * @param classBudget class-level budget snapshot, if a class budget was configured
+     * @param suiteBudget suite-level budget snapshot, if a suite budget was configured
+     */
+    public record CostSummary(
+            long methodTokensConsumed,
+            long methodTimeBudgetMs,
+            long methodTokenBudget,
+            TokenMode tokenMode,
+            Optional<BudgetSnapshot> classBudget,
+            Optional<BudgetSnapshot> suiteBudget
+    ) {
+        public CostSummary {
+            classBudget = classBudget != null ? classBudget : Optional.empty();
+            suiteBudget = suiteBudget != null ? suiteBudget : Optional.empty();
+        }
+    }
+
+    /**
+     * A snapshot of a shared budget (class or suite level) at the time the verdict was produced.
+     *
+     * @param timeBudgetMs configured time budget (0 = unlimited)
+     * @param elapsedMs elapsed time at snapshot
+     * @param tokenBudget configured token budget (0 = unlimited)
+     * @param tokensConsumed tokens consumed at snapshot
+     */
+    public record BudgetSnapshot(
+            long timeBudgetMs,
+            long elapsedMs,
+            long tokenBudget,
+            long tokensConsumed
+    ) {}
+
+    // ── PacingSummary ─────────────────────────────────────────────────────
+
+    /**
+     * Pacing strategy that was in effect during test execution.
+     *
+     * @param maxRequestsPerSecond configured max RPS (0 = unlimited)
+     * @param maxRequestsPerMinute configured max RPM (0 = unlimited)
+     * @param maxRequestsPerHour configured max RPH (0 = unlimited)
+     * @param maxConcurrentRequests configured max concurrency (0 or 1 = sequential)
+     * @param effectiveMinDelayMs computed minimum delay between samples
+     * @param effectiveConcurrency computed effective concurrency
+     * @param effectiveRps computed effective requests per second
+     */
+    public record PacingSummary(
+            double maxRequestsPerSecond,
+            double maxRequestsPerMinute,
+            double maxRequestsPerHour,
+            int maxConcurrentRequests,
+            long effectiveMinDelayMs,
+            int effectiveConcurrency,
+            double effectiveRps
+    ) {}
+
+    // ── SpecProvenance ────────────────────────────────────────────────────
+
+    /**
+     * Where the threshold came from — spec, contract, or inline.
+     *
+     * @param thresholdOriginName the origin (SLA, SLO, POLICY, EMPIRICAL, UNSPECIFIED)
+     * @param contractRef human-readable contract reference
+     * @param specFilename the spec filename used for threshold derivation
+     * @param expiration expiration status of the spec, if applicable
+     * @param baselineSourceLabel describes the baseline source: "(bundled)" for classpath,
+     *                            the directory path for env-local, or empty when unknown
+     */
+    public record SpecProvenance(
+            String thresholdOriginName,
+            String contractRef,
+            String specFilename,
+            Optional<ExpirationInfo> expiration,
+            Optional<String> baselineSourceLabel
+    ) {
+        public SpecProvenance {
+            expiration = expiration != null ? expiration : Optional.empty();
+            baselineSourceLabel = baselineSourceLabel != null ? baselineSourceLabel : Optional.empty();
+        }
+
+        /**
+         * Backward-compatible constructor without baselineSourceLabel.
+         */
+        public SpecProvenance(String thresholdOriginName, String contractRef,
+                               String specFilename, Optional<ExpirationInfo> expiration) {
+            this(thresholdOriginName, contractRef, specFilename, expiration, Optional.empty());
+        }
+    }
+
+    /**
+     * Expiration status of the baseline spec.
+     *
+     * @param status the evaluated expiration status
+     * @param expiresAt the expiration timestamp, if the spec has an expiration policy
+     */
+    public record ExpirationInfo(
+            ExpirationStatus status,
+            Optional<Instant> expiresAt
+    ) {
+        public ExpirationInfo {
+            expiresAt = expiresAt != null ? expiresAt : Optional.empty();
+        }
+    }
+
+    // ── Termination ───────────────────────────────────────────────────────
+
+    /**
+     * How test execution ended.
+     *
+     * @param reason the termination reason
+     * @param details additional details about termination
+     */
+    public record Termination(
+            TerminationReason reason,
+            Optional<String> details
+    ) {
+        public Termination {
+            details = details != null ? details : Optional.empty();
+        }
+    }
+}

@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import org.javai.punit.reporting.CompositeVerdictSink;
 import org.javai.punit.reporting.LogVerdictSink;
-import org.javai.punit.reporting.VerdictSink;
+import org.javai.punit.verdict.VerdictSink;
 import org.javai.punit.spec.registry.LayeredSpecRepository;
 import org.javai.punit.spec.registry.SpecRepository;
 

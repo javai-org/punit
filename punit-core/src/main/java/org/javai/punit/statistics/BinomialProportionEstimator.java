@@ -182,13 +182,17 @@ public class BinomialProportionEstimator {
     }
 
     /**
-     * Computes the one-sided p-value P(Z &gt; z) for a standard normal variate.
+     * Computes the one-sided p-value P(Z ≤ z) for a left-tailed test.
+     *
+     * <p>Under H₀: p ≥ π₀ vs H₁: p &lt; π₀, the p-value is the probability of
+     * observing a test statistic this low or lower if the null hypothesis is true.
+     * A small p-value indicates strong evidence of degradation.
      *
      * @param z the z-score
-     * @return the upper-tail probability
+     * @return the lower-tail probability
      */
     public double oneSidedPValue(double z) {
-        return 1.0 - STANDARD_NORMAL.cumulativeProbability(z);
+        return STANDARD_NORMAL.cumulativeProbability(z);
     }
     
     private void validateInputs(int successes, int trials) {

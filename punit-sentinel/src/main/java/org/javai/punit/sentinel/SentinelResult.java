@@ -2,7 +2,7 @@ package org.javai.punit.sentinel;
 
 import java.time.Duration;
 import java.util.List;
-import org.javai.punit.reporting.VerdictEvent;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
 
 /**
  * The aggregate outcome of a Sentinel execution — either a test run or an experiment run.
@@ -23,7 +23,7 @@ public record SentinelResult(
         int passed,
         int failed,
         int skipped,
-        List<VerdictEvent> verdicts,
+        List<ProbabilisticTestVerdict> verdicts,
         Duration totalDuration
 ) {
 

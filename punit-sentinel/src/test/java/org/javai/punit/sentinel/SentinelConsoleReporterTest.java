@@ -5,11 +5,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import org.javai.punit.reporting.VerdictEvent;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -146,14 +144,14 @@ class SentinelConsoleReporterTest {
         @DisplayName("shows sample-level totals aggregated across experiments")
         void sampleTotals() {
             SentinelResult result = experimentResult(
-                    experimentVerdict("exp1", 1000, 950, 50),
-                    experimentVerdict("exp2", 500, 480, 20));
+                    experimentVerdict("Exp", "exp1", 1000, 950, 50),
+                    experimentVerdict("Exp", "exp2", 500, 480, 20));
 
             reporter.printExperimentSummary(result);
 
-            assertThat(output()).contains("exp1");
+            assertThat(output()).contains("Exp.exp1");
             assertThat(output()).contains("Samples:   1000  Successes: 950  Failures: 50");
-            assertThat(output()).contains("exp2");
+            assertThat(output()).contains("Exp.exp2");
             assertThat(output()).contains("Samples:   500  Successes: 480  Failures: 20");
         }
 
@@ -161,7 +159,7 @@ class SentinelConsoleReporterTest {
         @DisplayName("result is COMPLETE, never PASS or FAIL")
         void resultIsComplete() {
             SentinelResult result = experimentResult(
-                    experimentVerdict("exp1", 100, 90, 10));
+                    experimentVerdict("Exp", "exp1", 100, 90, 10));
 
             reporter.printExperimentSummary(result);
 
@@ -174,7 +172,7 @@ class SentinelConsoleReporterTest {
         @DisplayName("shows duration")
         void showsDuration() {
             SentinelResult result = experimentResult(
-                    experimentVerdict("exp1", 100, 100, 0));
+                    experimentVerdict("Exp", "exp1", 100, 100, 0));
 
             reporter.printExperimentSummary(result);
 
@@ -187,8 +185,8 @@ class SentinelConsoleReporterTest {
             SentinelResult result = new SentinelResult(
                     2, 2, 0, 0,
                     List.of(
-                            experimentVerdict("exp1", 1000, 950, 50),
-                            experimentVerdict("exp2", 500, 500, 0)),
+                            experimentVerdict("Exp", "exp1", 1000, 950, 50),
+                            experimentVerdict("Exp", "exp2", 500, 500, 0)),
                     Duration.ofMillis(25000));
 
             reporter.printExperimentSummary(result);
@@ -197,9 +195,9 @@ class SentinelConsoleReporterTest {
                     "\n" +
                     "Sentinel Experiment Summary\n" +
                     "\u2500".repeat(40) + "\n" +
-                    "exp1\n" +
+                    "Exp.exp1\n" +
                     "  Samples:   1000  Successes: 950  Failures: 50\n" +
-                    "exp2\n" +
+                    "Exp.exp2\n" +
                     "  Samples:   500  Successes: 500  Failures: 0\n" +
                     "\n" +
                     "Duration: 25000ms\n" +
@@ -217,7 +215,8 @@ class SentinelConsoleReporterTest {
         @DisplayName("all passing shows Result: PASS")
         void allPassing() {
             SentinelResult result = new SentinelResult(
-                    2, 2, 0, 0, List.of(testVerdict("t1", true), testVerdict("t2", true)),
+                    2, 2, 0, 0,
+                    List.of(testVerdict("Suite", "t1", true), testVerdict("Suite", "t2", true)),
                     Duration.ofMillis(5000));
 
             reporter.printTestSummary(result);
@@ -230,13 +229,14 @@ class SentinelConsoleReporterTest {
         @DisplayName("failures show Result: FAIL with failed test names")
         void withFailures() {
             SentinelResult result = new SentinelResult(
-                    2, 1, 1, 0, List.of(testVerdict("t1", true), testVerdict("t2", false)),
+                    2, 1, 1, 0,
+                    List.of(testVerdict("Suite", "t1", true), testVerdict("Suite", "t2", false)),
                     Duration.ofMillis(5000));
 
             reporter.printTestSummary(result);
 
             assertThat(output()).contains("Result: FAIL");
-            assertThat(output()).contains("FAILED: t2");
+            assertThat(output()).contains("FAILED: Suite.t2");
         }
 
         @Test
@@ -244,7 +244,10 @@ class SentinelConsoleReporterTest {
         void fullPassingFormat() {
             SentinelResult result = new SentinelResult(
                     3, 3, 0, 0,
-                    List.of(testVerdict("t1", true), testVerdict("t2", true), testVerdict("t3", true)),
+                    List.of(
+                            testVerdict("Suite", "t1", true),
+                            testVerdict("Suite", "t2", true),
+                            testVerdict("Suite", "t3", true)),
                     Duration.ofMillis(1234));
 
             reporter.printTestSummary(result);
@@ -350,21 +353,27 @@ class SentinelConsoleReporterTest {
 
     // ── Test helpers ─────────────────────────────────────────────────────
 
-    private VerdictEvent experimentVerdict(String name, int samples, int successes, int failures) {
-        Map<String, String> entries = new LinkedHashMap<>();
-        entries.put("punit.experiment.samples", String.valueOf(samples));
-        entries.put("punit.experiment.successes", String.valueOf(successes));
-        entries.put("punit.experiment.failures", String.valueOf(failures));
-        return new VerdictEvent(
-                "v:test01", name, name, true, entries, Map.of(), Instant.now());
+    private ProbabilisticTestVerdict experimentVerdict(
+            String className, String methodName, int samples, int successes, int failures) {
+        double observedRate = samples > 0 ? (double) successes / samples : 0.0;
+        return new ProbabilisticTestVerdictBuilder()
+                .identity(className, methodName, null)
+                .execution(samples, samples, successes, failures, 0.0, observedRate, 0)
+                .junitPassed(true)
+                .passedStatistically(true)
+                .build();
     }
 
-    private VerdictEvent testVerdict(String name, boolean passed) {
-        return new VerdictEvent(
-                "v:test01", name, name, passed, Map.of(), Map.of(), Instant.now());
+    private ProbabilisticTestVerdict testVerdict(String className, String methodName, boolean passed) {
+        return new ProbabilisticTestVerdictBuilder()
+                .identity(className, methodName, null)
+                .execution(10, 10, passed ? 10 : 5, passed ? 0 : 5, 0.9, passed ? 1.0 : 0.5, 100)
+                .junitPassed(passed)
+                .passedStatistically(passed)
+                .build();
     }
 
-    private SentinelResult experimentResult(VerdictEvent... verdicts) {
+    private SentinelResult experimentResult(ProbabilisticTestVerdict... verdicts) {
         return new SentinelResult(
                 verdicts.length, verdicts.length, 0, 0,
                 List.of(verdicts), Duration.ofMillis(5000));

@@ -1,13 +1,16 @@
 package org.javai.punit.reporting;
 
 import java.io.PrintStream;
+import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
+import org.javai.punit.verdict.VerdictSink;
 
 /**
  * A {@link VerdictSink} that renders IDE-like verdict output to a {@link PrintStream}.
  *
  * <p>Produces the same structured output as the JUnit 5 test runner's console
- * summary, reconstructed from the structured {@code punit.*} report entries
- * carried by each {@link VerdictEvent}.
+ * summary, reconstructed from the structured {@link ProbabilisticTestVerdict}.
  *
  * <p>Designed for CLI use (Sentinel runtime) where the operator wants to see
  * each verdict as it happens, formatted the way they would appear in an IDE
@@ -31,54 +34,51 @@ public final class ConsoleVerdictSink implements VerdictSink {
     }
 
     @Override
-    public void accept(VerdictEvent event) {
-        var entries = event.reportEntries();
+    public void accept(ProbabilisticTestVerdict verdict) {
+        ExecutionSummary exec = verdict.execution();
+        Termination term = verdict.termination();
+        boolean passed = verdict.junitPassed();
 
-        boolean passed = event.passed();
-        String verdict = passed ? "PASS" : "FAIL";
+        String title = "VERDICT: " + (passed ? "PASS" : "FAIL");
+        String testName = verdict.identity().className() + "." + verdict.identity().methodName();
 
-        String title = "VERDICT: " + verdict;
         StringBuilder sb = new StringBuilder();
-        sb.append(event.testName()).append("\n\n");
+        sb.append(testName).append("\n\n");
 
-        String observedRate = entries.getOrDefault("punit.observedPassRate", "?");
-        String minPassRate = entries.getOrDefault("punit.minPassRate", "?");
-        String successes = entries.getOrDefault("punit.successes", "?");
-        String samplesExecuted = entries.getOrDefault("punit.samplesExecuted", "?");
-        String terminationReason = entries.getOrDefault("punit.terminationReason", "COMPLETED");
-
-        boolean isBudgetExhausted = terminationReason.contains("BUDGET");
+        boolean isBudgetExhausted = term.reason().isBudgetExhaustion();
 
         if (passed) {
             sb.append(PUnitReporter.labelValueLn("Observed pass rate:",
-                    String.format("%s (%s/%s) >= required: %s",
-                            formatRate(observedRate), successes, samplesExecuted,
-                            formatRate(minPassRate))));
+                    String.format("%s (%d/%d) >= required: %s",
+                            RateFormat.format(exec.observedPassRate()),
+                            exec.successes(), exec.samplesExecuted(),
+                            RateFormat.format(exec.minPassRate()))));
         } else if (isBudgetExhausted) {
-            String samples = entries.getOrDefault("punit.samples", "?");
             sb.append(PUnitReporter.labelValueLn("Samples executed:",
-                    String.format("%s of %s (budget exhausted)", samplesExecuted, samples)));
+                    String.format("%d of %d (budget exhausted)",
+                            exec.samplesExecuted(), exec.plannedSamples())));
             sb.append(PUnitReporter.labelValueLn("Pass rate:",
-                    String.format("%s (%s/%s), required: %s",
-                            formatRate(observedRate), successes, samplesExecuted,
-                            formatRate(minPassRate))));
+                    String.format("%s (%d/%d), required: %s",
+                            RateFormat.format(exec.observedPassRate()),
+                            exec.successes(), exec.samplesExecuted(),
+                            RateFormat.format(exec.minPassRate()))));
         } else {
             sb.append(PUnitReporter.labelValueLn("Observed pass rate:",
-                    String.format("%s (%s/%s) < required: %s",
-                            formatRate(observedRate), successes, samplesExecuted,
-                            formatRate(minPassRate))));
+                    String.format("%s (%d/%d) < required: %s",
+                            RateFormat.format(exec.observedPassRate()),
+                            exec.successes(), exec.samplesExecuted(),
+                            RateFormat.format(exec.minPassRate()))));
         }
 
         // Per-dimension breakdown (when both dimensions are asserted)
-        appendDimensionBreakdown(sb, entries);
+        appendDimensionBreakdown(sb, verdict);
 
         // Termination details
-        if (!terminationReason.equals("COMPLETED")) {
-            sb.append(PUnitReporter.labelValueLn("Termination:", terminationReason));
+        if (term.reason() != TerminationReason.COMPLETED) {
+            sb.append(PUnitReporter.labelValueLn("Termination:", term.reason().getDescription()));
         }
 
-        String elapsedMs = entries.getOrDefault("punit.elapsedMs", "?");
-        sb.append(PUnitReporter.labelValue("Elapsed:", elapsedMs + "ms"));
+        sb.append(PUnitReporter.labelValue("Elapsed:", exec.elapsedMs() + "ms"));
 
         out.println(reporter.headerDivider(title));
         out.println();
@@ -90,42 +90,20 @@ public final class ConsoleVerdictSink implements VerdictSink {
         out.println();
     }
 
-    private void appendDimensionBreakdown(StringBuilder sb, java.util.Map<String, String> entries) {
-        boolean functionalAsserted = "true".equals(entries.get("punit.dimension.functional"));
-        boolean latencyAsserted = "true".equals(entries.get("punit.dimension.latency"));
-
-        if (!functionalAsserted || !latencyAsserted) {
-            return; // Only show breakdown when both dimensions are asserted
+    private void appendDimensionBreakdown(StringBuilder sb, ProbabilisticTestVerdict verdict) {
+        if (verdict.functional().isEmpty() || verdict.latency().isEmpty()
+                || verdict.latency().get().skipped()) {
+            return;
         }
 
-        String funcSuccesses = entries.getOrDefault("punit.dimension.functional.successes", "?");
-        String funcFailures = entries.getOrDefault("punit.dimension.functional.failures", "?");
-        String latSuccesses = entries.getOrDefault("punit.dimension.latency.successes", "?");
-        String latFailures = entries.getOrDefault("punit.dimension.latency.failures", "?");
+        FunctionalDimension func = verdict.functional().get();
+        LatencyDimension lat = verdict.latency().get();
 
         sb.append(PUnitReporter.labelValueLn("Contract:",
-                String.format("%s/%s passed", funcSuccesses, addStrings(funcSuccesses, funcFailures))));
+                String.format("%d/%d passed",
+                        func.successes(), func.successes() + func.failures())));
         sb.append(PUnitReporter.labelValueLn("Latency:",
-                String.format("%s/%s within limit", latSuccesses, addStrings(latSuccesses, latFailures))));
-    }
-
-    /**
-     * Formats a rate string (e.g., "0.9500") as a percentage (e.g., "95.00%").
-     */
-    private String formatRate(String rateStr) {
-        try {
-            double rate = Double.parseDouble(rateStr);
-            return RateFormat.format(rate);
-        } catch (NumberFormatException e) {
-            return rateStr;
-        }
-    }
-
-    private String addStrings(String a, String b) {
-        try {
-            return String.valueOf(Integer.parseInt(a) + Integer.parseInt(b));
-        } catch (NumberFormatException e) {
-            return "?";
-        }
+                String.format("%d/%d within limit",
+                        lat.dimensionSuccesses(), lat.dimensionSuccesses() + lat.dimensionFailures())));
     }
 }

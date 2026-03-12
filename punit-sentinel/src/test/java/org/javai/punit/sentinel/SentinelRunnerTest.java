@@ -5,10 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.javai.punit.reporting.VerdictEvent;
 import org.javai.punit.sentinel.testsubjects.FailingSentinel;
 import org.javai.punit.sentinel.testsubjects.NoAnnotationClass;
 import org.javai.punit.sentinel.testsubjects.PassingSentinel;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ class SentinelRunnerTest {
         @Test
         @DisplayName("executes passing sentinel and returns PASS verdict")
         void passingSentinel() {
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .verdictSink(captured::add)
@@ -37,16 +37,16 @@ class SentinelRunnerTest {
             assertThat(result.failed()).isEqualTo(0);
             assertThat(result.verdicts()).hasSize(1);
 
-            VerdictEvent verdict = result.verdicts().getFirst();
-            assertThat(verdict.passed()).isTrue();
-            assertThat(verdict.useCaseId()).isEqualTo("stub-use-case");
+            ProbabilisticTestVerdict verdict = result.verdicts().getFirst();
+            assertThat(verdict.junitPassed()).isTrue();
+            assertThat(verdict.identity().useCaseId()).hasValue("stub-use-case");
             assertThat(verdict.correlationId()).startsWith("v:");
         }
 
         @Test
         @DisplayName("executes failing sentinel and returns FAIL verdict")
         void failingSentinel() {
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(FailingSentinel.class)
                     .verdictSink(captured::add)
@@ -60,15 +60,15 @@ class SentinelRunnerTest {
             assertThat(result.passed()).isEqualTo(0);
             assertThat(result.failed()).isEqualTo(1);
 
-            VerdictEvent verdict = result.verdicts().getFirst();
-            assertThat(verdict.passed()).isFalse();
-            assertThat(verdict.useCaseId()).isEqualTo("failing-use-case");
+            ProbabilisticTestVerdict verdict = result.verdicts().getFirst();
+            assertThat(verdict.junitPassed()).isFalse();
+            assertThat(verdict.identity().useCaseId()).hasValue("failing-use-case");
         }
 
         @Test
         @DisplayName("dispatches verdicts to configured sink")
         void dispatchesToSink() {
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .verdictSink(captured::add)
@@ -77,13 +77,13 @@ class SentinelRunnerTest {
             new SentinelRunner(config).runTests();
 
             assertThat(captured).hasSize(1);
-            assertThat(captured.getFirst().passed()).isTrue();
+            assertThat(captured.getFirst().junitPassed()).isTrue();
         }
 
         @Test
-        @DisplayName("report entries contain expected keys")
-        void reportEntriesContainExpectedKeys() {
-            List<VerdictEvent> captured = new ArrayList<>();
+        @DisplayName("verdict contains execution summary")
+        void verdictContainsExecutionSummary() {
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .verdictSink(captured::add)
@@ -91,20 +91,18 @@ class SentinelRunnerTest {
 
             new SentinelRunner(config).runTests();
 
-            var entries = captured.getFirst().reportEntries();
-            assertThat(entries).containsKeys(
-                    "punit.samples", "punit.samplesExecuted",
-                    "punit.successes", "punit.failures",
-                    "punit.minPassRate", "punit.observedPassRate",
-                    "punit.verdict", "punit.terminationReason",
-                    "punit.elapsedMs");
+            ProbabilisticTestVerdict verdict = captured.getFirst();
+            assertThat(verdict.execution().plannedSamples()).isGreaterThan(0);
+            assertThat(verdict.execution().samplesExecuted()).isGreaterThan(0);
+            assertThat(verdict.execution().successes()).isGreaterThanOrEqualTo(0);
+            assertThat(verdict.execution().observedPassRate()).isGreaterThanOrEqualTo(0.0);
         }
 
         @Test
         @DisplayName("includes environment metadata in verdicts")
         void includesEnvironmentMetadata() {
             EnvironmentMetadata metadata = new EnvironmentMetadata("test-env", "instance-1");
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .verdictSink(captured::add)
@@ -121,7 +119,7 @@ class SentinelRunnerTest {
         @Test
         @DisplayName("filters tests by use case ID")
         void filtersByUseCaseId() {
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .verdictSink(captured::add)
@@ -136,7 +134,7 @@ class SentinelRunnerTest {
         @Test
         @DisplayName("runs specific use case when filtered")
         void runsSpecificUseCase() {
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .verdictSink(captured::add)
@@ -174,7 +172,7 @@ class SentinelRunnerTest {
         @Test
         @DisplayName("runs tests from multiple sentinel classes")
         void runsMultipleClasses() {
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .sentinelClass(FailingSentinel.class)
@@ -195,9 +193,9 @@ class SentinelRunnerTest {
     class PerDimensionTracking {
 
         @Test
-        @DisplayName("records functional dimension in report entries")
+        @DisplayName("records functional dimension in verdict")
         void recordsFunctionalDimension() {
-            List<VerdictEvent> captured = new ArrayList<>();
+            List<ProbabilisticTestVerdict> captured = new ArrayList<>();
             SentinelConfiguration config = SentinelConfiguration.builder()
                     .sentinelClass(PassingSentinel.class)
                     .verdictSink(captured::add)
@@ -205,9 +203,9 @@ class SentinelRunnerTest {
 
             new SentinelRunner(config).runTests();
 
-            var entries = captured.getFirst().reportEntries();
-            assertThat(entries).containsEntry("punit.dimension.functional", "true");
-            assertThat(entries).containsKey("punit.dimension.functional.successes");
+            ProbabilisticTestVerdict verdict = captured.getFirst();
+            assertThat(verdict.functional()).isPresent();
+            assertThat(verdict.functional().get().successes()).isGreaterThan(0);
         }
     }
 }

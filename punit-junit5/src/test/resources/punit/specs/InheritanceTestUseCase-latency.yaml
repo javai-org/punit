@@ -4,7 +4,7 @@
 
 schemaVersion: punit-spec-1
 useCaseId: InheritanceTestUseCase
-generatedAt: 2026-03-10T21:36:35.897452Z
+generatedAt: 2026-03-13T21:39:02.122043Z
 experimentClass: org.javai.punit.testsubjects.InheritanceTestSubjects$InheritedMeasureExperiment
 experimentMethod: measureBaseline
 execution:
@@ -21,8 +21,8 @@ latency:
   p99Ms: 0
   maxMs: 0
 cost:
-  totalTimeMs: 9
+  totalTimeMs: 10
   avgTimePerSampleMs: 3
   totalTokens: 0
   avgTokensPerSample: 0
-contentFingerprint: eb00fcc816330759dbe2fbf9f511cf7cf29386bec83e0d4b1c0ec98ac19cb2a9
+contentFingerprint: 9820a9fcf93a8387da9002547819e2f36fdfca1446c78255b83e520cfe4bfbe8

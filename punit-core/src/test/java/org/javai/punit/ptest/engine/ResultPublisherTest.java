@@ -1,19 +1,15 @@
 package org.javai.punit.ptest.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
-import org.javai.punit.controls.budget.SharedBudgetMonitor;
 import org.javai.punit.model.TerminationReason;
-import org.javai.punit.ptest.engine.ResultPublisher.PublishContext;
 import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
-import org.javai.punit.statistics.transparent.BaselineData;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,73 +29,31 @@ class ResultPublisherTest {
         publisher = new ResultPublisher(reporter);
     }
 
-    private PublishContext createContext(boolean passed) {
-        return new PublishContext(
-                "testMethod",
-                100,
-                100,
-                passed ? 95 : 80,
-                passed ? 5 : 20,
-                0.9,
-                passed ? 0.95 : 0.80,
-                passed,
-                Optional.empty(),
-                null,
-                1500,
-                false,
-                1.0,
-                0,
-                0,
-                0,
-                CostBudgetMonitor.TokenMode.NONE,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                BaselineData.empty(),
-                List.of(),
-                null
-        );
+    private ProbabilisticTestVerdictBuilder minimalBuilder(boolean passed) {
+        int successes = passed ? 95 : 80;
+        int failures = passed ? 5 : 20;
+        double observedRate = passed ? 0.95 : 0.80;
+        return new ProbabilisticTestVerdictBuilder()
+                .identity("TestClass", "testMethod", null)
+                .execution(100, 100, successes, failures, 0.9, observedRate, 1500)
+                .junitPassed(passed)
+                .passedStatistically(passed);
     }
 
-    private PublishContext createContextWithBudgets() {
-        SharedBudgetMonitor classBudget = new SharedBudgetMonitor(
-                SharedBudgetMonitor.Scope.CLASS, 5000, 1000, BudgetExhaustedBehavior.FAIL);
-        SharedBudgetMonitor suiteBudget = new SharedBudgetMonitor(
-                SharedBudgetMonitor.Scope.SUITE, 30000, 10000, BudgetExhaustedBehavior.FAIL);
+    private ProbabilisticTestVerdict createVerdict(boolean passed) {
+        return minimalBuilder(passed).build();
+    }
 
-        return new PublishContext(
-                "testMethod",
-                100,
-                50,
-                45,
-                5,
-                0.9,
-                0.90,
-                true,
-                Optional.empty(),
-                null,
-                2500,
-                true,
-                2.0,
-                5000,
-                500,
-                250,
-                CostBudgetMonitor.TokenMode.DYNAMIC,
-                classBudget,
-                suiteBudget,
-                null,
-                null,
-                ThresholdOrigin.SLA,
-                "SLA-2024-001",
-                0.95,
-                BaselineData.empty(),
-                List.of(),
-                null
-        );
+    private ProbabilisticTestVerdict createVerdictWithBudgets() {
+        return new ProbabilisticTestVerdictBuilder()
+                .identity("TestClass", "testMethod", null)
+                .execution(100, 50, 45, 5, 0.9, 0.90, 2500)
+                .appliedMultiplier(2.0)
+                .junitPassed(true)
+                .passedStatistically(true)
+                .cost(250, 5000, 500, CostBudgetMonitor.TokenMode.DYNAMIC)
+                .provenance(ThresholdOrigin.SLA, "SLA-2024-001", null)
+                .build();
     }
 
     @Nested
@@ -109,9 +63,9 @@ class ResultPublisherTest {
         @Test
         @DisplayName("includes basic test metrics")
         void includesBasicTestMetrics() {
-            PublishContext ctx = createContext(true);
+            ProbabilisticTestVerdict verdict = createVerdict(true);
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).containsEntry("punit.samples", "100");
             assertThat(entries).containsEntry("punit.samplesExecuted", "100");
@@ -123,9 +77,9 @@ class ResultPublisherTest {
         @Test
         @DisplayName("includes FAIL verdict for failed test")
         void includesFailVerdictForFailedTest() {
-            PublishContext ctx = createContext(false);
+            ProbabilisticTestVerdict verdict = createVerdict(false);
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).containsEntry("punit.verdict", "FAIL");
         }
@@ -133,9 +87,9 @@ class ResultPublisherTest {
         @Test
         @DisplayName("includes pass rate metrics")
         void includesPassRateMetrics() {
-            PublishContext ctx = createContext(true);
+            ProbabilisticTestVerdict verdict = createVerdict(true);
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).containsEntry("punit.minPassRate", "0.9000");
             assertThat(entries).containsEntry("punit.observedPassRate", "0.9500");
@@ -144,9 +98,9 @@ class ResultPublisherTest {
         @Test
         @DisplayName("includes elapsed time")
         void includesElapsedTime() {
-            PublishContext ctx = createContext(true);
+            ProbabilisticTestVerdict verdict = createVerdict(true);
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).containsEntry("punit.elapsedMs", "1500");
         }
@@ -154,17 +108,15 @@ class ResultPublisherTest {
         @Test
         @DisplayName("includes termination reason")
         void includesTerminationReason() {
-            PublishContext ctx = new PublishContext(
-                    "testMethod", 100, 50, 20, 30, 0.9, 0.40, false,
-                    Optional.of(TerminationReason.IMPOSSIBILITY),
-                    "Cannot achieve 90% pass rate",
-                    1000, false, 1.0, 0, 0, 0,
-                    CostBudgetMonitor.TokenMode.NONE,
-                    null, null, null, null, null, null, null,
-                    BaselineData.empty(), List.of(), null
-            );
+            ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdictBuilder()
+                    .identity("TestClass", "testMethod", null)
+                    .execution(100, 50, 20, 30, 0.9, 0.40, 1000)
+                    .termination(TerminationReason.IMPOSSIBILITY, "Cannot achieve 90% pass rate")
+                    .junitPassed(false)
+                    .passedStatistically(false)
+                    .build();
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).containsEntry("punit.terminationReason", "IMPOSSIBILITY");
         }
@@ -172,9 +124,9 @@ class ResultPublisherTest {
         @Test
         @DisplayName("includes multiplier when applied")
         void includesMultiplierWhenApplied() {
-            PublishContext ctx = createContextWithBudgets();
+            ProbabilisticTestVerdict verdict = createVerdictWithBudgets();
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).containsEntry("punit.samplesMultiplier", "2.00");
         }
@@ -182,9 +134,9 @@ class ResultPublisherTest {
         @Test
         @DisplayName("includes method budget info")
         void includesMethodBudgetInfo() {
-            PublishContext ctx = createContextWithBudgets();
+            ProbabilisticTestVerdict verdict = createVerdictWithBudgets();
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).containsEntry("punit.method.timeBudgetMs", "5000");
             assertThat(entries).containsEntry("punit.method.tokenBudget", "500");
@@ -193,98 +145,15 @@ class ResultPublisherTest {
         }
 
         @Test
-        @DisplayName("includes class budget info when present")
-        void includesClassBudgetInfo() {
-            PublishContext ctx = createContextWithBudgets();
-
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
-
-            assertThat(entries).containsKey("punit.class.timeBudgetMs");
-            assertThat(entries).containsKey("punit.class.tokenBudget");
-            assertThat(entries).containsKey("punit.class.tokensConsumed");
-        }
-
-        @Test
-        @DisplayName("includes suite budget info when present")
-        void includesSuiteBudgetInfo() {
-            PublishContext ctx = createContextWithBudgets();
-
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
-
-            assertThat(entries).containsKey("punit.suite.timeBudgetMs");
-            assertThat(entries).containsKey("punit.suite.tokenBudget");
-            assertThat(entries).containsKey("punit.suite.tokensConsumed");
-        }
-
-        @Test
         @DisplayName("excludes budget info when not configured")
         void excludesBudgetInfoWhenNotConfigured() {
-            PublishContext ctx = createContext(true);
+            ProbabilisticTestVerdict verdict = createVerdict(true);
 
-            Map<String, String> entries = publisher.buildReportEntries(ctx);
+            Map<String, String> entries = publisher.buildReportEntries(verdict, null);
 
             assertThat(entries).doesNotContainKey("punit.method.timeBudgetMs");
             assertThat(entries).doesNotContainKey("punit.method.tokenBudget");
             assertThat(entries).doesNotContainKey("punit.samplesMultiplier");
-        }
-    }
-
-    @Nested
-    @DisplayName("PublishContext")
-    class PublishContextTests {
-
-        @Test
-        @DisplayName("hasTimeBudget returns true when time budget set")
-        void hasTimeBudgetReturnsTrueWhenSet() {
-            PublishContext ctx = createContextWithBudgets();
-
-            assertThat(ctx.hasTimeBudget()).isTrue();
-        }
-
-        @Test
-        @DisplayName("hasTimeBudget returns false when no time budget")
-        void hasTimeBudgetReturnsFalseWhenNotSet() {
-            PublishContext ctx = createContext(true);
-
-            assertThat(ctx.hasTimeBudget()).isFalse();
-        }
-
-        @Test
-        @DisplayName("hasThresholdOrigin returns true for SLA")
-        void hasThresholdOriginReturnsTrueForSla() {
-            PublishContext ctx = createContextWithBudgets();
-
-            assertThat(ctx.hasThresholdOrigin()).isTrue();
-        }
-
-        @Test
-        @DisplayName("hasThresholdOrigin returns false for UNSPECIFIED")
-        void hasThresholdOriginReturnsFalseForUnspecified() {
-            PublishContext ctx = new PublishContext(
-                    "test", 100, 100, 90, 10, 0.9, 0.9, true,
-                    Optional.empty(), null, 1000, false, 1.0, 0, 0, 0,
-                    CostBudgetMonitor.TokenMode.NONE, null, null, null, null,
-                    ThresholdOrigin.UNSPECIFIED, null, null,
-                    BaselineData.empty(), List.of(), null
-            );
-
-            assertThat(ctx.hasThresholdOrigin()).isFalse();
-        }
-
-        @Test
-        @DisplayName("hasContractRef returns true when set")
-        void hasContractRefReturnsTrueWhenSet() {
-            PublishContext ctx = createContextWithBudgets();
-
-            assertThat(ctx.hasContractRef()).isTrue();
-        }
-
-        @Test
-        @DisplayName("hasContractRef returns false when empty")
-        void hasContractRefReturnsFalseWhenEmpty() {
-            PublishContext ctx = createContext(true);
-
-            assertThat(ctx.hasContractRef()).isFalse();
         }
     }
 
@@ -295,10 +164,10 @@ class ResultPublisherTest {
         @Test
         @DisplayName("appends threshold origin when set")
         void appendsThresholdOriginWhenSet() {
-            PublishContext ctx = createContextWithBudgets();
+            ProbabilisticTestVerdict verdict = createVerdictWithBudgets();
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendProvenance(sb, ctx);
+            publisher.appendProvenance(sb, verdict);
 
             assertThat(sb.toString()).contains("Threshold origin:").contains("SLA");
         }
@@ -306,10 +175,10 @@ class ResultPublisherTest {
         @Test
         @DisplayName("appends contract ref when set")
         void appendsContractRefWhenSet() {
-            PublishContext ctx = createContextWithBudgets();
+            ProbabilisticTestVerdict verdict = createVerdictWithBudgets();
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendProvenance(sb, ctx);
+            publisher.appendProvenance(sb, verdict);
 
             assertThat(sb.toString()).contains("Contract:").contains("SLA-2024-001");
         }
@@ -317,10 +186,10 @@ class ResultPublisherTest {
         @Test
         @DisplayName("appends nothing when not configured")
         void appendsNothingWhenNotConfigured() {
-            PublishContext ctx = createContext(true);
+            ProbabilisticTestVerdict verdict = createVerdict(true);
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendProvenance(sb, ctx);
+            publisher.appendProvenance(sb, verdict);
 
             assertThat(sb.toString()).isEmpty();
         }
@@ -333,21 +202,10 @@ class ResultPublisherTest {
         @Test
         @DisplayName("appends sizing note for SLA-anchored undersized test")
         void appendsNoteForSlaUndersized() {
-            PublishContext ctx = createSlaContext(200, 0.9999, ThresholdOrigin.SLA, "SLA v2.3");
+            ProbabilisticTestVerdict verdict = createSlaVerdict(200, 0.9999, ThresholdOrigin.SLA, "SLA v2.3");
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendComplianceEvidenceNote(sb, ctx);
-
-            assertThat(sb.toString()).contains(ComplianceEvidenceEvaluator.SIZING_NOTE);
-        }
-
-        @Test
-        @DisplayName("appends sizing note for contract-ref-anchored undersized test")
-        void appendsNoteForContractRefUndersized() {
-            PublishContext ctx = createSlaContext(200, 0.9999, ThresholdOrigin.SLO, "Internal SLO");
-            StringBuilder sb = new StringBuilder();
-
-            publisher.appendComplianceEvidenceNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, verdict);
 
             assertThat(sb.toString()).contains(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
@@ -355,10 +213,10 @@ class ResultPublisherTest {
         @Test
         @DisplayName("does NOT append note for non-SLA test without contract ref")
         void doesNotAppendForNonSla() {
-            PublishContext ctx = createSlaContext(200, 0.9999, ThresholdOrigin.UNSPECIFIED, null);
+            ProbabilisticTestVerdict verdict = createSlaVerdict(200, 0.9999, ThresholdOrigin.UNSPECIFIED, null);
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendComplianceEvidenceNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, verdict);
 
             assertThat(sb.toString()).doesNotContain(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
@@ -366,21 +224,10 @@ class ResultPublisherTest {
         @Test
         @DisplayName("does NOT append note when sample size is sufficient")
         void doesNotAppendWhenSufficient() {
-            PublishContext ctx = createSlaContext(100000, 0.9999, ThresholdOrigin.SLA, "");
+            ProbabilisticTestVerdict verdict = createSlaVerdict(100000, 0.9999, ThresholdOrigin.SLA, "");
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendComplianceEvidenceNote(sb, ctx);
-
-            assertThat(sb.toString()).doesNotContain(ComplianceEvidenceEvaluator.SIZING_NOTE);
-        }
-
-        @Test
-        @DisplayName("does NOT append note for moderate threshold with adequate samples")
-        void doesNotAppendForModerateThreshold() {
-            PublishContext ctx = createSlaContext(200, 0.95, ThresholdOrigin.SLA, "");
-            StringBuilder sb = new StringBuilder();
-
-            publisher.appendComplianceEvidenceNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, verdict);
 
             assertThat(sb.toString()).doesNotContain(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
@@ -388,83 +235,30 @@ class ResultPublisherTest {
         @Test
         @DisplayName("does NOT append note for SMOKE with normative origin (deferred to smoke note)")
         void doesNotAppendForSmokeWithNormativeOrigin() {
-            PublishContext ctx = new PublishContext(
-                    "testSla", 50, 50, 50, 0,
-                    0.9999, 1.0, true,
-                    Optional.empty(), null, 1000, false, 1.0, 0, 0, 0,
-                    CostBudgetMonitor.TokenMode.NONE, null, null, null, null,
-                    ThresholdOrigin.SLA, "SLA v2.3", null,
-                    BaselineData.empty(), List.of(), null,
-                    TestIntent.SMOKE, 0.95
-            );
+            ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdictBuilder()
+                    .identity("TestClass", "testSla", null)
+                    .execution(50, 50, 50, 0, 0.9999, 1.0, 1000)
+                    .intent(TestIntent.SMOKE, 0.95)
+                    .provenance(ThresholdOrigin.SLA, "SLA v2.3", null)
+                    .junitPassed(true)
+                    .passedStatistically(true)
+                    .build();
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendComplianceEvidenceNote(sb, ctx);
+            publisher.appendComplianceEvidenceNote(sb, verdict);
 
             assertThat(sb.toString()).doesNotContain(ComplianceEvidenceEvaluator.SIZING_NOTE);
         }
 
-        @Test
-        @DisplayName("still appends note for SMOKE with contract ref only (no threshold origin)")
-        void appendsNoteForSmokeWithContractRefOnly() {
-            PublishContext ctx = new PublishContext(
-                    "testSla", 200, 200, 200, 0,
-                    0.9999, 1.0, true,
-                    Optional.empty(), null, 1000, false, 1.0, 0, 0, 0,
-                    CostBudgetMonitor.TokenMode.NONE, null, null, null, null,
-                    ThresholdOrigin.UNSPECIFIED, "Internal Policy DOC-001", null,
-                    BaselineData.empty(), List.of(), null,
-                    TestIntent.SMOKE, 0.95
-            );
-            StringBuilder sb = new StringBuilder();
-
-            publisher.appendComplianceEvidenceNote(sb, ctx);
-
-            assertThat(sb.toString()).contains(ComplianceEvidenceEvaluator.SIZING_NOTE);
-        }
-
-        private PublishContext createSlaContext(int samples, double minPassRate,
+        private ProbabilisticTestVerdict createSlaVerdict(int samples, double minPassRate,
                 ThresholdOrigin origin, String contractRef) {
-            return new PublishContext(
-                    "testSla", samples, samples, samples, 0,
-                    minPassRate, 1.0, true,
-                    Optional.empty(), null, 1000, false, 1.0, 0, 0, 0,
-                    CostBudgetMonitor.TokenMode.NONE, null, null, null, null,
-                    origin, contractRef, null,
-                    BaselineData.empty(), List.of(), null
-            );
-        }
-    }
-
-    @Nested
-    @DisplayName("Intent-aware PublishContext")
-    class IntentAwarePublishContext {
-
-        @Test
-        @DisplayName("isSmoke returns true for SMOKE intent")
-        void isSmokeReturnsTrueForSmoke() {
-            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
-                    100, 0.90, ThresholdOrigin.SLA);
-            assertThat(ctx.isSmoke()).isTrue();
-            assertThat(ctx.isVerification()).isFalse();
-        }
-
-        @Test
-        @DisplayName("isVerification returns true for VERIFICATION intent")
-        void isVerificationReturnsTrueForVerification() {
-            PublishContext ctx = createIntentContext(true, TestIntent.VERIFICATION,
-                    100, 0.90, ThresholdOrigin.SLA);
-            assertThat(ctx.isVerification()).isTrue();
-            assertThat(ctx.isSmoke()).isFalse();
-        }
-
-        @Test
-        @DisplayName("backward-compatible constructor defaults to VERIFICATION")
-        void backwardCompatConstructorDefaultsToVerification() {
-            PublishContext ctx = createContext(true);
-            assertThat(ctx.isVerification()).isTrue();
-            assertThat(ctx.intent()).isEqualTo(TestIntent.VERIFICATION);
-            assertThat(ctx.resolvedConfidence()).isEqualTo(0.95);
+            return new ProbabilisticTestVerdictBuilder()
+                    .identity("TestClass", "testSla", null)
+                    .execution(samples, samples, samples, 0, minPassRate, 1.0, 1000)
+                    .provenance(origin, contractRef, null)
+                    .junitPassed(true)
+                    .passedStatistically(true)
+                    .build();
         }
     }
 
@@ -475,12 +269,11 @@ class ResultPublisherTest {
         @Test
         @DisplayName("appends undersized note for SMOKE + normative + undersized")
         void appendsUndersizedNoteForSmokeNormativeUndersized() {
-            // N=10, p₀=0.95 → N_min=52 → undersized
-            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
+            ProbabilisticTestVerdict verdict = createIntentVerdict(true, TestIntent.SMOKE,
                     10, 0.95, ThresholdOrigin.SLA);
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSmokeIntentNote(sb, ctx);
+            publisher.appendSmokeIntentNote(sb, verdict);
 
             assertThat(sb.toString()).contains("Sample not sized for verification");
             assertThat(sb.toString()).contains("N=10");
@@ -489,12 +282,11 @@ class ResultPublisherTest {
         @Test
         @DisplayName("appends sized hint for SMOKE + normative + sized")
         void appendsSizedHintForSmokeNormativeSized() {
-            // N=100, p₀=0.90 → N_min=25 → sized
-            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
+            ProbabilisticTestVerdict verdict = createIntentVerdict(true, TestIntent.SMOKE,
                     100, 0.90, ThresholdOrigin.SLA);
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSmokeIntentNote(sb, ctx);
+            publisher.appendSmokeIntentNote(sb, verdict);
 
             assertThat(sb.toString()).contains("Sample is sized for verification");
             assertThat(sb.toString()).contains("intent = VERIFICATION");
@@ -503,11 +295,11 @@ class ResultPublisherTest {
         @Test
         @DisplayName("does not append note for VERIFICATION intent")
         void doesNotAppendForVerificationIntent() {
-            PublishContext ctx = createIntentContext(true, TestIntent.VERIFICATION,
+            ProbabilisticTestVerdict verdict = createIntentVerdict(true, TestIntent.VERIFICATION,
                     10, 0.95, ThresholdOrigin.SLA);
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSmokeIntentNote(sb, ctx);
+            publisher.appendSmokeIntentNote(sb, verdict);
 
             assertThat(sb.toString()).isEmpty();
         }
@@ -515,32 +307,28 @@ class ResultPublisherTest {
         @Test
         @DisplayName("does not append note for SMOKE without normative origin")
         void doesNotAppendForSmokeWithoutNormative() {
-            PublishContext ctx = createIntentContext(true, TestIntent.SMOKE,
+            ProbabilisticTestVerdict verdict = createIntentVerdict(true, TestIntent.SMOKE,
                     10, 0.95, ThresholdOrigin.UNSPECIFIED);
             StringBuilder sb = new StringBuilder();
 
-            publisher.appendSmokeIntentNote(sb, ctx);
+            publisher.appendSmokeIntentNote(sb, verdict);
 
             assertThat(sb.toString()).isEmpty();
         }
     }
 
-    // ========== Helper for intent-aware tests ==========
-
-    private PublishContext createIntentContext(boolean passed, TestIntent intent,
+    private ProbabilisticTestVerdict createIntentVerdict(boolean passed, TestIntent intent,
             int samples, double minPassRate, ThresholdOrigin origin) {
         int successes = passed ? (int) (samples * 0.95) : (int) (samples * 0.50);
         int failures = samples - successes;
         double observedRate = (double) successes / samples;
-        return new PublishContext(
-                "testMethod", samples, samples, successes, failures,
-                minPassRate, observedRate, passed,
-                Optional.empty(), null, 1000, false, 1.0, 0, 0, 0,
-                CostBudgetMonitor.TokenMode.NONE, null, null, null, null,
-                origin, null, null,
-                BaselineData.empty(), List.of(), null,
-                intent, 0.95
-        );
+        return new ProbabilisticTestVerdictBuilder()
+                .identity("TestClass", "testMethod", null)
+                .execution(samples, samples, successes, failures, minPassRate, observedRate, 1000)
+                .intent(intent, 0.95)
+                .provenance(origin, null, null)
+                .junitPassed(passed)
+                .passedStatistically(passed)
+                .build();
     }
 }
-

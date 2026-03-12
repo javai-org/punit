@@ -1,14 +1,12 @@
 package org.javai.punit.sentinel;
 
 import java.lang.reflect.Method;
-import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.ptest.bernoulli.EarlyTerminationEvaluator;
@@ -16,15 +14,16 @@ import org.javai.punit.ptest.bernoulli.FinalVerdictDecider;
 import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
 import org.javai.punit.ptest.engine.ConfigurationResolver.ResolvedConfiguration;
-import org.javai.punit.reporting.VerdictEvent;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.DerivedThreshold;
 import org.javai.punit.statistics.ThresholdDeriver;
 import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 
 /**
  * Executes a single {@code @ProbabilisticTest} method in the Sentinel runtime,
- * producing a {@link VerdictEvent}.
+ * producing a {@link ProbabilisticTestVerdict}.
  *
  * <p>Responsibilities:
  * <ul>
@@ -77,9 +76,9 @@ class SentinelTestExecutor {
      * @param factory the use case factory
      * @param sentinelClass the sentinel class (for naming and input resolution)
      * @param useCaseId the resolved use case ID
-     * @return the verdict event
+     * @return the probabilistic test verdict
      */
-    VerdictEvent execute(
+    ProbabilisticTestVerdict execute(
             Method method,
             ProbabilisticTest annotation,
             Object instance,
@@ -115,17 +114,9 @@ class SentinelTestExecutor {
             progressListener.onTestComplete(testName, passed);
         }
 
-        Map<String, String> reportEntries = buildReportEntries(
-                aggregator, config, minPassRate, passed);
-
-        return new VerdictEvent(
-                VerdictEvent.newCorrelationId(),
-                testName,
-                useCaseId.orElse(testName),
-                passed,
-                reportEntries,
-                environmentMetadata.toMap(),
-                Instant.now());
+        return buildVerdict(
+                sentinelClass, method, useCaseId, config, aggregator,
+                minPassRate, passed, budgetMonitor);
     }
 
     /**
@@ -182,42 +173,50 @@ class SentinelTestExecutor {
                 config.onBudgetExhausted());
     }
 
-    private Map<String, String> buildReportEntries(
-            SampleResultAggregator aggregator,
+    private ProbabilisticTestVerdict buildVerdict(
+            Class<?> sentinelClass,
+            Method method,
+            Optional<String> useCaseId,
             ResolvedConfiguration config,
+            SampleResultAggregator aggregator,
             double minPassRate,
-            boolean passed) {
+            boolean passed,
+            CostBudgetMonitor budgetMonitor) {
 
-        Map<String, String> entries = new LinkedHashMap<>();
-        entries.put("punit.samples", String.valueOf(config.samples()));
-        entries.put("punit.samplesExecuted", String.valueOf(aggregator.getSamplesExecuted()));
-        entries.put("punit.successes", String.valueOf(aggregator.getSuccesses()));
-        entries.put("punit.failures", String.valueOf(aggregator.getFailures()));
-        entries.put("punit.minPassRate", String.format("%.4f", minPassRate));
-        entries.put("punit.observedPassRate", String.format("%.4f", aggregator.getObservedPassRate()));
-        entries.put("punit.verdict", passed ? "PASS" : "FAIL");
+        ProbabilisticTestVerdictBuilder builder = new ProbabilisticTestVerdictBuilder()
+                .identity(sentinelClass.getName(), method.getName(), useCaseId.orElse(null))
+                .execution(
+                        config.samples(),
+                        aggregator.getSamplesExecuted(),
+                        aggregator.getSuccesses(),
+                        aggregator.getFailures(),
+                        minPassRate,
+                        aggregator.getObservedPassRate(),
+                        aggregator.getElapsedMs())
+                .intent(TestIntent.VERIFICATION, config.resolvedConfidence())
+                .termination(
+                        aggregator.getTerminationReason().orElse(TerminationReason.COMPLETED),
+                        aggregator.getTerminationDetails())
+                .junitPassed(passed)
+                .passedStatistically(passed)
+                .environmentMetadata(environmentMetadata.toMap());
 
-        String terminationReason = aggregator.getTerminationReason()
-                .map(Enum::name)
-                .orElse(TerminationReason.COMPLETED.name());
-        entries.put("punit.terminationReason", terminationReason);
-        entries.put("punit.elapsedMs", String.valueOf(aggregator.getElapsedMs()));
+        // Cost info
+        if (budgetMonitor != null) {
+            builder.cost(
+                    budgetMonitor.getTokensConsumed(),
+                    config.timeBudgetMs(),
+                    config.tokenBudget(),
+                    budgetMonitor.getTokenMode());
+        }
 
+        // Functional dimension
         if (aggregator.isFunctionalAsserted()) {
-            entries.put("punit.dimension.functional", "true");
-            aggregator.functionalSuccesses().ifPresent(s ->
-                    entries.put("punit.dimension.functional.successes", String.valueOf(s)));
-            aggregator.functionalFailures().ifPresent(f ->
-                    entries.put("punit.dimension.functional.failures", String.valueOf(f)));
-        }
-        if (aggregator.isLatencyAsserted()) {
-            entries.put("punit.dimension.latency", "true");
-            aggregator.latencySuccesses().ifPresent(s ->
-                    entries.put("punit.dimension.latency.successes", String.valueOf(s)));
-            aggregator.latencyFailures().ifPresent(f ->
-                    entries.put("punit.dimension.latency.failures", String.valueOf(f)));
+            builder.functionalDimension(
+                    aggregator.functionalSuccesses().orElse(0),
+                    aggregator.functionalFailures().orElse(0));
         }
 
-        return entries;
+        return builder.build();
     }
 }

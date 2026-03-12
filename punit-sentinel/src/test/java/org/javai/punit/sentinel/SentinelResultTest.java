@@ -2,10 +2,9 @@ package org.javai.punit.sentinel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import org.javai.punit.reporting.VerdictEvent;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -65,9 +64,12 @@ class SentinelResultTest {
         @Test
         @DisplayName("exposes all fields correctly")
         void exposesAllFields() {
-            var verdict = new VerdictEvent(
-                    "v:abc123", "testMethod", "useCase1", true,
-                    Map.of("passRate", "0.95"), Map.of(), Instant.now());
+            ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdictBuilder()
+                    .identity("TestClass", "testMethod", "useCase1")
+                    .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
+                    .junitPassed(true)
+                    .passedStatistically(true)
+                    .build();
             var verdicts = List.of(verdict);
             var duration = Duration.ofMillis(1500);
 

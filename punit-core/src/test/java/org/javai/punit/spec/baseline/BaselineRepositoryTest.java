@@ -178,12 +178,75 @@ class BaselineRepositoryTest {
         }
     }
 
+    @Nested
+    @DisplayName("multi-root scanning")
+    class MultiRootTests {
+
+        @TempDir
+        Path envLocalDir;
+
+        @Test
+        @DisplayName("should pool candidates from both env-local and bundled roots")
+        void poolsCandidatesFromBothRoots() throws IOException {
+            // Write identical-footprint spec in both dirs
+            writeSpecTo(envLocalDir, "TestUseCase-abc1.yaml", "TestUseCase", "abc123", "WEEKDAY");
+            writeSpecTo(tempDir, "TestUseCase-abc1.yaml", "TestUseCase", "abc123", "WEEKEND");
+
+            BaselineRepository repo = new BaselineRepository(envLocalDir, tempDir);
+
+            List<BaselineCandidate> candidates = repo.findCandidates("TestUseCase", "abc123");
+
+            assertThat(candidates).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("should tag env-local candidates as ENVIRONMENT_LOCAL")
+        void tagsEnvLocalCorrectly() throws IOException {
+            writeSpecTo(envLocalDir, "TestUseCase-abc1.yaml", "TestUseCase", "abc123", "WEEKDAY");
+
+            BaselineRepository repo = new BaselineRepository(envLocalDir, tempDir);
+
+            List<BaselineCandidate> candidates = repo.findCandidates("TestUseCase", "abc123");
+
+            assertThat(candidates).hasSize(1);
+            assertThat(candidates.get(0).source())
+                    .isEqualTo(BaselineSelectionTypes.BaselineSource.ENVIRONMENT_LOCAL);
+        }
+
+        @Test
+        @DisplayName("should tag bundled candidates as BUNDLED")
+        void tagsBundledCorrectly() throws IOException {
+            writeSpecTo(tempDir, "TestUseCase-abc1.yaml", "TestUseCase", "abc123", "WEEKDAY");
+
+            BaselineRepository repo = new BaselineRepository(envLocalDir, tempDir);
+
+            List<BaselineCandidate> candidates = repo.findCandidates("TestUseCase", "abc123");
+
+            assertThat(candidates).hasSize(1);
+            assertThat(candidates.get(0).source())
+                    .isEqualTo(BaselineSelectionTypes.BaselineSource.BUNDLED);
+        }
+
+        @Test
+        @DisplayName("getRoots returns both configured roots")
+        void getRootsReturnsBoth() {
+            BaselineRepository repo = new BaselineRepository(envLocalDir, tempDir);
+
+            assertThat(repo.getRoots()).containsExactly(envLocalDir, tempDir);
+        }
+    }
+
     // ========== Helper Methods ==========
 
     private void writeSpec(String filename, String useCaseId, String footprint, String dayOfWeekValue)
             throws IOException {
+        writeSpecTo(tempDir, filename, useCaseId, footprint, dayOfWeekValue);
+    }
+
+    private void writeSpecTo(Path dir, String filename, String useCaseId, String footprint, String dayOfWeekValue)
+            throws IOException {
         String content = createSpecContent(useCaseId, footprint, dayOfWeekValue);
-        Files.writeString(tempDir.resolve(filename), content);
+        Files.writeString(dir.resolve(filename), content);
     }
 
     private String createSpecContent(String useCaseId, String footprint, String dayOfWeekValue) {

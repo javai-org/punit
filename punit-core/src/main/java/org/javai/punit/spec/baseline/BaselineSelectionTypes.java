@@ -18,6 +18,16 @@ public final class BaselineSelectionTypes {
     }
 
     /**
+     * Where a baseline was loaded from.
+     */
+    public enum BaselineSource {
+        /** Loaded from the environment-local directory ({@code punit.spec.dir}). */
+        ENVIRONMENT_LOCAL,
+        /** Loaded from the classpath-bundled specs directory. */
+        BUNDLED
+    }
+
+    /**
      * A candidate baseline for selection.
      *
      * @param filename the baseline filename
@@ -25,19 +35,31 @@ public final class BaselineSelectionTypes {
      * @param covariateProfile the baseline's covariate profile
      * @param generatedAt when the baseline was generated
      * @param spec the loaded specification
+     * @param source where the baseline was loaded from
      */
     public record BaselineCandidate(
             String filename,
             String footprint,
             CovariateProfile covariateProfile,
             Instant generatedAt,
-            ExecutionSpecification spec
+            ExecutionSpecification spec,
+            BaselineSource source
     ) {
         public BaselineCandidate {
             Objects.requireNonNull(filename, "filename must not be null");
             Objects.requireNonNull(footprint, "footprint must not be null");
             Objects.requireNonNull(covariateProfile, "covariateProfile must not be null");
             Objects.requireNonNull(spec, "spec must not be null");
+            Objects.requireNonNull(source, "source must not be null");
+        }
+
+        /**
+         * Backward-compatible constructor that defaults source to {@link BaselineSource#BUNDLED}.
+         */
+        public BaselineCandidate(String filename, String footprint,
+                                  CovariateProfile covariateProfile, Instant generatedAt,
+                                  ExecutionSpecification spec) {
+            this(filename, footprint, covariateProfile, generatedAt, spec, BaselineSource.BUNDLED);
         }
     }
 

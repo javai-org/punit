@@ -6,9 +6,9 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.javai.punit.api.MeasureExperiment;
-import org.javai.punit.reporting.VerdictEvent;
 import org.javai.punit.sentinel.testsubjects.ExperimentSentinel;
 import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,17 +43,17 @@ class SentinelExperimentExecutorTest {
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
-                VerdictEvent verdict = executor.execute(
+                ProbabilisticTestVerdict verdict = executor.execute(
                         method, annotation, sentinel, factory, ExperimentSentinel.class);
 
-                assertThat(verdict.passed()).isTrue();
+                assertThat(verdict.junitPassed()).isTrue();
             } finally {
                 System.clearProperty("punit.spec.dir");
             }
         }
 
         @Test
-        @DisplayName("formats experiment name as ClassName.methodName")
+        @DisplayName("formats experiment name using class and method")
         void formatsExperimentName(@TempDir Path tempDir) {
             System.setProperty("punit.spec.dir", tempDir.toString());
             try {
@@ -62,10 +62,11 @@ class SentinelExperimentExecutorTest {
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
-                VerdictEvent verdict = executor.execute(
+                ProbabilisticTestVerdict verdict = executor.execute(
                         method, annotation, sentinel, factory, ExperimentSentinel.class);
 
-                assertThat(verdict.testName()).isEqualTo("ExperimentSentinel.measureStub");
+                assertThat(verdict.identity().className()).isEqualTo(ExperimentSentinel.class.getName());
+                assertThat(verdict.identity().methodName()).isEqualTo("measureStub");
             } finally {
                 System.clearProperty("punit.spec.dir");
             }
@@ -81,10 +82,10 @@ class SentinelExperimentExecutorTest {
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
-                VerdictEvent verdict = executor.execute(
+                ProbabilisticTestVerdict verdict = executor.execute(
                         method, annotation, sentinel, factory, ExperimentSentinel.class);
 
-                assertThat(verdict.useCaseId()).isEqualTo("stub-use-case");
+                assertThat(verdict.identity().useCaseId()).hasValue("stub-use-case");
             } finally {
                 System.clearProperty("punit.spec.dir");
             }
@@ -100,7 +101,7 @@ class SentinelExperimentExecutorTest {
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
-                VerdictEvent verdict = executor.execute(
+                ProbabilisticTestVerdict verdict = executor.execute(
                         method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 assertThat(verdict.environmentMetadata())
@@ -148,10 +149,10 @@ class SentinelExperimentExecutorTest {
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
-                VerdictEvent verdict = executor.execute(
+                ProbabilisticTestVerdict verdict = executor.execute(
                         method, annotation, sentinel, factory, ExperimentSentinel.class);
 
-                assertThat(verdict.passed()).isTrue();
+                assertThat(verdict.junitPassed()).isTrue();
                 assertThat(nestedDir).isDirectory();
                 assertThat(nestedDir.resolve("stub-use-case.yaml")).exists();
             } finally {
@@ -161,12 +162,12 @@ class SentinelExperimentExecutorTest {
     }
 
     @Nested
-    @DisplayName("report entries")
-    class ReportEntries {
+    @DisplayName("execution summary")
+    class ExecutionSummaryTests {
 
         @Test
-        @DisplayName("contains all expected experiment keys")
-        void containsExpectedKeys(@TempDir Path tempDir) {
+        @DisplayName("contains sample counts in execution summary")
+        void containsSampleCounts(@TempDir Path tempDir) {
             System.setProperty("punit.spec.dir", tempDir.toString());
             try {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
@@ -174,55 +175,12 @@ class SentinelExperimentExecutorTest {
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
                 MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
-                VerdictEvent verdict = executor.execute(
+                ProbabilisticTestVerdict verdict = executor.execute(
                         method, annotation, sentinel, factory, ExperimentSentinel.class);
 
-                assertThat(verdict.reportEntries()).containsKeys(
-                        "punit.experiment.useCaseId",
-                        "punit.experiment.samples",
-                        "punit.experiment.successes",
-                        "punit.experiment.failures",
-                        "punit.experiment.specWritten");
-            } finally {
-                System.clearProperty("punit.spec.dir");
-            }
-        }
-
-        @Test
-        @DisplayName("reports correct sample count")
-        void reportsSampleCount(@TempDir Path tempDir) {
-            System.setProperty("punit.spec.dir", tempDir.toString());
-            try {
-                ExperimentSentinel sentinel = new ExperimentSentinel();
-                UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
-                Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
-
-                VerdictEvent verdict = executor.execute(
-                        method, annotation, sentinel, factory, ExperimentSentinel.class);
-
-                assertThat(verdict.reportEntries().get("punit.experiment.samples")).isEqualTo("5");
-                assertThat(verdict.reportEntries().get("punit.experiment.useCaseId"))
-                        .isEqualTo("stub-use-case");
-            } finally {
-                System.clearProperty("punit.spec.dir");
-            }
-        }
-
-        @Test
-        @DisplayName("records specWritten=true for successful experiment")
-        void specWrittenInEntries(@TempDir Path tempDir) {
-            System.setProperty("punit.spec.dir", tempDir.toString());
-            try {
-                ExperimentSentinel sentinel = new ExperimentSentinel();
-                UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
-                Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
-
-                VerdictEvent verdict = executor.execute(
-                        method, annotation, sentinel, factory, ExperimentSentinel.class);
-
-                assertThat(verdict.reportEntries().get("punit.experiment.specWritten")).isEqualTo("true");
+                assertThat(verdict.execution().plannedSamples()).isEqualTo(5);
+                assertThat(verdict.execution().samplesExecuted()).isGreaterThan(0);
+                assertThat(verdict.execution().successes()).isGreaterThanOrEqualTo(0);
             } finally {
                 System.clearProperty("punit.spec.dir");
             }

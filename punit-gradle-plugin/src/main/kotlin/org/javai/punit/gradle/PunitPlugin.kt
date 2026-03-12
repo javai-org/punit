@@ -43,6 +43,14 @@ class PunitPlugin : Plugin<Project> {
         project.dependencies.add("punitSentinel",
             "org.javai:punit-sentinel:$punitVersion")
 
+        // Create a dedicated configuration for punit-report (HTML report generation)
+        val reportConfig = project.configurations.create("punitReport") {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+        }
+        project.dependencies.add("punitReport",
+            "org.javai:punit-report:$punitVersion")
+
         project.afterEvaluate {
             if (extension.configureTestTask.get()) {
                 configureTestTask(project, extension)
@@ -54,6 +62,7 @@ class PunitPlugin : Plugin<Project> {
                 "Shorthand for 'experiment' task")
 
             registerCreateSentinelTask(project, extension, sentinelConfig)
+            registerPunitReportTask(project, reportConfig)
         }
     }
 
@@ -68,6 +77,12 @@ class PunitPlugin : Plugin<Project> {
             }
 
             systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+
+            // Set default report directory so VerdictXmlSink writes to where punitReport reads
+            if (System.getProperty("punit.report.dir") == null) {
+                systemProperty("punit.report.dir",
+                    project.layout.buildDirectory.dir("reports/punit/xml").get().asFile.absolutePath)
+            }
 
             forwardPunitSystemProperties(this)
             applyRunFilter(project, this)
@@ -381,6 +396,19 @@ class PunitPlugin : Plugin<Project> {
             }
         } catch (_: Throwable) {
             // Skip classes that can't be loaded
+        }
+    }
+
+    private fun registerPunitReportTask(
+        project: Project,
+        reportConfig: org.gradle.api.artifacts.Configuration
+    ) {
+        project.tasks.register("punitReport", PunitReportTask::class.java).configure {
+            description = "Generates an HTML report from PUnit test verdict XML files"
+            group = "verification"
+            xmlDir.set(project.layout.buildDirectory.dir("reports/punit/xml"))
+            htmlDir.set(project.layout.buildDirectory.dir("reports/punit/html"))
+            reportClasspath.from(reportConfig)
         }
     }
 

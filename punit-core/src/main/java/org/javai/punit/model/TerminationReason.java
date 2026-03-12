@@ -22,7 +22,7 @@ public enum TerminationReason {
      * Test terminated early because it became mathematically impossible
      * to reach the required minimum pass rate.
      */
-    IMPOSSIBILITY("Cannot reach required pass rate"),
+    IMPOSSIBILITY("Cannot reach required pass rate (insufficient remaining samples)"),
 
     /**
      * Test terminated early because the required pass rate has already been

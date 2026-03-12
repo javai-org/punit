@@ -10,6 +10,7 @@ signing {
 
 dependencies {
     api(project(":punit-core"))
+    api(project(":punit-report"))
     api("org.junit.jupiter:junit-jupiter-api")
 
     // Jackson — needed by InputSourceResolver for JSON/CSV parsing

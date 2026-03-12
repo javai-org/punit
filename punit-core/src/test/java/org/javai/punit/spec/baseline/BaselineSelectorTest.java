@@ -12,6 +12,7 @@ import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.DayGroupDefinition;
 import org.javai.punit.model.RegionGroupDefinition;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
+import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineSource;
 import org.javai.punit.spec.baseline.covariate.CovariateMatcher.MatchResult;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +44,17 @@ class BaselineSelectorTest {
             profile,
             generatedAt,
             minimalSpec()
+        );
+    }
+
+    private BaselineCandidate candidate(String name, CovariateProfile profile, Instant generatedAt, BaselineSource source) {
+        return new BaselineCandidate(
+            name + ".yaml",
+            "footprint",
+            profile,
+            generatedAt,
+            minimalSpec(),
+            source
         );
     }
 
@@ -337,6 +349,53 @@ class BaselineSelectorTest {
             assertThat(result.nonConformingDetails()).hasSize(1);
             assertThat(result.nonConformingDetails().get(0).covariateKey()).isEqualTo("day_of_week");
             assertThat(result.nonConformingDetails().get(0).result()).isEqualTo(MatchResult.DOES_NOT_CONFORM);
+        }
+    }
+
+    @Nested
+    @DisplayName("source priority")
+    class SourcePriorityTests {
+
+        @Test
+        @DisplayName("should prefer ENVIRONMENT_LOCAL over BUNDLED when scores are equal")
+        void shouldPreferEnvLocalOverBundled() {
+            var now = Instant.now();
+
+            var profile = CovariateProfile.builder()
+                .put("region", "EU")
+                .build();
+
+            var envLocal = candidate("env-local", profile, now, BaselineSource.ENVIRONMENT_LOCAL);
+            var bundled = candidate("bundled", profile, now, BaselineSource.BUNDLED);
+
+            var result = selector.select(List.of(bundled, envLocal), profile, regionDeclaration());
+
+            assertThat(result.selected().filename()).isEqualTo("env-local.yaml");
+            assertThat(result.selected().source()).isEqualTo(BaselineSource.ENVIRONMENT_LOCAL);
+        }
+
+        @Test
+        @DisplayName("covariate match score takes precedence over source priority")
+        void covariateScoreTakesPrecedenceOverSource() {
+            var now = Instant.now();
+
+            var exactMatch = CovariateProfile.builder()
+                .put("region", "EU")
+                .build();
+            var mismatch = CovariateProfile.builder()
+                .put("region", "US")
+                .build();
+            var testProfile = CovariateProfile.builder()
+                .put("region", "EU")
+                .build();
+
+            // Bundled has better covariate match, env-local has worse match
+            var envLocal = candidate("env-local", mismatch, now, BaselineSource.ENVIRONMENT_LOCAL);
+            var bundled = candidate("bundled", exactMatch, now, BaselineSource.BUNDLED);
+
+            var result = selector.select(List.of(envLocal, bundled), testProfile, regionDeclaration());
+
+            assertThat(result.selected().filename()).isEqualTo("bundled.yaml");
         }
     }
 
