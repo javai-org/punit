@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-13
+
+### Added
+- **HTML test report** — standalone HTML report summarising all probabilistic test verdicts from a test run. Generated via `./gradlew punitReport` from XML verdict files produced during test execution. The report groups results by use case, provides expandable per-test detail (verdict summary, statistical analysis, baseline provenance), latency percentiles, and operator guidance for inconclusive verdicts caused by covariate misalignment.
+- Statistical assumptions and limitations disclosure in the HTML report header (collapsed by default)
+- `punit-report` module containing XML verdict serialisation, HTML report generation, and report configuration
+- `punitReport` Gradle task registered automatically by the PUnit plugin
+
 ## [0.4.1] - 2026-03-10
 
 ### Changed
@@ -85,7 +93,8 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/javai-org/punit/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/javai-org/punit/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/javai-org/punit/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/javai-org/punit/compare/v0.3.0...v0.3.1
