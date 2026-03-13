@@ -72,6 +72,10 @@ All attribution licensing is ARL.
   - [UseCaseFactory and UseCaseProvider](#usecasefactory-and-usecaseprovider)
   - [Configuring and Running the Sentinel](#configuring-and-running-the-sentinel)
   - [Verdicts as Triage Signals](#verdicts-as-triage-signals)
+- [Part 11: The HTML Report](#part-11-the-html-report)
+  - [Generating the Report](#generating-the-report)
+  - [Report Location and Contents](#report-location-and-contents)
+  - [Configuration](#report-configuration)
 - [Appendices](#appendices)
   - [A: Configuration Reference](#a-configuration-reference)
   - [B: Experiment Output Formats](#b-experiment-output-formats)
@@ -1401,7 +1405,7 @@ void tokenConstrainedTest(TokenChargeRecorder recorder) {
 
 | Behavior           | Description                                                                                                                                                                                                 |
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `FAIL`             | Immediately fail the test when budget is exhausted. This is the **default** and most conservative option — you asked for N samples but couldn't afford them.                                                  |
+| `FAIL`             | Immediately fail the test when budget is exhausted. This is the **default** and most conservative option — you asked for N samples but couldn't afford them.                                                |
 | `EVALUATE_PARTIAL` | Evaluate results from the samples completed before budget exhaustion. The test passes if the observed pass rate meets `minPassRate`. Use with caution: a small sample may not be statistically significant. |
 
 ```java
@@ -2171,6 +2175,61 @@ Conversely, a verdict of FAIL does not necessarily mean "the system is broken." 
 - A FAIL with 89/100 against a threshold of 0.90 is a marginal miss; a FAIL with 50/100 is a catastrophic regression
 
 **Proportionate response.** The verdict determines the urgency and nature of the investigation, not whether to investigate at all. When a stochastic system reports failures — even within threshold — those failures may warrant examination. PUnit provides the statistical context to determine whether the failure rate is expected or anomalous; the operator decides what to do about it.
+
+---
+
+## Part 11: The HTML Report
+
+PUnit can generate a standalone HTML report that summarises every probabilistic test verdict from a test run. The report is a single `index.html` file with embedded CSS — no external dependencies — and is designed to be opened in a browser, shared with stakeholders, or archived alongside CI artefacts. This works in very much the same way as familiar reporting tools like JaCoCo.
+
+### Generating the Report
+
+When the PUnit Gradle plugin is applied, a `punitReport` task is registered automatically. The workflow is:
+
+1. **Run your tests.** During execution, PUnit writes an XML verdict file for each probabilistic test into `build/reports/punit/xml/`.
+2. **Generate the report.** Run the `punitReport` task to transform those XML files into an HTML report.
+
+```bash
+# Run tests, then generate the report
+./gradlew test punitReport
+```
+
+The two tasks can also be run independently. For example, you can re-generate the report from existing XML verdicts without re-running the tests:
+
+```bash
+./gradlew punitReport
+```
+
+### Report Location and Contents
+
+The HTML report is written to:
+
+```
+build/reports/punit/html/index.html
+```
+
+The report contains:
+
+- **Summary statistics** — total test count with pass, fail, and inconclusive breakdowns.
+- **Grouped results** — tests grouped by use-case ID (or class name when no use case is declared), presented in an expandable table.
+- **Per-test detail** — each test row expands to show the verdict summary (observed pass rate, sample count, threshold, termination status) and a nested statistical analysis panel (confidence interval, z-score, p-value, baseline provenance).
+- **Latency percentiles** — p50, p95, and p99 columns for tests that record latency.
+- **Inconclusive guidance** — when covariate misalignment produces inconclusive verdicts, the report shows a banner and per-test guidance with the command to re-run the relevant experiment.
+
+### Report Configuration
+
+XML verdict collection is enabled by default. The following properties control report behaviour:
+
+| Property               | Environment Variable | Default                   | Description                                           |
+|------------------------|----------------------|---------------------------|-------------------------------------------------------|
+| `punit.report.dir`     | `PUNIT_REPORT_DIR`   | `build/reports/punit/xml` | Directory for XML verdict files                       |
+| `punit.report.enabled` | —                    | `true`                    | Set to `false` to disable XML verdict file generation |
+
+**Example:** Disable XML verdict collection for a quick local run:
+
+```bash
+./gradlew test -Dpunit.report.enabled=false
+```
 
 ---
 
