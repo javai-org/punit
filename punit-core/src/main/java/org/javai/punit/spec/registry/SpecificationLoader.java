@@ -132,6 +132,7 @@ public final class SpecificationLoader {
 		long totalTokenBudget = 0;
 
 		// Empirical basis / baseline data fields (both map to the same thing)
+		int warmup = 0;
 		int samples = 0;
 		int successes = 0;
 		Instant basisGeneratedAt = null;
@@ -347,6 +348,8 @@ public final class SpecificationLoader {
 					if (samples == 0) {
 						samples = execSamples;
 					}
+				} else if (trimmed.startsWith("warmup:")) {
+					warmup = Integer.parseInt(extractValue(trimmed));
 				}
 			} else if (inStatistics) {
 				// MEASURE output: statistics section → empirical basis + extended stats
@@ -375,6 +378,7 @@ public final class SpecificationLoader {
 		builder.executionContext(executionContext);
 		builder.sourceBaselines(sourceBaselines);
 		builder.requirements(minPassRate, successCriteria);
+		builder.warmup(warmup);
 		builder.costEnvelope(maxTimePerSampleMs, maxTokensPerSample, totalTokenBudget);
 
 		// Set empirical basis if we found samples

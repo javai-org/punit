@@ -11,6 +11,7 @@ import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.DayGroupDefinition;
 import org.javai.punit.model.RegionGroupDefinition;
 import org.javai.punit.model.TimePeriodDefinition;
+import org.javai.punit.model.UseCaseAttributes;
 
 /**
  * Extracts covariate declarations from use case classes.
@@ -52,13 +53,17 @@ public final class UseCaseCovariateExtractor {
         List<RegionGroupDefinition> regionGroups = regionGroupExtractor.extract(annotation.covariateRegion());
         boolean timezoneEnabled = annotation.covariateTimezone();
         Map<String, CovariateCategory> customCovariates = extractCustomCovariates(annotation.covariates());
+        UseCaseAttributes useCaseAttributes = new UseCaseAttributes(
+                annotation.warmup(), annotation.maxConcurrent());
 
-        if (dayGroups.isEmpty() && timePeriods.isEmpty() && regionGroups.isEmpty()
+        if (!useCaseAttributes.hasWarmup() && !useCaseAttributes.hasMaxConcurrent()
+                && dayGroups.isEmpty() && timePeriods.isEmpty() && regionGroups.isEmpty()
                 && !timezoneEnabled && customCovariates.isEmpty()) {
             return CovariateDeclaration.EMPTY;
         }
 
-        return new CovariateDeclaration(dayGroups, timePeriods, regionGroups, timezoneEnabled, customCovariates);
+        return new CovariateDeclaration(dayGroups, timePeriods, regionGroups, timezoneEnabled,
+                customCovariates, useCaseAttributes);
     }
 
     private Map<String, CovariateCategory> extractCustomCovariates(Covariate[] covariates) {

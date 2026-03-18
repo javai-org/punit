@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -485,7 +486,7 @@ class VerdictTextRendererTest {
                 new TestIdentity("com.example.MyTest", methodName, Optional.empty()),
                 new ExecutionSummary(samples, samples, successes, samples - successes,
                         0.9, observedRate, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
                         Optional.of(2.29), Optional.of(0.011),
@@ -561,7 +562,7 @@ class VerdictTextRendererTest {
         ProbabilisticTestVerdict base = passingVerdict();
         ExecutionSummary exec = new ExecutionSummary(
                 100, 100, 95, 5, 0.9, 0.95, 150,
-                Optional.empty(), TestIntent.SMOKE, 0.95);
+                Optional.empty(), TestIntent.SMOKE, 0.95, UseCaseAttributes.DEFAULT);
         SpecProvenance prov = new SpecProvenance(origin, null, "test.yaml",
                 Optional.empty(), Optional.empty());
         return new ProbabilisticTestVerdict(

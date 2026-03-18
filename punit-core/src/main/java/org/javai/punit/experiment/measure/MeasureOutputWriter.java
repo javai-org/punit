@@ -190,8 +190,11 @@ public class MeasureOutputWriter {
     }
 
     private void writeExecution(YamlBuilder builder, EmpiricalBaseline baseline) {
-        builder.startObject("execution")
-            .field("samplesPlanned", baseline.getExecution().samplesPlanned())
+        builder.startObject("execution");
+        if (baseline.getExecution().warmup() > 0) {
+            builder.field("warmup", baseline.getExecution().warmup());
+        }
+        builder.field("samplesPlanned", baseline.getExecution().samplesPlanned())
             .field("samplesExecuted", baseline.getExecution().samplesExecuted())
             .field("terminationReason", baseline.getExecution().terminationReason())
             .fieldIfPresent("terminationDetails", baseline.getExecution().terminationDetails())

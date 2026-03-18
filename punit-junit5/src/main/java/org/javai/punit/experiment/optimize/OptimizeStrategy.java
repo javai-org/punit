@@ -18,11 +18,13 @@ import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
+import org.javai.punit.experiment.engine.ExperimentWarmupHandler;
 import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.experiment.model.FactorSuit;
@@ -55,6 +57,8 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
     private static final ExtensionContext.Namespace NAMESPACE =
             ExtensionContext.Namespace.create("org.javai.punit.experiment");
 
+    private final ExperimentWarmupHandler warmupHandler = new ExperimentWarmupHandler();
+
     @Override
     public boolean supports(Method testMethod) {
         return testMethod.isAnnotationPresent(OptimizeExperiment.class);
@@ -70,6 +74,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
 
         Class<?> useCaseClass = annotation.useCase();
         String useCaseId = UseCaseFactory.resolveId(useCaseClass);
+        UseCaseAttributes useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
 
         // Validate mutual exclusivity of initial value options
         if (!annotation.initialControlFactorValue().isEmpty() &&
@@ -88,6 +93,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
                 annotation.scorer(),
                 annotation.mutator(),
                 annotation.objective(),
+                useCaseAttributes,
                 annotation.samplesPerIteration(),
                 annotation.maxIterations(),
                 annotation.noImprovementWindow(),
@@ -171,6 +177,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         store.put("mode", ExperimentMode.OPTIMIZE);
         store.put("optimizeState", state);
         store.put("terminated", new AtomicBoolean(false));
+        store.put("warmupCounter", new java.util.concurrent.atomic.AtomicInteger(0));
 
         // Create a lazy Spliterator that generates invocation contexts
         Spliterator<TestTemplateInvocationContext> spliterator;
@@ -191,8 +198,17 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
             ExtensionContext extensionContext,
             ExtensionContext.Store store) throws Throwable {
 
+        OptimizeConfig config = (OptimizeConfig) store.get("config", ExperimentConfig.class);
         OptimizeState state = store.get("optimizeState", OptimizeState.class);
         AtomicBoolean terminated = store.get("terminated", AtomicBoolean.class);
+
+        // Warmup gate
+        int warmup = config != null ? config.warmup() : 0;
+        ExperimentWarmupHandler.WarmupResult warmupResult = warmupHandler.handle(
+                invocation, store, warmup, 0, null);
+        if (warmupResult.handled()) {
+            return;
+        }
 
         // Get invocation-specific data from the invocation context store
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);

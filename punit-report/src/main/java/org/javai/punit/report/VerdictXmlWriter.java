@@ -83,6 +83,9 @@ public final class VerdictXmlWriter {
         exec.appliedMultiplier().ifPresent(m -> writeAttributeUnchecked(w, "applied-multiplier", formatDouble(m)));
         w.writeAttribute("intent", exec.intent().name());
         w.writeAttribute("confidence", formatDouble(exec.resolvedConfidence()));
+        if (exec.warmup() > 0) {
+            w.writeAttribute("warmup", Integer.toString(exec.warmup()));
+        }
         w.writeEndElement();
     }
 

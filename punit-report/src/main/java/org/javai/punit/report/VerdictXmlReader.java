@@ -16,6 +16,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PunitVerdict;
@@ -89,6 +90,8 @@ public final class VerdictXmlReader {
     }
 
     private ExecutionSummary readExecution(Element el) {
+        int warmup = optionalAttribute(el, "warmup")
+                .map(Integer::parseInt).orElse(0);
         return new ExecutionSummary(
                 Integer.parseInt(el.getAttribute("planned-samples")),
                 Integer.parseInt(el.getAttribute("samples-executed")),
@@ -99,7 +102,8 @@ public final class VerdictXmlReader {
                 Long.parseLong(el.getAttribute("elapsed-ms")),
                 optionalAttribute(el, "applied-multiplier").map(Double::parseDouble),
                 TestIntent.valueOf(el.getAttribute("intent")),
-                Double.parseDouble(el.getAttribute("confidence"))
+                Double.parseDouble(el.getAttribute("confidence")),
+                new UseCaseAttributes(warmup)
         );
     }
 

@@ -1,13 +1,16 @@
 package org.javai.punit.spec.baseline;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.DayGroupDefinition;
 import org.javai.punit.model.RegionGroupDefinition;
@@ -65,7 +68,8 @@ class BaselineSelectorTest {
                 List.of(),
                 List.of(EU_REGION),
                 false,
-                Map.of()
+                Map.of(),
+                UseCaseAttributes.DEFAULT
         );
     }
 
@@ -76,7 +80,8 @@ class BaselineSelectorTest {
                 List.of(),
                 List.of(EU_REGION),
                 true,
-                Map.of()
+                Map.of(),
+                UseCaseAttributes.DEFAULT
         );
     }
 
@@ -167,8 +172,8 @@ class BaselineSelectorTest {
             assertThat(result.hasSelection()).isTrue();
             assertThat(result.hasNonConformance()).isTrue();
             assertThat(result.nonConformingDetails()).hasSize(1);
-            assertThat(result.nonConformingDetails().get(0).covariateKey()).isEqualTo("region");
-            assertThat(result.nonConformingDetails().get(0).result()).isEqualTo(MatchResult.DOES_NOT_CONFORM);
+            assertThat(result.nonConformingDetails().getFirst().covariateKey()).isEqualTo("region");
+            assertThat(result.nonConformingDetails().getFirst().result()).isEqualTo(MatchResult.DOES_NOT_CONFORM);
         }
     }
 
@@ -283,7 +288,8 @@ class BaselineSelectorTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
         }
 
@@ -347,8 +353,8 @@ class BaselineSelectorTest {
             assertThat(result.hasSelection()).isTrue();
             assertThat(result.hasNonConformance()).isTrue();
             assertThat(result.nonConformingDetails()).hasSize(1);
-            assertThat(result.nonConformingDetails().get(0).covariateKey()).isEqualTo("day_of_week");
-            assertThat(result.nonConformingDetails().get(0).result()).isEqualTo(MatchResult.DOES_NOT_CONFORM);
+            assertThat(result.nonConformingDetails().getFirst().covariateKey()).isEqualTo("day_of_week");
+            assertThat(result.nonConformingDetails().getFirst().result()).isEqualTo(MatchResult.DOES_NOT_CONFORM);
         }
     }
 
@@ -396,6 +402,87 @@ class BaselineSelectorTest {
             var result = selector.select(List.of(envLocal, bundled), testProfile, regionDeclaration());
 
             assertThat(result.selected().filename()).isEqualTo("bundled.yaml");
+        }
+    }
+
+    @Nested
+    @DisplayName("warmup covariate")
+    class WarmupCovariateTests {
+
+        private CovariateDeclaration warmupDeclaration(int warmup) {
+            return new CovariateDeclaration(
+                    List.of(), List.of(), List.of(), false, Map.of(), new UseCaseAttributes(warmup));
+        }
+
+        @Test
+        @DisplayName("should select baseline when warmup matches")
+        void shouldSelectBaselineWhenWarmupMatches() {
+            var profile = CovariateProfile.builder()
+                    .put("warmup", "5")
+                    .build();
+
+            var candidate = candidate("baseline", profile, Instant.now());
+
+            var result = selector.select(List.of(candidate), profile, warmupDeclaration(5));
+
+            assertThat(result.hasSelection()).isTrue();
+            assertThat(result.hasNonConformance()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should reject baseline when warmup differs (CONFIGURATION hard gate)")
+        void shouldRejectBaselineWhenWarmupDiffers() {
+            var baselineProfile = CovariateProfile.builder()
+                    .put("warmup", "5")
+                    .build();
+            var testProfile = CovariateProfile.builder()
+                    .put("warmup", "10")
+                    .build();
+
+            var candidate = candidate("baseline", baselineProfile, Instant.now());
+
+            assertThatThrownBy(() ->
+                    selector.select(List.of(candidate), testProfile, warmupDeclaration(10)))
+                    .isInstanceOf(NoCompatibleBaselineException.class);
+        }
+
+        @Test
+        @DisplayName("should select correct baseline among candidates with different warmup values")
+        void shouldSelectCorrectBaselineAmongDifferentWarmups() {
+            var now = Instant.now();
+
+            var warmup3Profile = CovariateProfile.builder()
+                    .put("warmup", "3")
+                    .build();
+            var warmup5Profile = CovariateProfile.builder()
+                    .put("warmup", "5")
+                    .build();
+
+            var candidate3 = candidate("warmup3", warmup3Profile, now);
+            var candidate5 = candidate("warmup5", warmup5Profile, now);
+
+            var result = selector.select(
+                    List.of(candidate3, candidate5), warmup5Profile, warmupDeclaration(5));
+
+            assertThat(result.selected().filename()).isEqualTo("warmup5.yaml");
+            assertThat(result.hasNonConformance()).isFalse();
+        }
+
+        @Test
+        @DisplayName("warmup covariate has CONFIGURATION category")
+        void warmupCovariateHasConfigurationCategory() {
+            var declaration = warmupDeclaration(5);
+
+            assertThat(declaration.getCategory("warmup")).isEqualTo(CovariateCategory.CONFIGURATION);
+        }
+
+        @Test
+        @DisplayName("warmup appears first in declaration key order")
+        void warmupAppearsFirstInKeyOrder() {
+            var declaration = new CovariateDeclaration(
+                    List.of(), List.of(), List.of(EU_REGION), false, Map.of(), new UseCaseAttributes(5));
+
+            assertThat(declaration.allKeys()).containsExactly("warmup", "region");
         }
     }
 

@@ -9,6 +9,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 
 /**
  * The single source of truth for a probabilistic test verdict.
@@ -78,6 +79,7 @@ public record ProbabilisticTestVerdict(
      * @param appliedMultiplier sample multiplier, if one was applied
      * @param intent the test intent (VERIFICATION or SMOKE)
      * @param resolvedConfidence the confidence level used for statistical analysis
+     * @param useCaseAttributes use case attributes (warmup, maxConcurrent, etc.)
      */
     public record ExecutionSummary(
             int plannedSamples,
@@ -89,10 +91,17 @@ public record ProbabilisticTestVerdict(
             long elapsedMs,
             Optional<Double> appliedMultiplier,
             TestIntent intent,
-            double resolvedConfidence
+            double resolvedConfidence,
+            UseCaseAttributes useCaseAttributes
     ) {
         public ExecutionSummary {
-            appliedMultiplier = appliedMultiplier != null ? appliedMultiplier : Optional.empty();
+            appliedMultiplier = appliedMultiplier.isPresent() ? appliedMultiplier : Optional.empty();
+            useCaseAttributes = useCaseAttributes != null ? useCaseAttributes : UseCaseAttributes.DEFAULT;
+        }
+
+        /** Convenience accessor for warmup count. */
+        public int warmup() {
+            return useCaseAttributes.warmup();
         }
     }
 

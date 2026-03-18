@@ -16,6 +16,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PunitVerdict;
@@ -310,7 +311,7 @@ class VerdictXmlReaderTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", "shouldPass", Optional.empty()),
                 new ExecutionSummary(100, 100, 95, 5, 0.9, 0.95, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,

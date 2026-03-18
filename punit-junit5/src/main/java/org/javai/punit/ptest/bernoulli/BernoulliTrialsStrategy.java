@@ -14,6 +14,8 @@ import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TokenChargeRecorder;
+import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.controls.budget.BudgetOrchestrator;
@@ -112,27 +114,30 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
         TransparentStatsConfig transparentStats = TransparentStatsConfig.resolve(
                 annotation.transparentStats() ? Boolean.TRUE : null);
 
+        // Resolve use case attributes from @UseCase on the use case class
+        UseCaseAttributes useCaseAttributes = UseCaseAttributes.DEFAULT;
+        Class<?> useCaseClass = annotation.useCase();
+        if (useCaseClass != Void.class) {
+            useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
+        }
+
         return new BernoulliTrialsConfig(
+                useCaseAttributes,
                 resolved.samples(),
                 resolved.minPassRate(),
                 resolved.appliedMultiplier(),
                 resolved.timeBudgetMs(),
                 resolved.tokenCharge(),
                 (int) resolved.tokenBudget(),
-                tokenMode,
+                resolved.maxExampleFailures(), resolved.confidence(), resolved.baselineRate(), resolved.baselineSamples(), resolved.resolvedConfidence(), tokenMode,
                 resolved.onBudgetExhausted(),
                 resolved.onException(),
-                resolved.maxExampleFailures(),
-                resolved.confidence(),
-                resolved.baselineRate(),
-                resolved.baselineSamples(),
                 resolved.specId(),
                 pacing,
                 transparentStats,
                 resolved.thresholdOrigin(),
                 resolved.contractRef(),
-                resolved.intent(),
-                resolved.resolvedConfidence()
+                resolved.intent()
         );
     }
 
@@ -143,7 +148,9 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
             ExtensionContext.Store store) {
 
         BernoulliTrialsConfig bernoulliConfig = (BernoulliTrialsConfig) config;
+        int warmup = bernoulliConfig.warmup();
         int samples = bernoulliConfig.samples();
+        int totalInvocations = warmup + samples;
 
         // Get the terminated flag from the store
         AtomicBoolean terminated = store.get("terminated", AtomicBoolean.class);
@@ -167,10 +174,10 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
 
         AtomicBoolean terminatedFinal = terminated;
         return Stream.iterate(1, i -> i + 1)
-                .limit(samples)
+                .limit(totalInvocations)
                 .takeWhile(i -> !terminatedFinal.get())
                 .map(sampleIndex -> new ProbabilisticTestInvocationContext(
-                        sampleIndex, samples, tokenRecorder));
+                        sampleIndex, totalInvocations, tokenRecorder));
     }
 
     private Stream<TestTemplateInvocationContext> provideWithInputsInvocationContexts(
@@ -227,36 +234,136 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
         EarlyTerminationEvaluator evaluator = executionContext.evaluator();
         AtomicBoolean terminated = executionContext.terminated();
 
-        // Pre-sample budget check
-        BudgetOrchestrator.BudgetCheckResult preSampleCheck = budgetOrchestrator.checkBeforeSample(
-                executionContext.suiteBudget(),
-                executionContext.classBudget(),
-                executionContext.methodBudget());
+        // 1. Warmup gate
+        Optional<InterceptResult> warmupResult = handleWarmupPhase(invocation, executionContext);
+        if (warmupResult.isPresent()) return warmupResult.get();
 
-        Optional<InterceptResult> preSampleResult = handleBudgetExhaustion(
-                preSampleCheck, executionContext, config, aggregator, terminated);
-        if (preSampleResult.isPresent()) {
+        // 2. Pre-sample budget check
+        Optional<InterceptResult> preBudgetResult = checkPreSampleBudget(
+                executionContext, config, aggregator, terminated);
+        if (preBudgetResult.isPresent()) {
             invocation.skip();
-            return preSampleResult.get();
+            return preBudgetResult.get();
         }
 
-        // Reset token recorder for new sample
+        // 3. Reset token recorder
         if (executionContext.tokenRecorder() != null) {
             executionContext.tokenRecorder().resetForNextSample();
         }
 
-        // Execute the sample
+        // 4. Execute sample
         SampleExecutor.SampleResult sampleResult = sampleExecutor.execute(
                 invocation, aggregator, config.onException());
-
-        // Handle abort
         if (sampleResult.shouldAbort()) {
             sampleExecutor.prepareForAbort(aggregator);
             terminated.set(true);
             return InterceptResult.abort(sampleResult.abortException());
         }
 
-        // Post-sample token recording
+        // 5. Post-sample budgets
+        Optional<InterceptResult> postBudgetResult = processPostSampleBudgets(
+                executionContext, config, aggregator, terminated);
+        if (postBudgetResult.isPresent()) return postBudgetResult.get();
+
+        // 6. Early termination
+        Optional<InterceptResult> terminationResult = evaluateEarlyTermination(
+                aggregator, evaluator, terminated, sampleResult);
+        if (terminationResult.isPresent()) return terminationResult.get();
+
+        // 7. Completion or continue
+        return evaluateCompletion(aggregator, config, terminated, sampleResult);
+    }
+
+    /**
+     * Handles the warmup phase: executes warmup invocations without recording results,
+     * checking budgets before and after each warmup sample.
+     *
+     * @return the result if warmup is active and was handled, or empty if warmup is complete
+     *         and normal sample execution should proceed
+     */
+    Optional<InterceptResult> handleWarmupPhase(
+            Invocation<Void> invocation,
+            SampleExecutionContext executionContext) throws Throwable {
+
+        BernoulliTrialsConfig config = (BernoulliTrialsConfig) executionContext.config();
+        SampleResultAggregator aggregator = executionContext.aggregator();
+        AtomicBoolean terminated = executionContext.terminated();
+
+        int warmup = config.warmup();
+        if (warmup <= 0) {
+            return Optional.empty();
+        }
+
+        int warmupCompleted = aggregator.getSamplesExecuted() == 0
+                ? executionContext.warmupCounter().get() : warmup;
+        if (warmupCompleted >= warmup) {
+            return Optional.empty();
+        }
+
+        // Pre-sample budget check during warmup
+        BudgetOrchestrator.BudgetCheckResult preSampleCheck = budgetOrchestrator.checkBeforeSample(
+                executionContext.suiteBudget(),
+                executionContext.classBudget(),
+                executionContext.methodBudget());
+        if (preSampleCheck.shouldTerminate()) {
+            Optional<InterceptResult> result = handleBudgetExhaustion(
+                    preSampleCheck, executionContext, config, aggregator, terminated);
+            if (result.isPresent()) {
+                invocation.skip();
+                return result;
+            }
+        }
+
+        // Execute warmup invocation — results discarded
+        sampleExecutor.executeWarmup(invocation);
+        executionContext.warmupCounter().incrementAndGet();
+
+        // Post-sample budget check during warmup
+        BudgetOrchestrator.BudgetCheckResult postSampleCheck = budgetOrchestrator.checkAfterSample(
+                executionContext.suiteBudget(),
+                executionContext.classBudget(),
+                executionContext.methodBudget());
+        if (postSampleCheck.shouldTerminate()) {
+            Optional<InterceptResult> result = handleBudgetExhaustion(
+                    postSampleCheck, executionContext, config, aggregator, terminated);
+            if (result.isPresent()) {
+                return result;
+            }
+        }
+
+        return Optional.of(InterceptResult.continueExecution());
+    }
+
+    /**
+     * Checks budget constraints before executing a sample.
+     *
+     * @return the termination result if budget is exhausted, or empty to proceed
+     */
+    Optional<InterceptResult> checkPreSampleBudget(
+            SampleExecutionContext executionContext,
+            BernoulliTrialsConfig config,
+            SampleResultAggregator aggregator,
+            AtomicBoolean terminated) {
+
+        BudgetOrchestrator.BudgetCheckResult preSampleCheck = budgetOrchestrator.checkBeforeSample(
+                executionContext.suiteBudget(),
+                executionContext.classBudget(),
+                executionContext.methodBudget());
+
+        return handleBudgetExhaustion(preSampleCheck, executionContext, config, aggregator, terminated);
+    }
+
+    /**
+     * Records token usage and checks budget constraints after executing a sample.
+     *
+     * @return the termination result if budget is exhausted, or empty to proceed
+     */
+    Optional<InterceptResult> processPostSampleBudgets(
+            SampleExecutionContext executionContext,
+            BernoulliTrialsConfig config,
+            SampleResultAggregator aggregator,
+            AtomicBoolean terminated) {
+
         budgetOrchestrator.recordAndPropagateTokens(
                 executionContext.tokenRecorder(),
                 executionContext.methodBudget(),
@@ -265,48 +372,66 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
                 executionContext.classBudget(),
                 executionContext.suiteBudget());
 
-        // Post-sample budget check
         BudgetOrchestrator.BudgetCheckResult postSampleCheck = budgetOrchestrator.checkAfterSample(
                 executionContext.suiteBudget(),
                 executionContext.classBudget(),
                 executionContext.methodBudget());
 
-        Optional<InterceptResult> postSampleResult = handleBudgetExhaustion(
-                postSampleCheck, executionContext, config, aggregator, terminated);
-        if (postSampleResult.isPresent()) {
-            return postSampleResult.get();
-        }
+        return handleBudgetExhaustion(postSampleCheck, executionContext, config, aggregator, terminated);
+    }
 
-        // Check for early termination (impossibility or success guaranteed)
+    /**
+     * Evaluates whether early termination should occur based on impossibility or guaranteed success.
+     *
+     * @return the termination result if early termination is warranted, or empty to proceed
+     */
+    Optional<InterceptResult> evaluateEarlyTermination(
+            SampleResultAggregator aggregator,
+            EarlyTerminationEvaluator evaluator,
+            AtomicBoolean terminated,
+            SampleExecutor.SampleResult sampleResult) {
+
         Optional<TerminationReason> earlyTermination = evaluator.shouldTerminate(
                 aggregator.getSuccesses(), aggregator.getSamplesExecuted());
 
-        if (earlyTermination.isPresent()) {
-            TerminationReason reason = earlyTermination.get();
-            String details = EarlyTerminationMessages.buildExplanation(
-                    reason,
-                    aggregator.getSuccesses(),
-                    aggregator.getSamplesExecuted(),
-                    evaluator.getTotalSamples(),
-                    evaluator.getRequiredSuccesses());
-
-            aggregator.setTerminated(reason, details);
-            terminated.set(true);
-
-            if (sampleResult.hasSampleFailure()) {
-                return InterceptResult.terminateWithFailure(reason, details, sampleResult.failure());
-            }
-            return InterceptResult.terminate(reason, details);
+        if (earlyTermination.isEmpty()) {
+            return Optional.empty();
         }
 
-        // Check if all samples completed
+        TerminationReason reason = earlyTermination.get();
+        String details = EarlyTerminationMessages.buildExplanation(
+                reason,
+                aggregator.getSuccesses(),
+                aggregator.getSamplesExecuted(),
+                evaluator.getTotalSamples(),
+                evaluator.getRequiredSuccesses());
+
+        aggregator.setTerminated(reason, details);
+        terminated.set(true);
+
+        if (sampleResult.hasSampleFailure()) {
+            return Optional.of(InterceptResult.terminateWithFailure(reason, details, sampleResult.failure()));
+        }
+        return Optional.of(InterceptResult.terminate(reason, details));
+    }
+
+    /**
+     * Evaluates whether all samples have completed, or signals continuation.
+     *
+     * @return the appropriate result: termination if complete, or continue (with or without failure)
+     */
+    InterceptResult evaluateCompletion(
+            SampleResultAggregator aggregator,
+            BernoulliTrialsConfig config,
+            AtomicBoolean terminated,
+            SampleExecutor.SampleResult sampleResult) {
+
         if (aggregator.getSamplesExecuted() >= config.samples()) {
             aggregator.setCompleted();
             terminated.set(true);
             return InterceptResult.terminate(TerminationReason.COMPLETED, "All samples completed");
         }
 
-        // Continue execution
         if (sampleResult.hasSampleFailure()) {
             return InterceptResult.continueWithFailure(sampleResult.failure());
         }

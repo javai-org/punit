@@ -6,6 +6,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.pacing.PacingConfiguration;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.ptest.strategy.ProbabilisticTestConfig;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 
@@ -23,49 +24,46 @@ import org.javai.punit.statistics.transparent.TransparentStatsConfig;
  *   <li>{@code baselineRate} - The baseline success rate from measurement</li>
  *   <li>{@code baselineSamples} - Number of samples in baseline measurement</li>
  * </ul>
- *
- * @param samples number of samples to execute
- * @param minPassRate the minimum pass rate threshold (0.0-1.0)
- * @param appliedMultiplier the sample multiplier that was applied (1.0 if none)
- * @param timeBudgetMs time budget in milliseconds (0 for no budget)
- * @param tokenCharge static token charge per sample
- * @param tokenBudget token budget limit (0 for no budget)
- * @param tokenMode how tokens are tracked (NONE, STATIC, DYNAMIC)
- * @param onBudgetExhausted behavior when budget is exhausted
- * @param onException how to handle exceptions during sample execution
+ * @param useCaseAttributes  use case attributes (warmup, maxConcurrent, etc.)
+ * @param samples            number of samples to execute
+ * @param minPassRate        the minimum pass rate threshold (0.0-1.0)
+ * @param appliedMultiplier  the sample multiplier that was applied (1.0 if none)
+ * @param timeBudgetMs       time budget in milliseconds (0 for no budget)
+ * @param tokenCharge        static token charge per sample
+ * @param tokenBudget        token budget limit (0 for no budget)
  * @param maxExampleFailures maximum failures to show in output
- * @param confidence statistical confidence level (null for inline threshold mode)
- * @param baselineRate baseline success rate (null for inline threshold mode)
- * @param baselineSamples number of samples in baseline (null for inline threshold mode)
- * @param specId specification identifier (null for inline threshold mode)
- * @param pacing pacing configuration for rate limiting
- * @param transparentStats configuration for transparent statistics output
- * @param thresholdOrigin origin of the threshold (SLA, SLO, POLICY, etc.)
- * @param contractRef reference to external contract document
- * @param intent the declared test intent (VERIFICATION or SMOKE)
+ * @param confidence         statistical confidence level (null for inline threshold mode)
+ * @param baselineRate       baseline success rate (null for inline threshold mode)
+ * @param baselineSamples    number of samples in baseline (null for inline threshold mode)
  * @param resolvedConfidence the confidence level for feasibility evaluation
+ * @param tokenMode          how tokens are tracked (NONE, STATIC, DYNAMIC)
+ * @param onBudgetExhausted  behavior when budget is exhausted
+ * @param onException        how to handle exceptions during sample execution
+ * @param specId             specification identifier (null for inline threshold mode)
+ * @param pacing             pacing configuration for rate limiting
+ * @param transparentStats   configuration for transparent statistics output
+ * @param thresholdOrigin    origin of the threshold (SLA, SLO, POLICY, etc.)
+ * @param contractRef        reference to external contract document
+ * @param intent             the declared test intent (VERIFICATION or SMOKE)
  */
 public record BernoulliTrialsConfig(
+        UseCaseAttributes useCaseAttributes,
         int samples,
         double minPassRate,
         double appliedMultiplier,
         long timeBudgetMs,
         int tokenCharge,
         int tokenBudget,
-        CostBudgetMonitor.TokenMode tokenMode,
+        int maxExampleFailures, Double confidence, Double baselineRate, Integer baselineSamples,
+        double resolvedConfidence, CostBudgetMonitor.TokenMode tokenMode,
         BudgetExhaustedBehavior onBudgetExhausted,
         ExceptionHandling onException,
-        int maxExampleFailures,
-        Double confidence,
-        Double baselineRate,
-        Integer baselineSamples,
         String specId,
         PacingConfiguration pacing,
         TransparentStatsConfig transparentStats,
         ThresholdOrigin thresholdOrigin,
         String contractRef,
-        TestIntent intent,
-        double resolvedConfidence
+        TestIntent intent
 ) implements ProbabilisticTestConfig {
 
     /**
@@ -124,11 +122,9 @@ public record BernoulliTrialsConfig(
      */
     public BernoulliTrialsConfig withMinPassRate(double newMinPassRate) {
         return new BernoulliTrialsConfig(
-                samples, newMinPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
-                tokenMode, onBudgetExhausted, onException, maxExampleFailures,
-                confidence, baselineRate, baselineSamples, specId,
-                pacing, transparentStats, thresholdOrigin, contractRef,
-                intent, resolvedConfidence
+                useCaseAttributes, samples, newMinPassRate, appliedMultiplier, timeBudgetMs, tokenCharge, tokenBudget,
+                maxExampleFailures, confidence, baselineRate, baselineSamples, resolvedConfidence, tokenMode,
+                onBudgetExhausted, onException, specId, pacing, transparentStats, thresholdOrigin, contractRef, intent
         );
     }
 

@@ -20,6 +20,7 @@ import org.javai.punit.experiment.engine.ExperimentResultAggregator;
 import org.javai.punit.experiment.measure.MeasureOutputWriter;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.javai.punit.usecase.UseCaseFactory;
@@ -82,6 +83,7 @@ class SentinelExperimentExecutor {
         String experimentName = sentinelClass.getSimpleName() + "." + method.getName();
         Class<?> useCaseClass = annotation.useCase();
         String useCaseId = UseCaseFactory.resolveId(useCaseClass);
+        UseCaseAttributes useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
         logger.info("Executing experiment: {} (useCase: {})", experimentName, useCaseId);
 
         List<Object> inputs = introspector.resolveInputs(method, sentinelClass);
@@ -95,12 +97,12 @@ class SentinelExperimentExecutor {
         List<OutcomeCaptor> capturedOutcomes = new ArrayList<>();
         sampleExecutor.executeExperimentLoop(
                 method, instance, factory, useCaseClass,
-                inputs, samples, capturedOutcomes, budgetMonitor, progressListener);
+                inputs, useCaseAttributes.warmup(), samples, capturedOutcomes, budgetMonitor, progressListener);
 
         ExperimentResultAggregator aggregator = aggregate(capturedOutcomes, useCaseId);
 
         boolean specWritten = writeSpec(
-                aggregator, useCaseId, sentinelClass, method, annotation);
+                aggregator, useCaseId, sentinelClass, method, annotation, useCaseAttributes);
 
         if (progressListener != null) {
             progressListener.onExperimentComplete(
@@ -122,6 +124,7 @@ class SentinelExperimentExecutor {
                         0.0,
                         observedRate,
                         0)
+                .useCaseAttributes(useCaseAttributes)
                 .termination(TerminationReason.COMPLETED, null)
                 .junitPassed(specWritten)
                 .passedStatistically(specWritten)
@@ -166,11 +169,13 @@ class SentinelExperimentExecutor {
             String useCaseId,
             Class<?> sentinelClass,
             Method method,
-            MeasureExperiment annotation) {
+            MeasureExperiment annotation,
+            UseCaseAttributes useCaseAttributes) {
 
         EmpiricalBaselineGenerator baselineGenerator = new EmpiricalBaselineGenerator();
         EmpiricalBaseline baseline = baselineGenerator.generate(
-                aggregator, sentinelClass, method, null, annotation.expiresInDays());
+                aggregator, sentinelClass, method, null, annotation.expiresInDays(),
+                null, null, useCaseAttributes);
 
         try {
             Path specDir = resolveSpecOutputDir();

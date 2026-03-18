@@ -54,7 +54,7 @@ class SentinelSampleExecutor {
             EarlyTerminationEvaluator evaluator,
             CostBudgetMonitor budgetMonitor,
             ExceptionHandling onException) {
-        executeTestLoop(method, instance, factory, useCaseClass, inputs, samples,
+        executeTestLoop(method, instance, factory, useCaseClass, inputs, 0, samples,
                 aggregator, evaluator, budgetMonitor, onException, null);
     }
 
@@ -70,9 +70,46 @@ class SentinelSampleExecutor {
             CostBudgetMonitor budgetMonitor,
             ExceptionHandling onException,
             SentinelProgressListener progressListener) {
+        executeTestLoop(method, instance, factory, useCaseClass, inputs, 0, samples,
+                aggregator, evaluator, budgetMonitor, onException, progressListener);
+    }
+
+    void executeTestLoop(
+            Method method,
+            Object instance,
+            UseCaseFactory factory,
+            Class<?> useCaseClass,
+            List<Object> inputs,
+            int warmup,
+            int samples,
+            SampleResultAggregator aggregator,
+            EarlyTerminationEvaluator evaluator,
+            CostBudgetMonitor budgetMonitor,
+            ExceptionHandling onException,
+            SentinelProgressListener progressListener) {
+
+        // Execute warmup invocations — results silently discarded
+        for (int w = 0; w < warmup; w++) {
+            if (budgetMonitor != null) {
+                Optional<TerminationReason> budgetReason = budgetMonitor.checkTimeBudget();
+                if (budgetReason.isPresent()) {
+                    aggregator.setTerminated(budgetReason.get(), "Time budget exhausted during warmup");
+                    return;
+                }
+                budgetReason = budgetMonitor.checkTokenBudgetBeforeSample();
+                if (budgetReason.isPresent()) {
+                    aggregator.setTerminated(budgetReason.get(), "Token budget exhausted during warmup");
+                    return;
+                }
+            }
+            executeWarmupSample(method, instance, factory, useCaseClass, inputs, w);
+            if (budgetMonitor != null) {
+                budgetMonitor.recordStaticTokenCharge();
+            }
+        }
 
         for (int i = 0; i < samples; i++) {
-            // Check time budget before sample
+            // Check budget before sample
             if (budgetMonitor != null) {
                 Optional<TerminationReason> budgetReason = budgetMonitor.checkTimeBudget();
                 if (budgetReason.isPresent()) {
@@ -138,7 +175,7 @@ class SentinelSampleExecutor {
             List<OutcomeCaptor> capturedOutcomes,
             CostBudgetMonitor budgetMonitor) {
         executeExperimentLoop(method, instance, factory, useCaseClass,
-                inputs, samples, capturedOutcomes, budgetMonitor, null);
+                inputs, 0, samples, capturedOutcomes, budgetMonitor, null);
     }
 
     void executeExperimentLoop(
@@ -151,6 +188,39 @@ class SentinelSampleExecutor {
             List<OutcomeCaptor> capturedOutcomes,
             CostBudgetMonitor budgetMonitor,
             SentinelProgressListener progressListener) {
+        executeExperimentLoop(method, instance, factory, useCaseClass,
+                inputs, 0, samples, capturedOutcomes, budgetMonitor, progressListener);
+    }
+
+    void executeExperimentLoop(
+            Method method,
+            Object instance,
+            UseCaseFactory factory,
+            Class<?> useCaseClass,
+            List<Object> inputs,
+            int warmup,
+            int samples,
+            List<OutcomeCaptor> capturedOutcomes,
+            CostBudgetMonitor budgetMonitor,
+            SentinelProgressListener progressListener) {
+
+        // Execute warmup invocations — results silently discarded
+        for (int w = 0; w < warmup; w++) {
+            if (budgetMonitor != null) {
+                Optional<TerminationReason> budgetReason = budgetMonitor.checkTimeBudget();
+                if (budgetReason.isPresent()) {
+                    return;
+                }
+                budgetReason = budgetMonitor.checkTokenBudgetBeforeSample();
+                if (budgetReason.isPresent()) {
+                    return;
+                }
+            }
+            executeWarmupSample(method, instance, factory, useCaseClass, inputs, w);
+            if (budgetMonitor != null) {
+                budgetMonitor.recordStaticTokenCharge();
+            }
+        }
 
         for (int i = 0; i < samples; i++) {
             // Check budget before sample
@@ -283,6 +353,30 @@ class SentinelSampleExecutor {
             }
         }
         return args;
+    }
+
+    /**
+     * Executes a single warmup invocation — invokes the SUT but silently discards
+     * the result. Any exceptions are swallowed.
+     */
+    private void executeWarmupSample(
+            Method method,
+            Object instance,
+            UseCaseFactory factory,
+            Class<?> useCaseClass,
+            List<Object> inputs,
+            int index) {
+        AssertionScope.begin();
+        try {
+            Object useCaseInstance = resolveUseCaseInstance(factory, useCaseClass);
+            Object input = resolveInput(inputs, index);
+            Object[] args = buildTestArgs(method, useCaseClass, useCaseInstance, input);
+            method.invoke(instance, args);
+        } catch (Throwable t) {
+            // Silently discard — warmup failures are not recorded
+        } finally {
+            AssertionScope.end();
+        }
     }
 
     /**

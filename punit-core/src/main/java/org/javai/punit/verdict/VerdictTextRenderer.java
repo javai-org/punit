@@ -77,9 +77,15 @@ public final class VerdictTextRenderer {
 
         StringBuilder sb = new StringBuilder();
 
-        boolean isBudgetExhausted = term.reason().isBudgetExhaustion();
+        if (exec.warmup() > 0) {
+            String useCaseLabel = verdict.identity().useCaseId().orElse("");
+            sb.append(PUnitReporter.labelValueLn("Warmup:",
+                    String.format("%d invocations discarded%s",
+                            exec.warmup(),
+                            useCaseLabel.isEmpty() ? "" : " (" + useCaseLabel + ")")));
+        }
 
-        if (isBudgetExhausted) {
+        if (term.reason().isBudgetExhaustion()) {
             sb.append(PUnitReporter.labelValueLn("Samples executed:",
                     String.format("%d of %d (budget exhausted)",
                             exec.samplesExecuted(), exec.plannedSamples())));
@@ -310,6 +316,13 @@ public final class VerdictTextRenderer {
         sb.append(statLabel("Successes (k):", String.valueOf(exec.successes())));
         sb.append(statLabel("Observed rate (" + symbols.pHat() + "):",
                 RateFormat.format(exec.observedPassRate())));
+        if (exec.warmup() > 0) {
+            String useCaseLabel = verdict.identity().useCaseId().orElse("");
+            sb.append(statLabel("Warmup:",
+                    String.format("%d invocations discarded%s",
+                            exec.warmup(),
+                            useCaseLabel.isEmpty() ? "" : " (" + useCaseLabel + ")")));
+        }
         sb.append("\n");
     }
 

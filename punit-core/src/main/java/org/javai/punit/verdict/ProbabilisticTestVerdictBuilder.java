@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
@@ -59,6 +60,7 @@ public class ProbabilisticTestVerdictBuilder {
     private Double appliedMultiplier;
     private TestIntent intent = TestIntent.VERIFICATION;
     private double resolvedConfidence = 0.95;
+    private UseCaseAttributes useCaseAttributes = UseCaseAttributes.DEFAULT;
 
     // ── Dimensions ────────────────────────────────────────────────────────
     private Integer functionalSuccesses;
@@ -138,6 +140,16 @@ public class ProbabilisticTestVerdictBuilder {
     public ProbabilisticTestVerdictBuilder intent(TestIntent intent, double resolvedConfidence) {
         this.intent = intent;
         this.resolvedConfidence = resolvedConfidence;
+        return this;
+    }
+
+    public ProbabilisticTestVerdictBuilder useCaseAttributes(UseCaseAttributes useCaseAttributes) {
+        this.useCaseAttributes = useCaseAttributes != null ? useCaseAttributes : UseCaseAttributes.DEFAULT;
+        return this;
+    }
+
+    public ProbabilisticTestVerdictBuilder warmup(int warmup) {
+        this.useCaseAttributes = new UseCaseAttributes(warmup, this.useCaseAttributes.maxConcurrent());
         return this;
     }
 
@@ -269,7 +281,7 @@ public class ProbabilisticTestVerdictBuilder {
                 plannedSamples, samplesExecuted, successes, failures,
                 minPassRate, observedPassRate, elapsedMs,
                 Optional.ofNullable(appliedMultiplier),
-                intent, resolvedConfidence
+                intent, resolvedConfidence, useCaseAttributes
         );
     }
 

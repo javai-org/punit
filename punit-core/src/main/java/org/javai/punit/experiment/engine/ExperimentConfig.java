@@ -4,6 +4,7 @@ import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.experiment.explore.ExploreConfig;
 import org.javai.punit.experiment.measure.MeasureConfig;
 import org.javai.punit.experiment.optimize.OptimizeConfig;
+import org.javai.punit.model.UseCaseAttributes;
 
 /**
  * Base interface for experiment configuration.
@@ -64,6 +65,24 @@ public interface ExperimentConfig {
      * @return the token budget
      */
     long tokenBudget();
+
+    /**
+     * Use case attributes (warmup, maxConcurrent, etc.).
+     *
+     * @return the use case attributes
+     */
+    UseCaseAttributes useCaseAttributes();
+
+    /**
+     * Number of warmup invocations to discard before counting.
+     *
+     * <p>0 means no warmup (default).
+     *
+     * @return the warmup count
+     */
+    default int warmup() {
+        return useCaseAttributes().warmup();
+    }
 
     /**
      * Experiment identifier for output naming.

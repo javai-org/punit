@@ -65,6 +65,11 @@ class ResultPublisher {
         entries.put("punit.terminationReason", term.reason().name());
         entries.put("punit.elapsedMs", String.valueOf(exec.elapsedMs()));
 
+        // Warmup
+        if (exec.warmup() > 0) {
+            entries.put("punit.warmup", String.valueOf(exec.warmup()));
+        }
+
         // Multiplier
         exec.appliedMultiplier().ifPresent(m ->
                 entries.put("punit.samplesMultiplier", String.format("%.2f", m)));
@@ -175,6 +180,15 @@ class ResultPublisher {
                             exec.successes(), exec.samplesExecuted(),
                             comparator,
                             RateFormat.format(exec.minPassRate()))));
+        }
+
+        // Append warmup line if warmup was used
+        if (exec.warmup() > 0) {
+            String useCaseLabel = verdict.identity().useCaseId().orElse("");
+            sb.append(PUnitReporter.labelValueLn("Warmup:",
+                    String.format("%d invocations discarded%s",
+                            exec.warmup(),
+                            useCaseLabel.isEmpty() ? "" : " (" + useCaseLabel + ")")));
         }
 
         // Append per-dimension breakdown if available

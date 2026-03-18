@@ -11,11 +11,13 @@ import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
+import org.javai.punit.experiment.engine.ExperimentWarmupHandler;
 import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
@@ -38,6 +40,8 @@ public class MeasureStrategy implements ExperimentModeStrategy {
     private static final ExtensionContext.Namespace NAMESPACE =
             ExtensionContext.Namespace.create("org.javai.punit.experiment");
 
+    private final ExperimentWarmupHandler warmupHandler = new ExperimentWarmupHandler();
+
     @Override
     public boolean supports(Method testMethod) {
         return testMethod.isAnnotationPresent(MeasureExperiment.class);
@@ -53,10 +57,12 @@ public class MeasureStrategy implements ExperimentModeStrategy {
 
         Class<?> useCaseClass = annotation.useCase();
         String useCaseId = UseCaseFactory.resolveId(useCaseClass);
+        UseCaseAttributes useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
 
         return new MeasureConfig(
                 useCaseClass,
                 useCaseId,
+                useCaseAttributes,
                 annotation.samples(),
                 annotation.timeBudgetMs(),
                 annotation.tokenBudget(),
@@ -74,6 +80,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
 
         MeasureConfig measureConfig = (MeasureConfig) config;
         int samples = measureConfig.effectiveSamples();
+        int warmup = measureConfig.warmup();
         String useCaseId = measureConfig.useCaseId();
 
         // Create aggregator
@@ -82,8 +89,10 @@ public class MeasureStrategy implements ExperimentModeStrategy {
 
         AtomicBoolean terminated = new AtomicBoolean(false);
         AtomicInteger currentSample = new AtomicInteger(0);
+        AtomicInteger warmupCounter = new AtomicInteger(0);
         store.put("terminated", terminated);
         store.put("currentSample", currentSample);
+        store.put("warmupCounter", warmupCounter);
         store.put("mode", ExperimentMode.MEASURE);
 
         Method testMethod = context.getRequiredTestMethod();
@@ -104,11 +113,12 @@ public class MeasureStrategy implements ExperimentModeStrategy {
                     samples, useCaseId, store, terminated);
         }
 
-        // No input or factor source - simple sample stream
+        // No input or factor source - simple sample stream (warmup + counted)
+        int totalInvocations = warmup + samples;
         return Stream.iterate(1, i -> i + 1)
-                .limit(samples)
+                .limit(totalInvocations)
                 .takeWhile(i -> !terminated.get())
-                .map(i -> new MeasureInvocationContext(i, samples, useCaseId, new OutcomeCaptor()));
+                .map(i -> new MeasureInvocationContext(i, totalInvocations, useCaseId, new OutcomeCaptor()));
     }
 
     private Stream<TestTemplateInvocationContext> provideWithInputsInvocationContexts(
@@ -203,8 +213,44 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         AtomicInteger currentSample = store.get("currentSample", AtomicInteger.class);
         Long startTimeMs = store.get("startTimeMs", Long.class);
 
+        // 1. Warmup gate
+        ExperimentWarmupHandler.WarmupResult warmupResult = warmupHandler.handle(
+                invocation, store, config.warmup(), config.timeBudgetMs(), startTimeMs);
+        if (warmupResult.handled()) {
+            return;
+        }
+
         int sample = currentSample.incrementAndGet();
         int effectiveSamples = config.effectiveSamples();
+
+        // 2. Budget checks
+        if (checkBudgets(config, aggregator, terminated, startTimeMs, invocation, extensionContext, store)) {
+            return;
+        }
+
+        // 3. Execute sample
+        ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
+        OutcomeCaptor captor = invocationStore.get("captor", OutcomeCaptor.class);
+        ResultRecorder.executeAndRecord(invocation, captor, aggregator);
+
+        // 4. Progress + completion
+        reportProgress(extensionContext, aggregator, sample, effectiveSamples);
+        handleSampleCompletion(sample, effectiveSamples, terminated, aggregator, extensionContext, store);
+    }
+
+    /**
+     * Checks time and token budgets, terminating the experiment if either is exceeded.
+     *
+     * @return true if a budget was exhausted and the invocation was skipped
+     */
+    boolean checkBudgets(
+            MeasureConfig config,
+            ExperimentResultAggregator aggregator,
+            AtomicBoolean terminated,
+            Long startTimeMs,
+            InvocationInterceptor.Invocation<Void> invocation,
+            ExtensionContext extensionContext,
+            ExtensionContext.Store store) {
 
         // Check time budget
         if (config.timeBudgetMs() > 0) {
@@ -215,7 +261,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
                         "Time budget of " + config.timeBudgetMs() + "ms exceeded");
                 invocation.skip();
                 generateSpecIfNeeded(extensionContext, store);
-                return;
+                return true;
             }
         }
 
@@ -226,19 +272,24 @@ public class MeasureStrategy implements ExperimentModeStrategy {
                     "Token budget of " + config.tokenBudget() + " exceeded");
             invocation.skip();
             generateSpecIfNeeded(extensionContext, store);
-            return;
+            return true;
         }
 
-        // Get captor from invocation context store
-        ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
-        OutcomeCaptor captor = invocationStore.get("captor", OutcomeCaptor.class);
+        return false;
+    }
 
-        ResultRecorder.executeAndRecord(invocation, captor, aggregator);
+    /**
+     * Handles sample completion: marks the aggregator as completed when all samples
+     * have run, and triggers spec generation.
+     */
+    void handleSampleCompletion(
+            int sample,
+            int effectiveSamples,
+            AtomicBoolean terminated,
+            ExperimentResultAggregator aggregator,
+            ExtensionContext extensionContext,
+            ExtensionContext.Store store) {
 
-        // Report progress
-        reportProgress(extensionContext, aggregator, sample, effectiveSamples);
-
-        // Check if this is the last sample
         if (sample >= effectiveSamples || terminated.get()) {
             if (!terminated.get()) {
                 aggregator.setCompleted();

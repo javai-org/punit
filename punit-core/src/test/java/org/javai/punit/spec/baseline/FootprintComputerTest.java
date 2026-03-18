@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.DayGroupDefinition;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.model.RegionGroupDefinition;
 import org.javai.punit.model.TimePeriodDefinition;
 import org.junit.jupiter.api.DisplayName;
@@ -42,7 +43,8 @@ class FootprintComputerTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             var hash1 = computer.computeFootprint("shopping.search", Map.of("country", "UK"), declaration);
@@ -127,14 +129,16 @@ class FootprintComputerTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
             var declaration2 = new CovariateDeclaration(
                     List.of(),
                     List.of(),
                     List.of(),
                     true,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             var hash1 = computer.computeFootprint("usecase", declaration1);
@@ -151,14 +155,16 @@ class FootprintComputerTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
             var declaration2 = new CovariateDeclaration(
                     List.of(),
                     List.of(new TimePeriodDefinition(LocalTime.of(8, 0), 240)),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             var hash1 = computer.computeFootprint("usecase", declaration1);

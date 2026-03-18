@@ -118,6 +118,26 @@ public class SampleExecutor {
     }
 
     /**
+     * Executes a warmup invocation.
+     *
+     * <p>The SUT is invoked normally, but results are not recorded to the aggregator.
+     * Any exceptions are silently discarded — warmup failures are not counted.
+     * The {@link AssertionScope} is properly begun and ended to prevent scope leaks.
+     *
+     * @param invocation the JUnit invocation to execute
+     */
+    public void executeWarmup(Invocation<Void> invocation) {
+        AssertionScope.begin();
+        try {
+            invocation.proceed();
+        } catch (Throwable t) {
+            // Silently discard — warmup failures are not recorded
+        } finally {
+            AssertionScope.end();
+        }
+    }
+
+    /**
      * Prepares the aggregator for test abort due to exception.
      *
      * <p>This should be called when {@link SampleResult#shouldAbort()} is true,

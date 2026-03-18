@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineCandidate;
 import org.javai.punit.spec.baseline.BaselineSelectionTypes.BaselineSource;
@@ -77,7 +78,7 @@ class BaselineSourcePriorityTest {
                     .build();
 
             CovariateDeclaration declaration = new CovariateDeclaration(
-                    List.of(), List.of(), List.of(), false, Map.of());
+                    List.of(), List.of(), List.of(), false, Map.of(), UseCaseAttributes.DEFAULT);
 
             SelectionResult result = selector.select(candidates, testProfile, declaration);
 
@@ -86,8 +87,53 @@ class BaselineSourcePriorityTest {
         }
     }
 
-    private void writeSpec(Path dir, String filename, String useCaseId, String footprint, String dayOfWeekValue)
-            throws IOException {
+    @Nested
+    @DisplayName("warmup-bearing specs")
+    class WarmupBearingTests {
+
+        @Test
+        @DisplayName("env-local wins when both dirs have specs with warmup")
+        void envLocalWinsForWarmupBearingSpecs() throws IOException {
+            writeSpec(envLocalDir, "TestUseCase-abc1.yaml", "TestUseCase", "abc123", "WEEKDAY", 5);
+            writeSpec(bundledDir, "TestUseCase-abc1.yaml", "TestUseCase", "abc123", "WEEKDAY", 5);
+
+            BaselineRepository repo = new BaselineRepository(envLocalDir, bundledDir);
+            List<BaselineCandidate> candidates = repo.findCandidates("TestUseCase", "abc123");
+
+            CovariateProfile testProfile = CovariateProfile.builder()
+                    .put("warmup", "5")
+                    .put("day_of_week", "WEEKDAY")
+                    .build();
+
+            CovariateDeclaration declaration = new CovariateDeclaration(
+                    List.of(), List.of(), List.of(), false, Map.of(), new UseCaseAttributes(5));
+
+            SelectionResult result = selector.select(candidates, testProfile, declaration);
+
+            assertThat(result.hasSelection()).isTrue();
+            assertThat(result.selected().source()).isEqualTo(BaselineSource.ENVIRONMENT_LOCAL);
+        }
+
+        @Test
+        @DisplayName("warmup value is read from execution section of spec YAML")
+        void warmupValueIsReadFromSpec() throws IOException {
+            writeSpec(envLocalDir, "TestUseCase-abc1.yaml", "TestUseCase", "abc123", "WEEKDAY", 5);
+
+            BaselineRepository repo = new BaselineRepository(envLocalDir, bundledDir);
+            List<BaselineCandidate> candidates = repo.findCandidates("TestUseCase", "abc123");
+
+            assertThat(candidates).hasSize(1);
+            assertThat(candidates.getFirst().spec().getWarmup()).isEqualTo(5);
+        }
+    }
+
+    private void writeSpec(Path dir, String filename, String useCaseId, String footprint,
+                           String dayOfWeekValue) throws IOException {
+        writeSpec(dir, filename, useCaseId, footprint, dayOfWeekValue, 0);
+    }
+
+    private void writeSpec(Path dir, String filename, String useCaseId, String footprint,
+                           String dayOfWeekValue, int warmup) throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append("schemaVersion: punit-spec-2\n");
         sb.append("useCaseId: ").append(useCaseId).append("\n");
@@ -97,6 +143,9 @@ class BaselineSourcePriorityTest {
         sb.append("  day_of_week: \"").append(dayOfWeekValue).append("\"\n");
         sb.append("\n");
         sb.append("execution:\n");
+        if (warmup > 0) {
+            sb.append("  warmup: ").append(warmup).append("\n");
+        }
         sb.append("  samplesPlanned: 100\n");
         sb.append("  samplesExecuted: 100\n");
         sb.append("  terminationReason: COMPLETED\n");

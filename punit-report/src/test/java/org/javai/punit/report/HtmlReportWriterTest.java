@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CostSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CovariateStatus;
@@ -422,7 +423,7 @@ class HtmlReportWriterTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", "shouldDiverge", Optional.empty()),
                 new ExecutionSummary(100, 100, 80, 20, 0.7, 0.80, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.04, 0.72, 0.88,
                         Optional.of(2.50), Optional.of(0.006),
@@ -441,7 +442,7 @@ class HtmlReportWriterTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", methodName, Optional.empty()),
                 new ExecutionSummary(100, 100, 95, 5, 0.9, 0.95, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
                         Optional.of(2.29), Optional.of(0.011),

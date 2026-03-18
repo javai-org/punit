@@ -17,6 +17,7 @@ import org.javai.punit.ptest.engine.ConfigurationResolver.ResolvedConfiguration;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.DerivedThreshold;
 import org.javai.punit.statistics.ThresholdDeriver;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
@@ -93,6 +94,13 @@ class SentinelTestExecutor {
         double minPassRate = resolveMinPassRate(config);
         List<Object> inputs = introspector.resolveInputs(method, sentinelClass);
 
+        // Resolve use case attributes from @UseCase on the use case class
+        UseCaseAttributes useCaseAttributes = UseCaseAttributes.DEFAULT;
+        Class<?> useCaseClass = annotation.useCase();
+        if (useCaseClass != null && useCaseClass != Void.class) {
+            useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
+        }
+
         if (progressListener != null) {
             progressListener.onMethodStart(testName, config.samples());
         }
@@ -105,7 +113,7 @@ class SentinelTestExecutor {
 
         sampleExecutor.executeTestLoop(
                 method, instance, factory, annotation.useCase(),
-                inputs, config.samples(), aggregator, evaluator,
+                inputs, useCaseAttributes.warmup(), config.samples(), aggregator, evaluator,
                 budgetMonitor, config.onException(), progressListener);
 
         boolean passed = verdictDecider.isPassing(aggregator, minPassRate);
@@ -116,7 +124,7 @@ class SentinelTestExecutor {
 
         return buildVerdict(
                 sentinelClass, method, useCaseId, config, aggregator,
-                minPassRate, passed, budgetMonitor);
+                minPassRate, passed, budgetMonitor, useCaseAttributes);
     }
 
     /**
@@ -181,7 +189,8 @@ class SentinelTestExecutor {
             SampleResultAggregator aggregator,
             double minPassRate,
             boolean passed,
-            CostBudgetMonitor budgetMonitor) {
+            CostBudgetMonitor budgetMonitor,
+            UseCaseAttributes useCaseAttributes) {
 
         ProbabilisticTestVerdictBuilder builder = new ProbabilisticTestVerdictBuilder()
                 .identity(sentinelClass.getName(), method.getName(), useCaseId.orElse(null))
@@ -194,6 +203,7 @@ class SentinelTestExecutor {
                         aggregator.getObservedPassRate(),
                         aggregator.getElapsedMs())
                 .intent(TestIntent.VERIFICATION, config.resolvedConfidence())
+                .useCaseAttributes(useCaseAttributes)
                 .termination(
                         aggregator.getTerminationReason().orElse(TerminationReason.COMPLETED),
                         aggregator.getTerminationDetails())

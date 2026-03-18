@@ -17,11 +17,13 @@ import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
+import org.javai.punit.experiment.engine.ExperimentWarmupHandler;
 import org.javai.punit.experiment.engine.ResultProjectionBuilder;
 import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
@@ -49,6 +51,8 @@ public class ExploreStrategy implements ExperimentModeStrategy {
     private static final ExtensionContext.Namespace NAMESPACE =
             ExtensionContext.Namespace.create("org.javai.punit.experiment");
 
+    private final ExperimentWarmupHandler warmupHandler = new ExperimentWarmupHandler();
+
     @Override
     public boolean supports(Method testMethod) {
         return testMethod.isAnnotationPresent(ExploreExperiment.class);
@@ -64,10 +68,12 @@ public class ExploreStrategy implements ExperimentModeStrategy {
 
         Class<?> useCaseClass = annotation.useCase();
         String useCaseId = UseCaseFactory.resolveId(useCaseClass);
+        UseCaseAttributes useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
 
         return new ExploreConfig(
                 useCaseClass,
                 useCaseId,
+                useCaseAttributes,
                 annotation.samplesPerConfig(),
                 annotation.timeBudgetMs(),
                 annotation.tokenBudget(),
@@ -118,6 +124,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         store.put("factorInfos", factorInfos);
         store.put("configAggregators", new LinkedHashMap<String, ExperimentResultAggregator>());
         store.put("terminated", new AtomicBoolean(false));
+        store.put("warmupCounter", new AtomicInteger(0));
 
         // Generate invocation contexts for all configs × samples
         List<ExploreInvocationContext> invocations = new ArrayList<>();
@@ -150,15 +157,18 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         int samplesPerConfig = config.effectiveSamplesPerConfig();
         String useCaseId = config.useCaseId();
 
+        int warmup = config.warmup();
+        int totalInvocations = warmup + samplesPerConfig;
         store.put("mode", ExperimentMode.EXPLORE);
         ExperimentResultAggregator aggregator = new ExperimentResultAggregator(useCaseId, samplesPerConfig);
         store.put("aggregator", aggregator);
         store.put("terminated", new AtomicBoolean(false));
+        store.put("warmupCounter", new AtomicInteger(0));
 
         return Stream.iterate(1, i -> i + 1)
-                .limit(samplesPerConfig)
+                .limit(totalInvocations)
                 .map(i -> new MeasureInvocationContext(
-                        i, samplesPerConfig, useCaseId, new OutcomeCaptor()));
+                        i, totalInvocations, useCaseId, new OutcomeCaptor()));
     }
 
     private Stream<TestTemplateInvocationContext> provideWithInputsInvocationContexts(
@@ -225,73 +235,120 @@ public class ExploreStrategy implements ExperimentModeStrategy {
             ExtensionContext.Store store) throws Throwable {
 
         ExploreConfig config = (ExploreConfig) store.get("config", ExperimentConfig.class);
-        Map<String, ExperimentResultAggregator> configAggregators =
-                store.get("configAggregators", Map.class);
-        List<FactorInfo> factorInfos = store.get("factorInfos", List.class);
 
-        int samplesPerConfig = config.effectiveSamplesPerConfig();
+        // 1. Warmup gate
+        ExperimentWarmupHandler.WarmupResult warmupResult = warmupHandler.handle(
+                invocation, store, config.warmup(), 0, null);
+        if (warmupResult.handled()) {
+            return;
+        }
 
-        // Get explore invocation context info from extension context store
+        // 2. Unpack invocation-scoped state
         ExtensionContext.Store invocationStore = extensionContext.getStore(NAMESPACE);
         OutcomeCaptor captor = invocationStore.get("captor", OutcomeCaptor.class);
         String configName = invocationStore.get("configName", String.class);
         Integer sampleInConfig = invocationStore.get("sampleInConfig", Integer.class);
         Object[] factorValues = invocationStore.get("factorValues", Object[].class);
 
-        // Handle simple mode (no factors) and InputSource round-robin mode
+        Map<String, ExperimentResultAggregator> configAggregators =
+                store.get("configAggregators", Map.class);
+        List<FactorInfo> factorInfos = store.get("factorInfos", List.class);
+
+        // 3. Dispatch to mode
         if (configAggregators == null) {
             ExperimentResultAggregator aggregator = store.get("aggregator", ExperimentResultAggregator.class);
             Integer totalSamples = store.get("totalSamples", Integer.class);
-
             if (totalSamples == null) {
-                // Simple mode (no inputs, no factors) — just record
-                ResultRecorder.executeAndRecord(invocation, captor, aggregator);
-                return;
+                interceptSimpleMode(invocation, extensionContext, aggregator, captor);
+            } else {
+                interceptInputSourceMode(invocation, extensionContext, store, aggregator, captor, totalSamples);
             }
+        } else {
+            ExperimentResultAggregator aggregator = configAggregators.get(configName);
+            if (aggregator == null) {
+                throw new ExtensionConfigurationException(
+                        "No aggregator found for configuration: " + configName);
+            }
+            interceptFactorMode(invocation, extensionContext, store, config, aggregator, captor,
+                    configName, sampleInConfig, factorValues, factorInfos);
+        }
+    }
 
-            // InputSource round-robin mode: record with projections
-            AtomicInteger currentSample = store.get("currentSample", AtomicInteger.class);
-            int sample = currentSample.incrementAndGet();
-            ResultProjectionBuilder projectionBuilder = new ResultProjectionBuilder();
+    /**
+     * Simple mode (no inputs, no factors) — just execute and record.
+     */
+    void interceptSimpleMode(
+            InvocationInterceptor.Invocation<Void> invocation,
+            ExtensionContext extensionContext,
+            ExperimentResultAggregator aggregator,
+            OutcomeCaptor captor) throws Throwable {
 
-            try {
-                long startNanos = System.nanoTime();
-                invocation.proceed();
-                Duration wallClock = Duration.ofNanos(System.nanoTime() - startNanos);
-                ResultRecorder.recordResult(captor, aggregator, wallClock);
+        ResultRecorder.executeAndRecord(invocation, captor, aggregator);
+    }
 
-                if (captor != null && captor.hasResult()) {
-                    ResultProjection projection = projectionBuilder.build(
-                            sample - 1, captor.getContractOutcome());
-                    aggregator.addResultProjection(projection);
-                }
-            } catch (Throwable e) {
-                aggregator.recordException(e);
+    /**
+     * InputSource round-robin mode: execute, record, and build projections.
+     */
+    void interceptInputSourceMode(
+            InvocationInterceptor.Invocation<Void> invocation,
+            ExtensionContext extensionContext,
+            ExtensionContext.Store store,
+            ExperimentResultAggregator aggregator,
+            OutcomeCaptor captor,
+            int totalSamples) throws Throwable {
 
-                Long startTimeMs = store.get("startTimeMs", Long.class);
-                long elapsed = startTimeMs != null ? System.currentTimeMillis() - startTimeMs : 0;
-                ResultProjection projection = projectionBuilder.buildError(
-                        sample - 1, null, elapsed, e);
+        AtomicInteger currentSample = store.get("currentSample", AtomicInteger.class);
+        int sample = currentSample.incrementAndGet();
+        ResultProjectionBuilder projectionBuilder = new ResultProjectionBuilder();
+
+        try {
+            long startNanos = System.nanoTime();
+            invocation.proceed();
+            Duration wallClock = Duration.ofNanos(System.nanoTime() - startNanos);
+            ResultRecorder.recordResult(captor, aggregator, wallClock);
+
+            if (captor != null && captor.hasResult()) {
+                ResultProjection projection = projectionBuilder.build(
+                        sample - 1, captor.getContractOutcome());
                 aggregator.addResultProjection(projection);
             }
+        } catch (Throwable e) {
+            aggregator.recordException(e);
 
-            ExperimentProgressReporter.reportProgress(
-                    extensionContext, "EXPLORE", sample, totalSamples,
-                    aggregator.getObservedSuccessRate());
-
-            if (sample >= totalSamples) {
-                aggregator.setCompleted();
-                ExploreSpecGenerator generator = new ExploreSpecGenerator();
-                generator.generateSpec(extensionContext, store, aggregator);
-            }
-            return;
+            Long startTimeMs = store.get("startTimeMs", Long.class);
+            long elapsed = startTimeMs != null ? System.currentTimeMillis() - startTimeMs : 0;
+            ResultProjection projection = projectionBuilder.buildError(
+                    sample - 1, null, elapsed, e);
+            aggregator.addResultProjection(projection);
         }
 
-        ExperimentResultAggregator aggregator = configAggregators.get(configName);
-        if (aggregator == null) {
-            throw new ExtensionConfigurationException(
-                    "No aggregator found for configuration: " + configName);
+        ExperimentProgressReporter.reportProgress(
+                extensionContext, "EXPLORE", sample, totalSamples,
+                aggregator.getObservedSuccessRate());
+
+        if (sample >= totalSamples) {
+            aggregator.setCompleted();
+            ExploreSpecGenerator generator = new ExploreSpecGenerator();
+            generator.generateSpec(extensionContext, store, aggregator);
         }
+    }
+
+    /**
+     * Factor-based mode: set factor values, execute, record, and build projections per config.
+     */
+    void interceptFactorMode(
+            InvocationInterceptor.Invocation<Void> invocation,
+            ExtensionContext extensionContext,
+            ExtensionContext.Store store,
+            ExploreConfig config,
+            ExperimentResultAggregator aggregator,
+            OutcomeCaptor captor,
+            String configName,
+            Integer sampleInConfig,
+            Object[] factorValues,
+            List<FactorInfo> factorInfos) throws Throwable {
+
+        int samplesPerConfig = config.effectiveSamplesPerConfig();
 
         // Set factor values on the UseCaseProvider
         Optional<UseCaseProvider> factoryOpt = findUseCaseFactory(extensionContext);

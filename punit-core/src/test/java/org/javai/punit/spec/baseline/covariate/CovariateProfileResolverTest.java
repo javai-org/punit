@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.model.CovariateDeclaration;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.model.DayGroupDefinition;
 import org.javai.punit.model.RegionGroupDefinition;
 import org.javai.punit.model.TimePeriodDefinition;
@@ -50,7 +51,7 @@ class CovariateProfileResolverTest {
                         DayOfWeek.THURSDAY, DayOfWeek.FRIDAY), "WEEKDAY")
             );
             var declaration = new CovariateDeclaration(
-                dayGroups, List.of(), List.of(), false, Map.of()
+                dayGroups, List.of(), List.of(), false, Map.of(), UseCaseAttributes.DEFAULT
             );
             // 2026-01-13 is a Tuesday
             var context = DefaultCovariateResolutionContext.builder()
@@ -68,7 +69,7 @@ class CovariateProfileResolverTest {
         @DisplayName("should resolve timezone covariate")
         void shouldResolveTimezoneCovariate() {
             var declaration = new CovariateDeclaration(
-                List.of(), List.of(), List.of(), true, Map.of()
+                List.of(), List.of(), List.of(), true, Map.of(), UseCaseAttributes.DEFAULT
             );
             var context = DefaultCovariateResolutionContext.builder()
                 .now(Instant.parse("2026-01-13T10:00:00Z"))
@@ -92,7 +93,7 @@ class CovariateProfileResolverTest {
                         DayOfWeek.THURSDAY, DayOfWeek.FRIDAY), "WEEKDAY")
             );
             var declaration = new CovariateDeclaration(
-                dayGroups, List.of(), List.of(), true, Map.of()
+                dayGroups, List.of(), List.of(), true, Map.of(), UseCaseAttributes.DEFAULT
             );
             var context = DefaultCovariateResolutionContext.builder()
                 .now(Instant.parse("2026-01-13T10:00:00Z")) // Tuesday
@@ -114,7 +115,8 @@ class CovariateProfileResolverTest {
                 List.of(),
                 List.of(new RegionGroupDefinition(Set.of("US"), "US")),
                 true,
-                Map.of("custom1", CovariateCategory.OPERATIONAL)
+                Map.of("custom1", CovariateCategory.OPERATIONAL),
+                UseCaseAttributes.DEFAULT
             );
             var context = DefaultCovariateResolutionContext.forNow();
 
@@ -132,7 +134,7 @@ class CovariateProfileResolverTest {
                 new TimePeriodDefinition(LocalTime.of(16, 0), 180)
             );
             var declaration = new CovariateDeclaration(
-                List.of(), timePeriods, List.of(), false, Map.of()
+                List.of(), timePeriods, List.of(), false, Map.of(), UseCaseAttributes.DEFAULT
             );
             // 9:00 UTC falls within 08:00/2h period
             var context = DefaultCovariateResolutionContext.builder()

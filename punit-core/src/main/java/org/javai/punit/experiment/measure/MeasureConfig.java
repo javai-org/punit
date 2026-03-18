@@ -2,6 +2,7 @@ package org.javai.punit.experiment.measure;
 
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.experiment.engine.ExperimentConfig;
+import org.javai.punit.model.UseCaseAttributes;
 
 /**
  * Configuration for @MeasureExperiment.
@@ -11,6 +12,7 @@ import org.javai.punit.experiment.engine.ExperimentConfig;
  *
  * @param useCaseClass the use case class to test
  * @param useCaseId resolved use case identifier
+ * @param useCaseAttributes use case attributes (warmup, maxConcurrent, etc.)
  * @param samples number of samples to execute
  * @param timeBudgetMs time budget in milliseconds (0 = unlimited)
  * @param tokenBudget token budget (0 = unlimited)
@@ -20,6 +22,7 @@ import org.javai.punit.experiment.engine.ExperimentConfig;
 public record MeasureConfig(
         Class<?> useCaseClass,
         String useCaseId,
+        UseCaseAttributes useCaseAttributes,
         int samples,
         long timeBudgetMs,
         long tokenBudget,

@@ -2,6 +2,7 @@ package org.javai.punit.experiment.optimize;
 
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.experiment.engine.ExperimentConfig;
+import org.javai.punit.model.UseCaseAttributes;
 
 /**
  * Configuration for @OptimizeExperiment.
@@ -22,6 +23,7 @@ import org.javai.punit.experiment.engine.ExperimentConfig;
  * @param scorerClass scorer class for evaluating iterations
  * @param mutatorClass mutator class for generating new factor values
  * @param objective optimization objective (MAXIMIZE or MINIMIZE)
+ * @param useCaseAttributes use case attributes (warmup, maxConcurrent, etc.)
  * @param samplesPerIteration samples to run per iteration
  * @param maxIterations maximum iterations before termination
  * @param noImprovementWindow iterations without improvement before termination
@@ -38,6 +40,7 @@ public record OptimizeConfig(
         Class<? extends Scorer<OptimizationIterationAggregate>> scorerClass,
         Class<? extends FactorMutator<?>> mutatorClass,
         OptimizationObjective objective,
+        UseCaseAttributes useCaseAttributes,
         int samplesPerIteration,
         int maxIterations,
         int noImprovementWindow,

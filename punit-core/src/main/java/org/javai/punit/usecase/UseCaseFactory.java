@@ -10,6 +10,7 @@ import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.FactorValues;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.model.UseCaseAttributes;
 
 /**
  * JUnit-free factory for creating and managing use case instances.
@@ -304,6 +305,37 @@ public class UseCaseFactory {
         singletons.clear();
         lastCreatedInstances.clear();
         currentFactorValues = null;
+    }
+
+    /**
+     * Resolves all use-case-level attributes from a use case class.
+     *
+     * <p>Reads the {@code @UseCase} annotation and bundles its attributes
+     * into a single {@link UseCaseAttributes} carrier.
+     *
+     * @param useCaseClass the use case class
+     * @return the resolved attributes (never null)
+     */
+    public static UseCaseAttributes resolveAttributes(Class<?> useCaseClass) {
+        UseCase annotation = useCaseClass.getAnnotation(UseCase.class);
+        if (annotation == null) {
+            return UseCaseAttributes.DEFAULT;
+        }
+        return new UseCaseAttributes(annotation.warmup(), annotation.maxConcurrent());
+    }
+
+    /**
+     * Resolves the warmup count from a use case class.
+     *
+     * <p>Reads the {@code warmup} attribute from the {@code @UseCase} annotation
+     * on the class. Returns 0 if the annotation is absent or warmup is not specified.
+     *
+     * @param useCaseClass the use case class
+     * @return the warmup count (>= 0)
+     * @throws IllegalArgumentException if warmup is negative
+     */
+    public static int resolveWarmup(Class<?> useCaseClass) {
+        return resolveAttributes(useCaseClass).warmup();
     }
 
     /**

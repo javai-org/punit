@@ -4,7 +4,7 @@
 
 schemaVersion: punit-spec-1
 useCaseId: test-use-case
-generatedAt: 2026-03-13T22:11:03.872907Z
+generatedAt: 2026-03-18T19:52:17.619123Z
 experimentClass: org.javai.punit.experiment.engine.input.InputSourceIntegrationTest$RecordInputTestSubject
 experimentMethod: measureWithRecordInputs
 execution:
@@ -21,8 +21,8 @@ statistics:
   successes: 4
   failures: 0
 cost:
-  totalTimeMs: 0
+  totalTimeMs: 1
   avgTimePerSampleMs: 0
   totalTokens: 0
   avgTokensPerSample: 0
-contentFingerprint: e809bc50889b9d27b50d56730f1029e66488ad9d58b09f4fb9593781d0852cde
+contentFingerprint: c602a11aa020da86bf4f4e3d9789016f4ca2eef1c6842c9631b288c883ca4cb6

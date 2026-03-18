@@ -204,4 +204,42 @@ public @interface UseCase {
      * @see CovariateCategory
      */
     Covariate[] covariates() default {};
+
+    /**
+     * Number of warmup invocations to execute before counting begins.
+     *
+     * <p>Warmup addresses cold-start non-stationarity — the first few invocations
+     * of a system under test may behave differently from steady-state due to caching,
+     * JIT compilation, connection pool initialisation, or similar transient phenomena.
+     *
+     * <p>When warmup is greater than zero, the framework executes {@code warmup}
+     * additional invocations before the counted samples. Results from warmup invocations
+     * are silently discarded — they are not recorded to the aggregator and do not
+     * contribute to the observed pass rate or any statistical analysis.
+     *
+     * <p>Warmup is additive: {@code samples=100, warmup=5} executes 105 total invocations,
+     * with 100 counted. Warmup invocations consume budget (time and tokens) normally.
+     *
+     * <p>This is a property of the system under test, not the statistical method.
+     * There is no system property or environment variable override — different SUTs
+     * have different caching characteristics, so a global override would be incoherent.
+     *
+     * @return the number of warmup invocations (0 = no warmup, default)
+     */
+    int warmup() default 0;
+
+    /**
+     * Maximum number of concurrent sample executions.
+     *
+     * <p>When greater than zero, the framework may execute up to {@code maxConcurrent}
+     * samples in parallel. When zero (the default), the framework uses its own default
+     * concurrency strategy (typically sequential).
+     *
+     * <p>Like warmup, this is a property of the system under test — it reflects the
+     * SUT's concurrency tolerance, not a framework tuning knob. There is no system
+     * property or environment variable override.
+     *
+     * @return the maximum concurrent executions (0 = framework default)
+     */
+    int maxConcurrent() default 0;
 }

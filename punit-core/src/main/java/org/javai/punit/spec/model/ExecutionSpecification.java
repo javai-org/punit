@@ -6,9 +6,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.model.ExpirationStatus;
+import org.javai.punit.model.UseCaseAttributes;
 
 /**
  * An execution specification containing empirical data for probabilistic testing.
@@ -57,6 +59,7 @@ public final class ExecutionSpecification {
 	private final CovariateProfile covariateProfile;
 	private final String footprint;
 	private final LatencyBaseline latencyBaseline;
+	private final UseCaseAttributes useCaseAttributes;
 
 	private ExecutionSpecification(Builder builder) {
 		this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
@@ -82,6 +85,8 @@ public final class ExecutionSpecification {
 		this.covariateProfile = builder.covariateProfile;
 		this.footprint = builder.footprint;
 		this.latencyBaseline = builder.latencyBaseline;
+		this.useCaseAttributes = builder.useCaseAttributes != null
+				? builder.useCaseAttributes : UseCaseAttributes.DEFAULT;
 	}
 
 	public static Builder builder() {
@@ -230,9 +235,29 @@ public final class ExecutionSpecification {
 	 * <p>The covariate profile contains the environmental conditions under which
 	 * the baseline was established, used for conformance checking during tests.
 	 *
-	 * @return the covariate profile, or null if not recorded
+	 * <p>If the spec has a warmup value, it is injected as an implicit covariate
+	 * in the returned profile (appearing first), ensuring baseline selection
+	 * matches on warmup as a CONFIGURATION covariate.
+	 *
+	 * @return the covariate profile, or null if not recorded and no warmup
 	 */
 	public CovariateProfile getCovariateProfile() {
+		boolean hasImplicit = useCaseAttributes.hasWarmup() || useCaseAttributes.hasMaxConcurrent();
+		if (hasImplicit) {
+			var builder = CovariateProfile.builder();
+			if (useCaseAttributes.hasWarmup()) {
+				builder.put(CovariateDeclaration.KEY_WARMUP, String.valueOf(useCaseAttributes.warmup()));
+			}
+			if (useCaseAttributes.hasMaxConcurrent()) {
+				builder.put(CovariateDeclaration.KEY_MAX_CONCURRENT, String.valueOf(useCaseAttributes.maxConcurrent()));
+			}
+			if (covariateProfile != null) {
+				for (String key : covariateProfile.orderedKeys()) {
+					builder.put(key, covariateProfile.get(key));
+				}
+			}
+			return builder.build();
+		}
 		return covariateProfile;
 	}
 
@@ -256,6 +281,26 @@ public final class ExecutionSpecification {
 	 */
 	public String getFootprint() {
 		return footprint;
+	}
+
+	/**
+	 * Returns the use case attributes from the spec.
+	 *
+	 * @return the use case attributes (never null)
+	 */
+	public UseCaseAttributes getUseCaseAttributes() {
+		return useCaseAttributes;
+	}
+
+	/**
+	 * Returns the warmup count used when this baseline was measured.
+	 *
+	 * <p>0 means no warmup was used (or the spec predates the warmup feature).
+	 *
+	 * @return the warmup count (>= 0)
+	 */
+	public int getWarmup() {
+		return useCaseAttributes.warmup();
 	}
 
 	/**
@@ -534,6 +579,7 @@ public final class ExecutionSpecification {
 		private CovariateProfile covariateProfile;
 		private String footprint;
 		private LatencyBaseline latencyBaseline;
+		private UseCaseAttributes useCaseAttributes;
 
 		private Builder() {
 		}
@@ -690,6 +736,20 @@ public final class ExecutionSpecification {
 		 */
 		public Builder latencyBaseline(LatencyBaseline latencyBaseline) {
 			this.latencyBaseline = latencyBaseline;
+			return this;
+		}
+
+		public Builder useCaseAttributes(UseCaseAttributes useCaseAttributes) {
+			this.useCaseAttributes = useCaseAttributes;
+			return this;
+		}
+
+		public Builder warmup(int warmup) {
+			if (this.useCaseAttributes == null) {
+				this.useCaseAttributes = new UseCaseAttributes(warmup);
+			} else {
+				this.useCaseAttributes = new UseCaseAttributes(warmup, this.useCaseAttributes.maxConcurrent());
+			}
 			return this;
 		}
 

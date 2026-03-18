@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PunitVerdict;
@@ -129,7 +130,7 @@ class ReportGeneratorTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", "shouldPass", Optional.empty()),
                 new ExecutionSummary(100, 100, 95, 5, 0.9, 0.95, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
                         Optional.of(2.29), Optional.of(0.011),
@@ -148,7 +149,7 @@ class ReportGeneratorTest {
                 Instant.parse("2026-03-11T14:31:00Z"),
                 new TestIdentity("com.example.MyTest", "shouldFail", Optional.empty()),
                 new ExecutionSummary(100, 100, 80, 20, 0.9, 0.8, 200,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.04, 0.72, 0.86,
                         Optional.of(-2.5), Optional.of(0.006),

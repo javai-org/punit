@@ -89,7 +89,16 @@ public final class CovariateProfileResolver {
             CovariateResolutionContext context,
             Map<String, Method> sourceMethods) {
 
-        // 1. Try @CovariateSource method
+        // 1. Implicit use case attributes are fixed annotation values — not overridable
+        //    via system property, env var, or @CovariateSource (DD-09: annotation-only, property of the SUT)
+        if (CovariateDeclaration.KEY_WARMUP.equals(key)) {
+            return new CovariateValue.StringValue(String.valueOf(declaration.useCaseAttributes().warmup()));
+        }
+        if (CovariateDeclaration.KEY_MAX_CONCURRENT.equals(key)) {
+            return new CovariateValue.StringValue(String.valueOf(declaration.useCaseAttributes().maxConcurrent()));
+        }
+
+        // 2. Try @CovariateSource method
         Method sourceMethod = sourceMethods.get(key);
         if (sourceMethod != null) {
             var instanceOpt = context.getUseCaseInstance();
@@ -105,21 +114,21 @@ public final class CovariateProfileResolver {
             }
         }
 
-        // 2. Try system property
+        // 3. Try system property
         String sysPropKey = SYS_PROP_PREFIX + key;
         Optional<String> sysPropValue = context.getSystemProperty(sysPropKey);
         if (sysPropValue.isPresent()) {
             return new CovariateValue.StringValue(sysPropValue.get());
         }
 
-        // 3. Try environment variable
+        // 4. Try environment variable
         String envVarKey = ENV_VAR_PREFIX + key.toUpperCase().replace('-', '_');
         Optional<String> envVarValue = context.getEnvironmentVariable(envVarKey);
         if (envVarValue.isPresent()) {
             return new CovariateValue.StringValue(envVarValue.get());
         }
 
-        // 4. Build resolver from declaration data for standard keys
+        // 5. Build resolver from declaration data for standard keys
         CovariateResolver resolver = switch (key) {
             case CovariateDeclaration.KEY_DAY_OF_WEEK -> new DayOfWeekResolver(declaration.dayGroups());
             case CovariateDeclaration.KEY_TIME_OF_DAY -> new TimeOfDayResolver(declaration.timePeriods());

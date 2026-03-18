@@ -2,6 +2,7 @@ package org.javai.punit.ptest.strategy;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * @param tokenRecorder the token recorder for dynamic token mode (may be null)
  * @param terminated the shared termination flag
  * @param extensionContext the JUnit extension context
+ * @param warmupCounter counter tracking completed warmup invocations
  */
 public record SampleExecutionContext(
         ProbabilisticTestConfig config,
@@ -42,7 +44,8 @@ public record SampleExecutionContext(
         SharedBudgetMonitor suiteBudget,
         DefaultTokenChargeRecorder tokenRecorder,
         AtomicBoolean terminated,
-        ExtensionContext extensionContext
+        ExtensionContext extensionContext,
+        AtomicInteger warmupCounter
 ) {
     public SampleExecutionContext {
         Objects.requireNonNull(config, "config must not be null");
@@ -51,6 +54,24 @@ public record SampleExecutionContext(
         Objects.requireNonNull(methodBudget, "methodBudget must not be null");
         Objects.requireNonNull(terminated, "terminated must not be null");
         Objects.requireNonNull(extensionContext, "extensionContext must not be null");
+        Objects.requireNonNull(warmupCounter, "warmupCounter must not be null");
+    }
+
+    /**
+     * Backward-compatible constructor without warmupCounter.
+     */
+    public SampleExecutionContext(
+            ProbabilisticTestConfig config,
+            SampleResultAggregator aggregator,
+            EarlyTerminationEvaluator evaluator,
+            CostBudgetMonitor methodBudget,
+            SharedBudgetMonitor classBudget,
+            SharedBudgetMonitor suiteBudget,
+            DefaultTokenChargeRecorder tokenRecorder,
+            AtomicBoolean terminated,
+            ExtensionContext extensionContext) {
+        this(config, aggregator, evaluator, methodBudget, classBudget, suiteBudget,
+                tokenRecorder, terminated, extensionContext, new AtomicInteger(0));
     }
 
     /**

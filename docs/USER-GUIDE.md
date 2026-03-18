@@ -37,6 +37,7 @@ All attribution licensing is ARL.
   - [The UseCaseProvider Pattern](#the-usecaseprovider-pattern)
   - [Input Sources](#input-sources)
   - [The Use Case in Full](#the-use-case-in-full)
+  - [Warmup: Achieving Statistical Stationarity](#warmup-achieving-statistical-stationarity)
 - [Part 4: The EXPLORE Experiment](#part-4-the-explore-experiment)
   - [When to Use EXPLORE](#when-to-use-explore)
   - [Comparing Configurations](#comparing-configurations)
@@ -799,11 +800,11 @@ Sample 47: FAIL
 
 `UseCaseOutcome` provides three assertion methods that control which dimensions of stochasticity a probabilistic test exercises:
 
-| Method | Asserts | Use when |
-|---|---|---|
-| `assertContract()` | Functional postconditions and expected value only | You care about correctness but not latency |
-| `assertLatency()` | Duration constraint only | You care about response time but not functional correctness |
-| `assertAll()` | Both dimensions (adaptive) | You want a combined verdict — whichever dimensions are configured |
+| Method             | Asserts                                           | Use when                                                          |
+|--------------------|---------------------------------------------------|-------------------------------------------------------------------|
+| `assertContract()` | Functional postconditions and expected value only | You care about correctness but not latency                        |
+| `assertLatency()`  | Duration constraint only                          | You care about response time but not functional correctness       |
+| `assertAll()`      | Both dimensions (adaptive)                        | You want a combined verdict — whichever dimensions are configured |
 
 ```java
 // Assert functional correctness only — latency is not part of this verdict
@@ -957,6 +958,7 @@ The full implementation demonstrates how all PUnit concepts come together in a s
 ```java
 @UseCase(
     description = "Translate natural language shopping instructions to structured actions",
+    warmup = 3,
     covariateDayOfWeek = {@DayGroup({SATURDAY, SUNDAY})},
     covariateTimeOfDay = {"08:00/4h", "16:00/4h"},
     covariates = {
@@ -981,12 +983,67 @@ public class ShoppingBasketUseCase {
 
 Key elements:
 
-- **`@UseCase`** — Declares the use case and its covariates (environmental factors that may affect behaviour)
+- **`@UseCase`** — Declares the use case, its covariates, and operational attributes such as `warmup`
+- **`warmup = 3`** — Discards the first 3 invocations to achieve statistical stationarity (see [Warmup](#warmup-achieving-statistical-stationarity))
 - **`@FactorGetter` / `@FactorSetter`** — Allow experiments to read and manipulate configuration
 - **`@CovariateSource`** — Links factors to covariate tracking for baseline selection
 - **`UseCaseOutcome`** — Bundles result data with success criteria
 
 *Source: `org.javai.punit.examples.usecases.ShoppingBasketUseCase`*
+
+### Warmup: Achieving Statistical Stationarity
+
+Statistical inference assumes that each sample is drawn from the same distribution. But for many systems under test, the first few invocations behave differently from steady state. Caches are cold, connection pools are empty, JIT compilation has not yet kicked in, and LLM provider rate-limit windows have not stabilised. These early invocations come from a *different* distribution — one characterised by higher latency, lower throughput, or different failure modes. Including them in the sample contaminates the data with a transient artefact that has nothing to do with the system's true reliability.
+
+This is a **stationarity** problem. Probabilistic testing requires that the process generating outcomes is stationary — that is, its statistical properties do not change over the observation window. Cold-start effects violate this assumption.
+
+The `warmup` attribute on `@UseCase` addresses this directly:
+
+```java
+@UseCase(warmup = 5)
+public class PaymentGatewayUseCase {
+    // First 5 invocations are discarded before counting begins
+}
+```
+
+When `warmup` is greater than zero, the framework executes that many additional invocations before the counted samples begin. Results from warmup invocations are silently discarded — they are not recorded to the aggregator and do not contribute to the observed pass rate, failure counts, latency percentiles, or any statistical analysis.
+
+**Warmup is additive.** A test configured with `samples = 100` and `warmup = 5` executes 105 total invocations: 5 discarded, then 100 counted. The sample count in verdicts, specs, and reports reflects only the counted invocations.
+
+#### Why warmup lives on `@UseCase`
+
+Warmup is a property of the system under test, not the statistical method. A payment gateway that initialises a connection pool on first use needs warmup regardless of whether you are measuring, exploring, or running a regression test. Placing `warmup` on `@UseCase` ensures that:
+
+1. **Spec coherence** — The MEASURE experiment and the probabilistic test that consumes its spec both discard the same number of invocations. If the experiment warms up but the test does not (or vice versa), the baseline and the test are observing different distributions, and the threshold is meaningless.
+
+2. **Single source of truth** — There is one place to change the warmup count, and every experiment and test that references the use case inherits it automatically.
+
+Because warmup reflects the SUT's architecture rather than a testing preference, there is deliberately no system property or environment variable override. Different SUTs have different caching characteristics; a global override would be incoherent.
+
+#### How warmup interacts with other features
+
+| Feature                   | Behaviour during warmup                                                                                                                                                                                                           |
+|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Budget (time, tokens)** | Warmup invocations consume budget normally. If the budget is exhausted during warmup, the test terminates before any counted samples execute.                                                                                     |
+| **Early termination**     | Suppressed during warmup. Even if all warmup invocations fail, the framework proceeds to counted samples — warmup results carry no statistical weight.                                                                            |
+| **Latency recording**     | Warmup latencies are not recorded. Only post-warmup invocations contribute to latency percentiles.                                                                                                                                |
+| **Covariates**            | Warmup is itself an implicit CONFIGURATION covariate. A spec generated with `warmup = 5` will only match tests whose use case also declares `warmup = 5`, preventing accidental comparison of warmed-up and cold-start baselines. |
+| **Pacing**                | Warmup invocations are subject to pacing constraints, ensuring they do not violate rate limits.                                                                                                                                   |
+
+#### Choosing a warmup count
+
+There is no universal formula. The right value depends on what the system needs to reach steady state:
+
+- **Connection pool initialisation** — typically 1-3 invocations
+- **JIT compilation** — for JVM-based SUTs, may require 10-50+ invocations depending on the critical path
+- **LLM provider stabilisation** — usually 1-5 invocations to fill rate-limit windows and establish session routing
+- **Cache warming** — depends on cache topology; a single pass through the input space may suffice
+
+When in doubt, run a MEASURE experiment with `warmup = 0` and examine the latency profile. If the first few samples show conspicuously higher latency or lower pass rates, increase the warmup count until the distribution stabilises. The EXPLORE experiment can also be used to compare warmup values side by side.
+
+#### Default behaviour
+
+The default is `warmup = 0` — no warmup invocations, fully backwards-compatible. Only add warmup when you have evidence of cold-start non-stationarity.
 
 ---
 
@@ -2368,11 +2425,23 @@ Transparent mode produces verbose statistical explanations of test verdicts, des
 
 #### Latency Enforcement
 
-| Property                | Environment Variable    | Default | Description                                                         |
-|-------------------------|-------------------------|---------|---------------------------------------------------------------------|
+| Property                | Environment Variable    | Default | Description                                                          |
+|-------------------------|-------------------------|---------|----------------------------------------------------------------------|
 | `punit.latency.enforce` | `PUNIT_LATENCY_ENFORCE` | `false` | Enforce baseline-derived latency assertions (default: advisory only) |
 
 Explicit `@Latency` thresholds (at least one percentile value ≥ 0) are always enforced — this flag has no effect on them. This flag controls baseline-derived thresholds only: when disabled (default), baseline-derived latency breaches produce warnings but do not fail the test; when enabled, they are enforced like explicit thresholds.
+
+#### Warmup
+
+Warmup is configured exclusively via the `@UseCase` annotation — there is no system property or environment variable override. This is deliberate: warmup reflects the SUT's caching and initialisation characteristics, which are intrinsic to the system and do not change between environments.
+
+Use warmup with services whose initialisation time is significant, such as those with complex startup logic or external dependencies, or caching. This will result in an experimental baseline, which skips over samples, which are not representative of the larger population.
+
+| Attribute              | Default | Description                                                   |
+|------------------------|---------|---------------------------------------------------------------|
+| `@UseCase(warmup = N)` | `0`     | Number of invocations to discard before counted samples begin |
+
+See [Warmup: Achieving Statistical Stationarity](#warmup-achieving-statistical-stationarity) for full documentation.
 
 #### Sentinel Environment Metadata
 

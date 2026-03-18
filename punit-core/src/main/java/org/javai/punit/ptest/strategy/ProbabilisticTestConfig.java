@@ -5,6 +5,7 @@ import org.javai.punit.api.ExceptionHandling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.pacing.PacingConfiguration;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 
 /**
@@ -70,6 +71,18 @@ public interface ProbabilisticTestConfig {
      * Transparent statistics configuration.
      */
     TransparentStatsConfig transparentStats();
+
+    /**
+     * Use case attributes (warmup, maxConcurrent, etc.).
+     */
+    UseCaseAttributes useCaseAttributes();
+
+    /**
+     * Number of warmup invocations to discard before counting.
+     */
+    default int warmup() {
+        return useCaseAttributes().warmup();
+    }
 
     /**
      * The origin of the threshold (annotation, baseline, etc.).

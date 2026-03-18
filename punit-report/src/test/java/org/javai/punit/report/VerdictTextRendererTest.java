@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.BaselineSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CostSummary;
@@ -200,7 +201,7 @@ class VerdictTextRendererTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", "shouldPass", Optional.empty()),
                 new ExecutionSummary(100, 100, successes, failures, 0.9, observedRate, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
                         Optional.of(2.29), Optional.of(0.011),
@@ -218,7 +219,7 @@ class VerdictTextRendererTest {
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(),
                 new ExecutionSummary(100, 50, 40, 10, 0.9, 0.8, 5000,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(),

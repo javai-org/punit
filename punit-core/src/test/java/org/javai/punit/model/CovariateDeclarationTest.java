@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.javai.punit.api.CovariateCategory;
+import org.javai.punit.model.UseCaseAttributes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ class CovariateDeclarationTest {
             assertThat(CovariateDeclaration.EMPTY.regionGroups()).isEmpty();
             assertThat(CovariateDeclaration.EMPTY.timezoneEnabled()).isFalse();
             assertThat(CovariateDeclaration.EMPTY.customCovariates()).isEmpty();
+            assertThat(CovariateDeclaration.EMPTY.useCaseAttributes().warmup()).isEqualTo(0);
         }
 
         @Test
@@ -61,7 +63,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of("custom1", CovariateCategory.CONFIGURATION)
+                    Map.of("custom1", CovariateCategory.CONFIGURATION),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.dayGroups()).containsExactly(WEEKDAY_GROUP, WEEKEND_GROUP);
@@ -77,7 +80,8 @@ class CovariateDeclarationTest {
                     List.of(MORNING_PERIOD),
                     List.of(EU_REGION),
                     true,
-                    Map.of("custom", CovariateCategory.OPERATIONAL)
+                    Map.of("custom", CovariateCategory.OPERATIONAL),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.dayGroups()).isUnmodifiable();
@@ -98,6 +102,36 @@ class CovariateDeclarationTest {
         }
 
         @Test
+        @DisplayName("warmup should appear first when present")
+        void warmupShouldAppearFirstWhenPresent() {
+            var declaration = new CovariateDeclaration(
+                    List.of(WEEKDAY_GROUP),
+                    List.of(),
+                    List.of(),
+                    false,
+                    Map.of("custom1", CovariateCategory.OPERATIONAL),
+                    new UseCaseAttributes(5)
+            );
+
+            assertThat(declaration.allKeys()).containsExactly("warmup", "day_of_week", "custom1");
+        }
+
+        @Test
+        @DisplayName("warmup should be absent when zero")
+        void warmupShouldBeAbsentWhenZero() {
+            var declaration = new CovariateDeclaration(
+                    List.of(WEEKDAY_GROUP),
+                    List.of(),
+                    List.of(),
+                    false,
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
+            );
+
+            assertThat(declaration.allKeys()).containsExactly("day_of_week");
+        }
+
+        @Test
         @DisplayName("should return standard keys in fixed order then custom")
         void shouldReturnStandardKeysInFixedOrderThenCustom() {
             var customMap = new LinkedHashMap<String, CovariateCategory>();
@@ -109,7 +143,8 @@ class CovariateDeclarationTest {
                     List.of(MORNING_PERIOD),
                     List.of(EU_REGION),
                     true,
-                    customMap
+                    customMap,
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.allKeys()).containsExactly(
@@ -130,7 +165,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     true,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.allKeys()).containsExactly("region", "timezone");
@@ -142,6 +178,30 @@ class CovariateDeclarationTest {
     class GetCategoryTests {
 
         @Test
+        @DisplayName("should return CONFIGURATION for warmup")
+        void shouldReturnConfigurationForWarmup() {
+            var declaration = new CovariateDeclaration(
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    false,
+                    Map.of(),
+                    new UseCaseAttributes(5)
+            );
+
+            assertThat(declaration.getCategory("warmup"))
+                    .isEqualTo(CovariateCategory.CONFIGURATION);
+        }
+
+        @Test
+        @DisplayName("should throw for warmup when warmup is zero")
+        void shouldThrowForWarmupWhenZero() {
+            assertThatThrownBy(() -> CovariateDeclaration.EMPTY.getCategory("warmup"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("not declared");
+        }
+
+        @Test
         @DisplayName("should return TEMPORAL for day_of_week")
         void shouldReturnTemporalForDayOfWeek() {
             var declaration = new CovariateDeclaration(
@@ -149,7 +209,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.getCategory("day_of_week"))
@@ -164,7 +225,8 @@ class CovariateDeclarationTest {
                     List.of(MORNING_PERIOD),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.getCategory("time_of_day"))
@@ -179,7 +241,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.getCategory("region"))
@@ -194,7 +257,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     true,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.getCategory("timezone"))
@@ -209,7 +273,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of("llm_model", CovariateCategory.CONFIGURATION)
+                    Map.of("llm_model", CovariateCategory.CONFIGURATION),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.getCategory("llm_model"))
@@ -224,7 +289,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThatThrownBy(() -> declaration.getCategory("unknown"))
@@ -238,6 +304,21 @@ class CovariateDeclarationTest {
     class ContainsTests {
 
         @Test
+        @DisplayName("should return true for warmup when warmup > 0")
+        void shouldReturnTrueForWarmupWhenPositive() {
+            var declaration = new CovariateDeclaration(
+                    List.of(), List.of(), List.of(), false, Map.of(), new UseCaseAttributes(5));
+
+            assertThat(declaration.contains("warmup")).isTrue();
+        }
+
+        @Test
+        @DisplayName("should return false for warmup when warmup is zero")
+        void shouldReturnFalseForWarmupWhenZero() {
+            assertThat(CovariateDeclaration.EMPTY.contains("warmup")).isFalse();
+        }
+
+        @Test
         @DisplayName("should return true for declared day_of_week")
         void shouldReturnTrueForDeclaredDayOfWeek() {
             var declaration = new CovariateDeclaration(
@@ -245,7 +326,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.contains("day_of_week")).isTrue();
@@ -259,7 +341,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.contains("region")).isTrue();
@@ -273,7 +356,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of("custom", CovariateCategory.OPERATIONAL)
+                    Map.of("custom", CovariateCategory.OPERATIONAL),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.contains("custom")).isTrue();
@@ -287,7 +371,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.contains("unknown")).isFalse();
@@ -301,7 +386,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.contains("timezone")).isFalse();
@@ -327,7 +413,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of("custom", CovariateCategory.OPERATIONAL)
+                    Map.of("custom", CovariateCategory.OPERATIONAL),
+                    UseCaseAttributes.DEFAULT
             );
 
             var hash1 = declaration.computeDeclarationHash();
@@ -344,7 +431,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.computeDeclarationHash()).hasSize(8);
@@ -358,18 +446,41 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
             var declaration2 = new CovariateDeclaration(
                     List.of(),
                     List.of(),
                     List.of(),
                     true,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration1.computeDeclarationHash())
                     .isNotEqualTo(declaration2.computeDeclarationHash());
+        }
+
+        @Test
+        @DisplayName("warmup changes the declaration hash")
+        void warmupChangesTheDeclarationHash() {
+            var withoutWarmup = new CovariateDeclaration(
+                    List.of(), List.of(), List.of(EU_REGION), false, Map.of(), UseCaseAttributes.DEFAULT);
+            var withWarmup = new CovariateDeclaration(
+                    List.of(), List.of(), List.of(EU_REGION), false, Map.of(), new UseCaseAttributes(5));
+
+            assertThat(withWarmup.computeDeclarationHash())
+                    .isNotEqualTo(withoutWarmup.computeDeclarationHash());
+        }
+
+        @Test
+        @DisplayName("warmup-only declaration produces non-empty hash")
+        void warmupOnlyDeclarationProducesNonEmptyHash() {
+            var declaration = new CovariateDeclaration(
+                    List.of(), List.of(), List.of(), false, Map.of(), new UseCaseAttributes(5));
+
+            assertThat(declaration.computeDeclarationHash()).hasSize(8);
         }
 
         @Test
@@ -381,14 +492,16 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
             var declaration2 = new CovariateDeclaration(
                     List.of(),
                     List.of(),
                     List.of(US_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration1.computeDeclarationHash())
@@ -414,7 +527,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.isEmpty()).isFalse();
@@ -428,7 +542,8 @@ class CovariateDeclarationTest {
                     List.of(MORNING_PERIOD),
                     List.of(),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.isEmpty()).isFalse();
@@ -442,7 +557,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     false,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.isEmpty()).isFalse();
@@ -456,8 +572,18 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     true,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
+
+            assertThat(declaration.isEmpty()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should return false when warmup > 0")
+        void shouldReturnFalseWhenWarmupPositive() {
+            var declaration = new CovariateDeclaration(
+                    List.of(), List.of(), List.of(), false, Map.of(), new UseCaseAttributes(5));
 
             assertThat(declaration.isEmpty()).isFalse();
         }
@@ -470,7 +596,8 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(),
                     false,
-                    Map.of("custom", CovariateCategory.OPERATIONAL)
+                    Map.of("custom", CovariateCategory.OPERATIONAL),
+                    UseCaseAttributes.DEFAULT
             );
 
             assertThat(declaration.isEmpty()).isFalse();
@@ -500,7 +627,8 @@ class CovariateDeclarationTest {
                     List.of(MORNING_PERIOD),
                     List.of(EU_REGION),
                     true,
-                    customMap
+                    customMap,
+                    UseCaseAttributes.DEFAULT
             );
 
             // 4 standard (day_of_week, time_of_day, region, timezone) + 3 custom = 7
@@ -515,10 +643,27 @@ class CovariateDeclarationTest {
                     List.of(),
                     List.of(EU_REGION),
                     true,
-                    Map.of()
+                    Map.of(),
+                    UseCaseAttributes.DEFAULT
             );
 
             // region + timezone = 2
+            assertThat(declaration.size()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("should include warmup in count when positive")
+        void shouldIncludeWarmupInCountWhenPositive() {
+            var declaration = new CovariateDeclaration(
+                    List.of(),
+                    List.of(),
+                    List.of(EU_REGION),
+                    false,
+                    Map.of(),
+                    new UseCaseAttributes(5)
+            );
+
+            // warmup + region = 2
             assertThat(declaration.size()).isEqualTo(2);
         }
     }

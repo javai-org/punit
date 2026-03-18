@@ -98,6 +98,7 @@ public class ProbabilisticTestExtension implements
 	private static final String LAST_SAMPLE_TIME_KEY = "lastSampleTime";
 	private static final String SPEC_KEY = "spec";
 	private static final String SELECTION_RESULT_KEY = "selectionResult";
+	private static final String WARMUP_COUNTER_KEY = "warmupCounter";
 	private static final String PENDING_SELECTION_KEY = "pendingSelection";
 	private static final String STRATEGY_CONFIG_KEY = "strategyConfig";
 	private static final String THRESHOLD_DERIVED_KEY = "thresholdDerived";
@@ -217,6 +218,7 @@ public class ProbabilisticTestExtension implements
 				strategyConfig.samples(), strategyConfig.minPassRate());
 		AtomicBoolean terminated = new AtomicBoolean(false);
 		AtomicInteger sampleCounter = new AtomicInteger(0);
+		AtomicInteger warmupCounter = new AtomicInteger(0);
 
 		// Store strategy config and create TestConfiguration for backward compatibility
 		store.put(STRATEGY_CONFIG_KEY, strategyConfig);
@@ -233,6 +235,7 @@ public class ProbabilisticTestExtension implements
 		store.put(TERMINATED_KEY, terminated);
 		store.put(PACING_KEY, strategyConfig.pacing());
 		store.put(SAMPLE_COUNTER_KEY, sampleCounter);
+		store.put(WARMUP_COUNTER_KEY, warmupCounter);
 		if (tokenRecorder != null) {
 			store.put(TOKEN_RECORDER_KEY, tokenRecorder);
 		}
@@ -335,11 +338,14 @@ public class ProbabilisticTestExtension implements
 		// Apply pacing delay if configured (skip for first sample)
 		applyPacingDelay(extensionContext, config);
 
+		// Get warmup counter
+		AtomicInteger warmupCounter = getWarmupCounter(extensionContext);
+
 		// Build execution context and delegate to strategy
 		SampleExecutionContext executionContext = new SampleExecutionContext(
 				strategyConfig, aggregator, evaluator, budgetMonitor,
 				classBudgetMonitor, suiteBudgetMonitor, tokenRecorder,
-				terminated, extensionContext);
+				terminated, extensionContext, warmupCounter);
 
 		InterceptResult result = strategy.intercept(invocation, executionContext);
 
@@ -629,6 +635,8 @@ public class ProbabilisticTestExtension implements
 				.map(java.lang.reflect.Method::getName)
 				.orElse(context.getDisplayName());
 
+		BernoulliTrialsConfig stratConfig = getStrategyConfig(context);
+
 		ProbabilisticTestVerdictBuilder builder = new ProbabilisticTestVerdictBuilder()
 				.identity(className, methodName, config.specId())
 				.execution(
@@ -640,6 +648,7 @@ public class ProbabilisticTestExtension implements
 						aggregator.getObservedPassRate(),
 						aggregator.getElapsedMs())
 				.intent(config.intent(), config.resolvedConfidence())
+				.useCaseAttributes(stratConfig.useCaseAttributes())
 				.termination(
 						aggregator.getTerminationReason().orElse(TerminationReason.COMPLETED),
 						aggregator.getTerminationDetails())
@@ -818,6 +827,10 @@ public class ProbabilisticTestExtension implements
 
 	private AtomicInteger getSampleCounter(ExtensionContext context) {
 		return getFromStoreOrParent(context, SAMPLE_COUNTER_KEY, AtomicInteger.class);
+	}
+
+	private AtomicInteger getWarmupCounter(ExtensionContext context) {
+		return getFromStoreOrParent(context, WARMUP_COUNTER_KEY, AtomicInteger.class);
 	}
 
 	private ExecutionSpecification getSpec(ExtensionContext context) {

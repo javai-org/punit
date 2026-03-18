@@ -101,7 +101,8 @@ public class MeasureSpecGenerator {
                 useCaseContext,
                 expiresInDays,
                 footprint,
-                covariateProfile
+                covariateProfile,
+                config.useCaseAttributes()
         );
 
         // Write per-dimension spec files.

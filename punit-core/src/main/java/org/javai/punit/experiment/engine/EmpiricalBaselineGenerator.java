@@ -10,6 +10,7 @@ import org.javai.punit.experiment.model.EmpiricalBaseline.ExecutionSummary;
 import org.javai.punit.experiment.model.EmpiricalBaseline.StatisticsSummary;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.statistics.LatencyDistribution;
 
 /**
@@ -73,14 +74,41 @@ public class EmpiricalBaselineGenerator {
             int expiresInDays,
             String footprint,
             CovariateProfile covariateProfile) {
-        
+        return generate(aggregator, experimentClass, experimentMethod, context,
+                expiresInDays, footprint, covariateProfile, UseCaseAttributes.DEFAULT);
+    }
+
+    /**
+     * Generates an empirical baseline with warmup information.
+     *
+     * @param aggregator the experiment result aggregator
+     * @param experimentClass the experiment class (may be null)
+     * @param experimentMethod the experiment method (may be null)
+     * @param context the use case context
+     * @param expiresInDays the validity period in days (0 = no expiration)
+     * @param footprint the invocation footprint hash (may be null)
+     * @param covariateProfile the resolved covariate profile (may be null)
+     * @param useCaseAttributes use case attributes (warmup, maxConcurrent, etc.)
+     * @return the generated baseline
+     */
+    public EmpiricalBaseline generate(
+            ExperimentResultAggregator aggregator,
+            Class<?> experimentClass,
+            Method experimentMethod,
+            UseCaseContext context,
+            int expiresInDays,
+            String footprint,
+            CovariateProfile covariateProfile,
+            UseCaseAttributes useCaseAttributes) {
+
         double[] ci = aggregator.getConfidenceInterval95();
-        
+
         ExecutionSummary execution = new ExecutionSummary(
             aggregator.getTotalSamples(),
             aggregator.getSamplesExecuted(),
             aggregator.getTerminationReason(),
-            aggregator.getTerminationDetails()
+            aggregator.getTerminationDetails(),
+            useCaseAttributes
         );
         
         // EXPLORE mode: omit failure distribution (noisy with small samples, breaks diff alignment)

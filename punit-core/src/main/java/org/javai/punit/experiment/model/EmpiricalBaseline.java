@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.statistics.LatencyDistribution;
 
 /**
@@ -204,9 +205,28 @@ public final class EmpiricalBaseline {
 
 	/**
 	 * Summary of experiment execution.
+	 *
+	 * @param samplesPlanned number of samples planned
+	 * @param samplesExecuted number of samples actually executed
+	 * @param terminationReason why execution terminated
+	 * @param terminationDetails additional termination details
+	 * @param useCaseAttributes use case attributes (warmup, maxConcurrent, etc.)
 	 */
 	public record ExecutionSummary(int samplesPlanned, int samplesExecuted, String terminationReason,
-								   String terminationDetails) {
+								   String terminationDetails, UseCaseAttributes useCaseAttributes) {
+
+		/**
+		 * Backward-compatible constructor without useCaseAttributes.
+		 */
+		public ExecutionSummary(int samplesPlanned, int samplesExecuted, String terminationReason,
+								String terminationDetails) {
+			this(samplesPlanned, samplesExecuted, terminationReason, terminationDetails, UseCaseAttributes.DEFAULT);
+		}
+
+		/** Convenience accessor for warmup count. */
+		public int warmup() {
+			return useCaseAttributes != null ? useCaseAttributes.warmup() : 0;
+		}
 	}
 
 	/**
