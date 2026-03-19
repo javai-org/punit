@@ -4,11 +4,11 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.javai.punit.experiment.engine.ExperimentExtension;
 import org.javai.punit.experiment.optimize.FactorMutator;
 import org.javai.punit.experiment.optimize.OptimizationIterationAggregate;
 import org.javai.punit.experiment.optimize.OptimizationObjective;
 import org.javai.punit.experiment.optimize.Scorer;
-import org.javai.punit.experiment.engine.ExperimentExtension;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -282,4 +282,21 @@ public @interface OptimizeExperiment {
      * @return the experiment ID
      */
     String experimentId() default "";
+
+    /**
+     * Whether to skip warmup invocations for this experiment.
+     *
+     * <p>When {@code true}, the warmup count declared on the {@code @UseCase}
+     * annotation is ignored and no warmup invocations are executed. This is
+     * useful for OPTIMIZE experiments where statistical stationarity is not a
+     * concern and the developer does not want to wait for warmup to complete.
+     *
+     * <p>This does not modify the use case's warmup declaration — it only
+     * suppresses warmup for this particular experiment run.
+     *
+     * <p><b>Default: {@code false}</b> (warmup is respected)
+     *
+     * @return {@code true} to skip warmup invocations
+     */
+    boolean skipWarmup() default false;
 }

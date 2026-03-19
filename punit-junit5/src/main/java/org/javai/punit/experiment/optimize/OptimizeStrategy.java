@@ -18,16 +18,17 @@ import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.model.UseCaseAttributes;
-import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentWarmupHandler;
+import org.javai.punit.experiment.engine.WarmupInvocationContext;
 import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.experiment.model.FactorSuit;
+import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -75,6 +76,9 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         Class<?> useCaseClass = annotation.useCase();
         String useCaseId = UseCaseFactory.resolveId(useCaseClass);
         UseCaseAttributes useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
+        if (annotation.skipWarmup()) {
+            useCaseAttributes = new UseCaseAttributes(0, useCaseAttributes.maxConcurrent());
+        }
 
         // Validate mutual exclusivity of initial value options
         if (!annotation.initialControlFactorValue().isEmpty() &&
@@ -187,7 +191,22 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
             spliterator = new OptimizeSpliterator(state);
         }
 
-        return StreamSupport.stream(spliterator, false);
+        Stream<TestTemplateInvocationContext> sampleStream = StreamSupport.stream(spliterator, false);
+
+        // Prepend warmup contexts if configured
+        int warmup = optimizeConfig.warmup();
+        if (warmup > 0) {
+            final List<Object> warmupInputs = inputs;
+            final Class<?> warmupInputType = inputType;
+            Stream<TestTemplateInvocationContext> warmupStream = Stream.iterate(1, i -> i + 1)
+                    .limit(warmup)
+                    .map(i -> warmupInputs != null
+                            ? WarmupInvocationContext.forExperimentWithInput(
+                                    i, warmup, warmupInputs.get(0), warmupInputType)
+                            : WarmupInvocationContext.forExperiment(i, warmup));
+            return Stream.concat(warmupStream, sampleStream);
+        }
+        return sampleStream;
     }
 
     @Override

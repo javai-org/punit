@@ -17,14 +17,13 @@ import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
-import org.javai.punit.model.UseCaseAttributes;
-import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
 import org.javai.punit.experiment.engine.ExperimentWarmupHandler;
 import org.javai.punit.experiment.engine.ResultProjectionBuilder;
+import org.javai.punit.experiment.engine.WarmupInvocationContext;
 import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
@@ -33,6 +32,8 @@ import org.javai.punit.experiment.engine.shared.ResultRecorder;
 import org.javai.punit.experiment.measure.MeasureInvocationContext;
 import org.javai.punit.experiment.measure.MeasureWithInputsInvocationContext;
 import org.javai.punit.experiment.model.ResultProjection;
+import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -69,6 +70,9 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         Class<?> useCaseClass = annotation.useCase();
         String useCaseId = UseCaseFactory.resolveId(useCaseClass);
         UseCaseAttributes useCaseAttributes = UseCaseFactory.resolveAttributes(useCaseClass);
+        if (annotation.skipWarmup()) {
+            useCaseAttributes = new UseCaseAttributes(0, useCaseAttributes.maxConcurrent());
+        }
 
         return new ExploreConfig(
                 useCaseClass,
@@ -126,9 +130,14 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         store.put("terminated", new AtomicBoolean(false));
         store.put("warmupCounter", new AtomicInteger(0));
 
-        // Generate invocation contexts for all configs × samples
-        List<ExploreInvocationContext> invocations = new ArrayList<>();
+        // Prepend warmup contexts if configured
+        int warmup = exploreConfig.warmup();
+        List<TestTemplateInvocationContext> allInvocations = new ArrayList<>();
+        for (int w = 1; w <= warmup; w++) {
+            allInvocations.add(WarmupInvocationContext.forExperiment(w, warmup));
+        }
 
+        // Generate invocation contexts for all configs × samples
         for (int configIndex = 0; configIndex < argsList.size(); configIndex++) {
             FactorArguments args = argsList.get(configIndex);
             Object[] factorValues = args.get();
@@ -141,14 +150,14 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                     .put(configName, configAggregator);
 
             for (int sample = 1; sample <= samplesPerConfig; sample++) {
-                invocations.add(new ExploreInvocationContext(
+                allInvocations.add(new ExploreInvocationContext(
                         sample, samplesPerConfig, configIndex + 1, argsList.size(),
                         useCaseId, configName, factorValues, factorInfos, new OutcomeCaptor()
                 ));
             }
         }
 
-        return invocations.stream().map(c -> (TestTemplateInvocationContext) c);
+        return allInvocations.stream();
     }
 
     private Stream<TestTemplateInvocationContext> provideSimpleInvocationContexts(
@@ -167,8 +176,14 @@ public class ExploreStrategy implements ExperimentModeStrategy {
 
         return Stream.iterate(1, i -> i + 1)
                 .limit(totalInvocations)
-                .map(i -> new MeasureInvocationContext(
-                        i, totalInvocations, useCaseId, new OutcomeCaptor()));
+                .map(i -> {
+                    if (i <= warmup) {
+                        return (TestTemplateInvocationContext) WarmupInvocationContext.forExperiment(i, warmup);
+                    }
+                    int sampleIndex = i - warmup;
+                    return (TestTemplateInvocationContext) new MeasureInvocationContext(
+                            sampleIndex, samplesPerConfig, useCaseId, new OutcomeCaptor());
+                });
     }
 
     private Stream<TestTemplateInvocationContext> provideWithInputsInvocationContexts(
@@ -195,6 +210,8 @@ public class ExploreStrategy implements ExperimentModeStrategy {
 
         int totalSamples = samplesPerConfig * inputs.size();
 
+        int warmup = config.warmup();
+
         // Store explore-mode metadata with single aggregator (round-robin, not per-config)
         store.put("mode", ExperimentMode.EXPLORE);
         store.put("inputs", inputs);
@@ -204,16 +221,24 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         store.put("totalSamples", totalSamples);
         store.put("currentSample", new AtomicInteger(0));
         store.put("terminated", new AtomicBoolean(false));
+        store.put("warmupCounter", new AtomicInteger(0));
 
-        // Generate round-robin stream cycling through inputs
+        // Generate warmup + round-robin sample stream
+        int totalInvocations = warmup + totalSamples;
         int totalInputs = inputs.size();
+        Object firstInput = inputs.get(0);
         return Stream.iterate(1, i -> i + 1)
-                .limit(totalSamples)
+                .limit(totalInvocations)
                 .map(i -> {
-                    int inputIndex = (i - 1) % totalInputs;
+                    if (i <= warmup) {
+                        return (TestTemplateInvocationContext) WarmupInvocationContext.forExperimentWithInput(
+                                i, warmup, firstInput, inputType);
+                    }
+                    int sampleIndex = i - warmup;
+                    int inputIndex = (sampleIndex - 1) % totalInputs;
                     Object inputValue = inputs.get(inputIndex);
                     return (TestTemplateInvocationContext) new MeasureWithInputsInvocationContext(
-                            i, totalSamples, useCaseId, new OutcomeCaptor(),
+                            sampleIndex, totalSamples, useCaseId, new OutcomeCaptor(),
                             inputValue, inputType, inputIndex, totalInputs);
                 });
     }

@@ -14,17 +14,18 @@ import org.javai.punit.api.HashableFactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TokenChargeRecorder;
-import org.javai.punit.model.UseCaseAttributes;
-import org.javai.punit.usecase.UseCaseFactory;
-import org.javai.punit.experiment.engine.input.InputParameterDetector;
-import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.controls.budget.BudgetOrchestrator;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.DefaultTokenChargeRecorder;
 import org.javai.punit.controls.pacing.PacingConfiguration;
 import org.javai.punit.controls.pacing.PacingResolver;
 import org.javai.punit.experiment.engine.FactorSourceAdapter;
+import org.javai.punit.experiment.engine.WarmupInvocationContext;
+import org.javai.punit.experiment.engine.input.InputParameterDetector;
+import org.javai.punit.experiment.engine.input.InputParameterResolver;
+import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
 import org.javai.punit.ptest.engine.FactorConsistencyValidator;
 import org.javai.punit.ptest.engine.ProbabilisticTestConfigurationException;
@@ -36,6 +37,7 @@ import org.javai.punit.ptest.strategy.ProbabilisticTestStrategy;
 import org.javai.punit.ptest.strategy.SampleExecutionContext;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor.Invocation;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
@@ -169,21 +171,28 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
         if (inputSource != null) {
             return provideWithInputsInvocationContexts(
                     testMethod, inputSource, context.getRequiredTestClass(),
-                    samples, store, terminated, tokenRecorder);
+                    warmup, samples, store, terminated, tokenRecorder);
         }
 
         AtomicBoolean terminatedFinal = terminated;
         return Stream.iterate(1, i -> i + 1)
                 .limit(totalInvocations)
                 .takeWhile(i -> !terminatedFinal.get())
-                .map(sampleIndex -> new ProbabilisticTestInvocationContext(
-                        sampleIndex, totalInvocations, tokenRecorder));
+                .map(i -> {
+                    if (i <= warmup) {
+                        return new WarmupInvocationContext(i, warmup);
+                    }
+                    int sampleIndex = i - warmup;
+                    return new ProbabilisticTestInvocationContext(
+                            sampleIndex, samples, tokenRecorder);
+                });
     }
 
     private Stream<TestTemplateInvocationContext> provideWithInputsInvocationContexts(
             Method testMethod,
             InputSource inputSource,
             Class<?> testClass,
+            int warmup,
             int samples,
             ExtensionContext.Store store,
             AtomicBoolean terminated,
@@ -204,16 +213,23 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
         store.put("inputs", inputs);
         store.put("inputType", inputType);
 
-        // Generate sample stream with cycling inputs
+        // Generate warmup + sample stream with cycling inputs
+        int totalInvocations = warmup + samples;
         int totalInputs = inputs.size();
+        Object firstInput = inputs.get(0);
         return Stream.iterate(1, i -> i + 1)
-                .limit(samples)
+                .limit(totalInvocations)
                 .takeWhile(i -> !terminated.get())
                 .map(i -> {
-                    int inputIndex = (i - 1) % totalInputs;
+                    if (i <= warmup) {
+                        return new WarmupInvocationContext(i, warmup,
+                                List.of(new InputParameterResolver(firstInput, inputType)));
+                    }
+                    int sampleIndex = i - warmup;
+                    int inputIndex = (sampleIndex - 1) % totalInputs;
                     Object inputValue = inputs.get(inputIndex);
                     return new ProbabilisticTestWithInputsInvocationContext(
-                            i, samples, tokenRecorder, inputValue, inputType, inputIndex, totalInputs);
+                            sampleIndex, samples, tokenRecorder, inputValue, inputType, inputIndex, totalInputs);
                 });
     }
 
@@ -268,11 +284,10 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
         // 6. Early termination
         Optional<InterceptResult> terminationResult = evaluateEarlyTermination(
                 aggregator, evaluator, terminated, sampleResult);
-        if (terminationResult.isPresent()) return terminationResult.get();
+		return terminationResult.orElseGet(() -> evaluateCompletion(aggregator, config, terminated, sampleResult));
 
         // 7. Completion or continue
-        return evaluateCompletion(aggregator, config, terminated, sampleResult);
-    }
+	}
 
     /**
      * Handles the warmup phase: executes warmup invocations without recording results,
@@ -493,7 +508,8 @@ public class BernoulliTrialsStrategy implements ProbabilisticTestStrategy {
             return Optional.empty();
         }
 
-        TerminationReason reason = checkResult.terminationReason().get();
+        TerminationReason reason = checkResult.terminationReason()
+                .orElseThrow(() -> new IllegalStateException("Reason must be present when shouldTerminate is true"));
         BudgetExhaustedBehavior behavior = budgetOrchestrator.determineBehavior(
                 reason,
                 executionContext.suiteBudget(),

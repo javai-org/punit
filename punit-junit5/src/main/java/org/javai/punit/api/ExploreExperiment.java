@@ -142,4 +142,21 @@ public @interface ExploreExperiment {
      * @return validity period in days, or 0 for no expiration
      */
     int expiresInDays() default 0;
+
+    /**
+     * Whether to skip warmup invocations for this experiment.
+     *
+     * <p>When {@code true}, the warmup count declared on the {@code @UseCase}
+     * annotation is ignored and no warmup invocations are executed. This is
+     * useful for EXPLORE experiments where statistical stationarity is not a
+     * concern and the developer does not want to wait for warmup to complete.
+     *
+     * <p>This does not modify the use case's warmup declaration — it only
+     * suppresses warmup for this particular experiment run.
+     *
+     * <p><b>Default: {@code false}</b> (warmup is respected)
+     *
+     * @return {@code true} to skip warmup invocations
+     */
+    boolean skipWarmup() default false;
 }

@@ -11,18 +11,19 @@ import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.model.UseCaseAttributes;
-import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.experiment.engine.ExperimentConfig;
 import org.javai.punit.experiment.engine.ExperimentModeStrategy;
 import org.javai.punit.experiment.engine.ExperimentProgressReporter;
 import org.javai.punit.experiment.engine.ExperimentResultAggregator;
 import org.javai.punit.experiment.engine.ExperimentWarmupHandler;
+import org.javai.punit.experiment.engine.WarmupInvocationContext;
 import org.javai.punit.experiment.engine.input.InputParameterDetector;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
 import org.javai.punit.experiment.engine.shared.FactorResolver;
 import org.javai.punit.experiment.engine.shared.ResultRecorder;
+import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -102,7 +103,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         if (inputSource != null) {
             return provideWithInputsInvocationContexts(
                     testMethod, inputSource, context.getRequiredTestClass(),
-                    samples, useCaseId, store, terminated);
+                    warmup, samples, useCaseId, store, terminated);
         }
 
         // Check for @FactorSource annotation (legacy)
@@ -110,7 +111,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         if (factorSource != null) {
             return provideWithFactorsInvocationContexts(
                     testMethod, factorSource, measureConfig.useCaseClass(),
-                    samples, useCaseId, store, terminated);
+                    warmup, samples, useCaseId, store, terminated);
         }
 
         // No input or factor source - simple sample stream (warmup + counted)
@@ -118,13 +119,21 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         return Stream.iterate(1, i -> i + 1)
                 .limit(totalInvocations)
                 .takeWhile(i -> !terminated.get())
-                .map(i -> new MeasureInvocationContext(i, totalInvocations, useCaseId, new OutcomeCaptor()));
+                .map(i -> {
+                    if (i <= warmup) {
+                        return (TestTemplateInvocationContext) WarmupInvocationContext.forExperiment(i, warmup);
+                    }
+                    int sampleIndex = i - warmup;
+                    return (TestTemplateInvocationContext) new MeasureInvocationContext(
+                            sampleIndex, samples, useCaseId, new OutcomeCaptor());
+                });
     }
 
     private Stream<TestTemplateInvocationContext> provideWithInputsInvocationContexts(
             Method testMethod,
             InputSource inputSource,
             Class<?> testClass,
+            int warmup,
             int samples,
             String useCaseId,
             ExtensionContext.Store store,
@@ -145,16 +154,23 @@ public class MeasureStrategy implements ExperimentModeStrategy {
         store.put("inputs", inputs);
         store.put("inputType", inputType);
 
-        // Generate sample stream with cycling inputs
+        // Generate warmup + sample stream with cycling inputs
+        int totalInvocations = warmup + samples;
         int totalInputs = inputs.size();
+        Object firstInput = inputs.get(0);
         return Stream.iterate(1, i -> i + 1)
-                .limit(samples)
+                .limit(totalInvocations)
                 .takeWhile(i -> !terminated.get())
                 .map(i -> {
-                    int inputIndex = (i - 1) % totalInputs;
+                    if (i <= warmup) {
+                        return (TestTemplateInvocationContext) WarmupInvocationContext.forExperimentWithInput(
+                                i, warmup, firstInput, inputType);
+                    }
+                    int sampleIndex = i - warmup;
+                    int inputIndex = (sampleIndex - 1) % totalInputs;
                     Object inputValue = inputs.get(inputIndex);
-                    return new MeasureWithInputsInvocationContext(
-                            i, samples, useCaseId, new OutcomeCaptor(),
+                    return (TestTemplateInvocationContext) new MeasureWithInputsInvocationContext(
+                            sampleIndex, samples, useCaseId, new OutcomeCaptor(),
                             inputValue, inputType, inputIndex, totalInputs);
                 });
     }
@@ -168,6 +184,7 @@ public class MeasureStrategy implements ExperimentModeStrategy {
             Method testMethod,
             FactorSource factorSource,
             Class<?> useCaseClass,
+            int warmup,
             int samples,
             String useCaseId,
             ExtensionContext.Store store,
@@ -187,16 +204,21 @@ public class MeasureStrategy implements ExperimentModeStrategy {
                 testMethod, factorsList.get(0));
         store.put("factorInfos", factorInfos);
 
-        // Generate sample stream with cycling factors
+        // Generate warmup + sample stream with cycling factors
+        int totalInvocations = warmup + samples;
         return Stream.iterate(1, i -> i + 1)
-                .limit(samples)
+                .limit(totalInvocations)
                 .takeWhile(i -> !terminated.get())
                 .map(i -> {
-                    int factorIndex = (i - 1) % factorsList.size();
+                    if (i <= warmup) {
+                        return (TestTemplateInvocationContext) WarmupInvocationContext.forExperiment(i, warmup);
+                    }
+                    int sampleIndex = i - warmup;
+                    int factorIndex = (sampleIndex - 1) % factorsList.size();
                     FactorArguments args = factorsList.get(factorIndex);
                     Object[] factorValues = FactorResolver.extractFactorValues(args, factorInfos);
-                    return new MeasureWithFactorsInvocationContext(
-                            i, samples, useCaseId, new OutcomeCaptor(), factorValues, factorInfos);
+                    return (TestTemplateInvocationContext) new MeasureWithFactorsInvocationContext(
+                            sampleIndex, samples, useCaseId, new OutcomeCaptor(), factorValues, factorInfos);
                 });
     }
 
