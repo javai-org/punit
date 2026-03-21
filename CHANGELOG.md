@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-21
+
+### Fixed
+- Improved accuracy of baseline threshold derivation for high-reliability use cases. The confidence interval used to compute `minPassRate` in MEASURE experiment specs now uses the Wilson score method consistently, matching the statistical engine used elsewhere in PUnit. Previously generated specs with very high observed pass rates (near 100%) may produce slightly different `minPassRate` values when re-measured. Re-running affected MEASURE experiments is recommended.
+
 ## [0.5.0] - 2026-03-13
 
 ### Added
@@ -93,7 +98,8 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/javai-org/punit/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/javai-org/punit/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/javai-org/punit/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/javai-org/punit/compare/v0.3.1...v0.4.0
