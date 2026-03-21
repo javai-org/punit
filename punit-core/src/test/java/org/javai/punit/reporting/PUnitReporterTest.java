@@ -1,15 +1,8 @@
 package org.javai.punit.reporting;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.AbstractAppender;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.layout.PatternLayout;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import org.junit.jupiter.api.Test;
 
 class PUnitReporterTest {
@@ -62,56 +55,38 @@ class PUnitReporterTest {
     }
 
     @Test
-    void reportInfoEmitsFormattedOutput() {
-        LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        Configuration configuration = context.getConfiguration();
-        
-        // Get or create the PUnitReporter logger config
-        String loggerName = PUnitReporter.class.getName();
-        LoggerConfig loggerConfig = configuration.getLoggerConfig(loggerName);
-        if (!loggerConfig.getName().equals(loggerName)) {
-            loggerConfig = new LoggerConfig(loggerName, Level.INFO, false);
-            configuration.addLogger(loggerName, loggerConfig);
-        }
-
-        TestAppender appender = new TestAppender("testAppender");
-        appender.start();
-        loggerConfig.addAppender(appender, Level.INFO, null);
-        context.updateLoggers();
+    void reportInfoEmitsFormattedOutputToStdout() {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream capture = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(capture));
 
         try {
             PUnitReporter reporter = new PUnitReporter(40);
             reporter.reportInfo("TEST TITLE", "hello");
 
-            assertThat(appender.events())
-                    .hasSize(1);
-            String message = appender.events().get(0).getMessage().getFormattedMessage();
-            // Format: header + blank line + indented body + newline
+            String output = capture.toString();
             String expected = reporter.headerDivider("TEST TITLE") + "\n\n" + "  hello" + "\n";
-            assertThat(message)
-                    .isEqualTo(expected);
+            assertThat(output.trim()).isEqualTo(expected.trim());
         } finally {
-            loggerConfig.removeAppender(appender.getName());
-            appender.stop();
-            context.updateLoggers();
+            System.setOut(originalOut);
         }
     }
 
-    private static final class TestAppender extends AbstractAppender {
+    @Test
+    void reportWarnEmitsToStderr() {
+        PrintStream originalErr = System.err;
+        ByteArrayOutputStream capture = new ByteArrayOutputStream();
+        System.setErr(new PrintStream(capture));
 
-        private final List<org.apache.logging.log4j.core.LogEvent> events = new ArrayList<>();
+        try {
+            PUnitReporter reporter = new PUnitReporter(40);
+            reporter.reportWarn("WARNING", "something is off");
 
-        private TestAppender(String name) {
-            super(name, null, PatternLayout.createDefaultLayout(), false, null);
-        }
-
-        @Override
-        public void append(org.apache.logging.log4j.core.LogEvent event) {
-            events.add(event.toImmutable());
-        }
-
-        private List<org.apache.logging.log4j.core.LogEvent> events() {
-            return events;
+            String output = capture.toString();
+            assertThat(output).contains("═ WARNING");
+            assertThat(output).contains("something is off");
+        } finally {
+            System.setErr(originalErr);
         }
     }
 }

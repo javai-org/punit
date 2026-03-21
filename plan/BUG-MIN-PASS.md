@@ -1,0 +1,4 @@
+Bug report: I ran a measure experiment where every one of the use case results came back ok. This resulted in a 100% success rate, which is correct. However, in the baseline spec that was generated, the minPassRate was computed to be 1.0. This is incorrect. The rule of 3 gives us a sense of what the true pass rate would be and the Wilson lower bound surely has to be < 1.0.
+We must discover why the minPassRate is being computed incorrectly.
+
+To investigate this issue, create a mock measure experiment, which generates 100% successes. Compute the Wilson lower bound using punit's statistics machinery (which we have verified separately already), but verify that the expected value of the minPassRate is indeed < 1.0.

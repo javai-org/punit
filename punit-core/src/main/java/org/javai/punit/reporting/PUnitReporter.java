@@ -1,12 +1,16 @@
 package org.javai.punit.reporting;
 
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.stream.Collectors;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 /**
  * Formats and emits PUnit reports using a consistent visual header/footer.
+ *
+ * <p>Output is written directly to {@link System#out} (info) or {@link System#err}
+ * (warnings, errors). This ensures framework output is always visible regardless
+ * of logging configuration — the verdict is not a log message, it is primary
+ * framework output that the developer must always see.
  *
  * <p>Each report includes a title on the left and "PUnit" branding on the right:
  * <pre>
@@ -19,7 +23,6 @@ import org.apache.logging.log4j.Logger;
  */
 public final class PUnitReporter {
 
-    private static final Logger logger = LogManager.getLogger(PUnitReporter.class);
     private static final int DEFAULT_WIDTH = 78;
     private static final String SUFFIX = " PUnit ═";
 
@@ -49,33 +52,37 @@ public final class PUnitReporter {
     }
 
     /**
-     * Logs a report at INFO level.
+     * Prints a report to stdout.
      *
      * @param title the report title (e.g., "VERDICT: PASS", "BASELINE SELECTED")
      * @param body the report body content
      */
     public void reportInfo(String title, String body) {
-        logger.info(format(title, body));
+        print(System.out, title, body);
     }
 
     /**
-     * Logs a report at WARN level.
+     * Prints a warning report to stderr.
      *
      * @param title the report title (e.g., "BASELINE EXPIRED")
      * @param body the report body content
      */
     public void reportWarn(String title, String body) {
-        logger.warn(format(title, body));
+        print(System.err, title, body);
     }
 
     /**
-     * Logs a report at ERROR level.
+     * Prints an error report to stderr.
      *
      * @param title the report title
      * @param body the report body content
      */
     public void reportError(String title, String body) {
-        logger.error(format(title, body));
+        print(System.err, title, body);
+    }
+
+    private void print(PrintStream out, String title, String body) {
+        out.println(format(title, body));
     }
 
     /**

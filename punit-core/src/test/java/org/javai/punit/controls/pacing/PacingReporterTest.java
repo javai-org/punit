@@ -1,16 +1,9 @@
 package org.javai.punit.controls.pacing;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.AbstractAppender;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.javai.punit.reporting.PUnitReporter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,60 +16,39 @@ import org.junit.jupiter.api.Test;
  */
 class PacingReporterTest {
 
-    private static final String PUNIT_REPORTER_LOGGER = "org.javai.punit.reporting.PUnitReporter";
-    
-    private TestAppender appender;
+    private ByteArrayOutputStream stdoutCapture;
+    private ByteArrayOutputStream stderrCapture;
+    private PrintStream originalOut;
+    private PrintStream originalErr;
     private PacingReporter reporter;
-    private LoggerConfig targetLoggerConfig;
 
     @BeforeEach
     void setUp() {
-        LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        Configuration configuration = context.getConfiguration();
-        
-        // Get or create the PUnitReporter logger config
-        targetLoggerConfig = configuration.getLoggerConfig(PUNIT_REPORTER_LOGGER);
-        if (!targetLoggerConfig.getName().equals(PUNIT_REPORTER_LOGGER)) {
-            // Logger config doesn't exist, create it
-            targetLoggerConfig = new LoggerConfig(PUNIT_REPORTER_LOGGER, Level.INFO, false);
-            configuration.addLogger(PUNIT_REPORTER_LOGGER, targetLoggerConfig);
-        }
-
-        appender = new TestAppender("pacingTestAppender");
-        appender.start();
-        targetLoggerConfig.addAppender(appender, Level.INFO, null);
-        context.updateLoggers();
-
+        originalOut = System.out;
+        originalErr = System.err;
+        stdoutCapture = new ByteArrayOutputStream();
+        stderrCapture = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(stdoutCapture));
+        System.setErr(new PrintStream(stderrCapture));
         reporter = new PacingReporter(new PUnitReporter());
     }
 
     @AfterEach
     void tearDown() {
-        LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        targetLoggerConfig.removeAppender(appender.getName());
-        appender.stop();
-        context.updateLoggers();
+        System.setOut(originalOut);
+        System.setErr(originalErr);
     }
 
-    private String getLoggedContent() {
-        if (appender.events().isEmpty()) {
-            return "";
-        }
-        return appender.events().stream()
-                .map(e -> e.getMessage().getFormattedMessage())
-                .reduce("", (a, b) -> a + b);
+    private String getStdout() {
+        return stdoutCapture.toString();
     }
 
-    private List<org.apache.logging.log4j.core.LogEvent> getInfoEvents() {
-        return appender.events().stream()
-                .filter(e -> e.getLevel() == Level.INFO)
-                .toList();
+    private String getStderr() {
+        return stderrCapture.toString();
     }
 
-    private List<org.apache.logging.log4j.core.LogEvent> getWarnEvents() {
-        return appender.events().stream()
-                .filter(e -> e.getLevel() == Level.WARN)
-                .toList();
+    private String getAllOutput() {
+        return getStdout() + getStderr();
     }
 
     @Nested
@@ -91,7 +63,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 100, pacing, startTime);
 
-            assertThat(appender.events()).isEmpty();
+            assertThat(getAllOutput()).isEmpty();
         }
 
         @Test
@@ -103,8 +75,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            assertThat(getInfoEvents()).hasSize(1);
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("═ EXECUTION PLAN");
             assertThat(output).contains("PUnit ═");
             assertThat(output).contains("testMethod");
@@ -121,7 +92,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("Max requests/min:");
             assertThat(output).contains("60");
             assertThat(output).contains("RPM");
@@ -136,7 +107,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 100, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("Max requests/sec:");
             assertThat(output).contains("RPS");
         }
@@ -150,7 +121,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("Max concurrent:");
             assertThat(output).contains("3");
         }
@@ -164,7 +135,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("Estimated duration:");
             assertThat(output).contains("3m 20s");
         }
@@ -178,7 +149,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("Estimated completion:");
         }
 
@@ -191,7 +162,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("Started:");
         }
 
@@ -204,7 +175,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("Effective throughput:");
             assertThat(output).contains("samples/min");
         }
@@ -218,7 +189,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).doesNotContain("╔");
             assertThat(output).doesNotContain("╚");
             assertThat(output).doesNotContain("║");
@@ -233,7 +204,7 @@ class PacingReporterTest {
 
             reporter.printPreFlightReport("testMethod", 200, pacing, startTime);
 
-            String output = getLoggedContent();
+            String output = getStdout();
             assertThat(output).contains("═ EXECUTION PLAN");
             assertThat(output).contains("PUnit ═");
         }
@@ -250,7 +221,7 @@ class PacingReporterTest {
 
             reporter.printFeasibilityWarning(pacing, 60000, 100);
 
-            assertThat(appender.events()).isEmpty();
+            assertThat(getAllOutput()).isEmpty();
         }
 
         @Test
@@ -261,7 +232,7 @@ class PacingReporterTest {
 
             reporter.printFeasibilityWarning(pacing, 0, 100);
 
-            assertThat(appender.events()).isEmpty();
+            assertThat(getAllOutput()).isEmpty();
         }
 
         @Test
@@ -272,20 +243,18 @@ class PacingReporterTest {
 
             reporter.printFeasibilityWarning(pacing, 60000, 50);
 
-            assertThat(appender.events()).isEmpty();
+            assertThat(getAllOutput()).isEmpty();
         }
 
         @Test
         @DisplayName("Warns when duration exceeds budget")
         void exceedsBudget_warns() {
-            // 200 seconds estimated, but only 60 second budget
             PacingConfiguration pacing = new PacingConfiguration(
                     0, 60, 0, 0, 0, 1000, 1, 200000, 1.0);
 
             reporter.printFeasibilityWarning(pacing, 60000, 200);
 
-            assertThat(getWarnEvents()).hasSize(1);
-            String output = getLoggedContent();
+            String output = getStderr();
             assertThat(output).contains("═ PACING CONFLICT");
             assertThat(output).contains("PUnit ═");
         }
@@ -298,7 +267,7 @@ class PacingReporterTest {
 
             reporter.printFeasibilityWarning(pacing, 60000, 200);
 
-            String output = getLoggedContent();
+            String output = getStderr();
             assertThat(output).contains("Reduce sample count");
         }
 
@@ -310,7 +279,7 @@ class PacingReporterTest {
 
             reporter.printFeasibilityWarning(pacing, 60000, 200);
 
-            String output = getLoggedContent();
+            String output = getStderr();
             assertThat(output).contains("Increase time budget");
         }
 
@@ -322,26 +291,8 @@ class PacingReporterTest {
 
             reporter.printFeasibilityWarning(pacing, 60000, 200);
 
-            String output = getLoggedContent();
+            String output = getStderr();
             assertThat(output).contains("Relax pacing constraints");
-        }
-    }
-
-    private static final class TestAppender extends AbstractAppender {
-
-        private final List<org.apache.logging.log4j.core.LogEvent> events = new ArrayList<>();
-
-        private TestAppender(String name) {
-            super(name, null, PatternLayout.createDefaultLayout(), false, null);
-        }
-
-        @Override
-        public void append(org.apache.logging.log4j.core.LogEvent event) {
-            events.add(event.toImmutable());
-        }
-
-        private List<org.apache.logging.log4j.core.LogEvent> events() {
-            return events;
         }
     }
 }

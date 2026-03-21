@@ -1,0 +1,1 @@
+In the project ../javai-newsroom I created a measure experiment and a probabilistic test. When I ran the test, I did not see a verdict in the output run. Investigate why.
