@@ -11,8 +11,6 @@ import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.model.ResultProjection;
 import org.javai.punit.spec.criteria.PostconditionAggregator;
-import org.javai.punit.statistics.BinomialProportionEstimator;
-import org.javai.punit.statistics.ProportionEstimate;
 
 /**
  * Aggregates results from experiment sample executions.
@@ -212,42 +210,6 @@ public class ExperimentResultAggregator {
             return 0.0;
         }
         return (double) successes / executed;
-    }
-
-    /**
-     * Computes the standard error of the success rate.
-     *
-     * <p>Uses the formula: SE = sqrt(p * (1-p) / n)
-     *
-     * @return the standard error
-     */
-    public double getStandardError() {
-        int n = getSamplesExecuted();
-        if (n < 2) {
-            return 0.0;
-        }
-        double p = getObservedSuccessRate();
-        return Math.sqrt(p * (1 - p) / n);
-    }
-
-    /**
-     * Computes the 95% confidence interval for the success rate.
-     *
-     * <p>Uses the Wilson score interval, which remains valid when the observed
-     * proportion is at or near the boundaries (0 or 1). The normal (Wald)
-     * approximation collapses to a zero-width interval at p̂=1.0, producing
-     * an incorrect lower bound of 1.0.
-     *
-     * @return array of [lower, upper] bounds
-     */
-    public double[] getConfidenceInterval95() {
-        int n = getSamplesExecuted();
-        if (n == 0) {
-            return new double[] { 0.0, 0.0 };
-        }
-        BinomialProportionEstimator estimator = new BinomialProportionEstimator();
-        ProportionEstimate estimate = estimator.estimate(successes, n, 0.95);
-        return new double[] { estimate.lowerBound(), estimate.upperBound() };
     }
 
     public long getElapsedMs() {

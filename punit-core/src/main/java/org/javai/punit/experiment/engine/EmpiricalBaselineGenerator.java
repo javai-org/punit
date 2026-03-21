@@ -11,7 +11,9 @@ import org.javai.punit.experiment.model.EmpiricalBaseline.StatisticsSummary;
 import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.statistics.LatencyDistribution;
+import org.javai.punit.statistics.ProportionEstimate;
 
 /**
  * Generates empirical baselines from experiment results.
@@ -101,7 +103,10 @@ public class EmpiricalBaselineGenerator {
             CovariateProfile covariateProfile,
             UseCaseAttributes useCaseAttributes) {
 
-        double[] ci = aggregator.getConfidenceInterval95();
+        int n = aggregator.getSamplesExecuted();
+        BinomialProportionEstimator estimator = new BinomialProportionEstimator();
+        ProportionEstimate ci = estimator.estimate(aggregator.getSuccesses(), n, 0.95);
+        double standardError = estimator.standardError(aggregator.getSuccesses(), n);
 
         ExecutionSummary execution = new ExecutionSummary(
             aggregator.getTotalSamples(),
@@ -125,9 +130,9 @@ public class EmpiricalBaselineGenerator {
         
         StatisticsSummary statistics = new StatisticsSummary(
             aggregator.getObservedSuccessRate(),
-            aggregator.getStandardError(),
-            ci[0],
-            ci[1],
+            standardError,
+            ci.lowerBound(),
+            ci.upperBound(),
             aggregator.getSuccesses(),
             aggregator.getFailures(),
             failureDistribution,

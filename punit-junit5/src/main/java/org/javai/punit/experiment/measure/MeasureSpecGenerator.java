@@ -18,6 +18,7 @@ import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.spec.baseline.BaselineFileNamer;
 import org.javai.punit.spec.baseline.FootprintComputer;
 import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
+import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.spec.baseline.covariate.DefaultCovariateResolutionContext;
 import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -161,8 +162,11 @@ public class MeasureSpecGenerator {
                 String.valueOf(aggregator.getSamplesExecuted()));
         context.publishReportEntry("punit.successRate",
                 String.format("%.4f", aggregator.getObservedSuccessRate()));
+        BinomialProportionEstimator estimator = new BinomialProportionEstimator();
+        double standardError = estimator.standardError(
+                aggregator.getSuccesses(), aggregator.getSamplesExecuted());
         context.publishReportEntry("punit.standardError",
-                String.format("%.4f", aggregator.getStandardError()));
+                String.format("%.4f", standardError));
         context.publishReportEntry("punit.terminationReason",
                 aggregator.getTerminationReason());
         context.publishReportEntry("punit.elapsedMs",
