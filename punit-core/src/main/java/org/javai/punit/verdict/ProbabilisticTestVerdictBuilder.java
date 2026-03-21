@@ -331,7 +331,7 @@ public class ProbabilisticTestVerdictBuilder {
         double confidenceLevel = resolvedConfidence;
 
         double standardError = samplesExecuted > 0
-                ? Math.sqrt(observedPassRate * (1 - observedPassRate) / samplesExecuted)
+                ? estimator.standardError(successes, samplesExecuted)
                 : 0.0;
 
         double ciLower = 0.0;
