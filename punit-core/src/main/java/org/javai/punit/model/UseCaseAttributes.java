@@ -13,23 +13,23 @@ package org.javai.punit.model;
  */
 public record UseCaseAttributes(int warmup, int maxConcurrent) {
 
-    /** Default attributes (no warmup, no concurrency override). */
-    public static final UseCaseAttributes DEFAULT = new UseCaseAttributes(0, 0);
+    /** Default attributes (no warmup, sequential execution). */
+    public static final UseCaseAttributes DEFAULT = new UseCaseAttributes(0, 1);
 
     public UseCaseAttributes {
         if (warmup < 0) {
             throw new IllegalArgumentException("warmup must be >= 0, but was " + warmup);
         }
-        if (maxConcurrent < 0) {
-            throw new IllegalArgumentException("maxConcurrent must be >= 0, but was " + maxConcurrent);
+        if (maxConcurrent < 1) {
+            throw new IllegalArgumentException("maxConcurrent must be >= 1, but was " + maxConcurrent);
         }
     }
 
     /**
-     * Convenience constructor for warmup-only (maxConcurrent defaults to 0).
+     * Convenience constructor for warmup-only (maxConcurrent defaults to 1).
      */
     public UseCaseAttributes(int warmup) {
-        this(warmup, 0);
+        this(warmup, 1);
     }
 
     /** Returns true if warmup invocations are configured. */
@@ -37,8 +37,8 @@ public record UseCaseAttributes(int warmup, int maxConcurrent) {
         return warmup > 0;
     }
 
-    /** Returns true if a max concurrency override is configured. */
+    /** Returns true if concurrent execution is configured (maxConcurrent > 1). */
     public boolean hasMaxConcurrent() {
-        return maxConcurrent > 0;
+        return maxConcurrent > 1;
     }
 }

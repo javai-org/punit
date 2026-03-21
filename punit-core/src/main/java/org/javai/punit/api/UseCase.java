@@ -231,15 +231,24 @@ public @interface UseCase {
     /**
      * Maximum number of concurrent sample executions.
      *
-     * <p>When greater than zero, the framework may execute up to {@code maxConcurrent}
-     * samples in parallel. When zero (the default), the framework uses its own default
-     * concurrency strategy (typically sequential).
+     * <p>Controls how many samples may execute in parallel using virtual threads.
+     * The default value of 1 means sequential execution. Values greater than 1
+     * enable concurrent execution with up to {@code maxConcurrent} workers.
      *
      * <p>Like warmup, this is a property of the system under test — it reflects the
      * SUT's concurrency tolerance, not a framework tuning knob. There is no system
      * property or environment variable override.
      *
-     * @return the maximum concurrent executions (0 = framework default)
+     * <p>Concurrency changes the execution profile of the system under test.
+     * Baselines measured at one concurrency level should not be used at another.
+     * The framework records {@code maxConcurrent} as a covariate to prevent
+     * baseline confusion.
+     *
+     * <p>Mutually exclusive with JUnit 5 parallel test execution
+     * ({@code junit.jupiter.execution.parallel.enabled=true}) when
+     * {@code maxConcurrent > 1}.
+     *
+     * @return the maximum concurrent executions (default 1 = sequential)
      */
-    int maxConcurrent() default 0;
+    int maxConcurrent() default 1;
 }

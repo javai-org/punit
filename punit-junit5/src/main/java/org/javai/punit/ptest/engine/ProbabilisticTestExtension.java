@@ -197,6 +197,33 @@ public class ProbabilisticTestExtension implements
 		BernoulliTrialsConfig strategyConfig = (BernoulliTrialsConfig) strategy.parseConfig(
 				annotation, testMethod, configResolver);
 
+		// Concurrency guards
+		int maxConcurrent = strategyConfig.useCaseAttributes().maxConcurrent();
+		if (maxConcurrent > 1) {
+			String parallelEnabled = System.getProperty("junit.jupiter.execution.parallel.enabled");
+			if ("true".equalsIgnoreCase(parallelEnabled)) {
+				throw new ExtensionConfigurationException(
+						"maxConcurrent > 1 is incompatible with JUnit 5 parallel test execution "
+						+ "(junit.jupiter.execution.parallel.enabled=true). "
+						+ "Disable JUnit parallelism or set maxConcurrent = 1.");
+			}
+
+			if (strategyConfig.hasPacing()) {
+				throw new ExtensionConfigurationException(
+						"Pacing and maxConcurrent > 1 are mutually exclusive. "
+						+ "Use pacing to limit dispatch rate (sequential execution), "
+						+ "or use maxConcurrent to limit concurrent invocations, but not both.");
+			}
+		}
+
+		// @Timeout warning
+		if (AnnotationSupport.isAnnotated(testMethod, org.junit.jupiter.api.Timeout.class)
+				|| AnnotationSupport.isAnnotated(context.getRequiredTestClass(), org.junit.jupiter.api.Timeout.class)) {
+			logger.warn("JUnit @Timeout is active on this probabilistic test. "
+					+ "If the timeout fires, the statistical verdict will be incomplete. "
+					+ "PUnit's budget mechanism is the recommended alternative.");
+		}
+
 		// Create method-level budget monitor
 		CostBudgetMonitor budgetMonitor = new CostBudgetMonitor(
 				strategyConfig.timeBudgetMs(),

@@ -17,7 +17,7 @@ class UseCaseAttributesTest {
         @Test
         void defaultAttributes() {
             assertThat(UseCaseAttributes.DEFAULT.warmup()).isEqualTo(0);
-            assertThat(UseCaseAttributes.DEFAULT.maxConcurrent()).isEqualTo(0);
+            assertThat(UseCaseAttributes.DEFAULT.maxConcurrent()).isEqualTo(1);
             assertThat(UseCaseAttributes.DEFAULT.hasWarmup()).isFalse();
             assertThat(UseCaseAttributes.DEFAULT.hasMaxConcurrent()).isFalse();
         }
@@ -26,7 +26,7 @@ class UseCaseAttributesTest {
         void warmupOnly() {
             var attrs = new UseCaseAttributes(5);
             assertThat(attrs.warmup()).isEqualTo(5);
-            assertThat(attrs.maxConcurrent()).isEqualTo(0);
+            assertThat(attrs.maxConcurrent()).isEqualTo(1);
             assertThat(attrs.hasWarmup()).isTrue();
             assertThat(attrs.hasMaxConcurrent()).isFalse();
         }
@@ -45,6 +45,13 @@ class UseCaseAttributesTest {
             assertThatThrownBy(() -> new UseCaseAttributes(-1))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("warmup");
+        }
+
+        @Test
+        void zeroMaxConcurrentThrows() {
+            assertThatThrownBy(() -> new UseCaseAttributes(0, 0))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("maxConcurrent");
         }
 
         @Test
