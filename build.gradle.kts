@@ -19,6 +19,14 @@ signing {
     useGpgCmd()
 }
 
+allprojects {
+    if (project.hasProperty("signing.skip")) {
+        tasks.matching { it.name.startsWith("sign") }.configureEach {
+            enabled = false
+        }
+    }
+}
+
 group = "org.javai"
 version = property("punitVersion") as String
 
