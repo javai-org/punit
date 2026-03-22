@@ -6,11 +6,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
+import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.PunitVerdict;
 import org.javai.punit.verdict.VerdictTextRenderer;
 
@@ -190,9 +192,9 @@ final class HtmlReportWriter {
         // Latency (p50, p95, p99)
         if (verdict.latency().isPresent() && !verdict.latency().get().skipped()) {
             LatencyDimension lat = verdict.latency().get();
-            html.append("<td>").append(lat.p50Ms()).append("ms</td>\n");
-            html.append("<td>").append(lat.p95Ms()).append("ms</td>\n");
-            html.append("<td>").append(lat.p99Ms()).append("ms</td>\n");
+            appendLatencyCell(html, lat, "p50", lat.p50Ms());
+            appendLatencyCell(html, lat, "p95", lat.p95Ms());
+            appendLatencyCell(html, lat, "p99", lat.p99Ms());
         } else {
             html.append("<td>-</td>\n<td>-</td>\n<td>-</td>\n");
         }
@@ -222,6 +224,20 @@ final class HtmlReportWriter {
         html.append("Re-run experiment to regenerate baseline: <code>./gradlew exp -Prun=")
                 .append(escape(simpleClassName)).append("</code>\n");
         html.append("</div>\n");
+    }
+
+    private static void appendLatencyCell(StringBuilder html, LatencyDimension lat,
+                                             String label, long observedMs) {
+        Optional<PercentileAssertion> assertion = lat.assertions().stream()
+                .filter(a -> a.label().equals(label))
+                .findFirst();
+        if (assertion.isPresent()) {
+            String cssClass = assertion.get().passed() ? "latency-pass" : "latency-fail";
+            html.append("<td class=\"").append(cssClass).append("\">")
+                    .append(observedMs).append("ms</td>\n");
+        } else {
+            html.append("<td>").append(observedMs).append("ms</td>\n");
+        }
     }
 
     private static Map<String, List<ProbabilisticTestVerdict>> groupVerdicts(
@@ -353,6 +369,8 @@ final class HtmlReportWriter {
                 .junit-pass, .punit-pass { color: var(--pass-color); font-weight: 600; }
                 .junit-fail, .punit-fail { color: var(--fail-color); font-weight: 600; }
                 .punit-inconclusive { color: var(--inconclusive-color); font-weight: 600; }
+                .latency-pass { color: var(--pass-color); font-weight: 600; }
+                .latency-fail { color: var(--fail-color); font-weight: 600; }
                 .test-group { margin-bottom: 2rem; }
                 .banner-inconclusive {
                     margin-top: 1rem;

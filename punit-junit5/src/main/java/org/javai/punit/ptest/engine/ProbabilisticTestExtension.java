@@ -25,6 +25,7 @@ import org.javai.punit.ptest.bernoulli.BernoulliTrialsConfig;
 import org.javai.punit.ptest.bernoulli.BernoulliTrialsStrategy;
 import org.javai.punit.ptest.bernoulli.EarlyTerminationEvaluator;
 import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
+import org.javai.punit.statistics.LatencyDistribution;
 import org.javai.punit.ptest.strategy.InterceptResult;
 import org.javai.punit.ptest.strategy.ProbabilisticTestStrategy;
 import org.javai.punit.ptest.strategy.SampleExecutionContext;
@@ -687,6 +688,17 @@ public class ProbabilisticTestExtension implements
 					latencyResult.caveats(),
 					aggregator.latencySuccesses().orElse(0),
 					aggregator.latencyFailures().orElse(0)));
+		} else if (!aggregator.getSuccessfulLatenciesMs().isEmpty()) {
+			// Observational latency: distribution only, no threshold assertions
+			long[] millis = aggregator.getSuccessfulLatenciesMs().stream()
+					.mapToLong(Long::longValue).toArray();
+			LatencyDistribution dist = LatencyDistribution.fromMillis(millis);
+			builder.latencyDimension(new ProbabilisticTestVerdictBuilder.LatencyInput(
+					millis.length,
+					aggregator.getSamplesExecuted(),
+					false, null,
+					dist.p50Ms(), dist.p90Ms(), dist.p95Ms(), dist.p99Ms(), dist.maxMs(),
+					List.of(), List.of(), 0, 0));
 		}
 
 		// Covariates
