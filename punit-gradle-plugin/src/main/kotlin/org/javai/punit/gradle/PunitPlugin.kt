@@ -63,6 +63,7 @@ class PunitPlugin : Plugin<Project> {
 
             registerCreateSentinelTask(project, extension, sentinelConfig)
             registerPunitReportTask(project, reportConfig)
+            registerPunitVerifyTask(project, reportConfig)
         }
     }
 
@@ -409,6 +410,26 @@ class PunitPlugin : Plugin<Project> {
             xmlDir.set(project.layout.buildDirectory.dir("reports/punit/xml"))
             htmlDir.set(project.layout.buildDirectory.dir("reports/punit/html"))
             reportClasspath.from(reportConfig)
+        }
+    }
+
+    private fun registerPunitVerifyTask(
+        project: Project,
+        reportConfig: org.gradle.api.artifacts.Configuration
+    ) {
+        val verifyTask = project.tasks.register("punitVerify", PunitVerifyTask::class.java).configure {
+            description = "Verifies that all probabilistic test verdicts passed"
+            group = "verification"
+            xmlDir.set(project.layout.buildDirectory.dir("reports/punit/xml"))
+            reportClasspath.from(reportConfig)
+
+            // Run after tests so verdict XMLs are available
+            mustRunAfter(project.tasks.named("test"))
+        }
+
+        // Wire into the check lifecycle
+        project.tasks.named("check").configure {
+            dependsOn(verifyTask)
         }
     }
 

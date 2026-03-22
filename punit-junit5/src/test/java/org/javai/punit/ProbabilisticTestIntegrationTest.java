@@ -63,7 +63,8 @@ class ProbabilisticTestIntegrationTest {
                         // With 80% of 10 = 8 required, after 3 failures max possible = 0 + 7 = 7 < 8
                         // So early termination kicks in after 3 samples
                         .started(3)
-                        .failed(3));   // All 3 samples fail (❌), 3rd has final verdict
+                        .aborted(2)    // Sample failures shown as aborted (not build-breaking)
+                        .failed(1));   // Only the verdict failure (3rd sample)
     }
 
     @Test
@@ -78,7 +79,8 @@ class ProbabilisticTestIntegrationTest {
                 .assertStatistics(stats -> stats
                         .started(10)
                         .succeeded(5)   // 5 samples passed (even numbers)
-                        .failed(5));    // 5 samples failed (❌), overall test passes (50% >= 50%)
+                        .aborted(5)     // 5 sample failures shown as aborted (overall test passes: 50% >= 50%)
+                        .failed(0));    // No verdict failure — test passes
     }
 
     @Test
@@ -110,7 +112,8 @@ class ProbabilisticTestIntegrationTest {
                 .assertStatistics(stats -> stats
                         .started(10)
                         .succeeded(7)   // Samples 1-7 pass
-                        .failed(3));    // Samples 8-10 fail (❌), sample 10 has final verdict (70% < 80%)
+                        .aborted(2)     // Samples 8-9 fail as aborted
+                        .failed(1));    // Sample 10 has final verdict failure (70% < 80%)
     }
 
     @Test
@@ -124,7 +127,7 @@ class ProbabilisticTestIntegrationTest {
                         // With 100% of 5 = 5 required, after 1 failure max possible = 0 + 4 = 4 < 5
                         // So early termination kicks in after 1 sample
                         .started(1)
-                        .failed(1));   // First sample fails, terminates immediately
+                        .failed(1));   // First sample triggers verdict failure (abort + verdict on same sample)
     }
 
     @Test
@@ -249,7 +252,8 @@ class ProbabilisticTestIntegrationTest {
                         // With 95% of 100 = 95 required, after 6 failures max possible = 94
                         // So only 6 samples should run, not 100
                         .started(6)
-                        .failed(6)); // All 6 samples fail (❌), 6th has final verdict
+                        .aborted(5)    // Samples 1-5 fail as aborted
+                        .failed(1));   // 6th sample has final verdict failure
         
         // Verify only 6 samples actually executed
         org.assertj.core.api.Assertions.assertThat(
@@ -272,8 +276,8 @@ class ProbabilisticTestIntegrationTest {
                 .assertStatistics(stats -> stats
                         .started(8)
                         .succeeded(0)
-                        .failed(3)      // 2 rethrown sample failures + 1 verdict failure
-                        .aborted(5));   // 5 failures beyond maxExampleFailures display limit
+                        .failed(1)      // 1 verdict failure only
+                        .aborted(7));   // All 7 sample failures shown as aborted
     }
 
     @Test
@@ -309,7 +313,8 @@ class ProbabilisticTestIntegrationTest {
                         // All 10 samples should run (no early termination for passing tests)
                         .started(10)
                         .succeeded(7)   // Samples 4-10 pass
-                        .failed(3));    // Samples 1-3 fail (❌), overall passes (70% >= 70%)
+                        .aborted(3)     // Samples 1-3 fail as aborted (overall passes: 70% >= 70%)
+                        .failed(0));    // No verdict failure — test passes
     }
 
     @Test
@@ -536,9 +541,9 @@ class ProbabilisticTestIntegrationTest {
     // ========== Sample Failure Message Tests ==========
 
     @Test
-    void sampleFailureHasNoSuppressedExceptions() {
-        // Verify that sample failures don't have suppressed exceptions
-        // (which caused verbose nested output)
+    void sampleFailuresAreAbortedNotFailed() {
+        // Verify that individual sample failures are reported as ABORTED (not FAILED)
+        // so they don't break CI builds. Only the verdict failure is FAILED.
         var events = EngineTestKit.engine(JUNIT_ENGINE_ID)
                 .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .selectors(DiscoverySelectors.selectClass(AlwaysFailingTest.class))
@@ -546,26 +551,17 @@ class ProbabilisticTestIntegrationTest {
                 .allEvents()
                 .list();
 
-        // Find sample failures (not final verdict)
-        var sampleFailures = events.stream()
+        // Find aborted events (sample failures)
+        var abortedEvents = events.stream()
                 .filter(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class)
-                        .flatMap(r -> r.getThrowable())
-                        .map(t -> !t.getMessage().contains("PUnit"))  // Exclude final verdict
-                        .orElse(false))
-                .filter(e -> e.getPayload(org.junit.platform.engine.TestExecutionResult.class)
-                        .map(r -> r.getStatus() == org.junit.platform.engine.TestExecutionResult.Status.FAILED)
+                        .map(r -> r.getStatus() == org.junit.platform.engine.TestExecutionResult.Status.ABORTED)
                         .orElse(false))
                 .toList();
 
-        // None should have suppressed exceptions
-        sampleFailures.forEach(event -> {
-            var result = event.getPayload(org.junit.platform.engine.TestExecutionResult.class).orElseThrow();
-            var exception = result.getThrowable().orElseThrow();
-
-            assertThat(exception.getSuppressed())
-                    .as("Sample failures should not have suppressed exceptions")
-                    .isEmpty();
-        });
+        // With 3 samples total (early termination), 2 should be aborted
+        assertThat(abortedEvents)
+                .as("Sample failures should be ABORTED, not FAILED")
+                .hasSize(2);
     }
 
     // ========== Fail-Fast for Configuration Errors ==========

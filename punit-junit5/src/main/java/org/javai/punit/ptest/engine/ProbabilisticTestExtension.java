@@ -364,31 +364,21 @@ public class ProbabilisticTestExtension implements
 					classBudgetMonitor, suiteBudgetMonitor);
 		} else {
 			if (result.hasSampleFailure()) {
-				if (aggregator.getFailures() <= strategyConfig.maxExampleFailures()) {
-					// Rethrow sample failures so they appear as ❌ in the IDE/CLI
-					rethrowSampleFailure(result.sampleFailure(), aggregator, config);
-				} else {
-					// Beyond display limit — mark as aborted so JUnit counts it as
-					// "skipped" rather than "succeeded", keeping the summary truthful.
-					throw new TestAbortedException(
-							"Sample failure (beyond maxExampleFailures display limit)");
-				}
+				// Mark failed samples as aborted so JUnit counts them as "skipped"
+				// rather than "failed". This prevents CI from breaking on individual
+				// sample failures — only the aggregate verdict (from finalizeProbabilisticTest)
+				// determines pass/fail. The punitVerify task provides a second enforcement
+				// point that reads verdict XMLs post-execution.
+				String message = sampleFailureFormatter.formatSampleFailure(
+						result.sampleFailure(),
+						aggregator.getSuccesses(),
+						aggregator.getSamplesExecuted(),
+						config.samples(),
+						config.minPassRate()
+				);
+				throw new TestAbortedException(message);
 			}
 		}
-	}
-
-	/**
-	 * Re-throws sample failures so they appear as ❌ in the IDE.
-	 */
-	private void rethrowSampleFailure(Throwable failure, SampleResultAggregator aggregator, TestConfiguration config) {
-		String formattedFailure = sampleFailureFormatter.formatSampleFailure(
-				failure,
-				aggregator.getSuccesses(),
-				aggregator.getSamplesExecuted(),
-				config.samples(),
-				config.minPassRate()
-		);
-		throw new AssertionError(formattedFailure);
 	}
 
 	private void finalizeProbabilisticTest(ExtensionContext context,
