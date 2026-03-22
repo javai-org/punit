@@ -32,7 +32,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Publish to local Maven repository
-        run: ./gradlew publishLocal
+        run: ./gradlew publishToMavenLocal -x signMavenPublication
 
       - name: Build with Gradle
         run: ./gradlew build
