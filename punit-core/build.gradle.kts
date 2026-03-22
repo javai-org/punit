@@ -16,14 +16,14 @@ dependencies {
     implementation("org.apache.commons:commons-statistics-distribution:1.2")
 
     // SnakeYAML — for YAML serialization in spec generation
-    implementation("org.yaml:snakeyaml:2.5")
+    implementation("org.yaml:snakeyaml:2.6")
 
     // Jackson — for JSON/CSV parsing in @InputSource
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.1")
 
     // Outcome — result types for contract postconditions
-    api("org.javai:outcome:0.1.0")
+    api("org.javai:outcome:0.2.0")
 
     // Optional JSON matching support for instance conformance
     compileOnly("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
@@ -35,7 +35,7 @@ dependencies {
 
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
     testImplementation("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
