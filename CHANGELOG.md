@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-03-22
+
+### Added
+- **Latency distribution always visible** — the HTML report now shows p50, p95, and p99 latency values for every test with successful samples, even when no `@Latency` thresholds are configured. Previously, tests without explicit latency thresholds showed dashes in these columns.
+- **Per-cell latency colour coding** — latency cells in the HTML report are colour-coded per percentile: green when an asserted threshold is met, red when exceeded, and muted grey when no threshold is configured (observational only).
+- **`punitVerify` Gradle task** — a post-execution verification task (wired into `check`) that reads verdict XMLs and fails the build only when a probabilistic test's statistical verdict is FAIL. Individual sample failures during test execution no longer break the build; they are reported as JUnit "aborted" (skipped) rather than "failed", deferring the pass/fail decision to the aggregate verdict.
+
+### Changed
+- Framework console output now routes to stdout/stderr instead of Log4j, ensuring visibility in all build environments without Log4j configuration.
+
 ## [0.5.1] - 2026-03-21
 
 ### Fixed
@@ -98,7 +108,8 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/javai-org/punit/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/javai-org/punit/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/javai-org/punit/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/javai-org/punit/compare/v0.4.0...v0.4.1
