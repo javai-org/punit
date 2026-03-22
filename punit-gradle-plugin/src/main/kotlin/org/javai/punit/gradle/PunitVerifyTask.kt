@@ -20,9 +20,7 @@ import java.net.URLClassLoader
  */
 abstract class PunitVerifyTask : DefaultTask() {
 
-    @get:InputDirectory
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    @get:Optional
+    @get:Internal
     abstract val xmlDir: DirectoryProperty
 
     @get:Classpath

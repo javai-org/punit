@@ -417,7 +417,7 @@ class PunitPlugin : Plugin<Project> {
         project: Project,
         reportConfig: org.gradle.api.artifacts.Configuration
     ) {
-        val verifyTask = project.tasks.register("punitVerify", PunitVerifyTask::class.java).configure {
+        val verifyTask = project.tasks.register("punitVerify", PunitVerifyTask::class.java) {
             description = "Verifies that all probabilistic test verdicts passed"
             group = "verification"
             xmlDir.set(project.layout.buildDirectory.dir("reports/punit/xml"))

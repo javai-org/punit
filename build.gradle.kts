@@ -44,6 +44,7 @@ subprojects {
     }
 
     repositories {
+        mavenLocal()
         mavenCentral()
     }
 
@@ -121,6 +122,7 @@ tasks.withType<JavaCompile> {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -134,6 +136,14 @@ tasks.test {
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
+    }
+}
+
+// Disable punitVerify for the framework project itself — test subjects
+// intentionally produce failing verdicts as part of the TestKit test suite
+allprojects {
+    tasks.matching { it.name == "punitVerify" }.configureEach {
+        enabled = false
     }
 }
 

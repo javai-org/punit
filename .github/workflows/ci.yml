@@ -31,6 +31,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Publish to local Maven repository
+        run: ./gradlew publishLocal
+
       - name: Build with Gradle
         run: ./gradlew build
 
