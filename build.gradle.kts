@@ -17,7 +17,14 @@ idea {
 
 signing {
     useGpgCmd()
-    isRequired = !project.hasProperty("signing.skip")
+}
+
+allprojects {
+    if (project.hasProperty("signing.skip")) {
+        tasks.matching { it.name.startsWith("sign") }.configureEach {
+            enabled = false
+        }
+    }
 }
 
 group = "org.javai"

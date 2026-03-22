@@ -5,7 +5,6 @@ plugins {
 
 signing {
     useGpgCmd()
-    isRequired = !project.hasProperty("signing.skip")
 }
 
 dependencies {
