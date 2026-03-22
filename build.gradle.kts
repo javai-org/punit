@@ -17,6 +17,7 @@ idea {
 
 signing {
     useGpgCmd()
+    isRequired = !project.hasProperty("signing.skip")
 }
 
 group = "org.javai"
