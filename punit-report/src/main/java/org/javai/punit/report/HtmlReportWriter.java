@@ -236,7 +236,7 @@ final class HtmlReportWriter {
             html.append("<td class=\"").append(cssClass).append("\">")
                     .append(observedMs).append("ms</td>\n");
         } else {
-            html.append("<td>").append(observedMs).append("ms</td>\n");
+            html.append("<td class=\"latency-observed\">").append(observedMs).append("ms</td>\n");
         }
     }
 
@@ -369,6 +369,7 @@ final class HtmlReportWriter {
                 .junit-pass, .punit-pass { color: var(--pass-color); font-weight: 600; }
                 .junit-fail, .punit-fail { color: var(--fail-color); font-weight: 600; }
                 .punit-inconclusive { color: var(--inconclusive-color); font-weight: 600; }
+                .latency-observed { color: var(--text-muted); }
                 .latency-pass { color: var(--pass-color); font-weight: 600; }
                 .latency-fail { color: var(--fail-color); font-weight: 600; }
                 .test-group { margin-bottom: 2rem; }

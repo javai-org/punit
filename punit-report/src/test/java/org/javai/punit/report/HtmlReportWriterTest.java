@@ -413,10 +413,9 @@ class HtmlReportWriterTest {
         void observationalLatencyRendersWithoutColour() {
             String html = HtmlReportWriter.generate(List.of(verdictWithLatency()));
 
-            assertThat(html).contains("<td>120ms</td>");
-            assertThat(html).contains("<td>420ms</td>");
-            assertThat(html).contains("<td>810ms</td>");
-            // No assertion-coloured cells in the table (CSS rules exist but aren't applied)
+            assertThat(html).contains("class=\"latency-observed\">120ms</td>");
+            assertThat(html).contains("class=\"latency-observed\">420ms</td>");
+            assertThat(html).contains("class=\"latency-observed\">810ms</td>");
             assertThat(html).doesNotContain("class=\"latency-pass\">");
             assertThat(html).doesNotContain("class=\"latency-fail\">");
         }
@@ -449,7 +448,7 @@ class HtmlReportWriterTest {
                             new PercentileAssertion("p95", 420, 500, true, false, "explicit"),
                             new PercentileAssertion("p99", 810, 500, false, false, "explicit")))));
 
-            assertThat(html).contains("<td>120ms</td>");  // p50 — no assertion, default
+            assertThat(html).contains("class=\"latency-observed\">120ms</td>");  // p50 — no assertion, muted
             assertThat(html).contains("class=\"latency-pass\">420ms</td>");  // p95 — passed
             assertThat(html).contains("class=\"latency-fail\">810ms</td>");  // p99 — failed
         }
@@ -459,6 +458,7 @@ class HtmlReportWriterTest {
         void cssIncludesLatencyClasses() {
             String html = HtmlReportWriter.generate(List.of(passingVerdict()));
 
+            assertThat(html).contains(".latency-observed");
             assertThat(html).contains(".latency-pass");
             assertThat(html).contains(".latency-fail");
         }
