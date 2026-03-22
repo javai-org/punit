@@ -369,7 +369,7 @@ final class HtmlReportWriter {
                 .junit-pass, .punit-pass { color: var(--pass-color); font-weight: 600; }
                 .junit-fail, .punit-fail { color: var(--fail-color); font-weight: 600; }
                 .punit-inconclusive { color: var(--inconclusive-color); font-weight: 600; }
-                .latency-observed { color: var(--text-muted); }
+                .latency-observed { color: #adb5bd; }
                 .latency-pass { color: var(--pass-color); font-weight: 600; }
                 .latency-fail { color: var(--fail-color); font-weight: 600; }
                 .test-group { margin-bottom: 2rem; }
