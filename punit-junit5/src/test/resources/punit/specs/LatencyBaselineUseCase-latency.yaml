@@ -1,0 +1,27 @@
+# Empirical Baseline for LatencyBaselineUseCase (latency dimension)
+# Test fixture spec for LatencyBaselineIntegrationTest
+
+schemaVersion: punit-spec-1
+useCaseId: LatencyBaselineUseCase
+generatedAt: 2026-03-07T12:00:00.000000Z
+experimentClass: org.javai.punit.testsubjects.LatencyBaselineTestSubjects
+experimentMethod: measure
+execution:
+  samplesPlanned: 100
+  samplesExecuted: 100
+  terminationReason: COMPLETED
+latency:
+  sampleCount: 100
+  meanMs: 450
+  standardDeviationMs: 180
+  p50Ms: 380
+  p90Ms: 620
+  p95Ms: 750
+  p99Ms: 1100
+  maxMs: 1500
+cost:
+  totalTimeMs: 45000
+  avgTimePerSampleMs: 450
+  totalTokens: 0
+  avgTokensPerSample: 0
+contentFingerprint: c5f1a3e02859b9a0ec44cf7466e0c47a790705725e17a3f294337d4795e96e7f

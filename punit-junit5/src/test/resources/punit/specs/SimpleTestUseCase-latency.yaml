@@ -1,0 +1,28 @@
+# Empirical Baseline for SimpleTestUseCase
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
+useCaseId: SimpleTestUseCase
+generatedAt: 2026-03-22T20:47:54.116420Z
+experimentClass: org.javai.punit.experiment.engine.ExperimentPacingIntegrationTest$UnpacedMeasureExperiment
+experimentMethod: experimentWithoutPacing
+execution:
+  samplesPlanned: 5
+  samplesExecuted: 5
+  terminationReason: COMPLETED
+latency:
+  sampleCount: 5
+  meanMs: 0
+  standardDeviationMs: 0
+  p50Ms: 0
+  p90Ms: 0
+  p95Ms: 0
+  p99Ms: 0
+  maxMs: 0
+cost:
+  totalTimeMs: 3
+  avgTimePerSampleMs: 0
+  totalTokens: 0
+  avgTokensPerSample: 0
+contentFingerprint: 0cb9fc7d31473aad7432118de844e9db7ec5ee4e91dcfad9dc39282e73cc445e
