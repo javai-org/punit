@@ -237,7 +237,9 @@ A contract requiring $p \geq 0.9999$ cannot be verified with fewer than 27,058 s
 
 The preceding sections developed the distributional contract as a statistical model. This section introduces PUnit, an open-source testing framework that implements the model as a practical tool for developers working with stochastic systems [7].
 
-PUnit was created in response to a conspicuous gap in the testing landscape. The advent of Large Language Models brought stochastic behaviour from the margins of software engineering — where it had been treated as accidental and undesirable — to the centre. Services built on LLMs are inherently non-deterministic: the same input genuinely produces different outputs, and the distribution of those outputs *is* the system's behaviour. Yet the available testing tools offered no principled way to express, measure, or enforce quality expectations over such systems. PUnit addresses this gap by providing a direct operational realisation of the distributional contract.
+PUnit was created in response to a conspicuous gap in the testing landscape. The shortcomings of existing approaches to testing stochastic systems have been recognised in the literature. Christensen et al. [8] observe that "in practice, testers resort to running probabilistic programs an arbitrary number of times; hoping to trigger existing bugs, but without any guarantees," and propose ProbTest, a black-box unit testing method that uses the coupon collector's problem to determine sample sizes for bug detection in probabilistic programs. Their work confirms the need for statistically principled approaches and demonstrates that the problem admits tractable solutions, though their focus is on bug-finding rather than on contractual quality assurance over deployed services.
+
+The advent of Large Language Models brought stochastic behaviour from the margins of software engineering — where it had been treated as accidental and undesirable — to the centre. Services built on LLMs are inherently non-deterministic: the same input genuinely produces different outputs, and the distribution of those outputs *is* the system's behaviour. Yet the available testing tools offered no principled way to express, measure, or enforce quality expectations over such systems. PUnit addresses this gap by providing a direct operational realisation of the distributional contract.
 
 The framework is implemented as a JUnit 5 extension for Java, chosen for its maturity and its prevalence in the enterprise environments where stochastic services are most commonly deployed. Its features correspond directly to the elements of the model developed in this paper.
 
@@ -308,3 +310,5 @@ These are not deficiencies to be apologised for; they are honest boundaries of w
 [6] Clopper, C. J. and Pearson, E. S. "The use of confidence or fiducial limits illustrated in the case of the binomial." *Biometrika*, vol. 26, no. 4, 1934, pp. 404–413.
 
 [7] PUnit: Probabilistic Unit Testing Framework. User guide and source code available at https://github.com/javai-org/punit.
+
+[8] Christensen, K., Varshosaz, M., and Pardo, R. "ProbTest: Unit Testing for Probabilistic Programs." In: Bianculli, D. and Gómez-Martínez, E. (Eds.): SEFM 2025, LNCS 16192, pp. 91–109. Springer, 2026.
