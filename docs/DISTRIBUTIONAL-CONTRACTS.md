@@ -6,13 +6,13 @@ Michael Franz Mannion BSc (Hons) MBA
 
 In stochastic systems, correctness cannot in general be characterised solely by the outcome of a single execution, since individual executions may legitimately vary even when the system is behaving acceptably overall.
 
-This paper extends Bertrand Meyer's Design by Contract [1][2] by lifting postconditions from Boolean predicates over individual executions to statistical assertions over repeated executions. We introduce the notion of a distributional contract, under which the quality of a stochastic system is characterised along two independent dimensions: functional stochasticity — whether the system produces acceptable results with sufficient probability — and temporal stochasticity — whether it responds within acceptable time bounds with sufficient probability. These dimensions require distinct statistical treatments but together constitute a complete contractual specification for a stochastic service.
+This paper extends Bertrand Meyer's Design by Contract [1][2] by lifting postconditions from Boolean predicates over individual executions to statistical assertions over repeated executions. We introduce the notion of a distributional contract, under which the quality of a stochastic system is characterised along two independent dimensions: functional stochasticity — whether the system produces acceptable results with sufficient probability — and temporal stochasticity — whether it responds within acceptable time bounds with sufficient probability. These dimensions require distinct statistical treatments but together address the two most fundamental quality concerns for a stochastic service.
 
 Since the quantities of interest are not directly observable, they are estimated empirically from repeated executions and assessed using conservative statistical bounds. This yields an operational basis for making statistically grounded assertions, at a defined confidence level, that a stochastic system satisfies its contractual obligations.
 
 ## Two Dimensions of Stochasticity
 
-In deterministic software, correctness is defined pointwise: for any input satisfying the precondition, the postcondition must hold for the resulting output. This model is insufficient for stochastic systems, where individual executions may legitimately vary even when the system is behaving acceptably overall. We therefore extend the notion of a contract from individual executions to distributions over executions.
+In deterministic software, correctness is defined pointwise: for any input satisfying the precondition, the postcondition must hold for the resulting output. This model is insufficient for stochastic systems, where individual executions may legitimately vary even when the system is behaving acceptably overall. The idea of assessing stochastic systems through repeated execution and statistical inference has precedent in the tradition of statistical model checking, where Younes and Simmons [9] showed that time-bounded probabilistic properties can be assessed by hypothesis testing over sampled executions, trading absolute certainty for bounded decision error, and Legay, Delahaye, and Bensalem [10] surveyed this approach as a scalable alternative to numerical model checking. We extend this line of reasoning from formal stochastic models to operational software services, and from temporal-logic property satisfaction to a contractual framing: the notion of a contract is lifted from individual executions to distributions over executions.
 
 The uncertainty exhibited by stochastic systems manifests along two independent dimensions, each giving rise to a distinct form of distributional contract.
 
@@ -20,7 +20,7 @@ The first is **functional stochasticity**: whether the system produces an accept
 
 The second is **temporal stochasticity**: how long the system takes to respond. Even among successful executions, response times vary substantially. A service that typically responds in 200 milliseconds may occasionally take several seconds. Latency is not a fixed property of the system; it is a distribution. The distributional contract over this dimension asserts that a given percentile of the response time distribution falls below an acceptable bound — for example, that the 95th percentile latency does not exceed 500 milliseconds.
 
-These dimensions are independent. A fast response can be incorrect; a slow response can be correct. A system can satisfy its functional contract while routinely breaching its latency contract, or vice versa. Neither dimension subsumes the other, and a complete distributional contract must address both.
+These dimensions are independent. A fast response can be incorrect; a slow response can be correct. A system can satisfy its functional contract while routinely breaching its latency contract, or vice versa. Neither dimension subsumes the other, and a distributional contract that addresses only one leaves the other unexamined.
 
 Crucially, the two dimensions require different statistical treatments. Functional stochasticity reduces, in the evaluable case, to a binary outcome for each execution — the quality predicate either holds or it does not — and is naturally modelled as a Bernoulli process. Not all executions are evaluable, a distinction addressed shortly. Temporal stochasticity, by contrast, is a continuous quantity; each execution yields a duration, and the contractual assertion is over the shape of the resulting distribution rather than over a binary success rate. The sections that follow develop the Bernoulli framework for functional stochasticity in detail. The statistical treatment of temporal stochasticity, which rests on empirical percentile analysis rather than binomial inference, is addressed separately.
 
@@ -32,7 +32,7 @@ $$p = \mathbb{P}(Q(x,y)=1) \ge p_{\min}$$
 
 Here, $p$ denotes the unknown success probability and $p_{\min}$ the minimum acceptable success rate. The origin of $p_{\min}$ is deliberately left open: it may be stipulated externally, for example by an SLA or regulation, or derived empirically from baseline observations.
 
-Since $p$ is not directly observable, it must be estimated from repeated executions, yielding $\hat{p}$. A conservative lower confidence bound $L(\hat{p}, n, \alpha)$, such as the Wilson lower bound, is then used to assess whether the contractual obligation is satisfied. The contract is taken to hold if
+Since $p$ is not directly observable, it must be estimated from repeated executions, yielding $\hat{p}$. This constraint — that the system is an opaque executable whose properties must be inferred from observed behaviour rather than from an inspectable internal model — is shared with the black-box probabilistic verification tradition. Sen, Viswanathan, and Agha [11] consider statistical model checking of black-box probabilistic systems where properties are inferred from observed traces, and Aichernig and Tappler [12] extend this to stochastic systems with probabilistic behaviour. The present work inherits their black-box constraint but reframes the objective: rather than establishing reachability or property satisfaction within automata-based frameworks, the goal is to assess whether the system meets a contractual quality obligation. A conservative lower confidence bound $L(\hat{p}, n, \alpha)$, such as the Wilson lower bound, is then used to assess whether this obligation is satisfied. The contract is taken to hold if
 
 $$L(\hat{p}, n, \alpha) \ge p_{\min}$$
 
@@ -76,7 +76,7 @@ In the second mode, no external threshold exists. The system's acceptable perfor
 
 ### The Baseline Experiment
 
-To establish an empirical threshold, a baseline experiment is conducted: the system is executed $n_{\text{exp}}$ times under controlled conditions, and the observed success rate $\hat{p}_{\text{exp}} = k / n_{\text{exp}}$ is recorded. This point estimate serves as the best available characterisation of the system's current behaviour.
+To establish an empirical threshold, a baseline experiment is conducted: the system is executed $n_{\text{exp}}$ times under controlled conditions, and the observed success rate $\hat{p}_{\text{exp}} = k / n_{\text{exp}}$ is recorded. This point estimate serves as the best available characterisation of the system's current behaviour. It is important to note, as Musa [13] established in the context of software reliability engineering, that any such empirical estimate is meaningful only relative to the distribution of inputs under which the system is exercised. A baseline measured under one operational profile may not generalise to another — an insight that motivates the covariate tracking discussed in later sections.
 
 However, $\hat{p}_{\text{exp}}$ cannot be used directly as a threshold for subsequent evaluations. The point estimate is subject to sampling variability: a different run of the same experiment would yield a different value of $\hat{p}$. Setting $p_{\min} = \hat{p}_{\text{exp}}$ would amount to requiring the system to meet a standard that is an artefact of a particular sample, not a stable property of the system. In practice, this leads to frequent false alarms — tests that reject a system whose true success probability has not changed, simply because the test sample happened to fall below the experimental estimate.
 
@@ -174,7 +174,7 @@ A service must be both correct and responsive. A payment API that succeeds 99.5%
 
 ## Sample Size and Feasibility
 
-Not every distributional contract can be meaningfully assessed with a given number of samples. The relationship between sample size, threshold, and confidence is not a free choice — it is a system of constraints in which fixing any two determines the third. This section examines the three ways in which this system can be resolved.
+Not every distributional contract can be meaningfully assessed with a given number of samples. The relationship between sample size, threshold, and confidence is not a free choice — it is a system of constraints in which fixing any two determines the third. This concern echoes a theme in the software reliability literature: Frankl, Hamlet, Littlewood, and Strigini [14] argue that testing methods should be evaluated in terms of the reliability they ultimately deliver in operation, not merely in terms of fault counts, and Hamlet and Taylor [15] demonstrate that success on a set of carefully chosen examples does not, by itself, justify confidence in future behaviour under realistic conditions. These results become sharper still for stochastic services, where the property of interest is inherently probabilistic and no single execution can be decisive. This section examines the three ways in which the constraint system can be resolved.
 
 ### The Fundamental Constraint
 
@@ -285,7 +285,7 @@ Yet stochastic systems have always existed — network services subject to varia
 
 This gap can only be addressed by a probabilistic approach. When a system's behaviour is inherently variable, a single execution cannot characterise its quality, a single failure cannot condemn it, and a single success cannot vindicate it. The postcondition must be lifted from a Boolean predicate over an individual execution to a statistical assertion over a population of executions.
 
-This paper has proposed such a lifting. The distributional contract preserves the contractual structure of Design by Contract — the notion that a service has obligations to its consumers that can be formally stated and objectively assessed — while replacing pointwise evaluation with statistical inference. The contract is expressed along two independent dimensions: functional stochasticity, assessed via a Bernoulli model and the Wilson score lower bound, and temporal stochasticity, assessed via empirical percentile analysis. Both dimensions admit thresholds that are either stipulated externally or derived conservatively from empirical baselines, and both are subject to the same feasibility constraints that govern any honest statistical claim.
+This paper has proposed such a lifting, drawing on established traditions — statistical model checking [9][10][16], black-box probabilistic verification [11][12], and software reliability engineering [13][14][15] — while recasting their insights in a contractual form suited to day-to-day software engineering practice. The distributional contract preserves the contractual structure of Design by Contract — the notion that a service has obligations to its consumers that can be formally stated and objectively assessed — while replacing pointwise evaluation with statistical inference. The contract is expressed along two independent dimensions: functional stochasticity, assessed via a Bernoulli model and the Wilson score lower bound, and temporal stochasticity, assessed via empirical percentile analysis. Both dimensions admit thresholds that are either stipulated externally or derived conservatively from empirical baselines, and both are subject to the same feasibility constraints that govern any honest statistical claim.
 
 The model is deliberately conservative in its statistical choices. The Wilson bound was preferred not because it is the most sophisticated available technique, but because it is correct across the full parameter space and honest about the level of precision that the underlying Bernoulli approximation can actually support. False precision — a more elaborate statistical treatment applied to a model whose assumptions are only approximately satisfied — was judged a greater risk than the modest loss of tightness that conservatism entails.
 
@@ -312,3 +312,19 @@ These are not deficiencies to be apologised for; they are honest boundaries of w
 [7] PUnit: Probabilistic Unit Testing Framework. User guide and source code available at https://github.com/javai-org/punit.
 
 [8] Christensen, K., Varshosaz, M., and Pardo, R. "ProbTest: Unit Testing for Probabilistic Programs." In: Bianculli, D. and Gómez-Martínez, E. (Eds.): SEFM 2025, LNCS 16192, pp. 91–109. Springer, 2026.
+
+[9] Younes, H. L. S. and Simmons, R. G. "Statistical probabilistic model checking with a focus on time-bounded properties." *Information and Computation*, vol. 204, no. 9, 2006, pp. 1368–1409.
+
+[10] Legay, A., Delahaye, B., and Bensalem, S. "Statistical model checking: an overview." In: *Runtime Verification*, LNCS 6418, Springer, 2010, pp. 122–135.
+
+[11] Sen, K., Viswanathan, M., and Agha, G. "Statistical model checking of black-box probabilistic systems." In: *Computer Aided Verification*, LNCS 3114, Springer, 2004, pp. 202–215.
+
+[12] Aichernig, B. K. and Tappler, M. "Probabilistic black-box reachability checking." In: *Runtime Verification*, LNCS 10548, Springer, 2017, pp. 50–67.
+
+[13] Musa, J. D. "Operational profiles in software-reliability engineering." *IEEE Software*, vol. 10, no. 2, 1993, pp. 14–32.
+
+[14] Frankl, P. G., Hamlet, D., Littlewood, B., and Strigini, L. "Evaluating testing methods by delivered reliability." *IEEE Transactions on Software Engineering*, vol. 24, no. 8, 1998, pp. 586–601.
+
+[15] Hamlet, D. and Taylor, R. "Partition testing does not inspire confidence." *IEEE Transactions on Software Engineering*, vol. 16, no. 12, 1990, pp. 1402–1411.
+
+[16] Agha, G. and Palmskog, K. "A survey of statistical model checking." *ACM Transactions on Modeling and Computer Simulation*, vol. 28, no. 1, 2018, pp. 1–39.
