@@ -1,6 +1,6 @@
 # Distributional Contracts for Stochastic Systems
 
-Michael Franz Mannion BSc (Hons) MBA
+Copywrite (c) 2026, Michael Franz Mannion BSc (Hons) MBA
 
 ## Abstract
 
@@ -60,7 +60,7 @@ This does not mean that catastrophic outcomes are ignored. Their frequency is it
 
 ## Q as a Bernoulli Trial
 
-To make stochastic quality statistically analysable, each repeated execution is evaluated against a fixed acceptance criterion. This induces a binary observation $X_i \in \{0,1\}$, where $X_i = 1$ if the execution is classified as a pass and $X_i = 0$ otherwise.
+To make stochastic quality statistically analysable, each repeated execution is evaluated against a fixed acceptance criterion — which is, in Meyer's terms, the routine's postcondition. The difference is that here the postcondition is not expected to hold on every execution, but its satisfaction on each execution is observed and recorded. This induces a binary observation $X_i \in \{0,1\}$, where $X_i = 1$ if the execution satisfies the postcondition and $X_i = 0$ otherwise.
 
 These observations may be modelled as Bernoulli trials with parameter $p$, provided several assumptions are approximately satisfied: the acceptance criterion is applied consistently, repeated executions are approximately independent, and the underlying success probability remains stable over the sampling window.
 
@@ -72,7 +72,7 @@ In an operational setting, we can add guardrails, which go at least some of the 
 
 The core statement identified two operational modes for establishing $p_{\min}$. In the first, the threshold is stipulated externally — by a contract, service level agreement, regulatory requirement, or organisational policy. Such a threshold is a normative claim: it expresses what the system *ought* to achieve, independently of what it has been observed to achieve. No experiment is required; the statistical question is simply whether the system meets the mandated requirement.
 
-In the second mode, no external threshold exists. The system's acceptable performance level is not known in advance and must be discovered empirically. This is the common case for systems whose behaviour is inherently stochastic, where the developer cannot stipulate a success rate from first principles but must instead observe what the system actually achieves under controlled conditions.
+In the second mode, no external threshold exists. The system's acceptable performance level is not known in advance and must be discovered empirically. This is the common case for systems whose behaviour is inherently stochastic, where the developer cannot stipulate a success rate from first principles but must instead observe what the system actually achieves under controlled conditions. Services built on Large Language Models are natural candidates for this mode: an LLM invoked with a fixed system prompt, model version, and temperature setting may be reasonably expected to exhibit a consistent level of stochasticity over time, making the baseline estimate a stable foundation for subsequent evaluation — provided the operational profile remains comparable.
 
 ### The Baseline Experiment
 
