@@ -1,6 +1,8 @@
 # Distributional Contracts for Stochastic Systems
 
-Copywrite (c) 2026, Michael Franz Mannion BSc (Hons) MBA
+A very early draft, which is most definitely not ready for publication.
+
+Copyright © 2026, Michael Franz Mannion BSc (Hons) MBA
 
 ## Abstract
 
