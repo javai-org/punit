@@ -41,6 +41,40 @@ dependencies {
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
 }
 
+// --- javai-R conformance reference data ----------------------------------------
+
+val javaiRVersion: String by project.rootProject.extra {
+    project.rootProject.property("javaiR.version") as String
+}
+
+val conformanceDir = layout.buildDirectory.dir("conformance")
+
+val downloadConformanceData by tasks.registering {
+    description = "Downloads javai-R conformance reference data (v$javaiRVersion)"
+    group = "verification"
+
+    val zipFile = layout.buildDirectory.file("conformance/cases-v$javaiRVersion.zip")
+    outputs.dir(conformanceDir)
+
+    doLast {
+        val dir = conformanceDir.get().asFile
+        dir.mkdirs()
+        val zip = zipFile.get().asFile
+        if (!zip.exists()) {
+            val url = "https://github.com/javai-org/javai-R/releases/download/v$javaiRVersion/cases-v$javaiRVersion.zip"
+            uri(url).toURL().openStream().use { input ->
+                zip.outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+        copy {
+            from(zipTree(zip))
+            into(dir)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------
+
 tasks.jar {
     manifest {
         attributes(
