@@ -1,7 +1,18 @@
-package org.javai.punit.statistics;
+package org.javai.punit.statistics.conformance;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.javai.punit.statistics.BinomialProportionEstimator;
+import org.javai.punit.statistics.DerivationContext;
+import org.javai.punit.statistics.DerivedThreshold;
+import org.javai.punit.statistics.OperationalApproach;
+import org.javai.punit.statistics.ProportionEstimate;
+import org.javai.punit.statistics.SampleSizeCalculator;
+import org.javai.punit.statistics.SampleSizeRequirement;
+import org.javai.punit.statistics.TestVerdictEvaluator;
+import org.javai.punit.statistics.ThresholdDeriver;
+import org.javai.punit.statistics.VerdictWithConfidence;
+import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
@@ -16,22 +27,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * Conformance tests that validate punit's statistics engine against canonical
- * reference data published by javai-R.
- *
- * <p>javai-R generates expected outputs using R's well-vetted statistical functions.
- * These tests ensure that punit's Java implementations produce identical results
- * within stated tolerances, guaranteeing statistical equivalence across all javai
- * framework implementations.
- *
- * <p>Each JSON suite declares its own tolerance. This test uses the declared
- * tolerance — not a hardcoded value — so that tolerance decisions are owned by
- * javai-R, not by individual frameworks.
+ * Conformance tests for binomial proportion statistics: Wilson score intervals,
+ * threshold derivation, power analysis, feasibility, and verdict evaluation.
  *
  * @see <a href="https://github.com/javai-org/javai-R">javai-R</a>
  */
-@DisplayName("Statistics conformance (javai-R)")
-class StatisticsConformanceTest {
+@DisplayName("Proportion conformance (javai-R)")
+class ProportionConformanceTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String CONFORMANCE_DIR = "/conformance/";
@@ -42,7 +44,7 @@ class StatisticsConformanceTest {
     private static final TestVerdictEvaluator VERDICT_EVALUATOR = new TestVerdictEvaluator();
 
     private static JsonNode loadSuite(String filename) {
-        try (InputStream is = StatisticsConformanceTest.class.getResourceAsStream(CONFORMANCE_DIR + filename)) {
+        try (InputStream is = ProportionConformanceTest.class.getResourceAsStream(CONFORMANCE_DIR + filename)) {
             if (is == null) {
                 throw new IllegalStateException(
                         "Conformance data not found: " + CONFORMANCE_DIR + filename

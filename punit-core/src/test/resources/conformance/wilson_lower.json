@@ -80,6 +80,61 @@
       "expected": {
         "lower_bound": 0.648883499234899
       }
+    },
+    {
+      "name": "zero_successes_0_of_100_95pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "zero_successes_0_of_5_95pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 5,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "zero_successes_0_of_100_99pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 100,
+        "confidence": 0.99
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "single_trial_failure_0_of_1_95pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 1,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "single_trial_success_1_of_1_95pct",
+      "inputs": {
+        "successes": 1,
+        "trials": 1,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0.269865948784054
+      }
     }
   ]
 }

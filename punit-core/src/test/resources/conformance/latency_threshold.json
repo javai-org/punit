@@ -1,0 +1,86 @@
+{
+  "suite": "latency_threshold",
+  "description": "Latency threshold derivation from baseline percentiles",
+  "method": "One-sided upper confidence bound: max(Q(p), ceil(Q(p) + z * s / sqrt(n)))",
+  "tolerance": 1e-10,
+  "cases": [
+    {
+      "name": "worked_example_p95_935_samples",
+      "inputs": {
+        "baseline_percentile": 580,
+        "baseline_sd": 145,
+        "baseline_n": 935,
+        "confidence": 0.95
+      },
+      "expected": {
+        "raw_upper": 587.799907521895,
+        "threshold": 588
+      }
+    },
+    {
+      "name": "small_baseline_p95_50_samples",
+      "inputs": {
+        "baseline_percentile": 480,
+        "baseline_sd": 120,
+        "baseline_n": 50,
+        "confidence": 0.95
+      },
+      "expected": {
+        "raw_upper": 507.91409168824,
+        "threshold": 508
+      }
+    },
+    {
+      "name": "large_baseline_p95_5000_samples",
+      "inputs": {
+        "baseline_percentile": 200,
+        "baseline_sd": 80,
+        "baseline_n": 5000,
+        "confidence": 0.95
+      },
+      "expected": {
+        "raw_upper": 201.860939445883,
+        "threshold": 202
+      }
+    },
+    {
+      "name": "high_confidence_p95_500_samples",
+      "inputs": {
+        "baseline_percentile": 350,
+        "baseline_sd": 100,
+        "baseline_n": 500,
+        "confidence": 0.99
+      },
+      "expected": {
+        "raw_upper": 360.403743971335,
+        "threshold": 361
+      }
+    },
+    {
+      "name": "zero_variance_p95",
+      "inputs": {
+        "baseline_percentile": 200,
+        "baseline_sd": 0,
+        "baseline_n": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "raw_upper": 200,
+        "threshold": 200
+      }
+    },
+    {
+      "name": "high_variance_p95_100_samples",
+      "inputs": {
+        "baseline_percentile": 300,
+        "baseline_sd": 500,
+        "baseline_n": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "raw_upper": 382.242681347574,
+        "threshold": 383
+      }
+    }
+  ]
+}

@@ -44,7 +44,10 @@
             "type": "object",
             "description": "Input parameters for the statistical computation. Keys vary by suite.",
             "additionalProperties": {
-              "type": "number"
+              "oneOf": [
+                { "type": "number" },
+                { "type": "array", "items": { "type": "number" } }
+              ]
             }
           },
           "expected": {
