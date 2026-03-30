@@ -8,7 +8,7 @@ Probabilistic testing for stochastic systems in Java.
 
 <p align="center">
   <a href="https://karakun.com">
-    <img src="docs/karakun-logo.png" alt="Karakun" width="220"/>
+    <img src="media/karakun-logo.PNG" alt="Karakun" width="220"/>
   </a>
 </p>
 
