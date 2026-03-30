@@ -1,10 +1,8 @@
-# PUnit: The Probabilistic Unit Testing Framework
-
-Probabilistic testing for stochastic systems in Java.
+# PUnit: The Experimentation and Probabilistic Testing Framework
 
 ---
 
-## Sponsored by
+## Governance and Sponsorship Transparency
 
 <p align="center">
   <a href="https://karakun.com">
@@ -14,7 +12,21 @@ Probabilistic testing for stochastic systems in Java.
 
 PUnit is proudly sponsored by [Karakun](https://karakun.com), a Swiss software engineering consultancy specialising in scalable systems, AI, and enterprise-grade solutions.
 
+## Independence
+
+All technical decisions within PUnit are made independently of its sponsor.
+
+This includes:
+- Statistical models and assumptions
+- Test semantics and verdict logic
+- API design and framework behaviour
+
+## Rationale
+
+PUnit aims to provide a neutral and rigorous approach to testing stochastic systems. Maintaining independence from commercial influence is essential to its credibility, particularly in regulated environments such as finance and healthcare.
+
 ---
+
 
 ## Why PUnit?
 
