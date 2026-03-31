@@ -5,8 +5,6 @@ import java.util.List;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.experiment.engine.shared.CaptorParameterResolver;
 import org.javai.punit.experiment.engine.shared.FactorInfo;
-import org.javai.punit.experiment.engine.shared.FactorParameterResolver;
-import org.javai.punit.experiment.engine.shared.FactorValuesResolver;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 
@@ -34,8 +32,6 @@ public record MeasureWithFactorsInvocationContext(
     public List<Extension> getAdditionalExtensions() {
         List<Extension> extensions = new ArrayList<>();
         extensions.add(new CaptorParameterResolver(captor, null, sampleNumber, factorValues));
-        extensions.add(new FactorParameterResolver(factorValues, factorInfos));
-        extensions.add(new FactorValuesResolver(factorValues, factorInfos));
         return extensions;
     }
 }

@@ -19,41 +19,14 @@ import java.lang.annotation.Target;
  *       and lowercasing the first character (e.g., {@code getTemperature} → "temperature")</li>
  * </ol>
  *
- * <h2>Example</h2>
- * <pre>{@code
- * @UseCase
- * public class ShoppingUseCase {
- *     private double temperature = 0.3;
- *
- *     @FactorGetter  // factor name derived as "temperature"
- *     public double getTemperature() {
- *         return temperature;
- *     }
- *
- *     @FactorSetter  // factor name derived as "temperature"
- *     public void setTemperature(double temperature) {
- *         this.temperature = temperature;
- *     }
- * }
- * }</pre>
- *
- * <h2>Usage in Optimization</h2>
- * <p>In {@code OptimizeExperiment}, the getter for the control factor provides
- * the initial value that the optimizer will iteratively refine:
- * <pre>{@code
- * @OptimizeExperiment(
- *     useCase = ShoppingUseCase.class,
- *     treatmentFactor = "systemPrompt",  // looks up @FactorGetter for this
- *     ...
- * )
- * void optimize(ShoppingUseCase useCase, @ControlFactor String prompt, OutcomeCaptor captor) {
- *     // prompt contains the current value from getSystemPrompt()
- * }
- * }</pre>
- *
+ * @deprecated With immutable use cases, factor values are set at construction time and read
+ * via standard accessors. This annotation is no longer needed. Use
+ * {@link UseCaseProvider#registerWithFactors} to configure factors at construction time.
+ * See the user guide section on immutable use cases.
  * @see FactorSetter
  * @see ControlFactor
  */
+@Deprecated(since = "0.5.3", forRemoval = true)
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FactorGetter {
