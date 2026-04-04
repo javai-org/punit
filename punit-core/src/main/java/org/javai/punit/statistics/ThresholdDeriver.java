@@ -179,7 +179,7 @@ public class ThresholdDeriver {
             int successes, int trials, double targetThreshold,
             double lowConf, double highConf) {
         
-        double tolerance = 0.0001;
+        double tolerance = 1e-10;
         int maxIterations = 100;
         
         for (int i = 0; i < maxIterations; i++) {

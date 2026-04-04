@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/javai-org/javai-R/schema/cases.schema.json",
+  "title": "javai-R conformance case suite",
+  "description": "Schema for statistical conformance reference datasets produced by javai-R. Each JSON file represents one suite of test cases.",
+  "type": "object",
+  "required": ["suite", "description", "method", "tolerance", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "suite": {
+      "type": "string",
+      "description": "Machine-readable suite identifier (e.g. 'wilson_ci', 'verdict')."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this suite tests."
+    },
+    "method": {
+      "type": "string",
+      "description": "Statistical method used to produce expected values."
+    },
+    "tolerance": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Absolute tolerance for floating-point comparison of expected values. A tolerance of 0 means exact match is required."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The individual test cases in this suite.",
+      "items": {
+        "type": "object",
+        "required": ["name", "inputs", "expected"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique, descriptive case identifier within this suite."
+          },
+          "approach": {
+            "type": "string",
+            "description": "Sub-approach within the suite (e.g. 'sample_size_first', 'threshold_first'). Present only in suites with multiple derivation strategies."
+          },
+          "inputs": {
+            "type": "object",
+            "description": "Input parameters for the statistical computation. Keys vary by suite.",
+            "additionalProperties": {
+              "oneOf": [
+                { "type": "number" },
+                { "type": "array", "items": { "type": "number" } }
+              ]
+            }
+          },
+          "expected": {
+            "type": "object",
+            "description": "Expected outputs from R's reference computation. Keys vary by suite. Numeric values should be compared within the suite's tolerance. Boolean and string values should be compared exactly.",
+            "additionalProperties": {
+              "type": ["number", "boolean", "string"]
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

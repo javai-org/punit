@@ -1,0 +1,28 @@
+# Empirical Baseline for test-use-case
+# Generated automatically by punit experiment runner
+# DO NOT EDIT - create a specification based on this baseline instead
+
+schemaVersion: punit-spec-1
+useCaseId: test-use-case
+generatedAt: 2026-04-04T15:11:28.204687Z
+experimentClass: org.javai.punit.experiment.engine.input.InputSourceIntegrationTest$RecordInputTestSubject
+experimentMethod: measureWithRecordInputs
+execution:
+  samplesPlanned: 4
+  samplesExecuted: 4
+  terminationReason: COMPLETED
+latency:
+  sampleCount: 4
+  meanMs: 0
+  standardDeviationMs: 0
+  p50Ms: 0
+  p90Ms: 0
+  p95Ms: 0
+  p99Ms: 0
+  maxMs: 0
+cost:
+  totalTimeMs: 1
+  avgTimePerSampleMs: 0
+  totalTokens: 0
+  avgTokensPerSample: 0
+contentFingerprint: 0a568eeda9070c8495449fd16cb3bfd51d3e2c72969385f1e3681d6a75ca1987

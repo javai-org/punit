@@ -1,0 +1,36 @@
+# Empirical Baseline for LatencyBaselineUseCase
+# Test fixture spec for LatencyBaselineIntegrationTest
+
+schemaVersion: punit-spec-1
+useCaseId: LatencyBaselineUseCase
+generatedAt: 2026-03-07T12:00:00.000000Z
+experimentClass: org.javai.punit.testsubjects.LatencyBaselineTestSubjects
+experimentMethod: measure
+execution:
+  samplesPlanned: 100
+  samplesExecuted: 100
+  terminationReason: COMPLETED
+requirements:
+  minPassRate: 0.9000
+statistics:
+  successRate:
+    observed: 0.9500
+    standardError: 0.0218
+    confidenceInterval95: [0.9073, 0.9927]
+  successes: 95
+  failures: 5
+latency:
+  sampleCount: 100
+  meanMs: 450
+  standardDeviationMs: 180
+  p50Ms: 380
+  p90Ms: 620
+  p95Ms: 750
+  p99Ms: 1100
+  maxMs: 1500
+cost:
+  totalTimeMs: 45000
+  avgTimePerSampleMs: 450
+  totalTokens: 0
+  avgTokensPerSample: 0
+contentFingerprint: e218f1b2b5d0b1761bd8dd973962366045dd446cf9ab2d7218d6d49be94b4a6f

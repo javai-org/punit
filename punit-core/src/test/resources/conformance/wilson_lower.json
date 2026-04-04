@@ -1,0 +1,140 @@
+{
+  "suite": "wilson_lower",
+  "description": "Wilson score one-sided lower bound",
+  "method": "qnorm-based Wilson score lower bound (one-sided z)",
+  "tolerance": 1e-10,
+  "cases": [
+    {
+      "name": "baseline_95_of_100_95pct",
+      "inputs": {
+        "successes": 95,
+        "trials": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0.900838914720947
+      }
+    },
+    {
+      "name": "perfect_baseline_100_of_100_95pct",
+      "inputs": {
+        "successes": 100,
+        "trials": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0.973657279216826
+      }
+    },
+    {
+      "name": "baseline_950_of_1000_95pct",
+      "inputs": {
+        "successes": 950,
+        "trials": 1000,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0.937399796580391
+      }
+    },
+    {
+      "name": "baseline_95_of_100_99pct",
+      "inputs": {
+        "successes": 95,
+        "trials": 100,
+        "confidence": 0.99
+      },
+      "expected": {
+        "lower_bound": 0.872376803787502
+      }
+    },
+    {
+      "name": "baseline_95_of_100_90pct",
+      "inputs": {
+        "successes": 95,
+        "trials": 100,
+        "confidence": 0.9
+      },
+      "expected": {
+        "lower_bound": 0.914086223854285
+      }
+    },
+    {
+      "name": "fair_coin_50_of_100_95pct",
+      "inputs": {
+        "successes": 50,
+        "trials": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0.41884779611253
+      }
+    },
+    {
+      "name": "small_sample_5_of_5_95pct",
+      "inputs": {
+        "successes": 5,
+        "trials": 5,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0.648883499234899
+      }
+    },
+    {
+      "name": "zero_successes_0_of_100_95pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "zero_successes_0_of_5_95pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 5,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "zero_successes_0_of_100_99pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 100,
+        "confidence": 0.99
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "single_trial_failure_0_of_1_95pct",
+      "inputs": {
+        "successes": 0,
+        "trials": 1,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0
+      }
+    },
+    {
+      "name": "single_trial_success_1_of_1_95pct",
+      "inputs": {
+        "successes": 1,
+        "trials": 1,
+        "confidence": 0.95
+      },
+      "expected": {
+        "lower_bound": 0.269865948784054
+      }
+    }
+  ]
+}

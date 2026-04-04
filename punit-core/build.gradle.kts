@@ -16,14 +16,14 @@ dependencies {
     implementation("org.apache.commons:commons-statistics-distribution:1.2")
 
     // SnakeYAML — for YAML serialization in spec generation
-    implementation("org.yaml:snakeyaml:2.5")
+    implementation("org.yaml:snakeyaml:2.6")
 
     // Jackson — for JSON/CSV parsing in @InputSource
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.2")
 
     // Outcome — result types for contract postconditions
-    api("org.javai:outcome:0.1.0")
+    api("org.javai:outcome:0.2.0")
 
     // Optional JSON matching support for instance conformance
     compileOnly("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
@@ -35,11 +35,45 @@ dependencies {
 
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     testImplementation("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
 }
+
+// --- javai-R conformance reference data ----------------------------------------
+
+val javaiRVersion: String by project.rootProject.extra {
+    project.rootProject.property("javaiR.version") as String
+}
+
+val conformanceDir = layout.buildDirectory.dir("conformance")
+
+val downloadConformanceData by tasks.registering {
+    description = "Downloads javai-R conformance reference data (v$javaiRVersion)"
+    group = "verification"
+
+    val zipFile = layout.buildDirectory.file("conformance/cases-v$javaiRVersion.zip")
+    outputs.dir(conformanceDir)
+
+    doLast {
+        val dir = conformanceDir.get().asFile
+        dir.mkdirs()
+        val zip = zipFile.get().asFile
+        if (!zip.exists()) {
+            val url = "https://github.com/javai-org/javai-R/releases/download/v$javaiRVersion/cases-v$javaiRVersion.zip"
+            uri(url).toURL().openStream().use { input ->
+                zip.outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+        copy {
+            from(zipTree(zip))
+            into(dir)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------
 
 tasks.jar {
     manifest {

@@ -1,0 +1,27 @@
+# Empirical Baseline for BaselineDerivedThresholdUseCase
+# Test fixture spec for BaselineDerivedThresholdIntegrationTest
+
+schemaVersion: punit-spec-1
+useCaseId: BaselineDerivedThresholdUseCase
+generatedAt: 2026-03-07T12:00:00.000000Z
+experimentClass: org.javai.punit.testsubjects.BaselineDerivedThresholdSubjects
+experimentMethod: measure
+execution:
+  samplesPlanned: 100
+  samplesExecuted: 100
+  terminationReason: COMPLETED
+requirements:
+  minPassRate: 0.8000
+statistics:
+  successRate:
+    observed: 0.8500
+    standardError: 0.0357
+    confidenceInterval95: [0.7800, 0.9200]
+  successes: 85
+  failures: 15
+cost:
+  totalTimeMs: 100
+  avgTimePerSampleMs: 1
+  totalTokens: 0
+  avgTokensPerSample: 0
+contentFingerprint: 80b117579174437a3a95a22434d8c45de00f9f068948b519c2b5fa58d94c3aee

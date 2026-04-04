@@ -1,0 +1,99 @@
+{
+  "suite": "threshold_derivation",
+  "description": "Threshold derivation via sample-size-first and threshold-first approaches",
+  "method": "Wilson lower bound (sample-size-first); binary search for implied confidence (threshold-first)",
+  "tolerance": 1e-06,
+  "cases": [
+    {
+      "name": "ssf_95_of_100_test50_95pct",
+      "approach": "sample_size_first",
+      "inputs": {
+        "baseline_successes": 95,
+        "baseline_trials": 100,
+        "test_samples": 50,
+        "confidence": 0.95
+      },
+      "expected": {
+        "threshold": 0.900838914720947
+      }
+    },
+    {
+      "name": "ssf_950_of_1000_test100_95pct",
+      "approach": "sample_size_first",
+      "inputs": {
+        "baseline_successes": 950,
+        "baseline_trials": 1000,
+        "test_samples": 100,
+        "confidence": 0.95
+      },
+      "expected": {
+        "threshold": 0.937399796580391
+      }
+    },
+    {
+      "name": "ssf_perfect_baseline_test50_95pct",
+      "approach": "sample_size_first",
+      "inputs": {
+        "baseline_successes": 100,
+        "baseline_trials": 100,
+        "test_samples": 50,
+        "confidence": 0.95
+      },
+      "expected": {
+        "threshold": 0.973657279216826
+      }
+    },
+    {
+      "name": "ssf_95_of_100_test50_99pct",
+      "approach": "sample_size_first",
+      "inputs": {
+        "baseline_successes": 95,
+        "baseline_trials": 100,
+        "test_samples": 50,
+        "confidence": 0.99
+      },
+      "expected": {
+        "threshold": 0.872376803787502
+      }
+    },
+    {
+      "name": "tf_baseline_95pct_threshold_90",
+      "approach": "threshold_first",
+      "inputs": {
+        "baseline_successes": 95,
+        "baseline_trials": 100,
+        "threshold": 0.9
+      },
+      "expected": {
+        "implied_confidence": 0.952209647798911,
+        "is_sound": true
+      }
+    },
+    {
+      "name": "tf_baseline_95pct_threshold_85",
+      "approach": "threshold_first",
+      "inputs": {
+        "baseline_successes": 95,
+        "baseline_trials": 100,
+        "threshold": 0.85
+      },
+      "expected": {
+        "implied_confidence": 0.997449300178152,
+        "is_sound": true
+      }
+    },
+    {
+      "name": "tf_baseline_95pct_threshold_94",
+      "approach": "threshold_first",
+      "inputs": {
+        "baseline_successes": 95,
+        "baseline_trials": 100,
+        "threshold": 0.94
+      },
+      "expected": {
+        "implied_confidence": 0.663150192704052,
+        "is_sound": false
+      }
+    }
+  ]
+}

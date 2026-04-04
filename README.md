@@ -1,4 +1,36 @@
-# PUnit: The Probabilistic Unit Testing Framework
+# PUnit: The Experimentation and Probabilistic Testing Framework
+
+---
+
+## Governance and Sponsorship Transparency
+
+<p align="center">
+  <a href="https://karakun.com">
+    <img src="media/karakun-logo.PNG" alt="Karakun" width="220"/>
+  </a>
+</p>
+
+PUnit is proudly sponsored by [Karakun](https://karakun.com), a Swiss software engineering consultancy specialising in scalable systems, AI, and enterprise-grade solutions.
+
+## Independence
+
+All technical decisions within PUnit are made independently of its sponsor.
+
+This includes:
+- Statistical models and assumptions
+- Test semantics and verdict logic
+- API design and framework behaviour
+
+## Rationale
+
+PUnit aims to provide a neutral and rigorous approach to testing stochastic systems. Maintaining independence from commercial influence is essential to its credibility, particularly in regulated environments such as finance and healthcare.
+
+---
+
+
+## Why PUnit?
+
+PUnit brings statistical rigor to testing non-deterministic systems...
 
 *Experimentation and unit testing at certainty's boundary*
 
@@ -74,7 +106,7 @@ class MyServiceTest {
 
     @ProbabilisticTest(
         samples = 100,
-        minPassRate = 0.95,
+        minPassRate = 0.90,
         thresholdOrigin = ThresholdOrigin.SLA,
         contractRef = "Service Agreement §4.2"
     )
@@ -85,7 +117,7 @@ class MyServiceTest {
 }
 ```
 
-This test runs 100 samples, requires 95% success, and documents that the threshold comes from an SLA. PUnit will terminate early if success is guaranteed or failure becomes inevitable.
+This test runs 100 samples, requires 90% success, and documents that the threshold comes from an SLA. PUnit will terminate early if success is guaranteed or failure becomes inevitable.
 
 ### 3. Run It
 

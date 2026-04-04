@@ -953,7 +953,7 @@ Each input receives an equal share of samples (34, 33, 33 in this case). The tot
 
 ### The Use Case in Full
 
-The full implementation demonstrates how all PUnit concepts come together in a single class:
+The full implementation demonstrates how all PUnit concepts come together in a single class. Note that factor fields are `final` — the use case is immutable once constructed:
 
 ```java
 @UseCase(
@@ -968,12 +968,22 @@ The full implementation demonstrates how all PUnit concepts come together in a s
 )
 public class ShoppingBasketUseCase {
 
-    @FactorGetter
+    private final String model;
+    private final double temperature;
+    private final String systemPrompt;
+
+    public ShoppingBasketUseCase(ChatLlm llm, String model, double temperature, String systemPrompt) {
+        this.llm = llm;
+        this.model = model;
+        this.temperature = temperature;
+        this.systemPrompt = systemPrompt;
+    }
+
     @CovariateSource("llm_model")
     public String getModel() { return model; }
 
-    @FactorSetter("llm_model")
-    public void setModel(String model) { this.model = model; }
+    @CovariateSource
+    public double getTemperature() { return temperature; }
 
     public UseCaseOutcome translateInstruction(String instruction) {
         // Call LLM, validate response, return outcome with criteria
@@ -985,11 +995,53 @@ Key elements:
 
 - **`@UseCase`** — Declares the use case, its covariates, and operational attributes such as `warmup`
 - **`warmup = 3`** — Discards the first 3 invocations to achieve statistical stationarity (see [Warmup](#warmup-achieving-statistical-stationarity))
-- **`@FactorGetter` / `@FactorSetter`** — Allow experiments to read and manipulate configuration
+- **`final` factor fields** — Use case configuration is immutable after construction (see [Immutable Use Cases](#immutable-use-cases-and-the-iid-assumption))
 - **`@CovariateSource`** — Links factors to covariate tracking for baseline selection
 - **`UseCaseOutcome`** — Bundles result data with success criteria
 
 *Source: `org.javai.punit.examples.usecases.ShoppingBasketUseCase`*
+
+### Immutable Use Cases and the i.i.d. Assumption
+
+A probabilistic test models repeated service invocations as independent, identically distributed (i.i.d.) Bernoulli trials. The "identically distributed" part requires that the experimental condition — the use case configuration — is **fixed during sampling**. If the configuration changes between trials, the samples are drawn from different distributions, and the confidence intervals, p-values, and verdicts computed from them are invalid.
+
+This principle has a direct consequence for use case design: **factor fields should be `final`, and the use case should be fully configured at construction time.**
+
+#### The `registerWithFactors` pattern
+
+When a use case has factors that vary across configurations (in EXPLORE or OPTIMIZE experiments), use `registerWithFactors` to create a fully configured instance per configuration:
+
+```java
+provider.registerWithFactors(ShoppingBasketUseCase.class, factors -> {
+    String model = factors.getString("model");
+    double temp = factors.getDouble("temperature");
+    return new ShoppingBasketUseCase(createAssistant(model, temp), model, temp);
+});
+```
+
+PUnit calls this factory once per configuration, producing a fresh, immutable instance. All samples within that configuration run against the same instance — satisfying the i.i.d. requirement.
+
+For fixed-configuration use cases (no factors), the standard `register` pattern is appropriate:
+
+```java
+provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
+```
+
+#### Design guidance
+
+- Make factor fields `final` and set them via the constructor.
+- Provide standard getters — no setters needed.
+- Annotate getters with `@CovariateSource` where covariate tracking is required; the covariate system reads values from getters, not from `@FactorGetter`.
+
+#### Deprecated: `@FactorSetter`, `@FactorGetter`, and `registerAutoWired`
+
+Prior to 0.5.3, PUnit supported mutable use case patterns where factors were injected via `@FactorSetter` methods after construction. These patterns are **deprecated** because they allow the use case configuration to change during sampling, violating the i.i.d. assumption:
+
+- **`@FactorSetter`** — Deprecated. Use constructor parameters instead.
+- **`@FactorGetter`** — Deprecated. Use standard getters instead.
+- **`UseCaseProvider.registerAutoWired()`** — Deprecated. Use `registerWithFactors()` instead.
+
+These annotations and methods will be removed in a future release. Existing code that uses them will compile with deprecation warnings during the transition period.
 
 ### Warmup: Achieving Statistical Stationarity
 
@@ -1063,7 +1115,19 @@ Use EXPLORE when:
 
 ### Comparing Configurations
 
+Register the use case with a factor-aware factory. PUnit constructs a fresh, immutable instance per configuration:
+
 ```java
+@BeforeEach
+void setUp() {
+    provider.registerWithFactors(ShoppingBasketUseCase.class, factors -> {
+        String model = factors.has("model") ? factors.getString("model") : "gpt-4o-mini";
+        double temp = factors.has("temperature") ? factors.getDouble("temperature") : 0.1;
+        return new ShoppingBasketUseCase(ChatLlmProvider.resolve(), model, temp,
+                ShoppingBasketUseCase.DEFAULT_SYSTEM_PROMPT);
+    });
+}
+
 @ExploreExperiment(
     useCase = ShoppingBasketUseCase.class,
     samplesPerConfig = 20,
@@ -1075,8 +1139,7 @@ void compareModels(
     @Factor("model") String model,
     OutcomeCaptor captor
 ) {
-    useCase.setModel(model);
-    useCase.setTemperature(0.3);  // Fixed for fair comparison
+    // useCase already configured via registerWithFactors — no mutation
     captor.record(useCase.translateInstruction("Add 2 apples"));
 }
 
@@ -1114,6 +1177,8 @@ Compare with standard diff tools to identify the preferred configuration.
 
 ### Multi-Factor Exploration
 
+When the `registerWithFactors` factory handles multiple factors, the same factory serves both single-factor and multi-factor explorations:
+
 ```java
 @ExploreExperiment(
     useCase = ShoppingBasketUseCase.class,
@@ -1127,8 +1192,7 @@ void compareModelsAcrossTemperatures(
     @Factor("temperature") Double temperature,
     OutcomeCaptor captor
 ) {
-    useCase.setModel(model);
-    useCase.setTemperature(temperature);
+    // useCase already configured with both model and temperature
     captor.record(useCase.translateInstruction("Add 2 apples"));
 }
 
