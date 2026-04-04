@@ -10,11 +10,13 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+import org.javai.punit.api.ConfigSource;
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.ExploreExperiment;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;
+import org.javai.punit.api.NamedConfig;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.experiment.engine.ExperimentConfig;
@@ -107,7 +109,14 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                     exploreConfig, store);
         }
 
-        // Check for @FactorSource annotation (legacy)
+        // Check for @ConfigSource annotation (preferred for factor exploration)
+        ConfigSource configSource = testMethod.getAnnotation(ConfigSource.class);
+        if (configSource != null) {
+            return provideWithConfigsInvocationContexts(
+                    testMethod, configSource, exploreConfig, store);
+        }
+
+        // Check for @FactorSource annotation (legacy) TODO: ditch this when we realise the deprecation of factors
         FactorSource factorSource = testMethod.getAnnotation(FactorSource.class);
         if (factorSource == null) {
             // Warn: EXPLORE without inputs or factors is equivalent to MEASURE
@@ -241,6 +250,109 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                             sampleIndex, totalSamples, useCaseId, new OutcomeCaptor(),
                             inputValue, inputType, inputIndex, totalInputs);
                 });
+    }
+
+    @SuppressWarnings("unchecked")
+    private Stream<TestTemplateInvocationContext> provideWithConfigsInvocationContexts(
+            Method testMethod,
+            ConfigSource configSource,
+            ExploreConfig config,
+            ExtensionContext.Store store) {
+
+        int samplesPerConfig = config.effectiveSamplesPerConfig();
+        String useCaseId = config.useCaseId();
+
+        List<NamedConfig<?>> configs = resolveNamedConfigs(
+                testMethod, configSource, config.useCaseClass());
+
+        if (configs.isEmpty()) {
+            throw new ExtensionConfigurationException(
+                    "@ConfigSource resolved to empty list");
+        }
+
+        // Store explore-mode metadata (reuses the same aggregator structure as factor mode)
+        store.put("mode", ExperimentMode.EXPLORE);
+        store.put("configAggregators", new LinkedHashMap<String, ExperimentResultAggregator>());
+        store.put("terminated", new AtomicBoolean(false));
+        store.put("warmupCounter", new AtomicInteger(0));
+
+        // Prepend warmup contexts if configured
+        int warmup = config.warmup();
+        List<TestTemplateInvocationContext> allInvocations = new ArrayList<>();
+        for (int w = 1; w <= warmup; w++) {
+            allInvocations.add(WarmupInvocationContext.forExperiment(w, warmup));
+        }
+
+        // Generate invocation contexts for all configs x samples
+        for (int configIndex = 0; configIndex < configs.size(); configIndex++) {
+            NamedConfig<?> namedConfig = configs.get(configIndex);
+            String configName = namedConfig.name();
+
+            ExperimentResultAggregator configAggregator =
+                    new ExperimentResultAggregator(useCaseId + "/" + configName, samplesPerConfig);
+            ((Map<String, ExperimentResultAggregator>) store.get("configAggregators", Map.class))
+                    .put(configName, configAggregator);
+
+            for (int sample = 1; sample <= samplesPerConfig; sample++) {
+                allInvocations.add(new ConfigInvocationContext(
+                        sample, samplesPerConfig, configIndex + 1, configs.size(),
+                        useCaseId, configName, namedConfig.instance(), new OutcomeCaptor()
+                ));
+            }
+        }
+
+        return allInvocations.stream();
+    }
+
+    /**
+     * Resolves named configs from a @ConfigSource method.
+     */
+    @SuppressWarnings("unchecked")
+    private List<NamedConfig<?>> resolveNamedConfigs(
+            Method testMethod, ConfigSource configSource, Class<?> useCaseClass) {
+
+        String methodName = configSource.value();
+        Class<?> currentClass = testMethod.getDeclaringClass();
+
+        Method sourceMethod = findStaticMethod(methodName, currentClass);
+        if (sourceMethod == null && useCaseClass != null && useCaseClass != currentClass) {
+            sourceMethod = findStaticMethod(methodName, useCaseClass);
+        }
+
+        if (sourceMethod == null) {
+            throw new ExtensionConfigurationException(
+                    "Cannot find @ConfigSource method '" + methodName + "' in " +
+                            currentClass.getName() +
+                            (useCaseClass != null ? " or " + useCaseClass.getName() : ""));
+        }
+
+        try {
+            sourceMethod.setAccessible(true);
+            Object result = sourceMethod.invoke(null);
+
+            if (result instanceof Stream) {
+                return ((Stream<NamedConfig<?>>) result).toList();
+            } else if (result instanceof java.util.Collection) {
+                return new ArrayList<>((java.util.Collection<NamedConfig<?>>) result);
+            }
+
+            throw new ExtensionConfigurationException(
+                    "@ConfigSource method must return Stream<NamedConfig> or Collection<NamedConfig>: " +
+                            methodName);
+        } catch (ExtensionConfigurationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ExtensionConfigurationException(
+                    "Cannot invoke @ConfigSource method '" + methodName + "': " + e.getMessage(), e);
+        }
+    }
+
+    private Method findStaticMethod(String methodName, Class<?> clazz) {
+        try {
+            return clazz.getDeclaredMethod(methodName);
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
     }
 
     /**
@@ -441,6 +553,14 @@ public class ExploreStrategy implements ExperimentModeStrategy {
             InputSourceResolver resolver = new InputSourceResolver();
             List<Object> inputs = resolver.resolve(inputSource, testMethod.getDeclaringClass(), inputType);
             return samplesPerConfig * inputs.size();
+        }
+
+        // Check for @ConfigSource
+        ConfigSource configSource = testMethod.getAnnotation(ConfigSource.class);
+        if (configSource != null) {
+            List<NamedConfig<?>> configs = resolveNamedConfigs(
+                    testMethod, configSource, exploreConfig.useCaseClass());
+            return samplesPerConfig * configs.size();
         }
 
         // Check for @FactorSource

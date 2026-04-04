@@ -61,6 +61,7 @@ public class UseCaseProvider implements ParameterResolver {
     private boolean useSingletons = false;
 
     private FactorValues currentFactorValues = null;
+    private Object currentConfigInstance = null;
 
     /**
      * Creates a new use case provider with per-invocation instance creation.
@@ -159,6 +160,29 @@ public class UseCaseProvider implements ParameterResolver {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // Config instance (EXPLORE config mode)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Sets a pre-built config instance for EXPLORE config mode.
+     *
+     * <p>When set, {@link #getInstance(Class)} returns this instance directly,
+     * bypassing all factories.
+     *
+     * @param instance the pre-built use case instance
+     */
+    public void setCurrentConfigInstance(Object instance) {
+        this.currentConfigInstance = instance;
+    }
+
+    /**
+     * Clears the current config instance.
+     */
+    public void clearCurrentConfigInstance() {
+        this.currentConfigInstance = null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // Instance resolution
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -180,6 +204,13 @@ public class UseCaseProvider implements ParameterResolver {
     @SuppressWarnings("unchecked")
     public <T> T getInstance(Class<T> useCaseClass) {
         T instance;
+
+        // 0. Check for config instance (EXPLORE config mode)
+        if (currentConfigInstance != null && useCaseClass.isInstance(currentConfigInstance)) {
+            instance = (T) currentConfigInstance;
+            lastCreatedInstances.put(useCaseClass, instance);
+            return instance;
+        }
 
         // 1. Check for factor factory (EXPLORE mode with custom factory)
         Function<FactorValues, ?> factorFactory = factorFactories.get(useCaseClass);
@@ -269,6 +300,7 @@ public class UseCaseProvider implements ParameterResolver {
         singletons.clear();
         lastCreatedInstances.clear();
         currentFactorValues = null;
+        currentConfigInstance = null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
