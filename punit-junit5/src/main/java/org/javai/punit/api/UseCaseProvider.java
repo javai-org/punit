@@ -282,7 +282,8 @@ public class UseCaseProvider implements ParameterResolver {
     public boolean isRegistered(Class<?> useCaseClass) {
         return factories.containsKey(useCaseClass)
             || factorFactories.containsKey(useCaseClass)
-            || autoWiredFactories.containsKey(useCaseClass);
+            || autoWiredFactories.containsKey(useCaseClass)
+            || (currentConfigInstance != null && useCaseClass.isInstance(currentConfigInstance));
     }
 
     /**
