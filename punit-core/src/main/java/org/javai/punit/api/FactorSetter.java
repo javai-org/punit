@@ -19,27 +19,12 @@ import java.lang.annotation.Target;
  *       and lowercasing the first character (e.g., {@code setTemperature} → "temperature")</li>
  * </ol>
  *
- * <h2>Example</h2>
- * <pre>{@code
- * @UseCase
- * public class ShoppingUseCase {
- *     private String model;
- *     private double temperature;
- *
- *     @FactorSetter  // factor name derived as "model"
- *     public void setModel(String model) {
- *         this.model = model;
- *     }
- *
- *     @FactorSetter("temp")  // explicit factor name "temp"
- *     public void setTemperature(double temperature) {
- *         this.temperature = temperature;
- *     }
- * }
- * }</pre>
- *
+ * @deprecated Mutable factor setters risk violating the i.i.d. assumption that underpins
+ * PUnit's statistical model. Use {@link UseCaseProvider#registerWithFactors} to configure
+ * factors at construction time instead. See the user guide section on immutable use cases.
  * @see FactorGetter
  */
+@Deprecated(since = "0.5.3", forRemoval = true)
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FactorSetter {

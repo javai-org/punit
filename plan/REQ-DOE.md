@@ -13,7 +13,9 @@ This enables users to:
 
 PUnit must **minimise avoidable randomness**. Where randomness is used, it must be **explicit, seeded, and reproducible**.
 
-> **[REVIEW]** PUnit already has a rich factor system: `@Factor`, `@FactorSource`, `FactorArguments`, `FactorValues`, `FactorSuit`, and `@FactorSetter`/`@FactorGetter`. Today, users manually construct treatment combinations via `@FactorSource` returning `Stream<FactorArguments>`. This document proposes automating that construction via design strategies. The purpose section should explicitly frame this as **extending the existing factor infrastructure** with automated design generation, not introducing factors from scratch. What is the boundary between what already exists and what this proposal adds?
+> **[REVIEW]** PUnit already has a rich factor system: `@Factor`, `@FactorSource`, `FactorArguments`, `FactorValues`, and `FactorSuit`. Today, users manually construct treatment combinations via `@FactorSource` returning `Stream<FactorArguments>`. Use cases are immutable: factors are set at construction time via `registerWithFactors`, not mutated during sampling (see [DES-IMMUTABLE-USECASE](DES-IMMUTABLE-USECASE.md)). This document proposes automating treatment combination construction via design strategies. The purpose section should explicitly frame this as **extending the existing factor infrastructure** with automated design generation, not introducing factors from scratch. What is the boundary between what already exists and what this proposal adds?
+>
+> Note: `@FactorSetter`, `@FactorGetter`, and `registerAutoWired` are deprecated as of 0.5.3 and scheduled for removal. DoE integration must use the immutable use case pattern exclusively — design matrices produce `FactorArguments` streams consumed by `registerWithFactors` factories, not setter-based injection.
 
 ---
 
@@ -46,7 +48,10 @@ PUnit must **minimise avoidable randomness**. Where randomness is used, it must 
     - independence (as far as operationally achievable)
     - stationarity (explicitly surfaced)
 
-> **[REVIEW]** These principles are sound and align with PUnit's philosophy. One addition worth considering: **composability** — designs should compose with existing `@InputSource` (which distributes test data across samples) and the covariate system. State whether designs interact with or are orthogonal to these mechanisms.
+> **[REVIEW]** These principles are sound and align with PUnit's philosophy. Two additions worth considering:
+>
+> 1. **Composability** — designs should compose with existing `@InputSource` (which distributes test data across samples) and the covariate system. State whether designs interact with or are orthogonal to these mechanisms.
+> 2. **Immutability** — design-generated configurations must flow through `registerWithFactors`, producing immutable use case instances. Each configuration in the design matrix results in a fresh, fully-configured use case. This aligns with the i.i.d. assumption and the immutable use case principle (see [DES-IMMUTABLE-USECASE](DES-IMMUTABLE-USECASE.md)).
 
 ---
 
@@ -83,7 +88,7 @@ Factor<String> promptStyle = Factor.of(
 >
 > The proposed `Factor.of()` typed builder is a new programmatic API that would **generate** `FactorArguments` combinations rather than requiring manual enumeration. This is a valid addition, but the document needs to clarify:
 >
-> 1. Does `Factor<T>` replace `@Factor`/`@FactorSource` or complement them? (Presumably complement — producing `Stream<FactorArguments>` for consumption by `@FactorSource`.)
+> 1. Does `Factor<T>` replace `@Factor`/`@FactorSource` or complement them? (Presumably complement — producing `Stream<FactorArguments>` for consumption by `@FactorSource` and `registerWithFactors`.)
 > 2. Where does `Factor<T>` live? In `punit-core` alongside `FactorArguments`?
 > 3. The type parameter `<T>` is new — PUnit's current `FactorValues` uses `getString()`/`getDouble()` untyped getters. How does type safety flow through to `FactorSuit` and `FactorValues`?
 
@@ -228,11 +233,22 @@ ExperimentDesign design() {
 > 3. A realistic integration would look like:
 >
 > ```java
+> // Registration: immutable use case constructed per configuration
+> provider.registerWithFactors(MyUseCase.class, factors -> {
+>     double temp = factors.getDouble("temperature");
+>     String style = factors.getString("promptStyle");
+>     return new MyUseCase(temp, style);
+> });
+>
 > @ExploreExperiment(useCase = MyUseCase.class, samplesPerConfig = 5)
 > @FactorSource("design")
-> void explore(@Factor("temperature") double temp,
+> void explore(MyUseCase useCase,
+>              @Factor("temperature") double temp,
 >              @Factor("promptStyle") String style,
->              OutcomeCaptor captor) { ... }
+>              OutcomeCaptor captor) {
+>     // useCase already configured — @Factor params are informational
+>     captor.record(useCase.execute());
+> }
 >
 > static Stream<FactorArguments> design() {
 >     return Design.fullFactorial(
@@ -242,7 +258,7 @@ ExperimentDesign design() {
 > }
 > ```
 >
-> This section needs to be rewritten to show how `Design`/`DesignMatrix` produces `FactorArguments` streams that plug into the existing `@FactorSource` mechanism. Alternatively, if the proposal is for a **new** integration mechanism (e.g., `@DesignSource`), that needs to be stated and justified.
+> This section needs to be rewritten to show how `Design`/`DesignMatrix` produces `FactorArguments` streams that plug into the existing `@FactorSource` mechanism. The use case is constructed immutably via `registerWithFactors` — the design matrix provides the factor combinations, and the factory builds a fresh instance per combination. Alternatively, if the proposal is for a **new** integration mechanism (e.g., `@DesignSource`), that needs to be stated and justified.
 
 ## 6. Reporting Requirements
 
@@ -323,3 +339,4 @@ PUnit does NOT aim to provide:
 > 3. **Budget interaction**: With automated design generation, the total sample count = configurations × samplesPerConfig. How does this interact with `timeBudgetMs` and `tokenBudget`? PUnit's existing `@ExperimentGoal` allows early termination when a configuration achieves a goal — does this still apply?
 > 4. **Where does this code live?** `punit-core` (since factors are already there) or a new module? The module boundary matters for the JUnit-free constraint on `punit-core`.
 > 5. **Covariate interaction**: Design factors are experimental variables; covariates are environmental context captured for baseline matching. The document should state that design factors are NOT covariates and explain the distinction for users who may confuse them.
+> 6. **Immutable use case integration**: Design-generated configurations flow through `registerWithFactors` to produce immutable use case instances. The DoE layer must not rely on `@FactorSetter`, `@FactorGetter`, or `registerAutoWired` — all of which are deprecated (0.5.3) and scheduled for removal. The design matrix produces `Stream<FactorArguments>`, and the `registerWithFactors` factory consumes `FactorValues` to construct each instance. This is the only supported path.

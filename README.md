@@ -106,7 +106,7 @@ class MyServiceTest {
 
     @ProbabilisticTest(
         samples = 100,
-        minPassRate = 0.95,
+        minPassRate = 0.90,
         thresholdOrigin = ThresholdOrigin.SLA,
         contractRef = "Service Agreement §4.2"
     )
@@ -117,7 +117,7 @@ class MyServiceTest {
 }
 ```
 
-This test runs 100 samples, requires 95% success, and documents that the threshold comes from an SLA. PUnit will terminate early if success is guaranteed or failure becomes inevitable.
+This test runs 100 samples, requires 90% success, and documents that the threshold comes from an SLA. PUnit will terminate early if success is guaranteed or failure becomes inevitable.
 
 ### 3. Run It
 
