@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
-import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.ptest.bernoulli.FinalVerdictDecider;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
@@ -188,15 +187,15 @@ public class SentinelRunner {
             List<Method> experimentMethods = introspector.findExperimentMethods(sentinelClass);
 
             for (Method method : experimentMethods) {
-                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
-                String useCaseId = UseCaseFactory.resolveId(annotation.useCase());
+                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                String useCaseId = UseCaseFactory.resolveId(descriptor.useCase());
 
                 if (!filter.test(useCaseId)) {
                     continue;
                 }
 
                 ProbabilisticTestVerdict verdict = experimentExecutor.execute(
-                        method, annotation, instance, factory, sentinelClass);
+                        method, descriptor, instance, factory, sentinelClass);
                 verdicts.add(verdict);
                 configuration.verdictSink().accept(verdict);
 
@@ -236,10 +235,10 @@ public class SentinelRunner {
             }
 
             for (Method method : introspector.findExperimentMethods(sentinelClass)) {
-                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
-                String useCaseId = UseCaseFactory.resolveId(annotation.useCase());
+                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                String useCaseId = UseCaseFactory.resolveId(descriptor.useCase());
                 entries.add(new UseCaseCatalog.Entry(
-                        "experiment", useCaseId, className + "." + method.getName(), annotation.samples()));
+                        "experiment", useCaseId, className + "." + method.getName(), descriptor.samples()));
             }
         }
 

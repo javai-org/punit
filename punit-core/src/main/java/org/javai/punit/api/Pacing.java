@@ -88,7 +88,6 @@ import java.lang.annotation.Target;
  * may be terminated by the time budget before all samples complete.
  *
  * @see ProbabilisticTest
- * @see MeasureExperiment
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

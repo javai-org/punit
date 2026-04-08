@@ -28,7 +28,6 @@ import org.javai.punit.contract.UseCaseOutcome;
  *   <li>After method execution, the extension reads the outcome and aggregates it</li>
  * </ol>
  *
- * @see MeasureExperiment
  * @see UseCaseOutcome
  * @see org.javai.punit.contract.ServiceContract
  */

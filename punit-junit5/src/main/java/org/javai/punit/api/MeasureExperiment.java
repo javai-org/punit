@@ -4,8 +4,10 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.javai.punit.experiment.engine.ExperimentExtension;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Marks a method as a MEASURE experiment that executes a use case repeatedly
@@ -45,6 +47,7 @@ import org.junit.jupiter.api.TestTemplate;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @TestTemplate
+@ExtendWith(ExperimentExtension.class)
 @Tag("punit-experiment")
 public @interface MeasureExperiment {
 
