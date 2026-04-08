@@ -1,10 +1,13 @@
 package org.javai.punit.experiment.engine;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+import org.javai.punit.api.Input;
+import org.javai.punit.api.InputSource;
 import org.javai.punit.controls.pacing.PacingConfiguration;
 import org.javai.punit.controls.pacing.PacingReporter;
 import org.javai.punit.controls.pacing.PacingResolver;
@@ -64,6 +67,7 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
             ExtensionContext context) {
 
         Method testMethod = context.getRequiredTestMethod();
+        validateInputAnnotation(testMethod);
         ExperimentModeStrategy strategy = findStrategy(testMethod);
 
         ExtensionContext.Store store = context.getStore(NAMESPACE);
@@ -108,6 +112,24 @@ public class ExperimentExtension implements TestTemplateInvocationContextProvide
         applyPacingDelay(store);
 
         strategy.intercept(invocation, invocationContext, extensionContext, store);
+    }
+
+    /**
+     * Validates that @Input is not used without @InputSource.
+     */
+    static void validateInputAnnotation(Method testMethod) {
+        if (testMethod.isAnnotationPresent(InputSource.class)) {
+            return;
+        }
+        for (Parameter param : testMethod.getParameters()) {
+            if (param.isAnnotationPresent(Input.class)) {
+                throw new ExtensionConfigurationException(
+                        "Parameter '" + param.getName() + "' in method '" + testMethod.getName() +
+                        "' is annotated with @Input but the method has no @InputSource. " +
+                        "@Input marks which parameter receives input injection from @InputSource — " +
+                        "add @InputSource to provide the input data, or remove @Input.");
+            }
+        }
     }
 
     /**
