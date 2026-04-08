@@ -101,16 +101,24 @@ public class ExploreStrategy implements ExperimentModeStrategy {
 
         Method testMethod = context.getRequiredTestMethod();
 
-        // Check for @InputSource annotation (preferred)
+        // Check for both @ConfigSource and @InputSource together
         InputSource inputSource = testMethod.getAnnotation(InputSource.class);
+        ConfigSource configSource = testMethod.getAnnotation(ConfigSource.class);
+
+        if (configSource != null && inputSource != null) {
+            return provideWithConfigsAndInputsInvocationContexts(
+                    testMethod, configSource, inputSource, context.getRequiredTestClass(),
+                    exploreConfig, store);
+        }
+
+        // Check for @InputSource annotation only
         if (inputSource != null) {
             return provideWithInputsInvocationContexts(
                     testMethod, inputSource, context.getRequiredTestClass(),
                     exploreConfig, store);
         }
 
-        // Check for @ConfigSource annotation (preferred for factor exploration)
-        ConfigSource configSource = testMethod.getAnnotation(ConfigSource.class);
+        // Check for @ConfigSource annotation only
         if (configSource != null) {
             return provideWithConfigsInvocationContexts(
                     testMethod, configSource, exploreConfig, store);
@@ -297,6 +305,74 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                 allInvocations.add(new ConfigInvocationContext(
                         sample, samplesPerConfig, configIndex + 1, configs.size(),
                         useCaseId, configName, namedConfig.instance(), new OutcomeCaptor()
+                ));
+            }
+        }
+
+        return allInvocations.stream();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Stream<TestTemplateInvocationContext> provideWithConfigsAndInputsInvocationContexts(
+            Method testMethod,
+            ConfigSource configSource,
+            InputSource inputSource,
+            Class<?> testClass,
+            ExploreConfig config,
+            ExtensionContext.Store store) {
+
+        int samplesPerConfig = config.effectiveSamplesPerConfig();
+        String useCaseId = config.useCaseId();
+
+        // Resolve configs
+        List<NamedConfig<?>> configs = resolveNamedConfigs(
+                testMethod, configSource, config.useCaseClass());
+        if (configs.isEmpty()) {
+            throw new ExtensionConfigurationException(
+                    "@ConfigSource resolved to empty list");
+        }
+
+        // Resolve inputs
+        Class<?> inputType = findInputParameterType(testMethod);
+        InputSourceResolver resolver = new InputSourceResolver();
+        List<Object> inputs = resolver.resolve(inputSource, testClass, inputType);
+        if (inputs.isEmpty()) {
+            throw new ExtensionConfigurationException(
+                    "@InputSource resolved to empty list");
+        }
+
+        // Store explore-mode metadata (per-config aggregators, same as config-only mode)
+        store.put("mode", ExperimentMode.EXPLORE);
+        store.put("configAggregators", new LinkedHashMap<String, ExperimentResultAggregator>());
+        store.put("terminated", new AtomicBoolean(false));
+        store.put("warmupCounter", new AtomicInteger(0));
+
+        // Prepend warmup contexts if configured
+        int warmup = config.warmup();
+        int totalInputs = inputs.size();
+        List<TestTemplateInvocationContext> allInvocations = new ArrayList<>();
+        for (int w = 1; w <= warmup; w++) {
+            allInvocations.add(WarmupInvocationContext.forExperimentWithInput(
+                    w, warmup, inputs.get(0), inputType));
+        }
+
+        // Generate invocation contexts for all configs × samples (with round-robin inputs)
+        for (int configIndex = 0; configIndex < configs.size(); configIndex++) {
+            NamedConfig<?> namedConfig = configs.get(configIndex);
+            String configName = namedConfig.name();
+
+            ExperimentResultAggregator configAggregator =
+                    new ExperimentResultAggregator(useCaseId + "/" + configName, samplesPerConfig);
+            ((Map<String, ExperimentResultAggregator>) store.get("configAggregators", Map.class))
+                    .put(configName, configAggregator);
+
+            for (int sample = 1; sample <= samplesPerConfig; sample++) {
+                int inputIndex = (sample - 1) % totalInputs;
+                Object inputValue = inputs.get(inputIndex);
+                allInvocations.add(new ConfigWithInputsInvocationContext(
+                        sample, samplesPerConfig, configIndex + 1, configs.size(),
+                        useCaseId, configName, namedConfig.instance(), new OutcomeCaptor(),
+                        inputValue, inputType, inputIndex, totalInputs
                 ));
             }
         }
@@ -546,8 +622,17 @@ public class ExploreStrategy implements ExperimentModeStrategy {
         ExploreConfig exploreConfig = (ExploreConfig) config;
         int samplesPerConfig = exploreConfig.effectiveSamplesPerConfig();
 
-        // Check for @InputSource first
         InputSource inputSource = testMethod.getAnnotation(InputSource.class);
+        ConfigSource configSource = testMethod.getAnnotation(ConfigSource.class);
+
+        // Both @ConfigSource and @InputSource: configs × samplesPerConfig
+        if (configSource != null && inputSource != null) {
+            List<NamedConfig<?>> configs = resolveNamedConfigs(
+                    testMethod, configSource, exploreConfig.useCaseClass());
+            return samplesPerConfig * configs.size();
+        }
+
+        // @InputSource only: samplesPerConfig × inputs
         if (inputSource != null) {
             Class<?> inputType = findInputParameterType(testMethod);
             InputSourceResolver resolver = new InputSourceResolver();
@@ -555,8 +640,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
             return samplesPerConfig * inputs.size();
         }
 
-        // Check for @ConfigSource
-        ConfigSource configSource = testMethod.getAnnotation(ConfigSource.class);
+        // @ConfigSource only: samplesPerConfig × configs
         if (configSource != null) {
             List<NamedConfig<?>> configs = resolveNamedConfigs(
                     testMethod, configSource, exploreConfig.useCaseClass());
