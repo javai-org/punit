@@ -1,36 +1,29 @@
 package org.javai.punit.contract.match;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.javai.punit.contract.match.VerificationMatcher.MatchResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 
 @DisplayName("JsonMatcher")
 class JsonMatcherTest {
 
     @Nested
-    @DisplayName("availability check")
+    @DisplayName("availability")
     class AvailabilityTests {
 
         @Test
-        @DisplayName("isAvailable() returns consistent value")
-        void isAvailableReturnsConsistentValue() {
-            // Should be consistent across calls
-            boolean first = JsonMatcher.isAvailable();
-            boolean second = JsonMatcher.isAvailable();
-
-            assertThat(first).isEqualTo(second);
+        @DisplayName("isAvailable() always returns true")
+        void isAvailableAlwaysReturnsTrue() {
+            assertThat(JsonMatcher.isAvailable()).isTrue();
         }
     }
 
     @Nested
-    @DisplayName("when zjsonpatch is available")
-    @EnabledIf("org.javai.punit.contract.match.JsonMatcher#isAvailable")
-    class WhenAvailableTests {
+    @DisplayName("creation")
+    class CreationTests {
 
         @Test
         @DisplayName("create() returns matcher")
@@ -39,6 +32,11 @@ class JsonMatcherTest {
 
             assertThat(matcher).isNotNull();
         }
+    }
+
+    @Nested
+    @DisplayName("matching")
+    class MatchingTests {
 
         @Test
         @DisplayName("matches semantically equal JSON")
@@ -161,38 +159,38 @@ class JsonMatcherTest {
             assertThat(result.matches()).isFalse();
             assertThat(result.diff()).contains("actual value is not valid JSON");
         }
+    }
 
-        @Nested
-        @DisplayName("null handling")
-        class NullHandlingTests {
+    @Nested
+    @DisplayName("null handling")
+    class NullHandlingTests {
 
-            private final JsonMatcher matcher = JsonMatcher.create();
+        private final JsonMatcher matcher = JsonMatcher.create();
 
-            @Test
-            @DisplayName("matches when both are null")
-            void matchesWhenBothAreNull() {
-                MatchResult result = matcher.match(null, null);
+        @Test
+        @DisplayName("matches when both are null")
+        void matchesWhenBothAreNull() {
+            MatchResult result = matcher.match(null, null);
 
-                assertThat(result.matches()).isTrue();
-            }
+            assertThat(result.matches()).isTrue();
+        }
 
-            @Test
-            @DisplayName("mismatches when expected is null")
-            void mismatchesWhenExpectedIsNull() {
-                MatchResult result = matcher.match(null, "{\"key\":\"value\"}");
+        @Test
+        @DisplayName("mismatches when expected is null")
+        void mismatchesWhenExpectedIsNull() {
+            MatchResult result = matcher.match(null, "{\"key\":\"value\"}");
 
-                assertThat(result.matches()).isFalse();
-                assertThat(result.diff()).contains("expected null");
-            }
+            assertThat(result.matches()).isFalse();
+            assertThat(result.diff()).contains("expected null");
+        }
 
-            @Test
-            @DisplayName("mismatches when actual is null")
-            void mismatchesWhenActualIsNull() {
-                MatchResult result = matcher.match("{\"key\":\"value\"}", null);
+        @Test
+        @DisplayName("mismatches when actual is null")
+        void mismatchesWhenActualIsNull() {
+            MatchResult result = matcher.match("{\"key\":\"value\"}", null);
 
-                assertThat(result.matches()).isFalse();
-                assertThat(result.diff()).contains("got null");
-            }
+            assertThat(result.matches()).isFalse();
+            assertThat(result.diff()).contains("got null");
         }
     }
 }

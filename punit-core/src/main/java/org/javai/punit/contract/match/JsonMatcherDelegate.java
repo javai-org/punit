@@ -3,14 +3,20 @@ package org.javai.punit.contract.match;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flipkart.zjsonpatch.JsonDiff;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * Internal delegate that performs JSON comparison using zjsonpatch.
+ * Internal delegate that performs JSON comparison using Jackson.
  *
- * <p>This class is package-private and isolated to ensure that zjsonpatch
- * class loading only occurs when actually needed. This enables graceful
- * handling of the optional dependency.
+ * <p>This class is package-private. It compares two JSON trees semantically
+ * (ignoring property ordering and whitespace) and produces a human-readable
+ * diff describing any differences.
  */
 final class JsonMatcherDelegate {
 
@@ -47,38 +53,72 @@ final class JsonMatcherDelegate {
             );
         }
 
-        // Use zjsonpatch to compute the diff
-        JsonNode diff = JsonDiff.asJson(expectedNode, actualNode);
-
-        if (diff.isEmpty()) {
+        if (expectedNode.equals(actualNode)) {
             return VerificationMatcher.MatchResult.match();
         }
 
-        // Format the diff as a readable string
-        return VerificationMatcher.MatchResult.mismatch(formatDiff(diff));
+        return VerificationMatcher.MatchResult.mismatch(buildDiff(expectedNode, actualNode));
     }
 
-    private static String formatDiff(JsonNode diff) {
+    private static String buildDiff(JsonNode expected, JsonNode actual) {
         StringBuilder sb = new StringBuilder();
-        sb.append("JSON differences (RFC 6902):\n");
+        sb.append("JSON differences:\n");
+        collectDifferences("", expected, actual, sb);
+        return sb.toString().stripTrailing();
+    }
 
-        for (JsonNode operation : diff) {
-            String op = operation.get("op").asText();
-            String path = operation.get("path").asText();
-
-            sb.append("  - ").append(op).append(" at '").append(path).append("'");
-
-            if (operation.has("value")) {
-                sb.append(": ").append(truncateValue(operation.get("value").toString()));
-            }
-            if (operation.has("from")) {
-                sb.append(" from '").append(operation.get("from").asText()).append("'");
-            }
-
-            sb.append("\n");
+    private static void collectDifferences(String path, JsonNode expected, JsonNode actual, StringBuilder sb) {
+        if (expected.equals(actual)) {
+            return;
         }
 
-        return sb.toString().stripTrailing();
+        if (expected.isObject() && actual.isObject()) {
+            collectObjectDifferences(path, (ObjectNode) expected, (ObjectNode) actual, sb);
+        } else if (expected.isArray() && actual.isArray()) {
+            collectArrayDifferences(path, (ArrayNode) expected, (ArrayNode) actual, sb);
+        } else {
+            sb.append("  - replace at '").append(path).append("': ")
+                    .append(truncateValue(expected.toString()))
+                    .append(" → ")
+                    .append(truncateValue(actual.toString()))
+                    .append("\n");
+        }
+    }
+
+    private static void collectObjectDifferences(String path, ObjectNode expected, ObjectNode actual, StringBuilder sb) {
+        Set<String> allFields = new LinkedHashSet<>();
+        expected.fieldNames().forEachRemaining(allFields::add);
+        actual.fieldNames().forEachRemaining(allFields::add);
+
+        for (String field : allFields) {
+            String fieldPath = path.isEmpty() ? "/" + field : path + "/" + field;
+
+            if (!expected.has(field)) {
+                sb.append("  - add at '").append(fieldPath).append("': ")
+                        .append(truncateValue(actual.get(field).toString()))
+                        .append("\n");
+            } else if (!actual.has(field)) {
+                sb.append("  - remove at '").append(fieldPath).append("'\n");
+            } else {
+                collectDifferences(fieldPath, expected.get(field), actual.get(field), sb);
+            }
+        }
+    }
+
+    private static void collectArrayDifferences(String path, ArrayNode expected, ArrayNode actual, StringBuilder sb) {
+        int maxLen = Math.max(expected.size(), actual.size());
+        for (int i = 0; i < maxLen; i++) {
+            String elementPath = path + "/" + i;
+            if (i >= expected.size()) {
+                sb.append("  - add at '").append(elementPath).append("': ")
+                        .append(truncateValue(actual.get(i).toString()))
+                        .append("\n");
+            } else if (i >= actual.size()) {
+                sb.append("  - remove at '").append(elementPath).append("'\n");
+            } else {
+                collectDifferences(elementPath, expected.get(i), actual.get(i), sb);
+            }
+        }
     }
 
     private static String truncateValue(String value) {

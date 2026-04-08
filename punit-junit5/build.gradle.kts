@@ -26,7 +26,6 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-testkit")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
-    testImplementation("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
 }

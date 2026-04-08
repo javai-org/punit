@@ -10,7 +10,7 @@ package org.javai.punit.contract.match;
  * <h2>Built-in Matchers</h2>
  * <ul>
  *   <li>{@link StringMatcher} - String comparison with various modes (exact, ignore case, etc.)</li>
- *   <li>{@link JsonMatcher} - JSON semantic comparison (requires zjsonpatch)</li>
+ *   <li>{@link JsonMatcher} - JSON semantic comparison</li>
  * </ul>
  *
  * <h2>Custom Matchers</h2>

@@ -25,9 +25,6 @@ dependencies {
     // Outcome — result types for contract postconditions
     api("org.javai:outcome:0.2.0")
 
-    // Optional JSON matching support for instance conformance
-    compileOnly("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
-
     // Logging
     implementation("org.apache.logging.log4j:log4j-api:2.25.3")
     runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.3")
@@ -36,7 +33,6 @@ dependencies {
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
-    testImplementation("com.flipkart.zjsonpatch:zjsonpatch:0.4.16")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
 }
