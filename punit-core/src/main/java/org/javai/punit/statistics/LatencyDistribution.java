@@ -8,31 +8,28 @@ import java.util.Objects;
 /**
  * Immutable value object representing the latency distribution of successful samples.
  *
- * <p>Computes standard percentile metrics (p50, p90, p95, p99) along with
- * max, mean, and standard deviation from a collection of execution durations.
- *
- * <p>This class lives in the {@code statistics} package and has no dependencies
- * on framework types (annotations, engine, spec, etc.).
+ * <p>Computes standard percentile metrics (p50, p90, p95, p99) plus max and mean
+ * from a collection of execution durations, and retains the sorted vector of
+ * observations so baseline records (which carry the full sorted vector for
+ * exact binomial threshold derivation) can be produced from it.
  *
  * <p>Percentiles use nearest-rank interpolation: for percentile p with n sorted
  * values, the index is {@code ceil(p * n) - 1}.
  */
 public final class LatencyDistribution {
 
-    private final int sampleCount;
+    private final long[] sortedLatenciesMs;
     private final long meanMs;
-    private final long standardDeviationMs;
     private final long p50Ms;
     private final long p90Ms;
     private final long p95Ms;
     private final long p99Ms;
     private final long maxMs;
 
-    private LatencyDistribution(int sampleCount, long meanMs, long standardDeviationMs,
+    private LatencyDistribution(long[] sortedLatenciesMs, long meanMs,
                                 long p50Ms, long p90Ms, long p95Ms, long p99Ms, long maxMs) {
-        this.sampleCount = sampleCount;
+        this.sortedLatenciesMs = sortedLatenciesMs;
         this.meanMs = meanMs;
-        this.standardDeviationMs = standardDeviationMs;
         this.p50Ms = p50Ms;
         this.p90Ms = p90Ms;
         this.p95Ms = p95Ms;
@@ -80,12 +77,10 @@ public final class LatencyDistribution {
 
         int n = sorted.length;
         long mean = computeMean(sorted);
-        long stddev = computeStdDev(sorted, mean);
 
         return new LatencyDistribution(
-                n,
+                sorted,
                 mean,
-                stddev,
                 percentile(sorted, 0.50),
                 percentile(sorted, 0.90),
                 percentile(sorted, 0.95),
@@ -102,18 +97,6 @@ public final class LatencyDistribution {
         return Math.round(sum / sorted.length);
     }
 
-    private static long computeStdDev(long[] sorted, long mean) {
-        if (sorted.length < 2) {
-            return 0;
-        }
-        double sumSquares = 0;
-        for (long v : sorted) {
-            double diff = v - mean;
-            sumSquares += diff * diff;
-        }
-        return Math.round(Math.sqrt(sumSquares / (sorted.length - 1)));
-    }
-
     /**
      * Computes a percentile using the nearest-rank method.
      *
@@ -127,15 +110,20 @@ public final class LatencyDistribution {
     }
 
     public int sampleCount() {
-        return sampleCount;
+        return sortedLatenciesMs.length;
+    }
+
+    /**
+     * Returns a copy of the sorted observed latencies in milliseconds.
+     *
+     * @return fresh sorted array
+     */
+    public long[] sortedLatenciesMs() {
+        return sortedLatenciesMs.clone();
     }
 
     public long meanMs() {
         return meanMs;
-    }
-
-    public long standardDeviationMs() {
-        return standardDeviationMs;
     }
 
     public long p50Ms() {
@@ -161,9 +149,8 @@ public final class LatencyDistribution {
     @Override
     public String toString() {
         return "LatencyDistribution{" +
-                "sampleCount=" + sampleCount +
+                "sampleCount=" + sortedLatenciesMs.length +
                 ", meanMs=" + meanMs +
-                ", stddevMs=" + standardDeviationMs +
                 ", p50=" + p50Ms +
                 ", p90=" + p90Ms +
                 ", p95=" + p95Ms +
@@ -176,18 +163,18 @@ public final class LatencyDistribution {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof LatencyDistribution that)) return false;
-        return sampleCount == that.sampleCount
-                && meanMs == that.meanMs
-                && standardDeviationMs == that.standardDeviationMs
+        return meanMs == that.meanMs
                 && p50Ms == that.p50Ms
                 && p90Ms == that.p90Ms
                 && p95Ms == that.p95Ms
                 && p99Ms == that.p99Ms
-                && maxMs == that.maxMs;
+                && maxMs == that.maxMs
+                && Arrays.equals(sortedLatenciesMs, that.sortedLatenciesMs);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sampleCount, meanMs, standardDeviationMs, p50Ms, p90Ms, p95Ms, p99Ms, maxMs);
+        return 31 * Objects.hash(meanMs, p50Ms, p90Ms, p95Ms, p99Ms, maxMs)
+                + Arrays.hashCode(sortedLatenciesMs);
     }
 }

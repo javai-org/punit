@@ -374,14 +374,10 @@ class SpecificationRegistryTest {
         sb.append("  samples: 1000\n");
         sb.append("  successes: 950\n");
         sb.append("latency:\n");
-        sb.append("  sampleCount: 950\n");
+        sb.append("  sampleCount: 3\n");
         sb.append("  meanMs: 450\n");
-        sb.append("  standardDeviationMs: 120\n");
-        sb.append("  p50Ms: 380\n");
-        sb.append("  p90Ms: 620\n");
-        sb.append("  p95Ms: 750\n");
-        sb.append("  p99Ms: 1100\n");
         sb.append("  maxMs: 1400\n");
+        sb.append("  sortedLatenciesMs: [380, 620, 1400]\n");
         sb.append("cost:\n");
         sb.append("  totalTimeMs: 450000\n");
         sb.append("  avgTimePerSampleMs: 450\n");

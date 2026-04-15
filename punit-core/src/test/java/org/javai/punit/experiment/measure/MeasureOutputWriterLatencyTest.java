@@ -56,12 +56,8 @@ class MeasureOutputWriterLatencyTest {
             assertThat(yaml)
                     .contains("sampleCount:")
                     .contains("meanMs:")
-                    .contains("standardDeviationMs:")
-                    .contains("p50Ms:")
-                    .contains("p90Ms:")
-                    .contains("p95Ms:")
-                    .contains("p99Ms:")
-                    .contains("maxMs:");
+                    .contains("maxMs:")
+                    .contains("sortedLatenciesMs:");
         }
 
         @Test
@@ -75,9 +71,9 @@ class MeasureOutputWriterLatencyTest {
 
             assertThat(yaml)
                     .contains("sampleCount: 10")
-                    .contains("p50Ms: " + dist.p50Ms())
-                    .contains("p90Ms: " + dist.p90Ms())
-                    .contains("maxMs: " + dist.maxMs());
+                    .contains("meanMs: " + dist.meanMs())
+                    .contains("maxMs: " + dist.maxMs())
+                    .contains("sortedLatenciesMs: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]");
         }
 
         @Test
@@ -225,12 +221,8 @@ class MeasureOutputWriterLatencyTest {
             LatencyBaseline lb = spec.getLatencyBaseline();
             assertThat(lb.sampleCount()).isEqualTo(dist.sampleCount());
             assertThat(lb.meanMs()).isEqualTo(dist.meanMs());
-            assertThat(lb.standardDeviationMs()).isEqualTo(dist.standardDeviationMs());
-            assertThat(lb.p50Ms()).isEqualTo(dist.p50Ms());
-            assertThat(lb.p90Ms()).isEqualTo(dist.p90Ms());
-            assertThat(lb.p95Ms()).isEqualTo(dist.p95Ms());
-            assertThat(lb.p99Ms()).isEqualTo(dist.p99Ms());
             assertThat(lb.maxMs()).isEqualTo(dist.maxMs());
+            assertThat(lb.sortedLatenciesMs()).containsExactly(dist.sortedLatenciesMs());
         }
 
         @Test

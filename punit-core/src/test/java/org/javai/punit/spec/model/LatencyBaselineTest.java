@@ -17,40 +17,55 @@ class LatencyBaselineTest {
         @Test
         @DisplayName("should create with valid values")
         void shouldCreateWithValidValues() {
-            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+            long[] sorted = {100, 200, 300, 400, 500};
+            LatencyBaseline baseline = new LatencyBaseline(sorted, 300, 500);
 
-            assertThat(baseline.sampleCount()).isEqualTo(100);
-            assertThat(baseline.meanMs()).isEqualTo(450);
-            assertThat(baseline.standardDeviationMs()).isEqualTo(120);
-            assertThat(baseline.p50Ms()).isEqualTo(380);
-            assertThat(baseline.p90Ms()).isEqualTo(620);
-            assertThat(baseline.p95Ms()).isEqualTo(750);
-            assertThat(baseline.p99Ms()).isEqualTo(1100);
-            assertThat(baseline.maxMs()).isEqualTo(1400);
-        }
-
-        @Test
-        @DisplayName("should reject negative sample count")
-        void shouldRejectNegativeSampleCount() {
-            assertThatThrownBy(() -> new LatencyBaseline(-1, 450, 120, 380, 620, 750, 1100, 1400))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("sampleCount");
+            assertThat(baseline.sampleCount()).isEqualTo(5);
+            assertThat(baseline.meanMs()).isEqualTo(300);
+            assertThat(baseline.maxMs()).isEqualTo(500);
+            assertThat(baseline.sortedLatenciesMs()).containsExactly(100, 200, 300, 400, 500);
         }
 
         @Test
         @DisplayName("should reject negative mean")
         void shouldRejectNegativeMean() {
-            assertThatThrownBy(() -> new LatencyBaseline(100, -1, 120, 380, 620, 750, 1100, 1400))
+            assertThatThrownBy(() -> new LatencyBaseline(new long[]{100}, -1, 100))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("meanMs");
         }
 
         @Test
-        @DisplayName("should allow zero sample count")
-        void shouldAllowZeroSampleCount() {
-            LatencyBaseline baseline = new LatencyBaseline(0, 0, 0, 0, 0, 0, 0, 0);
+        @DisplayName("should reject negative max")
+        void shouldRejectNegativeMax() {
+            assertThatThrownBy(() -> new LatencyBaseline(new long[]{100}, 100, -1))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("maxMs");
+        }
+
+        @Test
+        @DisplayName("should reject unsorted vector")
+        void shouldRejectUnsortedVector() {
+            assertThatThrownBy(() -> new LatencyBaseline(new long[]{500, 100, 300}, 300, 500))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("sorted");
+        }
+
+        @Test
+        @DisplayName("should allow empty vector")
+        void shouldAllowEmptyVector() {
+            LatencyBaseline baseline = new LatencyBaseline(new long[0], 0, 0);
 
             assertThat(baseline.sampleCount()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("should defensively copy sorted vector")
+        void shouldDefensivelyCopy() {
+            long[] input = {100, 200, 300};
+            LatencyBaseline baseline = new LatencyBaseline(input, 200, 300);
+
+            input[0] = 999;
+            assertThat(baseline.sortedLatenciesMs()[0]).isEqualTo(100);
         }
     }
 
@@ -61,18 +76,18 @@ class LatencyBaselineTest {
         @Test
         @DisplayName("should be equal for same values")
         void shouldBeEqualForSameValues() {
-            LatencyBaseline a = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
-            LatencyBaseline b = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+            LatencyBaseline a = new LatencyBaseline(new long[]{100, 200, 300}, 200, 300);
+            LatencyBaseline b = new LatencyBaseline(new long[]{100, 200, 300}, 200, 300);
 
             assertThat(a).isEqualTo(b);
             assertThat(a.hashCode()).isEqualTo(b.hashCode());
         }
 
         @Test
-        @DisplayName("should not be equal for different values")
-        void shouldNotBeEqualForDifferentValues() {
-            LatencyBaseline a = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
-            LatencyBaseline b = new LatencyBaseline(200, 450, 120, 380, 620, 750, 1100, 1400);
+        @DisplayName("should not be equal for different vectors")
+        void shouldNotBeEqualForDifferentVectors() {
+            LatencyBaseline a = new LatencyBaseline(new long[]{100, 200, 300}, 200, 300);
+            LatencyBaseline b = new LatencyBaseline(new long[]{100, 200, 400}, 200, 400);
 
             assertThat(a).isNotEqualTo(b);
         }

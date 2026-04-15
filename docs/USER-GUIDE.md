@@ -1657,18 +1657,14 @@ statistics:
 latency:
   sampleCount: 935
   meanMs: 312
-  standardDeviationMs: 145
-  p50Ms: 280
-  p90Ms: 490
-  p95Ms: 580
-  p99Ms: 920
   maxMs: 1450
+  sortedLatenciesMs: [98, 105, 112, ..., 580, ..., 920, ..., 1450]
 cost:
   totalTimeMs: 315000
   avgTimePerSampleMs: 315
 ```
 
-The `sampleCount` in the latency section equals the number of successes, not the total sample count. The fields capture the full shape of the distribution: central tendency (mean, median), spread (standard deviation), and tail behaviour (p90 through max).
+The `sampleCount` in the latency section equals the number of successes, not the total sample count. The full sorted vector of successful-response latencies is preserved in `sortedLatenciesMs` so that any percentile can be recovered exactly and so that baseline-derived thresholds can use the binomial order-statistic upper bound (see the Statistical Companion §12.4). `meanMs` and `maxMs` are reported for quick inspection; the sample standard deviation is deliberately omitted because latency distributions are not well-characterised by their second moment.
 
 This data serves two purposes. First, it is descriptive — it tells you what the service's latency profile looked like during the experiment. Second, it becomes the **baseline** from which PUnit can derive latency thresholds for probabilistic tests (covered in [Baseline-Derived Thresholds](#baseline-derived-thresholds) below).
 
@@ -1685,12 +1681,8 @@ statistics:
 latency:
   sampleCount: 19
   meanMs: 450
-  standardDeviationMs: 120
-  p50Ms: 380
-  p90Ms: 620
-  p95Ms: 750
-  p99Ms: 1100
   maxMs: 1400
+  sortedLatenciesMs: [180, 220, 260, 310, 340, 380, 430, 480, 530, 580, 620, 660, 720, 750, 820, 910, 1030, 1100, 1400]
 
 # model-claude-3-5-sonnet_temp-0.3.yaml
 statistics:
@@ -1700,12 +1692,8 @@ statistics:
 latency:
   sampleCount: 18
   meanMs: 210
-  standardDeviationMs: 65
-  p50Ms: 190
-  p90Ms: 290
-  p95Ms: 340
-  p99Ms: 480
   maxMs: 510
+  sortedLatenciesMs: [110, 135, 155, 170, 180, 190, 200, 210, 220, 230, 250, 270, 290, 320, 340, 380, 480, 510]
 ```
 
 Here, model A has a higher pass rate but substantially worse tail latency. Model B responds more consistently, with a p99 less than half of model A's. This kind of trade-off — reliability versus responsiveness — is invisible to average-based metrics and difficult to spot without per-configuration latency profiles.
@@ -2602,12 +2590,8 @@ statistics:
 latency:                                                                ← latency distribution
   sampleCount: 768
   meanMs: 0
-  standardDeviationMs: 0
-  p50Ms: 0
-  p90Ms: 0
-  p95Ms: 0
-  p99Ms: 0
   maxMs: 3
+  sortedLatenciesMs: [0, 0, 0, ..., 1, 1, 2, 3]                         ← full sorted vector (elided)
 cost:
   totalTimeMs: 557
   avgTimePerSampleMs: 0

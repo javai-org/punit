@@ -10,61 +10,79 @@ import org.junit.jupiter.api.Test;
 @DisplayName("LatencyThresholdDeriver")
 class LatencyThresholdDeriverTest {
 
+    /** Sorted baseline of 100 ramp values from 10..1000 ms. */
+    private static double[] ramp100() {
+        double[] v = new double[100];
+        for (int i = 0; i < 100; i++) v[i] = (i + 1) * 10.0;
+        return v;
+    }
+
     @Nested
-    @DisplayName("Upper bound computation")
-    class UpperBoundComputation {
+    @DisplayName("Binomial order-statistic upper bound")
+    class Derivation {
 
         @Test
-        @DisplayName("should return baseline value when stddev is zero")
-        void shouldReturnBaselineWhenStdDevIsZero() {
-            long result = LatencyThresholdDeriver.deriveUpperBound(500, 0, 100, 0.95);
+        @DisplayName("threshold is the k-th order statistic of the baseline")
+        void thresholdIsOrderStatistic() {
+            double[] baseline = ramp100();
 
-            assertThat(result).isEqualTo(500);
+            LatencyThresholdDeriver.Threshold t =
+                    LatencyThresholdDeriver.derive(baseline, 0.95, 0.95);
+
+            assertThat(t.n()).isEqualTo(100);
+            assertThat(t.rank()).isBetween(95, 100);
+            assertThat(t.threshold()).isEqualTo(t.rank() * 10.0);
+            assertThat(t.baselinePercentile()).isEqualTo(950.0);
         }
 
         @Test
-        @DisplayName("should return value greater than or equal to baseline")
-        void shouldReturnValueGreaterThanOrEqualToBaseline() {
-            long result = LatencyThresholdDeriver.deriveUpperBound(500, 100, 100, 0.95);
+        @DisplayName("rank is >= nearest-rank point rank (ceil(p*n))")
+        void rankIsAtLeastPointRank() {
+            double[] baseline = ramp100();
 
-            assertThat(result).isGreaterThanOrEqualTo(500);
+            LatencyThresholdDeriver.Threshold t =
+                    LatencyThresholdDeriver.derive(baseline, 0.50, 0.95);
+
+            assertThat(t.rank()).isGreaterThanOrEqualTo(50);
         }
 
         @Test
-        @DisplayName("should increase with higher confidence")
-        void shouldIncreaseWithHigherConfidence() {
-            long result95 = LatencyThresholdDeriver.deriveUpperBound(500, 100, 100, 0.95);
-            long result99 = LatencyThresholdDeriver.deriveUpperBound(500, 100, 100, 0.99);
+        @DisplayName("higher confidence gives larger-or-equal threshold")
+        void higherConfidenceGivesLargerThreshold() {
+            double[] baseline = ramp100();
 
-            assertThat(result99).isGreaterThanOrEqualTo(result95);
+            LatencyThresholdDeriver.Threshold low =
+                    LatencyThresholdDeriver.derive(baseline, 0.90, 0.80);
+            LatencyThresholdDeriver.Threshold high =
+                    LatencyThresholdDeriver.derive(baseline, 0.90, 0.99);
+
+            assertThat(high.rank()).isGreaterThanOrEqualTo(low.rank());
+            assertThat(high.threshold()).isGreaterThanOrEqualTo(low.threshold());
         }
 
         @Test
-        @DisplayName("should decrease with larger sample size")
-        void shouldDecreaseWithLargerSampleSize() {
-            long resultSmall = LatencyThresholdDeriver.deriveUpperBound(500, 100, 10, 0.95);
-            long resultLarge = LatencyThresholdDeriver.deriveUpperBound(500, 100, 1000, 0.95);
+        @DisplayName("threshold saturates at the maximum when n is small")
+        void saturatesAtMaximumWhenNSmall() {
+            double[] baseline = {10, 20, 30, 40, 50};
 
-            assertThat(resultLarge).isLessThanOrEqualTo(resultSmall);
+            LatencyThresholdDeriver.Threshold t =
+                    LatencyThresholdDeriver.derive(baseline, 0.99, 0.99);
+
+            assertThat(t.rank()).isEqualTo(5);
+            assertThat(t.threshold()).isEqualTo(50.0);
         }
 
         @Test
-        @DisplayName("should compute reasonable upper bound with known values")
-        void shouldComputeReasonableUpperBound() {
-            // baseline=500ms, stddev=100ms, n=100, confidence=0.95
-            // z ≈ 1.645, stdErr = 100/10 = 10, upperBound ≈ 500 + 1.645*10 ≈ 517
-            long result = LatencyThresholdDeriver.deriveUpperBound(500, 100, 100, 0.95);
+        @DisplayName("unsorted input is handled correctly")
+        void unsortedInputHandled() {
+            double[] baseline = {50, 10, 30, 40, 20};
 
-            assertThat(result).isBetween(510L, 525L);
-        }
+            LatencyThresholdDeriver.Threshold t =
+                    LatencyThresholdDeriver.derive(baseline, 0.60, 0.95);
 
-        @Test
-        @DisplayName("should increase with higher standard deviation")
-        void shouldIncreaseWithHigherStdDev() {
-            long resultLowStdDev = LatencyThresholdDeriver.deriveUpperBound(500, 50, 100, 0.95);
-            long resultHighStdDev = LatencyThresholdDeriver.deriveUpperBound(500, 200, 100, 0.95);
-
-            assertThat(resultHighStdDev).isGreaterThanOrEqualTo(resultLowStdDev);
+            // Sorted: [10, 20, 30, 40, 50]; point rank = ceil(0.6*5) = 3 → value 30
+            // Binomial bound may push higher but always in-sample.
+            assertThat(t.threshold()).isIn(30.0, 40.0, 50.0);
         }
     }
 
@@ -73,24 +91,40 @@ class LatencyThresholdDeriverTest {
     class Validation {
 
         @Test
-        @DisplayName("should reject zero sample count")
-        void shouldRejectZeroSampleCount() {
-            assertThatThrownBy(() -> LatencyThresholdDeriver.deriveUpperBound(500, 100, 0, 0.95))
+        @DisplayName("should reject empty baseline")
+        void shouldRejectEmptyBaseline() {
+            assertThatThrownBy(() -> LatencyThresholdDeriver.derive(new double[0], 0.95, 0.95))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("baselineSampleCount");
+                    .hasMessageContaining("empty");
         }
 
         @Test
-        @DisplayName("should reject negative sample count")
-        void shouldRejectNegativeSampleCount() {
-            assertThatThrownBy(() -> LatencyThresholdDeriver.deriveUpperBound(500, 100, -1, 0.95))
-                    .isInstanceOf(IllegalArgumentException.class);
+        @DisplayName("should reject null baseline")
+        void shouldRejectNullBaseline() {
+            assertThatThrownBy(() -> LatencyThresholdDeriver.derive(null, 0.95, 0.95))
+                    .isInstanceOf(NullPointerException.class);
+        }
+
+        @Test
+        @DisplayName("should reject p <= 0")
+        void shouldRejectPZero() {
+            assertThatThrownBy(() -> LatencyThresholdDeriver.derive(ramp100(), 0.0, 0.95))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("p");
+        }
+
+        @Test
+        @DisplayName("should reject p >= 1")
+        void shouldRejectPOne() {
+            assertThatThrownBy(() -> LatencyThresholdDeriver.derive(ramp100(), 1.0, 0.95))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("p");
         }
 
         @Test
         @DisplayName("should reject confidence of zero")
         void shouldRejectConfidenceZero() {
-            assertThatThrownBy(() -> LatencyThresholdDeriver.deriveUpperBound(500, 100, 100, 0.0))
+            assertThatThrownBy(() -> LatencyThresholdDeriver.derive(ramp100(), 0.95, 0.0))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("confidence");
         }
@@ -98,8 +132,9 @@ class LatencyThresholdDeriverTest {
         @Test
         @DisplayName("should reject confidence of one")
         void shouldRejectConfidenceOne() {
-            assertThatThrownBy(() -> LatencyThresholdDeriver.deriveUpperBound(500, 100, 100, 1.0))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> LatencyThresholdDeriver.derive(ramp100(), 0.95, 1.0))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("confidence");
         }
     }
 }

@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.OptionalDouble;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -95,7 +94,7 @@ class LatencyConformanceTest {
     class Summary {
 
         @TestFactory
-        @DisplayName("Mean, sample standard deviation, and maximum")
+        @DisplayName("Mean and maximum")
         Collection<DynamicTest> cases() {
             JsonNode suite = loadSuite("latency_percentile.json");
             double tolerance = suite.get("tolerance").asDouble();
@@ -120,18 +119,6 @@ class LatencyConformanceTest {
                     assertThat(LatencyStatistics.max(latencies))
                             .as("max")
                             .isCloseTo(expected.get("max").asDouble(), within(tolerance));
-
-                    OptionalDouble sd = LatencyStatistics.sampleStandardDeviation(latencies);
-                    if (expected.get("sd").isNull()) {
-                        assertThat(sd)
-                                .as("sd (undefined for single observation)")
-                                .isEmpty();
-                    } else {
-                        assertThat(sd).as("sd present").isPresent();
-                        assertThat(sd.getAsDouble())
-                                .as("sd")
-                                .isCloseTo(expected.get("sd").asDouble(), within(tolerance));
-                    }
                 }));
             }
             return tests;
@@ -143,7 +130,7 @@ class LatencyConformanceTest {
     class Threshold {
 
         @TestFactory
-        @DisplayName("One-sided upper confidence bound for latency thresholds")
+        @DisplayName("Exact binomial order-statistic upper bound on the baseline percentile")
         Collection<DynamicTest> cases() {
             JsonNode suite = loadSuite("latency_threshold.json");
             double tolerance = suite.get("tolerance").asDouble();
@@ -155,20 +142,25 @@ class LatencyConformanceTest {
                 var expected = c.get("expected");
 
                 tests.add(DynamicTest.dynamicTest(name, () -> {
-                    double baselinePercentile = inputs.get("baseline_percentile").asDouble();
-                    double baselineSd = inputs.get("baseline_sd").asDouble();
-                    int baselineN = inputs.get("baseline_n").asInt();
+                    double[] baselineLatencies = toDoubleArray(inputs.get("baseline_latencies"));
+                    double p = inputs.get("p").asDouble();
                     double confidence = inputs.get("confidence").asDouble();
 
-                    LatencyThresholdDeriver.UpperBound result = LatencyThresholdDeriver.derive(
-                            baselinePercentile, baselineSd, baselineN, confidence);
+                    LatencyThresholdDeriver.Threshold result =
+                            LatencyThresholdDeriver.derive(baselineLatencies, p, confidence);
 
-                    assertThat(result.rawUpperBound())
-                            .as("raw upper bound")
-                            .isCloseTo(expected.get("raw_upper").asDouble(), within(tolerance));
+                    assertThat(result.rank())
+                            .as("rank (k)")
+                            .isEqualTo(expected.get("rank").asInt());
                     assertThat(result.threshold())
-                            .as("threshold")
-                            .isEqualTo(expected.get("threshold").asLong());
+                            .as("threshold (t_{(k)})")
+                            .isCloseTo(expected.get("threshold").asDouble(), within(tolerance));
+                    assertThat(result.baselinePercentile())
+                            .as("baseline percentile (Q(p))")
+                            .isCloseTo(expected.get("baseline_percentile").asDouble(), within(tolerance));
+                    assertThat(result.n())
+                            .as("n")
+                            .isEqualTo(expected.get("n").asInt());
                 }));
             }
             return tests;

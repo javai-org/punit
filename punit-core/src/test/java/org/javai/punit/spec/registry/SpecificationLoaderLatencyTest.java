@@ -16,22 +16,19 @@ class SpecificationLoaderLatencyTest {
     class TopLevelLatency {
 
         @Test
-        @DisplayName("should parse latency section with all fields")
+        @DisplayName("should parse latency section with sorted vector")
         void shouldParseLatencySection() {
-            String yaml = createYamlWithLatency(100, 450, 120, 380, 620, 750, 1100, 1400);
+            long[] sorted = {100, 200, 300, 400, 500};
+            String yaml = createYamlWithLatency(5, 300, 500, sorted);
 
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
 
             assertThat(spec.hasLatencyBaseline()).isTrue();
             LatencyBaseline lb = spec.getLatencyBaseline();
-            assertThat(lb.sampleCount()).isEqualTo(100);
-            assertThat(lb.meanMs()).isEqualTo(450);
-            assertThat(lb.standardDeviationMs()).isEqualTo(120);
-            assertThat(lb.p50Ms()).isEqualTo(380);
-            assertThat(lb.p90Ms()).isEqualTo(620);
-            assertThat(lb.p95Ms()).isEqualTo(750);
-            assertThat(lb.p99Ms()).isEqualTo(1100);
-            assertThat(lb.maxMs()).isEqualTo(1400);
+            assertThat(lb.sampleCount()).isEqualTo(5);
+            assertThat(lb.meanMs()).isEqualTo(300);
+            assertThat(lb.maxMs()).isEqualTo(500);
+            assertThat(lb.sortedLatenciesMs()).containsExactly(100, 200, 300, 400, 500);
         }
 
         @Test
@@ -65,7 +62,7 @@ class SpecificationLoaderLatencyTest {
         @Test
         @DisplayName("spec with latency should still parse other fields correctly")
         void specWithLatencyShouldStillParseOtherFields() {
-            String yaml = createYamlWithLatency(50, 300, 80, 250, 500, 600, 900, 1200);
+            String yaml = createYamlWithLatency(3, 200, 300, new long[]{100, 200, 300});
 
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
 
@@ -79,8 +76,7 @@ class SpecificationLoaderLatencyTest {
     // HELPERS
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private String createYamlWithLatency(int sampleCount, long mean, long stdDev,
-                                          long p50, long p90, long p95, long p99, long max) {
+    private String createYamlWithLatency(int sampleCount, long mean, long max, long[] sorted) {
         StringBuilder sb = new StringBuilder();
         sb.append("schemaVersion: punit-spec-1\n");
         sb.append("useCaseId: TestCase\n");
@@ -104,12 +100,13 @@ class SpecificationLoaderLatencyTest {
         sb.append("latency:\n");
         sb.append("  sampleCount: ").append(sampleCount).append("\n");
         sb.append("  meanMs: ").append(mean).append("\n");
-        sb.append("  standardDeviationMs: ").append(stdDev).append("\n");
-        sb.append("  p50Ms: ").append(p50).append("\n");
-        sb.append("  p90Ms: ").append(p90).append("\n");
-        sb.append("  p95Ms: ").append(p95).append("\n");
-        sb.append("  p99Ms: ").append(p99).append("\n");
         sb.append("  maxMs: ").append(max).append("\n");
+        sb.append("  sortedLatenciesMs: [");
+        for (int i = 0; i < sorted.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(sorted[i]);
+        }
+        sb.append("]\n");
         sb.append("\n");
         sb.append("cost:\n");
         sb.append("  totalTimeMs: 5000\n");

@@ -7,9 +7,11 @@ import org.javai.punit.statistics.LatencyDistribution;
 /**
  * Writes the {@code latency:} section to experiment YAML output.
  *
- * <p>Shared by both MEASURE and EXPLORE output writers. The latency section
- * is purely descriptive — observed percentiles from successful samples — and
- * is omitted entirely when no latency distribution is available.
+ * <p>Shared by both MEASURE and EXPLORE output writers. The section stores the
+ * full sorted vector of successful-response latencies (the canonical baseline
+ * storage per javai-R STATISTICAL-COMPANION v1.1 &sect;12.4), plus {@code mean}
+ * and {@code max} for human reporting. It is omitted entirely when no latency
+ * distribution is available.
  *
  * @see org.javai.punit.experiment.measure.MeasureOutputWriter
  * @see org.javai.punit.experiment.explore.ExploreOutputWriter
@@ -29,15 +31,16 @@ public final class LatencySection {
             return;
         }
         LatencyDistribution latency = baseline.getLatencyDistribution();
+        long[] sorted = latency.sortedLatenciesMs();
+        Object[] values = new Object[sorted.length];
+        for (int i = 0; i < sorted.length; i++) {
+            values[i] = sorted[i];
+        }
         builder.startObject("latency")
             .field("sampleCount", latency.sampleCount())
             .field("meanMs", latency.meanMs())
-            .field("standardDeviationMs", latency.standardDeviationMs())
-            .field("p50Ms", latency.p50Ms())
-            .field("p90Ms", latency.p90Ms())
-            .field("p95Ms", latency.p95Ms())
-            .field("p99Ms", latency.p99Ms())
             .field("maxMs", latency.maxMs())
+            .inlineArray("sortedLatenciesMs", values)
             .endObject();
     }
 }

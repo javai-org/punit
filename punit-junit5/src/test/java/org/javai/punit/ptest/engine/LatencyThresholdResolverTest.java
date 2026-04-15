@@ -13,6 +13,22 @@ class LatencyThresholdResolverTest {
 
     private final LatencyThresholdResolver resolver = new LatencyThresholdResolver();
 
+    /**
+     * Builds a synthetic sorted latency vector of {@code n} values spanning
+     * {@code minMs..maxMs} linearly. Used by tests that exercise
+     * baseline-derived threshold paths; the exact values are unimportant as
+     * long as they form a sensible distribution.
+     */
+    private static LatencyBaseline baselineOf(int n, long minMs, long maxMs) {
+        long[] sorted = new long[n];
+        for (int i = 0; i < n; i++) {
+            sorted[i] = minMs + Math.round((maxMs - minMs) * (i / (double) (n - 1)));
+        }
+        long sum = 0;
+        for (long v : sorted) sum += v;
+        return new LatencyBaseline(sorted, sum / n, sorted[n - 1]);
+    }
+
     @Nested
     @DisplayName("Not requested")
     class NotRequested {
@@ -55,7 +71,7 @@ class LatencyThresholdResolverTest {
         @DisplayName("should derive all thresholds from baseline when no explicit thresholds")
         void shouldDeriveAllFromBaseline() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
-            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+            LatencyBaseline baseline = baselineOf(100, 100, 1400);
 
             var resolved = resolver.resolve(config, baseline, 0.95);
 
@@ -89,7 +105,7 @@ class LatencyThresholdResolverTest {
         @DisplayName("should return not-asserted when disabled even with baseline present")
         void shouldReturnNotAssertedWhenDisabledWithBaseline() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, true);
-            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+            LatencyBaseline baseline = baselineOf(100, 100, 1400);
 
             var resolved = resolver.resolve(config, baseline, 0.95);
 
@@ -116,7 +132,7 @@ class LatencyThresholdResolverTest {
         @DisplayName("should use explicit thresholds when baseline also has latency data")
         void shouldUseExplicitWhenBaselinePresent() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, false);
-            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+            LatencyBaseline baseline = baselineOf(100, 100, 1400);
 
             var resolved = resolver.resolve(config, baseline, 0.95);
 
@@ -130,7 +146,7 @@ class LatencyThresholdResolverTest {
         @DisplayName("should throw when disabled with explicit thresholds even with baseline")
         void shouldThrowWhenDisabledWithExplicitAndBaseline() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, 500, -1, true);
-            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+            LatencyBaseline baseline = baselineOf(100, 100, 1400);
 
             assertThatThrownBy(() -> resolver.resolve(config, baseline, 0.95))
                     .isInstanceOf(ExtensionConfigurationException.class)
@@ -147,7 +163,7 @@ class LatencyThresholdResolverTest {
         @DisplayName("sourceFor should return correct source for each label")
         void sourceForShouldReturnCorrectSource() {
             LatencyAssertionConfig config = new LatencyAssertionConfig(-1, -1, -1, -1, false);
-            LatencyBaseline baseline = new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400);
+            LatencyBaseline baseline = baselineOf(100, 100, 1400);
 
             var resolved = resolver.resolve(config, baseline, 0.95);
 

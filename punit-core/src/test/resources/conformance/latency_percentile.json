@@ -1,7 +1,7 @@
 {
   "suite": "latency_percentile",
-  "description": "Empirical percentile estimation using nearest-rank method, with summary statistics",
-  "method": "Nearest-rank (ceiling) percentile; sample mean, sd, max",
+  "description": "Empirical percentile estimation using nearest-rank method, with summary statistics (mean, max)",
+  "method": "Nearest-rank (ceiling) percentile; sample mean and max",
   "tolerance": 1e-10,
   "cases": [
     {
@@ -181,7 +181,6 @@
       },
       "expected": {
         "mean": 181.066666666667,
-        "sd": 65.6253385322412,
         "max": 450
       }
     },
@@ -192,7 +191,6 @@
       },
       "expected": {
         "mean": 320.433333333333,
-        "sd": 577.474208012393,
         "max": 3000
       }
     },
@@ -203,7 +201,6 @@
       },
       "expected": {
         "mean": 213.07,
-        "sd": 84.0611472822734,
         "max": 589
       }
     },
@@ -214,7 +211,6 @@
       },
       "expected": {
         "mean": 250,
-        "sd": null,
         "max": 250
       }
     },
@@ -225,7 +221,6 @@
       },
       "expected": {
         "mean": 150,
-        "sd": 0,
         "max": 150
       }
     }

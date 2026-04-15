@@ -13,6 +13,14 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ConfigurationResolver spec resolution")
 class ConfigurationResolverSpecResolutionTest {
 
+	private static LatencyBaseline syntheticBaseline(int n, long maxMs) {
+		long[] sorted = new long[n];
+		for (int i = 0; i < n; i++) {
+			sorted[i] = Math.round(maxMs * ((i + 1) / (double) n));
+		}
+		return new LatencyBaseline(sorted, maxMs / 2, sorted[n - 1]);
+	}
+
 	@Nested
 	@DisplayName("loadLatencySpec")
 	class LoadLatencySpec {
@@ -22,7 +30,7 @@ class ConfigurationResolverSpecResolutionTest {
 		void returnsDedicatedLatencySpec() {
 			ExecutionSpecification latencySpec = ExecutionSpecification.builder()
 					.useCaseId("TestUseCase.latency")
-					.latencyBaseline(new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400))
+					.latencyBaseline(syntheticBaseline(100, 1400))
 					.empiricalBasis(100, 95)
 					.build();
 
@@ -38,7 +46,7 @@ class ConfigurationResolverSpecResolutionTest {
 
 			assertThat(result).isPresent();
 			assertThat(result.get().hasLatencyBaseline()).isTrue();
-			assertThat(result.get().getLatencyBaseline().p95Ms()).isEqualTo(750);
+			assertThat(result.get().getLatencyBaseline().sampleCount()).isEqualTo(100);
 		}
 
 		@Test
@@ -46,7 +54,7 @@ class ConfigurationResolverSpecResolutionTest {
 		void fallsBackToCombinedSpecWithLatencyData() {
 			ExecutionSpecification combinedSpec = ExecutionSpecification.builder()
 					.useCaseId("TestUseCase")
-					.latencyBaseline(new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400))
+					.latencyBaseline(syntheticBaseline(100, 1400))
 					.empiricalBasis(100, 95)
 					.build();
 
@@ -101,13 +109,13 @@ class ConfigurationResolverSpecResolutionTest {
 		void prefersDedicatedLatencySpecOverCombined() {
 			ExecutionSpecification dedicatedLatencySpec = ExecutionSpecification.builder()
 					.useCaseId("TestUseCase.latency")
-					.latencyBaseline(new LatencyBaseline(200, 500, 100, 400, 650, 800, 1200, 1500))
+					.latencyBaseline(syntheticBaseline(200, 1500))
 					.empiricalBasis(200, 190)
 					.build();
 
 			ExecutionSpecification combinedSpec = ExecutionSpecification.builder()
 					.useCaseId("TestUseCase")
-					.latencyBaseline(new LatencyBaseline(100, 450, 120, 380, 620, 750, 1100, 1400))
+					.latencyBaseline(syntheticBaseline(100, 1400))
 					.empiricalBasis(100, 95)
 					.build();
 

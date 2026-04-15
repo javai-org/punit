@@ -1,88 +1,89 @@
 package org.javai.punit.statistics;
 
-import org.apache.commons.statistics.distribution.NormalDistribution;
+import java.util.Arrays;
+import java.util.Objects;
+
+import org.apache.commons.statistics.distribution.BinomialDistribution;
 
 /**
- * Derives upper confidence bounds for latency percentiles from baseline data.
+ * Derives latency thresholds from baseline data.
  *
- * <p>Given a baseline percentile value, its standard deviation, and sample count,
- * this class computes an upper bound that accounts for sampling uncertainty.
- * The derived threshold allows for normal variance while catching genuine
- * latency degradation.
+ * <p>The canonical derivation (javai-R v1.1, &sect;12.4) is the
+ * <b>exact binomial order-statistic upper confidence bound</b> on the baseline
+ * percentile {@code Q(p)}:
  *
- * <h2>Formula</h2>
  * <pre>
- * upperBound = baselinePercentile + z * estimatedStdErr
- * estimatedStdErr = stdDev / sqrt(sampleCount)
+ * tau = t_{(k)}
+ * where k = qbinom(1 - alpha, n_s, p) + 1,
+ *       clamped to [ceil(p * n_s), n_s]
  * </pre>
  *
- * <p>Where {@code z} is the z-score for the desired confidence level (one-sided).
+ * <p>{@code t_{(k)}} is the {@code k}-th order statistic (1-indexed) of the sorted
+ * baseline successful-response latencies. The threshold is therefore an
+ * observed baseline latency value &mdash; integer-ms by construction.
  *
- * <p>This class operates on primitives only and has no dependencies on
- * framework types (annotations, engine, spec, etc.).
+ * <p>This construction is non-parametric, distribution-free, and exact for any
+ * continuous underlying latency distribution.
  */
 public final class LatencyThresholdDeriver {
-
-    private static final NormalDistribution STANDARD_NORMAL = NormalDistribution.of(0, 1);
 
     private LatencyThresholdDeriver() {}
 
     /**
-     * Derives an upper-bound latency threshold for a single percentile.
+     * Derives a latency threshold using the exact binomial order-statistic
+     * upper confidence bound.
      *
-     * @param baselinePercentileMs the observed percentile value from the baseline (ms)
-     * @param baselineStdDevMs the standard deviation of latencies from the baseline (ms)
-     * @param baselineSampleCount the number of samples in the baseline
-     * @param confidence the confidence level (e.g., 0.95 for 95% one-sided)
-     * @return the derived upper-bound threshold in milliseconds
+     * @param baselineLatencies observed successful-response latencies from the
+     *                          baseline experiment (need not be sorted; must be
+     *                          non-empty)
+     * @param p                 percentile level in (0, 1) (e.g. 0.95)
+     * @param confidence        one-sided confidence level in (0, 1) (e.g. 0.95)
+     * @return the derived threshold, with rank, threshold value, point-estimate
+     *         percentile, and sample count
      * @throws IllegalArgumentException if inputs are invalid
      */
-    public static long deriveUpperBound(long baselinePercentileMs, long baselineStdDevMs,
-                                        int baselineSampleCount, double confidence) {
-        UpperBound result = derive(baselinePercentileMs, baselineStdDevMs,
-                baselineSampleCount, confidence);
-        return result.threshold();
-    }
-
-    /**
-     * Derives a latency threshold with full-precision intermediate values.
-     *
-     * <p>Returns both the raw (pre-ceiling) upper bound and the final integer
-     * threshold. The raw value is useful for conformance testing against
-     * javai-R reference data.
-     *
-     * @param baselinePercentile the observed percentile value from the baseline
-     * @param baselineStdDev the standard deviation of latencies from the baseline
-     * @param baselineSampleCount the number of samples in the baseline
-     * @param confidence the confidence level (e.g., 0.95 for 95% one-sided)
-     * @return the derived upper bound containing both raw and threshold values
-     * @throws IllegalArgumentException if inputs are invalid
-     */
-    public static UpperBound derive(double baselinePercentile, double baselineStdDev,
-                                    int baselineSampleCount, double confidence) {
-        if (baselineSampleCount <= 0) {
-            throw new IllegalArgumentException("baselineSampleCount must be positive");
+    public static Threshold derive(double[] baselineLatencies, double p, double confidence) {
+        Objects.requireNonNull(baselineLatencies, "baselineLatencies must not be null");
+        if (baselineLatencies.length == 0) {
+            throw new IllegalArgumentException("baselineLatencies must not be empty");
+        }
+        if (p <= 0.0 || p >= 1.0) {
+            throw new IllegalArgumentException("p must be in (0, 1)");
         }
         if (confidence <= 0.0 || confidence >= 1.0) {
             throw new IllegalArgumentException("confidence must be in (0, 1)");
         }
 
-        double z = STANDARD_NORMAL.inverseCumulativeProbability(confidence);
-        double stdErr = baselineStdDev / Math.sqrt(baselineSampleCount);
-        double rawUpper = baselinePercentile + z * stdErr;
-        long threshold = Math.max((long) baselinePercentile, (long) Math.ceil(rawUpper));
+        double[] sorted = baselineLatencies.clone();
+        Arrays.sort(sorted);
+        int n = sorted.length;
+        double alpha = 1.0 - confidence;
 
-        return new UpperBound(rawUpper, threshold);
+        // Commons Statistics' BinomialDistribution.inverseCumulativeProbability(q)
+        // returns the smallest x such that P(X <= x) >= q, matching R's qbinom(q, n, p).
+        BinomialDistribution binomial = BinomialDistribution.of(n, p);
+        int qb = binomial.inverseCumulativeProbability(1.0 - alpha);
+        int k = qb + 1;
+
+        int pointRank = (int) Math.ceil(p * n);
+        if (pointRank < 1) pointRank = 1;
+        k = Math.max(pointRank, Math.min(k, n));
+
+        double threshold = sorted[k - 1];
+        double baselinePercentile = LatencyStatistics.nearestRankPercentile(sorted, p);
+
+        return new Threshold(k, threshold, baselinePercentile, n);
     }
 
     /**
-     * The result of a latency threshold derivation, containing both the raw
-     * floating-point upper bound and the final integer threshold.
+     * Result of the exact binomial order-statistic threshold derivation.
      *
-     * @param rawUpperBound the upper bound before ceiling rounding
-     * @param threshold the final threshold (ceiling of raw, floored at baseline)
+     * @param rank               the order-statistic rank {@code k} (1-indexed)
+     * @param threshold          the {@code k}-th order statistic value
+     * @param baselinePercentile the nearest-rank point estimate {@code Q(p)}
+     * @param n                  the baseline sample count
      */
-    public record UpperBound(double rawUpperBound, long threshold) {}
+    public record Threshold(int rank, double threshold, double baselinePercentile, int n) {}
 
     /**
      * Result of deriving a latency threshold for a percentile.

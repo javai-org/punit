@@ -61,7 +61,6 @@ class LatencyDistributionTest {
 
             assertThat(dist.sampleCount()).isEqualTo(1);
             assertThat(dist.meanMs()).isEqualTo(500);
-            assertThat(dist.standardDeviationMs()).isEqualTo(0);
             assertThat(dist.p50Ms()).isEqualTo(500);
             assertThat(dist.p90Ms()).isEqualTo(500);
             assertThat(dist.p95Ms()).isEqualTo(500);
@@ -130,8 +129,8 @@ class LatencyDistributionTest {
     }
 
     @Nested
-    @DisplayName("Mean and standard deviation")
-    class MeanAndStdDev {
+    @DisplayName("Mean and sorted vector")
+    class MeanAndSorted {
 
         @Test
         @DisplayName("should compute correct mean")
@@ -143,33 +142,23 @@ class LatencyDistributionTest {
         }
 
         @Test
-        @DisplayName("should compute correct standard deviation")
-        void shouldComputeCorrectStdDev() {
-            // Values: 100, 200, 300, 400, 500 → mean=300
-            // Variance = ((200² + 100² + 0 + 100² + 200²) / 4) = 100000 / 4 = 25000
-            // StdDev = sqrt(25000) ≈ 158
-            long[] values = {100, 200, 300, 400, 500};
+        @DisplayName("should expose sorted latency vector")
+        void shouldExposeSortedLatencyVector() {
+            long[] values = {500, 100, 300, 200, 400};
             LatencyDistribution dist = LatencyDistribution.fromMillis(values);
 
-            assertThat(dist.standardDeviationMs()).isEqualTo(Math.round(Math.sqrt(25000)));
+            assertThat(dist.sortedLatenciesMs()).containsExactly(100, 200, 300, 400, 500);
         }
 
         @Test
-        @DisplayName("should return zero stddev for identical values")
-        void shouldReturnZeroStdDevForIdenticalValues() {
-            long[] values = {500, 500, 500, 500, 500};
-            LatencyDistribution dist = LatencyDistribution.fromMillis(values);
+        @DisplayName("should defensively copy the sorted vector on access")
+        void shouldDefensivelyCopy() {
+            LatencyDistribution dist = LatencyDistribution.fromMillis(new long[]{100, 200, 300});
 
-            assertThat(dist.meanMs()).isEqualTo(500);
-            assertThat(dist.standardDeviationMs()).isEqualTo(0);
-        }
+            long[] first = dist.sortedLatenciesMs();
+            first[0] = 999;
 
-        @Test
-        @DisplayName("should return zero stddev for single element")
-        void shouldReturnZeroStdDevForSingleElement() {
-            LatencyDistribution dist = LatencyDistribution.fromMillis(new long[]{42});
-
-            assertThat(dist.standardDeviationMs()).isEqualTo(0);
+            assertThat(dist.sortedLatenciesMs()[0]).isEqualTo(100);
         }
     }
 

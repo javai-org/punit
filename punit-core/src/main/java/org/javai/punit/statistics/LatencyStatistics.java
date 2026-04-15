@@ -2,16 +2,15 @@ package org.javai.punit.statistics;
 
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.OptionalDouble;
 
 /**
  * Precise double-valued computations for latency distributions.
  *
  * <p>This class provides the fundamental statistical operations for latency
  * analysis at full floating-point precision: nearest-rank percentile, mean,
- * sample standard deviation, and maximum. These operations underpin the
- * framework's latency dimension and are validated against javai-R reference
- * data in the conformance test suite.
+ * and maximum. These operations underpin the framework's latency dimension
+ * and are validated against javai-R reference data in the conformance test
+ * suite.
  *
  * <p>Percentiles use the nearest-rank (ceiling) method to match R's
  * {@code quantile(type = 1)} behaviour. This is distinct from interpolation-based
@@ -70,33 +69,6 @@ public final class LatencyStatistics {
             sum += v;
         }
         return sum / latencies.length;
-    }
-
-    /**
-     * Computes the Bessel-corrected sample standard deviation (n-1 denominator).
-     *
-     * <p>Returns empty for a single observation, where sample standard deviation
-     * is undefined.
-     *
-     * @param latencies the observed latency values (must not be empty)
-     * @return the sample standard deviation, or empty if n = 1
-     */
-    public static OptionalDouble sampleStandardDeviation(double[] latencies) {
-        Objects.requireNonNull(latencies, "latencies must not be null");
-        if (latencies.length == 0) {
-            throw new IllegalArgumentException("latencies must not be empty");
-        }
-        if (latencies.length == 1) {
-            return OptionalDouble.empty();
-        }
-
-        double mean = mean(latencies);
-        double sumSquares = 0;
-        for (double v : latencies) {
-            double diff = v - mean;
-            sumSquares += diff * diff;
-        }
-        return OptionalDouble.of(Math.sqrt(sumSquares / (latencies.length - 1)));
     }
 
     /**

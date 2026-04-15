@@ -126,15 +126,12 @@ class LatencyThresholdResolver {
     }
 
     private ResolvedThresholds resolveFromBaseline(LatencyBaseline baseline, double confidence) {
+        double[] baselineVector = baseline.sortedLatenciesAsDoubles();
         return new ResolvedThresholds(
-                deriveFromBaseline("p50", baseline.p50Ms(), baseline.standardDeviationMs(),
-                        baseline.sampleCount(), confidence),
-                deriveFromBaseline("p90", baseline.p90Ms(), baseline.standardDeviationMs(),
-                        baseline.sampleCount(), confidence),
-                deriveFromBaseline("p95", baseline.p95Ms(), baseline.standardDeviationMs(),
-                        baseline.sampleCount(), confidence),
-                deriveFromBaseline("p99", baseline.p99Ms(), baseline.standardDeviationMs(),
-                        baseline.sampleCount(), confidence)
+                deriveFromBaseline(baselineVector, 0.50, confidence),
+                deriveFromBaseline(baselineVector, 0.90, confidence),
+                deriveFromBaseline(baselineVector, 0.95, confidence),
+                deriveFromBaseline(baselineVector, 0.99, confidence)
         );
     }
 
@@ -145,11 +142,10 @@ class LatencyThresholdResolver {
         return new ResolvedPercentile(thresholdMs, "explicit");
     }
 
-    private ResolvedPercentile deriveFromBaseline(String label, long baselinePercentileMs,
-                                                  long baselineStdDevMs, int baselineSampleCount,
-                                                  double confidence) {
-        long derived = LatencyThresholdDeriver.deriveUpperBound(
-                baselinePercentileMs, baselineStdDevMs, baselineSampleCount, confidence);
-        return new ResolvedPercentile(derived, "from baseline");
+    private ResolvedPercentile deriveFromBaseline(double[] baselineLatencies, double p, double confidence) {
+        LatencyThresholdDeriver.Threshold derived =
+                LatencyThresholdDeriver.derive(baselineLatencies, p, confidence);
+        long thresholdMs = (long) Math.ceil(derived.threshold());
+        return new ResolvedPercentile(thresholdMs, "from baseline");
     }
 }

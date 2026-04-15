@@ -154,12 +154,8 @@ public final class SpecificationLoader {
 		// Latency fields
 		int latencySampleCount = 0;
 		long latencyMean = 0;
-		long latencyStdDev = 0;
-		long latencyP50 = 0;
-		long latencyP90 = 0;
-		long latencyP95 = 0;
-		long latencyP99 = 0;
 		long latencyMax = 0;
+		long[] latencySorted = null;
 
 		// Covariate fields
 		CovariateProfile.Builder covariateProfileBuilder = CovariateProfile.builder();
@@ -328,18 +324,10 @@ public final class SpecificationLoader {
 					latencySampleCount = Integer.parseInt(extractValue(trimmed));
 				} else if (trimmed.startsWith("meanMs:")) {
 					latencyMean = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("standardDeviationMs:")) {
-					latencyStdDev = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p50Ms:")) {
-					latencyP50 = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p90Ms:")) {
-					latencyP90 = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p95Ms:")) {
-					latencyP95 = Long.parseLong(extractValue(trimmed));
-				} else if (trimmed.startsWith("p99Ms:")) {
-					latencyP99 = Long.parseLong(extractValue(trimmed));
 				} else if (trimmed.startsWith("maxMs:")) {
 					latencyMax = Long.parseLong(extractValue(trimmed));
+				} else if (trimmed.startsWith("sortedLatenciesMs:")) {
+					latencySorted = parseLongArray(extractValue(trimmed));
 				}
 			} else if (inExecution) {
 				// MEASURE output: execution.samplesExecuted → empirical basis samples
@@ -414,9 +402,8 @@ public final class SpecificationLoader {
 
 		// Set latency baseline if we found latency data
 		if (latencySampleCount > 0) {
-			builder.latencyBaseline(new LatencyBaseline(
-					latencySampleCount, latencyMean, latencyStdDev,
-					latencyP50, latencyP90, latencyP95, latencyP99, latencyMax));
+			long[] sorted = latencySorted != null ? latencySorted : new long[0];
+			builder.latencyBaseline(new LatencyBaseline(sorted, latencyMean, latencyMax));
 		}
 
 		return builder.build();
@@ -546,6 +533,26 @@ public final class SpecificationLoader {
 		} catch (NumberFormatException e) {
 			return value;
 		}
+	}
+
+	private static long[] parseLongArray(String value) {
+		String trimmed = value.trim();
+		if (trimmed.startsWith("[")) {
+			trimmed = trimmed.substring(1);
+		}
+		if (trimmed.endsWith("]")) {
+			trimmed = trimmed.substring(0, trimmed.length() - 1);
+		}
+		trimmed = trimmed.trim();
+		if (trimmed.isEmpty()) {
+			return new long[0];
+		}
+		String[] parts = trimmed.split(",");
+		long[] result = new long[parts.length];
+		for (int i = 0; i < parts.length; i++) {
+			result[i] = Long.parseLong(parts[i].trim());
+		}
+		return result;
 	}
 
 	private static Instant parseInstant(String value) {
