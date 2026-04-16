@@ -51,26 +51,36 @@ Some systems do not yield the same outcome on every run — LLMs, ML models, ran
 
 ### Testing
 
-| Feature                       | Description                                                        |
-|-------------------------------|--------------------------------------------------------------------|
-| **Normative thresholds**      | Test against SLA/SLO/policy thresholds with provenance tracking    |
-| **Spec-driven thresholds**    | Derive pass/fail thresholds from empirical data, not guesswork     |
-| **Early termination**         | Stop early when failure is inevitable or success is guaranteed     |
-| **Budget control**            | Time and token budgets at method, class, or suite level            |
-| **Pacing constraints**        | Declare API rate limits; framework computes optimal execution pace |
-| **Latency assertions**        | Per-percentile latency thresholds (p50, p90, p95, p99)            |
-| **HTML report**               | Standalone report with per-test statistical detail                 |
-| **Sentinel**                  | JUnit-free engine for probabilistic testing in deployed environments |
+| Feature                    | Description                                                          |
+|----------------------------|----------------------------------------------------------------------|
+| **Normative thresholds**   | Test against SLA/SLO/policy thresholds with provenance tracking      |
+| **Spec-driven thresholds** | Derive pass/fail thresholds from empirical data, not guesswork       |
+| **Early termination**      | Stop early when failure is inevitable or success is guaranteed       |
+| **Budget control**         | Time and token budgets at method, class, or suite level              |
+| **Pacing constraints**     | Declare API rate limits; framework computes optimal execution pace   |
+| **Latency assertions**     | Per-percentile latency thresholds (p50, p90, p95, p99)               |
+| **HTML report**            | Standalone report with per-test statistical detail                   |
+| **Sentinel**               | JUnit-free engine for probabilistic testing in deployed environments |
 
 ## Quick Start
 
 ### 1. Add Dependency
 
+PUnit publishes three artifacts to Maven Central:
+
+| Artifact             | Purpose                                                                                      |
+|----------------------|----------------------------------------------------------------------------------------------|
+| `punit-core`         | JUnit-free statistical engine, use case factories, and user-facing annotations               |
+| `punit-junit5`       | JUnit 5 extensions that register probabilistic tests and experiments with the JUnit platform |
+| `punit-sentinel`     | JUnit-free runtime for executing probabilistic tests in deployed environments                |
+
+Most users depend on `punit-junit5`, which transitively includes `punit-core`. Add `punit-sentinel` only if you build a sentinel application.
+
 **Gradle (Kotlin DSL):**
 
 ```kotlin
 plugins {
-    id("org.javai.punit") version "0.5.0"
+    id("org.javai.punit") version "0.6.0"
 }
 
 repositories {
@@ -78,7 +88,7 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.javai:punit:0.5.0")
+    testImplementation("org.javai:punit-junit5:0.6.0")
 }
 ```
 
@@ -87,13 +97,13 @@ dependencies {
 ```xml
 <dependency>
     <groupId>org.javai</groupId>
-    <artifactId>punit</artifactId>
-    <version>0.5.0</version>
+    <artifactId>punit-junit5</artifactId>
+    <version>0.6.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-Maven users need manual Surefire/Failsafe configuration — see [MAVEN-CONFIGURATION.md](docs/MAVEN-CONFIGURATION.md).
+Maven users need to enable JUnit extension auto-detection and configure Surefire/Failsafe — see [MAVEN-CONFIGURATION.md](docs/MAVEN-CONFIGURATION.md).
 
 ### 2. Write a Probabilistic Test
 

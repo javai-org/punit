@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.sentinel.testsubjects.ExperimentSentinel;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
@@ -40,10 +41,10 @@ class SentinelExperimentExecutorTest {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
                 UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
                 ProbabilisticTestVerdict verdict = executor.execute(
-                        method, descriptor, sentinel, factory, ExperimentSentinel.class);
+                        method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 assertThat(verdict.junitPassed()).isTrue();
             } finally {
@@ -59,10 +60,10 @@ class SentinelExperimentExecutorTest {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
                 UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
                 ProbabilisticTestVerdict verdict = executor.execute(
-                        method, descriptor, sentinel, factory, ExperimentSentinel.class);
+                        method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 assertThat(verdict.identity().className()).isEqualTo(ExperimentSentinel.class.getName());
                 assertThat(verdict.identity().methodName()).isEqualTo("measureStub");
@@ -79,10 +80,10 @@ class SentinelExperimentExecutorTest {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
                 UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
                 ProbabilisticTestVerdict verdict = executor.execute(
-                        method, descriptor, sentinel, factory, ExperimentSentinel.class);
+                        method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 assertThat(verdict.identity().useCaseId()).hasValue("stub-use-case");
             } finally {
@@ -98,10 +99,10 @@ class SentinelExperimentExecutorTest {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
                 UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
                 ProbabilisticTestVerdict verdict = executor.execute(
-                        method, descriptor, sentinel, factory, ExperimentSentinel.class);
+                        method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 assertThat(verdict.environmentMetadata())
                         .containsEntry("environment", "test-env")
@@ -124,9 +125,9 @@ class SentinelExperimentExecutorTest {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
                 UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
-                executor.execute(method, descriptor, sentinel, factory, ExperimentSentinel.class);
+                executor.execute(method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 Path specFile = tempDir.resolve("stub-use-case.yaml");
                 assertThat(specFile).exists();
@@ -146,10 +147,10 @@ class SentinelExperimentExecutorTest {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
                 UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
                 ProbabilisticTestVerdict verdict = executor.execute(
-                        method, descriptor, sentinel, factory, ExperimentSentinel.class);
+                        method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 assertThat(verdict.junitPassed()).isTrue();
                 assertThat(nestedDir).isDirectory();
@@ -172,10 +173,10 @@ class SentinelExperimentExecutorTest {
                 ExperimentSentinel sentinel = new ExperimentSentinel();
                 UseCaseFactory factory = introspector.findUseCaseFactory(sentinel);
                 Method method = introspector.findExperimentMethods(ExperimentSentinel.class).getFirst();
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
 
                 ProbabilisticTestVerdict verdict = executor.execute(
-                        method, descriptor, sentinel, factory, ExperimentSentinel.class);
+                        method, annotation, sentinel, factory, ExperimentSentinel.class);
 
                 assertThat(verdict.execution().plannedSamples()).isEqualTo(5);
                 assertThat(verdict.execution().samplesExecuted()).isGreaterThan(0);

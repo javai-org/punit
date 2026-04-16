@@ -12,14 +12,20 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 /**
  * Generates optimization history YAML files for @OptimizeExperiment.
  *
- * <p>Output directory: {@code src/test/resources/punit/optimizations/{useCaseId}/}
+ * <p>Output directory: {@code build/punit/optimizations/{useCaseId}/}
  * <p>Filename pattern: {@code {experimentId}_YYYYMMDD_HHMMSS.yaml}
+ *
+ * <p>Optimize results are human-review artefacts with no downstream programmatic
+ * consumer, so they default to {@code build/} as transient build output rather
+ * than being tracked in source. Override with the
+ * {@code punit.optimizations.outputDir} system property (the Gradle plugin
+ * forwards the {@code punit.optimizationsDir} extension value).
  *
  * <p>Delegates YAML generation to {@link OptimizeOutputWriter}.
  */
 public class OptimizeSpecGenerator {
 
-    private static final String DEFAULT_OUTPUT_DIR = "src/test/resources/punit/optimizations";
+    private static final String DEFAULT_OUTPUT_DIR = "build/punit/optimizations";
     private static final DateTimeFormatter TIMESTAMP_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").withZone(ZoneId.systemDefault());
 

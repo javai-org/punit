@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import org.javai.punit.api.InputSource;
+import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.Sentinel;
 import org.javai.punit.experiment.engine.input.InputSourceResolver;
@@ -107,28 +108,11 @@ class SentinelClassIntrospector {
     /**
      * Finds all methods annotated with {@code @MeasureExperiment}.
      *
-     * <p>The annotation is discovered reflectively via {@link MeasureExperimentDescriptor}
-     * to avoid a compile-time dependency on punit-junit5 (and transitively JUnit).
-     *
      * @param sentinelClass the sentinel class
-     * @return list of experiment methods (including inherited), or empty if the annotation is not on the classpath
+     * @return list of experiment methods (including inherited)
      */
     List<Method> findExperimentMethods(Class<?> sentinelClass) {
-        if (!MeasureExperimentDescriptor.isAvailable()) {
-            return List.of();
-        }
-        List<Method> result = new ArrayList<>();
-        Class<?> current = sentinelClass;
-        while (current != null && current != Object.class) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (MeasureExperimentDescriptor.isPresent(method)) {
-                    method.setAccessible(true);
-                    result.add(method);
-                }
-            }
-            current = current.getSuperclass();
-        }
-        return result;
+        return findAnnotatedMethods(sentinelClass, MeasureExperiment.class);
     }
 
     /**
@@ -155,12 +139,13 @@ class SentinelClassIntrospector {
      */
     Class<?> resolveInputType(Method method) {
         ProbabilisticTest ptAnnotation = method.getAnnotation(ProbabilisticTest.class);
+        MeasureExperiment meAnnotation = method.getAnnotation(MeasureExperiment.class);
 
         Class<?> useCaseClass = Void.class;
         if (ptAnnotation != null) {
             useCaseClass = ptAnnotation.useCase();
-        } else if (MeasureExperimentDescriptor.isPresent(method)) {
-            useCaseClass = MeasureExperimentDescriptor.from(method).useCase();
+        } else if (meAnnotation != null) {
+            useCaseClass = meAnnotation.useCase();
         }
 
         for (Class<?> paramType : method.getParameterTypes()) {

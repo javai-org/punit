@@ -8,6 +8,19 @@ signing {
     useGpgCmd()
 }
 
+// Measure specs are normally committed (they are inputs to subsequent
+// @ProbabilisticTest runs). In punit-junit5 itself they're re-generated
+// as TestKit byproducts on every test run, so we redirect them to build/
+// to avoid polluting the source tree with churn. The `test` task needs
+// the system property set directly because the plugin only forwards
+// `punit.specs.outputDir` to the dedicated `experiment` task.
+tasks.test {
+    systemProperty(
+        "punit.specs.outputDir",
+        layout.buildDirectory.dir("punit/specs").get().asFile.absolutePath
+    )
+}
+
 dependencies {
     api(project(":punit-core"))
     api(project(":punit-report"))

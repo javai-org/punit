@@ -9,7 +9,6 @@ signing {
 
 dependencies {
     api(project(":punit-core"))
-    testImplementation(project(":punit-junit5"))
 }
 
 tasks.test {

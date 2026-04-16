@@ -4,14 +4,12 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.javai.punit.experiment.engine.ExperimentExtension;
 import org.javai.punit.experiment.optimize.FactorMutator;
 import org.javai.punit.experiment.optimize.OptimizationIterationAggregate;
 import org.javai.punit.experiment.optimize.OptimizationObjective;
 import org.javai.punit.experiment.optimize.Scorer;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Marks a method as an OPTIMIZE experiment that iteratively refines a single
@@ -95,7 +93,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @TestTemplate
-@ExtendWith(ExperimentExtension.class)
 @Tag("punit-experiment")
 public @interface OptimizeExperiment {
 

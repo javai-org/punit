@@ -1,9 +1,8 @@
 package org.javai.punit.gradle
 
-import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
+import org.gradle.api.file.Directory
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.bundling.Jar
@@ -26,9 +25,18 @@ class PunitPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         val extension = project.extensions.create("punit", PunitExperimentExtension::class.java).apply {
+            // Measure specs are inputs to subsequent @ProbabilisticTest runs
+            // (including in CI), so they live alongside source and are intended
+            // to be committed. Explore and Optimize outputs are human-review
+            // artefacts with no downstream programmatic consumer, so they live
+            // under build/ as transient build output. See CHANGELOG 0.6.0.
             specsDir.convention("src/test/resources/punit/specs")
-            explorationsDir.convention("src/test/resources/punit/explorations")
-            optimizationsDir.convention("src/test/resources/punit/optimizations")
+            explorationsDir.convention(
+                project.layout.buildDirectory.dir("punit/explorations").map { it.asFile.absolutePath }
+            )
+            optimizationsDir.convention(
+                project.layout.buildDirectory.dir("punit/optimizations").map { it.asFile.absolutePath }
+            )
             configureTestTask.convention(true)
             excludeTestSubjects.convention(true)
         }

@@ -119,9 +119,10 @@ class ArchitectureTest {
         @Test
         @DisplayName("api package should not depend on ptest strategy internals")
         void apiShouldNotDependOnPtestStrategyInternals() {
-            // Note: api annotations MUST reference engine extensions via @ExtendedWith.
-            // This is how JUnit 5 extension registration works.
-            // The constraint: api should not depend on ptest strategy internals.
+            // api annotations are pure markers: they carry only JUnit annotation
+            // types (@TestTemplate, @Tag) as meta-annotations. JUnit extension
+            // wiring happens via ServiceLoader auto-registration, not via
+            // @ExtendWith on the user-facing annotations. See DES-ANNOTATIONS-REFACTOR.md.
             ArchRule rule = noClasses()
                     .that().resideInAPackage("..api..")
                     .should().dependOnClassesThat()

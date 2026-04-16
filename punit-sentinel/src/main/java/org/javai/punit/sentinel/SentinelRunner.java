@@ -8,12 +8,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
+import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.ptest.bernoulli.FinalVerdictDecider;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
-import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.statistics.ThresholdDeriver;
 import org.javai.punit.usecase.UseCaseFactory;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
 
 /**
  * The Sentinel runtime engine — orchestrates probabilistic test and experiment
@@ -187,15 +188,15 @@ public class SentinelRunner {
             List<Method> experimentMethods = introspector.findExperimentMethods(sentinelClass);
 
             for (Method method : experimentMethods) {
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
-                String useCaseId = UseCaseFactory.resolveId(descriptor.useCase());
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
+                String useCaseId = UseCaseFactory.resolveId(annotation.useCase());
 
                 if (!filter.test(useCaseId)) {
                     continue;
                 }
 
                 ProbabilisticTestVerdict verdict = experimentExecutor.execute(
-                        method, descriptor, instance, factory, sentinelClass);
+                        method, annotation, instance, factory, sentinelClass);
                 verdicts.add(verdict);
                 configuration.verdictSink().accept(verdict);
 
@@ -235,10 +236,10 @@ public class SentinelRunner {
             }
 
             for (Method method : introspector.findExperimentMethods(sentinelClass)) {
-                MeasureExperimentDescriptor descriptor = MeasureExperimentDescriptor.from(method);
-                String useCaseId = UseCaseFactory.resolveId(descriptor.useCase());
+                MeasureExperiment annotation = method.getAnnotation(MeasureExperiment.class);
+                String useCaseId = UseCaseFactory.resolveId(annotation.useCase());
                 entries.add(new UseCaseCatalog.Entry(
-                        "experiment", useCaseId, className + "." + method.getName(), descriptor.samples()));
+                        "experiment", useCaseId, className + "." + method.getName(), annotation.samples()));
             }
         }
 

@@ -1035,7 +1035,7 @@ provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
 
 #### Deprecated: `@FactorSetter`, `@FactorGetter`, and `registerAutoWired`
 
-Prior to 0.5.3, PUnit supported mutable use case patterns where factors were injected via `@FactorSetter` methods after construction. These patterns are **deprecated** because they allow the use case configuration to change during sampling, violating the i.i.d. assumption:
+Prior to 0.6.0, PUnit supported mutable use case patterns where factors were injected via `@FactorSetter` methods after construction. These patterns are **deprecated** because they allow the use case configuration to change during sampling, violating the i.i.d. assumption:
 
 - **`@FactorSetter`** — Deprecated. Use constructor parameters instead.
 - **`@FactorGetter`** — Deprecated. Use standard getters instead.
@@ -1159,7 +1159,7 @@ public static Stream<FactorArguments> modelConfigurations() {
 EXPLORE produces one exploration file per configuration:
 
 ```
-src/test/resources/punit/explorations/ShoppingBasketUseCase/
+build/punit/explorations/ShoppingBasketUseCase/
 ├── model-gpt-4o-mini.yaml
 ├── model-gpt-4o.yaml
 ├── model-claude-3-5-haiku.yaml
@@ -1297,7 +1297,7 @@ static String weakStartingPrompt() {
 **Output:**
 
 ```
-src/test/resources/punit/optimizations/ShoppingBasketUseCase/
+build/punit/optimizations/ShoppingBasketUseCase/
 └── temperature-optimization-v1_20260119_103045.yaml
 ```
 
@@ -2449,8 +2449,15 @@ Legacy single-file specs containing both dimensions are handled transparently �
 | Property                        | Environment Variable             | Default                                      | Description                |
 |---------------------------------|----------------------------------|----------------------------------------------|----------------------------|
 | `punit.specs.outputDir`         | `PUNIT_SPECS_OUTPUT_DIR`         | `src/test/resources/punit/specs/`            | MEASURE experiment output  |
-| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | `src/test/resources/punit/explorations/`     | EXPLORE experiment output  |
-| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | `src/test/resources/punit/optimizations/`    | OPTIMIZE experiment output |
+| `punit.explorations.outputDir`  | `PUNIT_EXPLORATIONS_OUTPUT_DIR`  | `build/punit/explorations/`                  | EXPLORE experiment output  |
+| `punit.optimizations.outputDir` | `PUNIT_OPTIMIZATIONS_OUTPUT_DIR` | `build/punit/optimizations/`                 | OPTIMIZE experiment output |
+
+The three defaults differ deliberately:
+
+- **MEASURE specs are inputs to subsequent `@ProbabilisticTest` runs** (including in CI). They live alongside source and are intended to be committed to the repository so that the probabilistic test's baseline travels with the code.
+- **EXPLORE and OPTIMIZE outputs are human-review artefacts** with no downstream programmatic consumer. They default to `build/` so that running an experiment doesn't produce uncommitted-file noise in the source tree. Commit them only when you want a historical record, not as a test requirement.
+
+This split was introduced in 0.6.0. Prior releases wrote all three under `src/test/resources/punit/`. If you were relying on EXPLORE or OPTIMIZE outputs landing under `src/`, set `punit.explorations.outputDir` / `punit.optimizations.outputDir` (or `punit.explorationsDir` / `punit.optimizationsDir` in the Gradle plugin extension) explicitly.
 
 #### Transparent Statistics
 
@@ -2604,7 +2611,7 @@ When latency data is present, MEASURE also produces a dedicated latency spec at 
 
 #### EXPLORE Output
 
-Location: `src/test/resources/punit/explorations/{UseCaseId}/{configName}.yaml`
+Location: `build/punit/explorations/{UseCaseId}/{configName}.yaml`
 
 EXPLORE produces **one file per configuration**, enabling side-by-side comparison. Its distinguishing feature is the **result projection** — a per-sample record of inputs, postcondition outcomes, and raw content that lets you inspect exactly what the system produced under each configuration. The `useCaseId` includes the configuration name as a path suffix.
 
@@ -2664,7 +2671,7 @@ contentFingerprint: b8c458e7da03edb9...
 
 #### OPTIMIZE Output
 
-Location: `src/test/resources/punit/optimizations/{UseCaseId}/{experimentId}_{timestamp}.yaml`
+Location: `build/punit/optimizations/{UseCaseId}/{experimentId}_{timestamp}.yaml`
 
 OPTIMIZE produces a history of iterations showing the optimization trajectory. Its distinguishing features are: the **control factor** being varied, the **optimization policy** (objective, scorer, mutator, termination), a **best iteration** summary (when at least one iteration scored above the minimum threshold), and the full **iteration log** with per-iteration scores, statistics, and the control factor value tried.
 

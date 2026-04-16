@@ -42,7 +42,7 @@ public final class FactorAnnotations {
      * @return the resolved factor name
      * @deprecated Along with {@link FactorGetter}.
      */
-    @Deprecated(since = "0.5.3", forRemoval = true)
+    @Deprecated(since = "0.6.0", forRemoval = true)
     public static String resolveGetterFactorName(Method method, FactorGetter annotation) {
         String explicit = annotation.value();
         if (!explicit.isEmpty()) {
@@ -63,7 +63,7 @@ public final class FactorAnnotations {
      * @return the resolved factor name
      * @deprecated Along with {@link FactorSetter}.
      */
-    @Deprecated(since = "0.5.3", forRemoval = true)
+    @Deprecated(since = "0.6.0", forRemoval = true)
     public static String resolveSetterFactorName(Method method, FactorSetter annotation) {
         String explicit = annotation.value();
         if (!explicit.isEmpty()) {
@@ -80,7 +80,7 @@ public final class FactorAnnotations {
      * @return the matching method, or empty if not found
      * @deprecated Along with {@link FactorGetter}.
      */
-    @Deprecated(since = "0.5.3", forRemoval = true)
+    @Deprecated(since = "0.6.0", forRemoval = true)
     public static Optional<Method> findFactorGetter(Class<?> clazz, String factorName) {
         for (Method method : clazz.getMethods()) {
             FactorGetter annotation = method.getAnnotation(FactorGetter.class);
@@ -102,7 +102,7 @@ public final class FactorAnnotations {
      * @return the matching method, or empty if not found
      * @deprecated Along with {@link FactorSetter}.
      */
-    @Deprecated(since = "0.5.3", forRemoval = true)
+    @Deprecated(since = "0.6.0", forRemoval = true)
     public static Optional<Method> findFactorSetter(Class<?> clazz, String factorName) {
         for (Method method : clazz.getMethods()) {
             FactorSetter annotation = method.getAnnotation(FactorSetter.class);
@@ -146,7 +146,7 @@ public final class FactorAnnotations {
      * @throws IllegalArgumentException if the method name doesn't start with "set"
      * @deprecated Along with {@link FactorSetter}.
      */
-    @Deprecated(since = "0.5.3", forRemoval = true)
+    @Deprecated(since = "0.6.0", forRemoval = true)
     public static String deriveFactorNameFromSetter(String methodName) {
         if (!methodName.startsWith("set") || methodName.length() <= 3) {
             throw new IllegalArgumentException(

@@ -7,7 +7,7 @@
  *
  * <p>Three experiment modes are supported:
  * <ul>
- *   <li><b>Measure</b> ({@code @MeasureExperiment}) - Runs samples to
+ *   <li><b>Measure</b> ({@link org.javai.punit.api.MeasureExperiment}) - Runs samples to
  *       establish baseline success rates and produce execution specifications</li>
  *   <li><b>Explore</b> ({@link org.javai.punit.api.ExploreExperiment}) - Explores factor
  *       combinations to identify optimal configurations</li>

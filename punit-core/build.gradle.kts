@@ -1,3 +1,6 @@
+import java.net.HttpURLConnection
+import java.net.URI
+
 plugins {
     id("signing")
     id("com.vanniktech.maven.publish") version "0.36.0"
@@ -38,35 +41,67 @@ dependencies {
 }
 
 // --- javai-R conformance reference data ----------------------------------------
+// Fetches the latest javai-R release (resolved via the GitHub /releases/latest
+// redirect, which costs no API-rate-limit quota), downloads its cases-<tag>.zip
+// asset, caches it keyed by tag, and extracts into a directory on the test
+// classpath so that /conformance/*.json resolves. See plan/REQ-FETCH-R-FIXTURE.md.
 
-val javaiRVersion: String by project.rootProject.extra {
-    project.rootProject.property("javaiR.version") as String
-}
+val conformanceResourcesDir = layout.buildDirectory.dir("generated/conformance")
 
-val conformanceDir = layout.buildDirectory.dir("conformance")
-
-val downloadConformanceData by tasks.registering {
-    description = "Downloads javai-R conformance reference data (v$javaiRVersion)"
+val fetchConformanceData by tasks.registering {
+    description = "Fetches the latest javai-R conformance reference data release"
     group = "verification"
 
-    val zipFile = layout.buildDirectory.file("conformance/cases-v$javaiRVersion.zip")
-    outputs.dir(conformanceDir)
+    outputs.dir(conformanceResourcesDir)
+    outputs.upToDateWhen { false }
 
     doLast {
-        val dir = conformanceDir.get().asFile
-        dir.mkdirs()
-        val zip = zipFile.get().asFile
-        if (!zip.exists()) {
-            val url = "https://github.com/javai-org/javai-R/releases/download/v$javaiRVersion/cases-v$javaiRVersion.zip"
-            uri(url).toURL().openStream().use { input ->
-                zip.outputStream().use { output -> input.copyTo(output) }
+        val latestUrl = URI(
+            "https://github.com/javai-org/javai-R/releases/latest"
+        ).toURL()
+        val conn = latestUrl.openConnection() as HttpURLConnection
+        conn.instanceFollowRedirects = false
+        conn.requestMethod = "HEAD"
+        val status = conn.responseCode
+        val location = conn.getHeaderField("Location")
+        conn.disconnect()
+        require(status in 301..308 && location != null) {
+            "Expected redirect from $latestUrl, got $status (location=$location)"
+        }
+        val tag = location.substringAfterLast("/tag/")
+        require(tag.matches(Regex("^v\\d+\\.\\d+\\.\\d+$"))) {
+            "Unexpected tag format '$tag' in $location"
+        }
+
+        val cacheZip = layout.buildDirectory
+            .file("conformance-cache/cases-$tag.zip").get().asFile
+        if (!cacheZip.exists()) {
+            cacheZip.parentFile.mkdirs()
+            val assetUrl = URI(
+                "https://github.com/javai-org/javai-R/releases/download/$tag/cases-$tag.zip"
+            ).toURL()
+            assetUrl.openStream().use { input ->
+                cacheZip.outputStream().use { output -> input.copyTo(output) }
             }
         }
+
+        val destDir = conformanceResourcesDir.get().asFile.resolve("conformance")
+        if (destDir.exists()) destDir.deleteRecursively()
+        destDir.mkdirs()
         copy {
-            from(zipTree(zip))
-            into(dir)
+            from(zipTree(cacheZip))
+            into(destDir)
         }
+        logger.lifecycle("Fetched javai-R conformance fixtures: $tag")
     }
+}
+
+sourceSets.test {
+    resources.srcDir(conformanceResourcesDir)
+}
+
+tasks.named<ProcessResources>("processTestResources") {
+    dependsOn(fetchConformanceData)
 }
 
 // ---------------------------------------------------------------------------------

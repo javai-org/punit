@@ -17,15 +17,21 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  *
  * <p>Output structure:
  * <pre>
- * src/test/resources/punit/explorations/
+ * build/punit/explorations/
  * └── {UseCaseId}/
  *     ├── model-gpt-4_temp-0.0.yaml
  *     └── model-gpt-4_temp-0.7.yaml
  * </pre>
+ *
+ * <p>Explore results are human-review artefacts with no downstream programmatic
+ * consumer, so they default to {@code build/} as transient build output rather
+ * than being tracked in source. Override with the
+ * {@code punit.explorations.outputDir} system property (the Gradle plugin
+ * forwards the {@code punit.explorationsDir} extension value).
  */
 public class ExploreSpecGenerator {
 
-    private static final String DEFAULT_EXPLORATIONS_DIR = "src/test/resources/punit/explorations";
+    private static final String DEFAULT_EXPLORATIONS_DIR = "build/punit/explorations";
 
     /**
      * Generates a single spec file for the use case (no per-config breakdown).

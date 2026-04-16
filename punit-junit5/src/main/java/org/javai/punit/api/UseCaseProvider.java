@@ -118,7 +118,7 @@ public class UseCaseProvider implements ParameterResolver {
      * @deprecated Auto-wired registration relies on {@link FactorSetter} methods, which mutate
      * the use case after construction. Use {@link #registerWithFactors} instead.
      */
-    @Deprecated(since = "0.5.3", forRemoval = true)
+    @Deprecated(since = "0.6.0", forRemoval = true)
     public <T> UseCaseProvider registerAutoWired(Class<T> useCaseClass, Supplier<T> factory) {
         autoWiredFactories.put(useCaseClass, factory);
         singletons.remove(useCaseClass);

@@ -22,15 +22,16 @@ package org.javai.punit.api;
  * └──────────────────────────────────────────────────────────────────────────────────────────┘
  * </pre>
  *
+ * @see MeasureExperiment
  * @see ExperimentMode
  * @see FactorSource
  */
 public enum ExperimentMode {
-    
+
     /**
      * MEASURE establishes reliable statistics for a single configuration.
      *
-     * <p>Use {@code @MeasureExperiment} when you want to:
+     * <p>Use {@link MeasureExperiment} when you want to:
      * <ul>
      *   <li>Measure the true success rate with high precision</li>
      *   <li>Generate an empirical spec for deriving test thresholds</li>

@@ -18,9 +18,9 @@ import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.spec.baseline.BaselineFileNamer;
 import org.javai.punit.spec.baseline.FootprintComputer;
 import org.javai.punit.spec.baseline.covariate.CovariateProfileResolver;
-import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.spec.baseline.covariate.DefaultCovariateResolutionContext;
 import org.javai.punit.spec.baseline.covariate.UseCaseCovariateExtractor;
+import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
@@ -31,6 +31,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * <p>Each use case should have ONE measure experiment that establishes the production
  * baseline. The probabilistic test then uses the same factor source, ensuring the
  * test cycles through the same values as the baseline measurement.
+ *
+ * <p>Unlike Explore and Optimize outputs, measure specs are inputs to subsequent
+ * {@code @ProbabilisticTest} runs (including in CI), so they default to
+ * {@code src/test/resources/} and are intended to be committed to the repository.
+ * Override with the {@code punit.specs.outputDir} system property (the Gradle
+ * plugin forwards the {@code punit.specsDir} extension value).
  */
 public class MeasureSpecGenerator {
 

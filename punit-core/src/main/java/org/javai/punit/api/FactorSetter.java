@@ -24,7 +24,7 @@ import java.lang.annotation.Target;
  * factors at construction time instead. See the user guide section on immutable use cases.
  * @see FactorGetter
  */
-@Deprecated(since = "0.5.3", forRemoval = true)
+@Deprecated(since = "0.6.0", forRemoval = true)
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FactorSetter {

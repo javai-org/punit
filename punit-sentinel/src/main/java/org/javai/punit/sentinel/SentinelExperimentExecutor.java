@@ -5,12 +5,12 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
+import org.javai.punit.api.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
@@ -20,12 +20,12 @@ import org.javai.punit.experiment.measure.MeasureOutputWriter;
 import org.javai.punit.experiment.model.EmpiricalBaseline;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
-import org.javai.punit.usecase.UseCaseFactory;
 
 /**
- * Executes a single {@code @MeasureExperimentDescriptor} method in the Sentinel runtime,
+ * Executes a single {@code @MeasureExperiment} method in the Sentinel runtime,
  * producing a {@link ProbabilisticTestVerdict} and writing baseline spec files.
  *
  * <p>Responsibilities:
@@ -66,7 +66,7 @@ class SentinelExperimentExecutor {
      * and returns the verdict.
      *
      * @param method the experiment method
-     * @param annotation the method's {@code @MeasureExperimentDescriptor} annotation
+     * @param annotation the method's {@code @MeasureExperiment} annotation
      * @param instance the sentinel class instance
      * @param factory the use case factory
      * @param sentinelClass the sentinel class (for naming, input resolution, and baseline generation)
@@ -74,7 +74,7 @@ class SentinelExperimentExecutor {
      */
     ProbabilisticTestVerdict execute(
             Method method,
-            MeasureExperimentDescriptor annotation,
+            MeasureExperiment annotation,
             Object instance,
             UseCaseFactory factory,
             Class<?> sentinelClass) {
@@ -131,7 +131,7 @@ class SentinelExperimentExecutor {
                 .build();
     }
 
-    private CostBudgetMonitor createBudgetMonitor(MeasureExperimentDescriptor annotation) {
+    private CostBudgetMonitor createBudgetMonitor(MeasureExperiment annotation) {
         if (annotation.timeBudgetMs() <= 0 && annotation.tokenBudget() <= 0) {
             return null;
         }
@@ -168,7 +168,7 @@ class SentinelExperimentExecutor {
             String useCaseId,
             Class<?> sentinelClass,
             Method method,
-            MeasureExperimentDescriptor annotation,
+            MeasureExperiment annotation,
             UseCaseAttributes useCaseAttributes) {
 
         EmpiricalBaselineGenerator baselineGenerator = new EmpiricalBaselineGenerator();

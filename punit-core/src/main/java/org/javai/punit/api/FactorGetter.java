@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
  * @see FactorSetter
  * @see ControlFactor
  */
-@Deprecated(since = "0.5.3", forRemoval = true)
+@Deprecated(since = "0.6.0", forRemoval = true)
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FactorGetter {
