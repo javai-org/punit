@@ -22,8 +22,6 @@ import org.junit.jupiter.api.Test;
  * <p>This rule is filesystem-based rather than ArchUnit-based because ArchUnit
  * inspects the unified classpath and cannot distinguish between annotations
  * declared in {@code punit-core} and annotations declared in {@code punit-junit5}.
- *
- * <p>See {@code plan/DES-ANNOTATIONS-REFACTOR.md} for the rationale.
  */
 @DisplayName("punit-junit5/api Contents Rules")
 class Junit5ApiPackageContentsTest {
@@ -50,7 +48,7 @@ class Junit5ApiPackageContentsTest {
         }
         assertThat(offenders)
                 .as("user-facing annotations must live in punit-core/api, "
-                        + "not punit-junit5/api — see plan/DES-ANNOTATIONS-REFACTOR.md")
+                        + "not punit-junit5/api")
                 .isEmpty();
     }
 

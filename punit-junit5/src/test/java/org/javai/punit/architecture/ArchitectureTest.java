@@ -122,7 +122,7 @@ class ArchitectureTest {
             // api annotations are pure markers: they carry only JUnit annotation
             // types (@TestTemplate, @Tag) as meta-annotations. JUnit extension
             // wiring happens via ServiceLoader auto-registration, not via
-            // @ExtendWith on the user-facing annotations. See DES-ANNOTATIONS-REFACTOR.md.
+            // @ExtendWith on the user-facing annotations.
             ArchRule rule = noClasses()
                     .that().resideInAPackage("..api..")
                     .should().dependOnClassesThat()

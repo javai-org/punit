@@ -44,7 +44,7 @@ dependencies {
 // Fetches the latest javai-R release (resolved via the GitHub /releases/latest
 // redirect, which costs no API-rate-limit quota), downloads its cases-<tag>.zip
 // asset, caches it keyed by tag, and extracts into a directory on the test
-// classpath so that /conformance/*.json resolves. See plan/REQ-FETCH-R-FIXTURE.md.
+// classpath so that /conformance/*.json resolves.
 
 val conformanceResourcesDir = layout.buildDirectory.dir("generated/conformance")
 
