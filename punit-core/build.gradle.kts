@@ -29,15 +29,15 @@ dependencies {
     api("org.javai:outcome:0.2.0")
 
     // Logging
-    implementation("org.apache.logging.log4j:log4j-api:2.25.3")
-    runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.3")
-    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
+    implementation("org.apache.logging.log4j:log4j-api:2.25.4")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.4")
+    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
 
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
-    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.25.4")
+    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
 }
 
 // --- javai-R conformance reference data ----------------------------------------
