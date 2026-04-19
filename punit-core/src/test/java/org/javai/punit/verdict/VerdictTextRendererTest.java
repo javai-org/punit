@@ -495,7 +495,10 @@ class VerdictTextRendererTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), passed, punitVerdict
+                Map.of(), passed, punitVerdict,
+                punitVerdict == PunitVerdict.PASS
+                        ? String.format("%.4f >= 0.9000", (double) successes / samples)
+                        : String.format("%.4f < 0.9000", (double) successes / samples)
         );
     }
 
@@ -515,7 +518,8 @@ class VerdictTextRendererTest {
                 base.functional(), base.latency(),
                 stats, base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -528,20 +532,23 @@ class VerdictTextRendererTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
     private ProbabilisticTestVerdict verdictWithMisalignment() {
         ProbabilisticTestVerdict base = passingVerdict();
         CovariateStatus cov = new CovariateStatus(false,
-                List.of(new Misalignment("model", "gpt-4", "gpt-4o")));
+                List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
+                Map.of(), Map.of());
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), base.latency(),
                 base.statistics(), cov, base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                "covariate misalignment"
         );
     }
 
@@ -554,7 +561,8 @@ class VerdictTextRendererTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -570,7 +578,8 @@ class VerdictTextRendererTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -586,7 +595,8 @@ class VerdictTextRendererTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -603,7 +613,8 @@ class VerdictTextRendererTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -625,7 +636,8 @@ class VerdictTextRendererTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -641,7 +653,8 @@ class VerdictTextRendererTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 }

@@ -55,7 +55,7 @@ class VerdictXmlSinkTest {
 
             Path expected = tempDir.resolve("com.example.MyTest.shouldPass.xml");
             String content = Files.readString(expected);
-            assertThat(content).contains("punit-verdict");
+            assertThat(content).contains("verdict-record");
             assertThat(content).contains("com.example.MyTest");
             assertThat(content).contains("shouldPass");
         }
@@ -107,7 +107,8 @@ class VerdictXmlSinkTest {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 true,
-                PunitVerdict.PASS
+                PunitVerdict.PASS,
+                "0.9500 >= 0.9000"
         );
     }
 }

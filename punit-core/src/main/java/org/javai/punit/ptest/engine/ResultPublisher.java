@@ -1,8 +1,10 @@
 package org.javai.punit.ptest.engine;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.model.ExpirationStatus;
@@ -19,9 +21,11 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CostSummary;
+import org.javai.punit.verdict.ProbabilisticTestVerdict.CovariateStatus;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
+import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
 import org.javai.punit.verdict.PunitVerdict;
@@ -156,9 +160,8 @@ class ResultPublisher {
 
         boolean isBudgetExhausted = term.reason().isBudgetExhaustion();
 
-        String intentLabel = exec.intent() != null ? exec.intent().name() : "VERIFICATION";
         String verdictLabel = verdict.punitVerdict().name();
-        String title = "VERDICT: " + verdictLabel + " (" + intentLabel + ")";
+        String title = "VERDICT: " + verdictLabel + " (" + verdict.verdictReason() + ")";
 
         String testName = verdict.identity().className() + "." + verdict.identity().methodName();
         StringBuilder sb = new StringBuilder();
@@ -194,13 +197,14 @@ class ResultPublisher {
         // Append per-dimension breakdown if available
         appendDimensionBreakdown(sb, verdict);
 
-        // Append verdict override for INCONCLUSIVE
-        if (verdict.punitVerdict() == PunitVerdict.INCONCLUSIVE) {
-            sb.append(PUnitReporter.labelValueLn("Verdict:", "Inconclusive \u2014 covariate misalignment"));
-        }
+        // Append covariate comparison for INCONCLUSIVE verdicts
+        appendCovariateComparison(sb, verdict);
 
         // Append latency result if evaluated
         appendLatencyResult(sb, verdict);
+
+        // Append baseline provenance if available
+        appendBaselineProvenance(sb, verdict);
 
         // Append provenance if configured
         appendProvenance(sb, verdict);
@@ -298,6 +302,55 @@ class ResultPublisher {
             if (!lat.skipped()) {
                 latencyRenderer.appendTo(sb, lat);
             }
+        });
+    }
+
+    /**
+     * Appends a covariate comparison block when the verdict is INCONCLUSIVE due to misalignment.
+     */
+    void appendCovariateComparison(StringBuilder sb, ProbabilisticTestVerdict verdict) {
+        CovariateStatus cov = verdict.covariates();
+        if (cov.aligned() || cov.baselineProfile().isEmpty()) {
+            return;
+        }
+
+        sb.append("\n");
+        sb.append("Covariate misalignment:\n");
+        sb.append("  Baseline:  ").append(formatProfile(cov.baselineProfile())).append("\n");
+        sb.append("  Observed:  ").append(formatProfile(cov.observedProfile())).append("\n");
+
+        List<Misalignment> diffs = cov.misalignments();
+        if (!diffs.isEmpty()) {
+            String diffStr = diffs.stream()
+                    .map(m -> m.covariateKey() + " (baseline: " + m.baselineValue()
+                            + ", observed: " + m.testValue() + ")")
+                    .collect(Collectors.joining(", "));
+            sb.append("  Differs:   ").append(diffStr).append("\n");
+        }
+    }
+
+    private String formatProfile(Map<String, String> profile) {
+        return profile.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(Collectors.joining(", "));
+    }
+
+    /**
+     * Appends baseline provenance (source file, measurement date, sample count, threshold).
+     */
+    void appendBaselineProvenance(StringBuilder sb, ProbabilisticTestVerdict verdict) {
+        verdict.statistics().baseline().ifPresent(baseline -> {
+            sb.append(PUnitReporter.labelValueLn("Baseline:", baseline.sourceFile()));
+
+            String dateStr = baseline.generatedAt()
+                    .atZone(java.time.ZoneOffset.UTC)
+                    .toLocalDate()
+                    .toString();
+            sb.append(PUnitReporter.labelValueLn("",
+                    String.format("(measured %s, %d samples, minPassRate=%s)",
+                            dateStr,
+                            baseline.baselineSamples(),
+                            RateFormat.format(baseline.derivedThreshold()))));
         });
     }
 

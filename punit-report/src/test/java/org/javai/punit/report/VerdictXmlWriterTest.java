@@ -44,28 +44,29 @@ class VerdictXmlWriterTest {
     class MinimalVerdict {
 
         @Test
-        @DisplayName("serialises a minimal passing verdict to valid XML")
-        void minimialPassingVerdict() throws Exception {
+        @DisplayName("serialises to RP07 verdict-record root element")
+        void rp07RootElement() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element root = doc.getDocumentElement();
 
-            assertThat(root.getLocalName()).isEqualTo("punit-verdict");
+            assertThat(root.getLocalName()).isEqualTo("verdict-record");
             assertThat(root.getAttribute("version")).isEqualTo("1.0");
-            assertThat(root.getAttribute("correlation-id")).isEqualTo("v:test01");
+            assertThat(root.hasAttribute("generator")).isTrue();
+            assertThat(root.getAttribute("generator")).startsWith("punit");
         }
 
         @Test
-        @DisplayName("includes identity element with class and method names")
+        @DisplayName("includes identity with use-case-id and test-name")
         void includesIdentity() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element identity = firstElement(doc, "identity");
 
-            assertThat(identity.getAttribute("class-name")).isEqualTo("com.example.MyTest");
-            assertThat(identity.getAttribute("method-name")).isEqualTo("shouldPass");
+            assertThat(identity.getAttribute("use-case-id")).isEqualTo("com.example.MyTest");
+            assertThat(identity.getAttribute("test-name")).isEqualTo("shouldPass");
         }
 
         @Test
@@ -79,18 +80,21 @@ class VerdictXmlWriterTest {
             assertThat(exec.getAttribute("planned-samples")).isEqualTo("100");
             assertThat(exec.getAttribute("successes")).isEqualTo("95");
             assertThat(exec.getAttribute("intent")).isEqualTo("VERIFICATION");
+            assertThat(exec.hasAttribute("min-pass-rate")).isFalse();
+            assertThat(exec.hasAttribute("observed-pass-rate")).isFalse();
         }
 
         @Test
-        @DisplayName("includes verdict element")
+        @DisplayName("includes verdict element with value and reason")
         void includesVerdictElement() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element v = firstElement(doc, "verdict");
 
-            assertThat(v.getAttribute("junit-passed")).isEqualTo("true");
-            assertThat(v.getAttribute("punit-verdict")).isEqualTo("PASS");
+            assertThat(v.getAttribute("value")).isEqualTo("PASS");
+            assertThat(v.hasAttribute("junit-passed")).isFalse();
+            assertThat(v.hasAttribute("punit-verdict")).isFalse();
         }
 
         @Test
@@ -114,6 +118,28 @@ class VerdictXmlWriterTest {
 
             assertThat(nodes.getLength()).isZero();
         }
+
+        @Test
+        @DisplayName("omits pacing and environment when absent")
+        void omitsPacingAndEnvironmentWhenAbsent() throws Exception {
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+
+            Document doc = writeAndParse(verdict);
+
+            assertThat(doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "pacing").getLength()).isZero();
+            assertThat(doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "environment").getLength()).isZero();
+        }
+
+        @Test
+        @DisplayName("includes correlation-id attribute")
+        void includesCorrelationId() throws Exception {
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+
+            Document doc = writeAndParse(verdict);
+            Element root = doc.getDocumentElement();
+
+            assertThat(root.getAttribute("correlation-id")).isEqualTo("v:test01");
+        }
     }
 
     @Nested
@@ -130,6 +156,7 @@ class VerdictXmlWriterTest {
 
             assertThat(func.getAttribute("successes")).isEqualTo("95");
             assertThat(func.getAttribute("failures")).isEqualTo("5");
+            assertThat(func.getAttribute("pass-rate")).isEqualTo("0.9500");
         }
     }
 
@@ -138,7 +165,7 @@ class VerdictXmlWriterTest {
     class LatencyDimensionTests {
 
         @Test
-        @DisplayName("serialises latency with distribution and assertions")
+        @DisplayName("serialises latency with observed percentiles and evaluations")
         void serialisesLatency() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithLatency();
 
@@ -146,43 +173,30 @@ class VerdictXmlWriterTest {
             Element lat = firstElement(doc, "latency");
 
             assertThat(lat.getAttribute("successful-samples")).isEqualTo("90");
-            assertThat(lat.getAttribute("skipped")).isEqualTo("false");
+            assertThat(lat.hasAttribute("strict-violations")).isTrue();
+            assertThat(lat.hasAttribute("advisory-violations")).isTrue();
 
-            Element dist = firstElement(doc, "distribution");
-            assertThat(dist.getAttribute("p95")).isEqualTo("420");
+            // Observed percentiles
+            NodeList observed = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "percentile");
+            assertThat(observed.getLength()).isGreaterThanOrEqualTo(4);
 
-            NodeList percentiles = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "percentile");
-            assertThat(percentiles.getLength()).isEqualTo(1);
-            Element p95 = (Element) percentiles.item(0);
-            assertThat(p95.getAttribute("label")).isEqualTo("p95");
-            assertThat(p95.getAttribute("passed")).isEqualTo("true");
+            // Evaluations
+            NodeList evals = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "evaluation");
+            assertThat(evals.getLength()).isEqualTo(1);
+            Element eval = (Element) evals.item(0);
+            assertThat(eval.getAttribute("percentile")).isEqualTo("p95");
+            assertThat(eval.getAttribute("status")).isEqualTo("PASS");
         }
 
         @Test
-        @DisplayName("omits distribution when latency is skipped")
-        void omitsDistributionWhenSkipped() throws Exception {
+        @DisplayName("omits latency element when skipped")
+        void omitsLatencyWhenSkipped() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithSkippedLatency();
 
             Document doc = writeAndParse(verdict);
-            Element lat = firstElement(doc, "latency");
+            NodeList nodes = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "latency");
 
-            assertThat(lat.getAttribute("skipped")).isEqualTo("true");
-            assertThat(lat.getAttribute("skip-reason")).isEqualTo("No successes");
-
-            NodeList dists = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "distribution");
-            assertThat(dists.getLength()).isZero();
-        }
-
-        @Test
-        @DisplayName("serialises latency caveats")
-        void serialisesCaveats() throws Exception {
-            ProbabilisticTestVerdict verdict = verdictWithLatency();
-
-            Document doc = writeAndParse(verdict);
-            NodeList caveats = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "caveat");
-
-            assertThat(caveats.getLength()).isEqualTo(1);
-            assertThat(caveats.item(0).getTextContent()).isEqualTo("Small sample");
+            assertThat(nodes.getLength()).isZero();
         }
     }
 
@@ -191,7 +205,7 @@ class VerdictXmlWriterTest {
     class StatisticsTests {
 
         @Test
-        @DisplayName("serialises statistical analysis attributes")
+        @DisplayName("serialises statistical analysis with threshold and origin")
         void serialisesStatistics() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
 
@@ -200,16 +214,23 @@ class VerdictXmlWriterTest {
 
             assertThat(stats.getAttribute("confidence-level")).isEqualTo("0.95");
             assertThat(stats.getAttribute("standard-error")).isNotEmpty();
+            assertThat(stats.hasAttribute("threshold")).isTrue();
+            assertThat(stats.hasAttribute("threshold-origin")).isTrue();
         }
 
         @Test
-        @DisplayName("serialises baseline when present")
+        @DisplayName("serialises baseline as sibling of statistics")
         void serialisesBaseline() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithBaseline();
 
             Document doc = writeAndParse(verdict);
-            Element baseline = firstElement(doc, "baseline");
 
+            // Baseline should be a direct child of verdict-record, not nested in statistics
+            Element root = doc.getDocumentElement();
+            NodeList baselines = root.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "baseline");
+            assertThat(baselines.getLength()).isEqualTo(1);
+            Element baseline = (Element) baselines.item(0);
+            assertThat(baseline.getParentNode().getLocalName()).isEqualTo("verdict-record");
             assertThat(baseline.getAttribute("source-file")).isEqualTo("my-spec.yaml");
             assertThat(baseline.getAttribute("samples")).isEqualTo("1000");
         }
@@ -231,7 +252,7 @@ class VerdictXmlWriterTest {
         }
 
         @Test
-        @DisplayName("serialises misaligned covariates")
+        @DisplayName("serialises misaligned covariates with observed-value attribute")
         void serialisesMisaligned() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithMisalignment();
 
@@ -245,12 +266,12 @@ class VerdictXmlWriterTest {
             Element m = (Element) misalignments.item(0);
             assertThat(m.getAttribute("key")).isEqualTo("model");
             assertThat(m.getAttribute("baseline-value")).isEqualTo("gpt-4");
-            assertThat(m.getAttribute("test-value")).isEqualTo("gpt-4o");
+            assertThat(m.getAttribute("observed-value")).isEqualTo("gpt-4o");
         }
     }
 
     @Nested
-    @DisplayName("provenance and expiration")
+    @DisplayName("provenance")
     class ProvenanceTests {
 
         @Test
@@ -271,18 +292,36 @@ class VerdictXmlWriterTest {
     }
 
     @Nested
-    @DisplayName("environment metadata")
+    @DisplayName("pacing")
+    class PacingTests {
+
+        @Test
+        @DisplayName("serialises pacing when present")
+        void serialisesPacing() throws Exception {
+            ProbabilisticTestVerdict verdict = fullVerdict();
+
+            Document doc = writeAndParse(verdict);
+            Element pacing = firstElement(doc, "pacing");
+
+            assertThat(pacing.getAttribute("max-rps")).isEqualTo("10");
+            assertThat(pacing.getAttribute("max-concurrent")).isEqualTo("4");
+            assertThat(pacing.getAttribute("effective-rps")).isEqualTo("10");
+        }
+    }
+
+    @Nested
+    @DisplayName("environment")
     class EnvironmentTests {
 
         @Test
         @DisplayName("serialises environment metadata entries")
         void serialisesEnvironment() throws Exception {
-            ProbabilisticTestVerdict verdict = verdictWithEnvironment();
+            ProbabilisticTestVerdict verdict = fullVerdict();
 
             Document doc = writeAndParse(verdict);
             NodeList entries = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "entry");
 
-            assertThat(entries.getLength()).isEqualTo(2);
+            assertThat(entries.getLength()).isEqualTo(1);
         }
 
         @Test
@@ -310,19 +349,60 @@ class VerdictXmlWriterTest {
             Element term = firstElement(doc, "termination");
 
             assertThat(term.getAttribute("reason")).isEqualTo("COMPLETED");
-            assertThat(term.hasAttribute("details")).isFalse();
+            assertThat(term.hasAttribute("detail")).isFalse();
         }
 
         @Test
-        @DisplayName("serialises budget exhaustion with details")
+        @DisplayName("maps budget exhaustion to RP07 reason")
         void serialisesBudgetExhaustion() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithBudgetExhaustion();
 
             Document doc = writeAndParse(verdict);
             Element term = firstElement(doc, "termination");
 
-            assertThat(term.getAttribute("reason")).isEqualTo("METHOD_TIME_BUDGET_EXHAUSTED");
-            assertThat(term.getAttribute("details")).isEqualTo("Time budget exceeded");
+            assertThat(term.getAttribute("reason")).isEqualTo("TIME_BUDGET_EXHAUSTED");
+            assertThat(term.getAttribute("detail")).isEqualTo("Time budget exceeded");
+        }
+    }
+
+    @Nested
+    @DisplayName("cost")
+    class CostTests {
+
+        @Test
+        @DisplayName("serialises cost in RP07 format")
+        void serialisesCost() throws Exception {
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+
+            Document doc = writeAndParse(verdict);
+            Element cost = firstElement(doc, "cost");
+
+            assertThat(cost.hasAttribute("total-time-ms")).isTrue();
+            assertThat(cost.hasAttribute("total-tokens")).isTrue();
+            assertThat(cost.hasAttribute("avg-time-per-sample-ms")).isTrue();
+            assertThat(cost.hasAttribute("avg-tokens-per-sample")).isTrue();
+            // Punit-specific budget attributes should be absent
+            assertThat(cost.hasAttribute("method-tokens")).isFalse();
+            assertThat(cost.hasAttribute("token-mode")).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("warnings")
+    class WarningsTests {
+
+        @Test
+        @DisplayName("serialises caveats as warnings")
+        void serialisesCaveats() throws Exception {
+            ProbabilisticTestVerdict verdict = verdictWithCaveats();
+
+            Document doc = writeAndParse(verdict);
+            NodeList warnings = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "warning");
+
+            assertThat(warnings.getLength()).isEqualTo(1);
+            Element w = (Element) warnings.item(0);
+            assertThat(w.getAttribute("code")).isEqualTo("CAVEAT");
+            assertThat(w.getTextContent()).isEqualTo("Covariate aligned");
         }
     }
 
@@ -331,7 +411,7 @@ class VerdictXmlWriterTest {
     class SchemaValidation {
 
         @Test
-        @DisplayName("minimal verdict validates against XSD")
+        @DisplayName("minimal verdict validates against RP07 XSD")
         void minimalVerdictValidatesAgainstXsd() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
 
@@ -341,7 +421,7 @@ class VerdictXmlWriterTest {
         }
 
         @Test
-        @DisplayName("full verdict validates against XSD")
+        @DisplayName("full verdict validates against RP07 XSD")
         void fullVerdictValidatesAgainstXsd() throws Exception {
             ProbabilisticTestVerdict verdict = fullVerdict();
 
@@ -356,7 +436,7 @@ class VerdictXmlWriterTest {
     class UseCaseIdTests {
 
         @Test
-        @DisplayName("includes use-case-id when present")
+        @DisplayName("uses use-case-id when present")
         void includesUseCaseId() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithUseCaseId();
 
@@ -367,20 +447,25 @@ class VerdictXmlWriterTest {
         }
 
         @Test
-        @DisplayName("omits use-case-id when absent")
-        void omitsUseCaseId() throws Exception {
+        @DisplayName("falls back to class-name when use-case-id absent")
+        void fallsBackToClassName() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element identity = firstElement(doc, "identity");
 
-            assertThat(identity.hasAttribute("use-case-id")).isFalse();
+            assertThat(identity.getAttribute("use-case-id")).isEqualTo("com.example.MyTest");
         }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private ProbabilisticTestVerdict minimalVerdict(boolean passed, PunitVerdict punitVerdict) {
+        String verdictReason = switch (punitVerdict) {
+            case PASS -> "0.9500 >= 0.9000";
+            case FAIL -> "0.9500 < 0.9000";
+            case INCONCLUSIVE -> "covariate misalignment";
+        };
         return new ProbabilisticTestVerdict(
                 "v:test01",
                 Instant.parse("2026-03-11T14:30:00Z"),
@@ -399,7 +484,8 @@ class VerdictXmlWriterTest {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 passed,
-                punitVerdict
+                punitVerdict,
+                verdictReason
         );
     }
 
@@ -410,7 +496,8 @@ class VerdictXmlWriterTest {
                 Optional.of(new FunctionalDimension(95, 5, 0.95)),
                 base.latency(), base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -428,7 +515,8 @@ class VerdictXmlWriterTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -444,7 +532,8 @@ class VerdictXmlWriterTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -464,20 +553,23 @@ class VerdictXmlWriterTest {
                 base.functional(), base.latency(),
                 stats, base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
     private ProbabilisticTestVerdict verdictWithMisalignment() {
         ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
-                List.of(new Misalignment("model", "gpt-4", "gpt-4o")));
+                List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
+                Map.of(), Map.of());
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), base.latency(),
                 base.statistics(), cov, base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -493,19 +585,8 @@ class VerdictXmlWriterTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
-        );
-    }
-
-    private ProbabilisticTestVerdict verdictWithEnvironment() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
-        return new ProbabilisticTestVerdict(
-                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
-                base.functional(), base.latency(),
-                base.statistics(), base.covariates(), base.cost(),
-                base.pacing(), base.provenance(), base.termination(),
-                Map.of("environment", "staging", "instance", "web-01"),
-                base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -518,7 +599,8 @@ class VerdictXmlWriterTest {
                 base.pacing(), base.provenance(),
                 new Termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED,
                         Optional.of("Time budget exceeded")),
-                base.environmentMetadata(), false, PunitVerdict.FAIL
+                base.environmentMetadata(), false, PunitVerdict.FAIL,
+                "budget exhausted"
         );
     }
 
@@ -531,7 +613,26 @@ class VerdictXmlWriterTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
+        );
+    }
+
+    private ProbabilisticTestVerdict verdictWithCaveats() {
+        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        StatisticalAnalysis stats = new StatisticalAnalysis(
+                0.95, 0.0218, 0.8948, 0.9798,
+                Optional.of(2.29), Optional.of(0.011),
+                Optional.empty(), Optional.empty(),
+                List.of("Covariate aligned")
+        );
+        return new ProbabilisticTestVerdict(
+                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
+                base.functional(), base.latency(),
+                stats, base.covariates(), base.cost(),
+                base.pacing(), base.provenance(), base.termination(),
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -564,7 +665,8 @@ class VerdictXmlWriterTest {
                 Optional.of(pacing), Optional.of(prov),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of("environment", "staging"),
-                true, PunitVerdict.PASS
+                true, PunitVerdict.PASS,
+                "0.9500 >= 0.9000"
         );
     }
 
@@ -590,7 +692,7 @@ class VerdictXmlWriterTest {
 
     private void validateAgainstSchema(String xml) throws Exception {
         SchemaFactory schemaFactory = SchemaFactory.newInstance(javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI);
-        try (InputStream xsdStream = getClass().getResourceAsStream("/org/javai/punit/report/punit-verdict.xsd")) {
+        try (InputStream xsdStream = getClass().getResourceAsStream("/org/javai/punit/report/verdict-1.0.xsd")) {
             assertThat(xsdStream).as("XSD resource must be available").isNotNull();
             Schema schema = schemaFactory.newSchema(new StreamSource(xsdStream));
             Validator validator = schema.newValidator();

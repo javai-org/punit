@@ -14,7 +14,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
-import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
@@ -25,7 +24,11 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 /**
- * Deserialises a {@link ProbabilisticTestVerdict} from XML produced by {@link VerdictXmlWriter}.
+ * Deserialises a {@link ProbabilisticTestVerdict} from RP07 verdict XML.
+ *
+ * <p>Reads the {@code http://javai.org/verdict/1.0} format and maps it back
+ * to the punit verdict model. Punit-specific fields not present in RP07
+ * (pacing, environment, expiration, correlation ID) receive default values.
  *
  * <p>Uses DOM parsing since individual verdict files are small.
  */
@@ -45,15 +48,16 @@ public final class VerdictXmlReader {
         try {
             DocumentBuilder builder = FACTORY.newDocumentBuilder();
             Document doc = builder.parse(in);
-            return readVerdict(doc.getDocumentElement());
+            return readVerdictRecord(doc.getDocumentElement());
         } catch (Exception e) {
             throw new XmlReadException("Failed to read verdict XML", e);
         }
     }
 
-    private ProbabilisticTestVerdict readVerdict(Element root) {
-        String correlationId = root.getAttribute("correlation-id");
+    private ProbabilisticTestVerdict readVerdictRecord(Element root) {
         Instant timestamp = Instant.parse(root.getAttribute("timestamp"));
+        String correlationId = optionalAttribute(root, "correlation-id")
+                .orElse("");
 
         TestIdentity identity = readIdentity(firstElement(root, "identity"));
         ExecutionSummary execution = readExecution(firstElement(root, "execution"));
@@ -61,48 +65,58 @@ public final class VerdictXmlReader {
                 .map(this::readFunctional);
         Optional<LatencyDimension> latency = optionalElement(root, "latency")
                 .map(this::readLatency);
-        StatisticalAnalysis statistics = readStatistics(firstElement(root, "statistics"));
+        StatisticalAnalysis statistics = readStatistics(root);
         CovariateStatus covariates = readCovariates(firstElement(root, "covariates"));
-        CostSummary cost = readCost(firstElement(root, "cost"));
-        Optional<PacingSummary> pacing = optionalElement(root, "pacing")
-                .map(this::readPacing);
         Optional<SpecProvenance> provenance = optionalElement(root, "provenance")
                 .map(this::readProvenance);
+        Optional<PacingSummary> pacing = optionalElement(root, "pacing")
+                .map(this::readPacing);
         Termination termination = readTermination(firstElement(root, "termination"));
         Map<String, String> environment = readEnvironment(root);
+
         Element verdictEl = firstElement(root, "verdict");
-        boolean junitPassed = Boolean.parseBoolean(verdictEl.getAttribute("junit-passed"));
-        PunitVerdict punitVerdict = PunitVerdict.valueOf(verdictEl.getAttribute("punit-verdict"));
+        PunitVerdict punitVerdict = PunitVerdict.valueOf(verdictEl.getAttribute("value"));
+        String verdictReason = optionalAttribute(verdictEl, "reason").orElse("");
+        boolean junitPassed = punitVerdict != PunitVerdict.FAIL;
 
         return new ProbabilisticTestVerdict(
                 correlationId, timestamp, identity, execution,
-                functional, latency, statistics, covariates, cost,
-                pacing, provenance, termination, environment,
-                junitPassed, punitVerdict
+                functional, latency, statistics, covariates,
+                new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
+                pacing,
+                provenance,
+                termination,
+                environment,
+                junitPassed, punitVerdict, verdictReason
         );
     }
 
     private TestIdentity readIdentity(Element el) {
-        String className = el.getAttribute("class-name");
-        String methodName = el.getAttribute("method-name");
-        Optional<String> useCaseId = optionalAttribute(el, "use-case-id");
-        return new TestIdentity(className, methodName, useCaseId);
+        String useCaseId = el.getAttribute("use-case-id");
+        Optional<String> testName = optionalAttribute(el, "test-name");
+        // Map RP07 identity back to punit's class-name / method-name model
+        String className = useCaseId;
+        String methodName = testName.orElse(useCaseId);
+        return new TestIdentity(className, methodName, Optional.of(useCaseId));
     }
 
     private ExecutionSummary readExecution(Element el) {
+        int plannedSamples = Integer.parseInt(el.getAttribute("planned-samples"));
+        int samplesExecuted = Integer.parseInt(el.getAttribute("samples-executed"));
+        int successes = Integer.parseInt(el.getAttribute("successes"));
+        int failures = Integer.parseInt(el.getAttribute("failures"));
+        long elapsedMs = Long.parseLong(el.getAttribute("elapsed-ms"));
+        TestIntent intent = TestIntent.valueOf(el.getAttribute("intent"));
+        double confidence = Double.parseDouble(el.getAttribute("confidence"));
         int warmup = optionalAttribute(el, "warmup")
                 .map(Integer::parseInt).orElse(0);
+        double observedPassRate = samplesExecuted > 0
+                ? (double) successes / samplesExecuted : 0.0;
         return new ExecutionSummary(
-                Integer.parseInt(el.getAttribute("planned-samples")),
-                Integer.parseInt(el.getAttribute("samples-executed")),
-                Integer.parseInt(el.getAttribute("successes")),
-                Integer.parseInt(el.getAttribute("failures")),
-                Double.parseDouble(el.getAttribute("min-pass-rate")),
-                Double.parseDouble(el.getAttribute("observed-pass-rate")),
-                Long.parseLong(el.getAttribute("elapsed-ms")),
-                optionalAttribute(el, "applied-multiplier").map(Double::parseDouble),
-                TestIntent.valueOf(el.getAttribute("intent")),
-                Double.parseDouble(el.getAttribute("confidence")),
+                plannedSamples, samplesExecuted, successes, failures,
+                0.0, // min-pass-rate not in RP07, filled from statistics threshold
+                observedPassRate,
+                elapsedMs, Optional.empty(), intent, confidence,
                 new UseCaseAttributes(warmup)
         );
     }
@@ -117,63 +131,66 @@ public final class VerdictXmlReader {
 
     private LatencyDimension readLatency(Element el) {
         int successfulSamples = Integer.parseInt(el.getAttribute("successful-samples"));
-        int totalSamples = Integer.parseInt(el.getAttribute("total-samples"));
-        boolean skipped = Boolean.parseBoolean(el.getAttribute("skipped"));
-        Optional<String> skipReason = optionalAttribute(el, "skip-reason");
-        int dimensionSuccesses = Integer.parseInt(el.getAttribute("dimension-successes"));
-        int dimensionFailures = Integer.parseInt(el.getAttribute("dimension-failures"));
 
-        long p50 = 0, p90 = 0, p95 = 0, p99 = 0, max = 0;
-        List<PercentileAssertion> assertions = List.of();
-        List<String> caveats = List.of();
-
-        if (!skipped) {
-            Optional<Element> distEl = optionalElement(el, "distribution");
-            if (distEl.isPresent()) {
-                Element d = distEl.get();
-                p50 = Long.parseLong(d.getAttribute("p50"));
-                p90 = Long.parseLong(d.getAttribute("p90"));
-                p95 = Long.parseLong(d.getAttribute("p95"));
-                p99 = Long.parseLong(d.getAttribute("p99"));
-                max = Long.parseLong(d.getAttribute("max"));
+        // Read observed percentiles
+        long p50 = 0, p90 = 0, p95 = 0, p99 = 0;
+        Optional<Element> observedEl = optionalElement(el, "observed");
+        if (observedEl.isPresent()) {
+            NodeList percentiles = observedEl.get().getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "percentile");
+            for (int i = 0; i < percentiles.getLength(); i++) {
+                Element p = (Element) percentiles.item(i);
+                long valueMs = Long.parseLong(p.getAttribute("value-ms"));
+                switch (p.getAttribute("label")) {
+                    case "p50" -> p50 = valueMs;
+                    case "p90" -> p90 = valueMs;
+                    case "p95" -> p95 = valueMs;
+                    case "p99" -> p99 = valueMs;
+                    default -> {}
+                }
             }
-            assertions = readAssertions(el);
         }
-        caveats = readCaveats(el);
+
+        // Read evaluations
+        List<PercentileAssertion> assertions = new ArrayList<>();
+        Optional<Element> evalsEl = optionalElement(el, "evaluations");
+        if (evalsEl.isPresent()) {
+            NodeList evals = evalsEl.get().getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "evaluation");
+            for (int i = 0; i < evals.getLength(); i++) {
+                Element e = (Element) evals.item(i);
+                String status = e.getAttribute("status");
+                boolean passed = "PASS".equals(status);
+                boolean indicative = "advisory".equals(e.getAttribute("mode"));
+                String source = "baseline-derived".equals(e.getAttribute("provenance"))
+                        ? "from baseline" : null;
+                assertions.add(new PercentileAssertion(
+                        e.getAttribute("percentile"),
+                        Long.parseLong(e.getAttribute("observed-ms")),
+                        Long.parseLong(e.getAttribute("threshold-ms")),
+                        passed, indicative, source
+                ));
+            }
+        }
+
+        int strictViolations = Integer.parseInt(el.getAttribute("strict-violations"));
+        int advisoryViolations = Integer.parseInt(el.getAttribute("advisory-violations"));
+        int dimensionFailures = strictViolations + advisoryViolations;
+        int dimensionSuccesses = assertions.size() - dimensionFailures;
 
         return new LatencyDimension(
-                successfulSamples, totalSamples, skipped, skipReason,
-                p50, p90, p95, p99, max,
-                assertions, caveats, dimensionSuccesses, dimensionFailures
+                successfulSamples, successfulSamples, false, Optional.empty(),
+                p50, p90, p95, p99, Math.max(Math.max(p95, p99), p50),
+                assertions, List.of(),
+                Math.max(dimensionSuccesses, 0), dimensionFailures
         );
     }
 
-    private List<PercentileAssertion> readAssertions(Element parent) {
-        Optional<Element> assertionsEl = optionalElement(parent, "assertions");
-        if (assertionsEl.isEmpty()) {
-            return List.of();
-        }
-        List<PercentileAssertion> result = new ArrayList<>();
-        NodeList percentiles = assertionsEl.get().getElementsByTagNameNS(
-                VerdictXmlWriter.NAMESPACE, "percentile");
-        for (int i = 0; i < percentiles.getLength(); i++) {
-            Element p = (Element) percentiles.item(i);
-            result.add(new PercentileAssertion(
-                    p.getAttribute("label"),
-                    Long.parseLong(p.getAttribute("observed")),
-                    Long.parseLong(p.getAttribute("threshold")),
-                    Boolean.parseBoolean(p.getAttribute("passed")),
-                    Boolean.parseBoolean(p.getAttribute("indicative")),
-                    p.hasAttribute("source") ? p.getAttribute("source") : null
-            ));
-        }
-        return result;
-    }
-
-    private StatisticalAnalysis readStatistics(Element el) {
-        Optional<BaselineSummary> baseline = optionalElement(el, "baseline")
+    private StatisticalAnalysis readStatistics(Element root) {
+        Element el = firstElement(root, "statistics");
+        Optional<BaselineSummary> baseline = optionalElement(root, "baseline")
                 .map(this::readBaseline);
-        List<String> caveats = readCaveats(el);
+        List<String> caveats = readWarnings(root);
 
         return new StatisticalAnalysis(
                 Double.parseDouble(el.getAttribute("confidence-level")),
@@ -182,7 +199,7 @@ public final class VerdictXmlReader {
                 Double.parseDouble(el.getAttribute("ci-upper")),
                 optionalAttribute(el, "test-statistic").map(Double::parseDouble),
                 optionalAttribute(el, "p-value").map(Double::parseDouble),
-                optionalAttribute(el, "threshold-derivation"),
+                Optional.empty(), // threshold-derivation
                 baseline,
                 caveats
         );
@@ -193,8 +210,8 @@ public final class VerdictXmlReader {
                 el.getAttribute("source-file"),
                 Instant.parse(el.getAttribute("generated-at")),
                 Integer.parseInt(el.getAttribute("samples")),
-                Integer.parseInt(el.getAttribute("successes")),
-                Double.parseDouble(el.getAttribute("rate")),
+                0, // successes not in RP07 baseline
+                Double.parseDouble(el.getAttribute("baseline-rate")),
                 Double.parseDouble(el.getAttribute("derived-threshold"))
         );
     }
@@ -208,42 +225,10 @@ public final class VerdictXmlReader {
             misalignments.add(new Misalignment(
                     m.getAttribute("key"),
                     m.getAttribute("baseline-value"),
-                    m.getAttribute("test-value")
+                    m.getAttribute("observed-value")
             ));
         }
-        return new CovariateStatus(aligned, misalignments);
-    }
-
-    private CostSummary readCost(Element el) {
-        return new CostSummary(
-                Long.parseLong(el.getAttribute("method-tokens")),
-                Long.parseLong(el.getAttribute("method-time-budget-ms")),
-                Long.parseLong(el.getAttribute("method-token-budget")),
-                TokenMode.valueOf(el.getAttribute("token-mode")),
-                optionalElement(el, "class-budget").map(this::readBudgetSnapshot),
-                optionalElement(el, "suite-budget").map(this::readBudgetSnapshot)
-        );
-    }
-
-    private BudgetSnapshot readBudgetSnapshot(Element el) {
-        return new BudgetSnapshot(
-                Long.parseLong(el.getAttribute("time-budget-ms")),
-                Long.parseLong(el.getAttribute("elapsed-ms")),
-                Long.parseLong(el.getAttribute("token-budget")),
-                Long.parseLong(el.getAttribute("tokens-consumed"))
-        );
-    }
-
-    private PacingSummary readPacing(Element el) {
-        return new PacingSummary(
-                Double.parseDouble(el.getAttribute("max-rps")),
-                Double.parseDouble(el.getAttribute("max-rpm")),
-                Double.parseDouble(el.getAttribute("max-rph")),
-                Integer.parseInt(el.getAttribute("max-concurrent")),
-                Long.parseLong(el.getAttribute("effective-min-delay-ms")),
-                Integer.parseInt(el.getAttribute("effective-concurrency")),
-                Double.parseDouble(el.getAttribute("effective-rps"))
-        );
+        return new CovariateStatus(aligned, misalignments, Map.of(), Map.of());
     }
 
     private SpecProvenance readProvenance(Element el) {
@@ -252,32 +237,38 @@ public final class VerdictXmlReader {
         String specFilename = el.hasAttribute("spec-filename") ? el.getAttribute("spec-filename") : null;
         Optional<ExpirationInfo> expiration = optionalElement(el, "expiration")
                 .map(this::readExpiration);
-        Optional<String> baselineSourceLabel = optionalAttribute(el, "baseline-source");
-        return new SpecProvenance(origin, contractRef, specFilename, expiration, baselineSourceLabel);
+        return new SpecProvenance(origin, contractRef, specFilename,
+                expiration, Optional.empty());
     }
 
     private ExpirationInfo readExpiration(Element el) {
         String statusName = el.getAttribute("status");
         Optional<Instant> expiresAt = optionalAttribute(el, "expires-at").map(Instant::parse);
-        ExpirationStatus status = parseExpirationStatus(statusName);
+        org.javai.punit.model.ExpirationStatus status = parseExpirationStatus(statusName);
         return new ExpirationInfo(status, expiresAt);
     }
 
-    private ExpirationStatus parseExpirationStatus(String name) {
+    private org.javai.punit.model.ExpirationStatus parseExpirationStatus(String name) {
         return switch (name) {
-            case "NO_EXPIRATION" -> ExpirationStatus.noExpiration();
-            case "VALID" -> ExpirationStatus.valid(Duration.ZERO);
-            case "EXPIRING_SOON" -> ExpirationStatus.expiringSoon(Duration.ZERO, 0.0);
-            case "EXPIRING_IMMINENTLY" -> ExpirationStatus.expiringImminently(Duration.ZERO, 0.0);
-            case "EXPIRED" -> ExpirationStatus.expired(Duration.ZERO);
+            case "NO_EXPIRATION" -> org.javai.punit.model.ExpirationStatus.noExpiration();
+            case "VALID" -> org.javai.punit.model.ExpirationStatus.valid(Duration.ZERO);
+            case "EXPIRING_SOON" -> org.javai.punit.model.ExpirationStatus.expiringSoon(Duration.ZERO, 0.0);
+            case "EXPIRING_IMMINENTLY" -> org.javai.punit.model.ExpirationStatus.expiringImminently(Duration.ZERO, 0.0);
+            case "EXPIRED" -> org.javai.punit.model.ExpirationStatus.expired(Duration.ZERO);
             default -> throw new XmlReadException("Unknown expiration status: " + name, null);
         };
     }
 
-    private Termination readTermination(Element el) {
-        TerminationReason reason = TerminationReason.valueOf(el.getAttribute("reason"));
-        Optional<String> details = optionalAttribute(el, "details");
-        return new Termination(reason, details);
+    private PacingSummary readPacing(Element el) {
+        return new PacingSummary(
+                Double.parseDouble(el.getAttribute("max-rps")),
+                Double.parseDouble(el.getAttribute("max-rpm")),
+                0.0, // max-rph not in RP07
+                Integer.parseInt(el.getAttribute("max-concurrent")),
+                Long.parseLong(el.getAttribute("effective-min-delay-ms")),
+                Integer.parseInt(el.getAttribute("effective-concurrency")),
+                Double.parseDouble(el.getAttribute("effective-rps"))
+        );
     }
 
     private Map<String, String> readEnvironment(Element root) {
@@ -294,16 +285,30 @@ public final class VerdictXmlReader {
         return result;
     }
 
-    private List<String> readCaveats(Element parent) {
-        Optional<Element> caveatsEl = optionalElement(parent, "caveats");
-        if (caveatsEl.isEmpty()) {
+    private Termination readTermination(Element el) {
+        String reason = el.getAttribute("reason");
+        Optional<String> detail = optionalAttribute(el, "detail");
+        TerminationReason mapped = switch (reason) {
+            case "COMPLETED" -> TerminationReason.COMPLETED;
+            case "FAILURE_INEVITABLE" -> TerminationReason.IMPOSSIBILITY;
+            case "SUCCESS_GUARANTEED" -> TerminationReason.SUCCESS_GUARANTEED;
+            case "TIME_BUDGET_EXHAUSTED" -> TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED;
+            case "TOKEN_BUDGET_EXHAUSTED" -> TerminationReason.METHOD_TOKEN_BUDGET_EXHAUSTED;
+            default -> TerminationReason.COMPLETED;
+        };
+        return new Termination(mapped, detail);
+    }
+
+    private List<String> readWarnings(Element root) {
+        Optional<Element> warningsEl = optionalElement(root, "warnings");
+        if (warningsEl.isEmpty()) {
             return List.of();
         }
         List<String> result = new ArrayList<>();
-        NodeList caveatNodes = caveatsEl.get().getElementsByTagNameNS(
-                VerdictXmlWriter.NAMESPACE, "caveat");
-        for (int i = 0; i < caveatNodes.getLength(); i++) {
-            result.add(caveatNodes.item(i).getTextContent());
+        NodeList warnings = warningsEl.get().getElementsByTagNameNS(
+                VerdictXmlWriter.NAMESPACE, "warning");
+        for (int i = 0; i < warnings.getLength(); i++) {
+            result.add(warnings.item(i).getTextContent());
         }
         return result;
     }

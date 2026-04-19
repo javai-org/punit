@@ -35,26 +35,25 @@ class VerdictXmlReaderTest {
     class MinimalRoundTrip {
 
         @Test
-        @DisplayName("preserves correlation ID and timestamp")
-        void preservesCorrelationIdAndTimestamp() throws Exception {
+        @DisplayName("preserves timestamp")
+        void preservesTimestamp() throws Exception {
             ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.correlationId()).isEqualTo("v:test01");
             assertThat(result.timestamp()).isEqualTo(Instant.parse("2026-03-11T14:30:00Z"));
         }
 
         @Test
-        @DisplayName("preserves identity")
+        @DisplayName("preserves identity via RP07 mapping")
         void preservesIdentity() throws Exception {
             ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.identity().className()).isEqualTo("com.example.MyTest");
+            // Class name without use-case-id maps to use-case-id in RP07
+            assertThat(result.identity().useCaseId()).contains("com.example.MyTest");
             assertThat(result.identity().methodName()).isEqualTo("shouldPass");
-            assertThat(result.identity().useCaseId()).isEmpty();
         }
 
         @Test
@@ -69,10 +68,7 @@ class VerdictXmlReaderTest {
             assertThat(exec.samplesExecuted()).isEqualTo(100);
             assertThat(exec.successes()).isEqualTo(95);
             assertThat(exec.failures()).isEqualTo(5);
-            assertThat(exec.minPassRate()).isEqualTo(0.9);
-            assertThat(exec.observedPassRate()).isEqualTo(0.95);
             assertThat(exec.elapsedMs()).isEqualTo(150);
-            assertThat(exec.appliedMultiplier()).isEmpty();
             assertThat(exec.intent()).isEqualTo(TestIntent.VERIFICATION);
             assertThat(exec.resolvedConfidence()).isEqualTo(0.95);
         }
@@ -84,8 +80,8 @@ class VerdictXmlReaderTest {
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.junitPassed()).isTrue();
             assertThat(result.punitVerdict()).isEqualTo(PunitVerdict.PASS);
+            assertThat(result.verdictReason()).isEqualTo("0.9500 >= 0.9000");
         }
 
         @Test
@@ -103,8 +99,18 @@ class VerdictXmlReaderTest {
         }
 
         @Test
-        @DisplayName("preserves empty optionals")
-        void preservesEmptyOptionals() throws Exception {
+        @DisplayName("preserves correlation ID")
+        void preservesCorrelationId() throws Exception {
+            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+
+            ProbabilisticTestVerdict result = roundTrip(original);
+
+            assertThat(result.correlationId()).isEqualTo("v:test01");
+        }
+
+        @Test
+        @DisplayName("optional fields absent when not provided")
+        void optionalFieldsAbsent() throws Exception {
             ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
@@ -112,7 +118,7 @@ class VerdictXmlReaderTest {
             assertThat(result.functional()).isEmpty();
             assertThat(result.latency()).isEmpty();
             assertThat(result.pacing()).isEmpty();
-            assertThat(result.provenance()).isEmpty();
+            assertThat(result.environmentMetadata()).isEmpty();
         }
     }
 
@@ -140,7 +146,7 @@ class VerdictXmlReaderTest {
     class LatencyRoundTrip {
 
         @Test
-        @DisplayName("preserves latency with distribution and assertions")
+        @DisplayName("preserves latency with evaluations")
         void preservesLatency() throws Exception {
             ProbabilisticTestVerdict original = verdictWithLatency();
 
@@ -149,27 +155,22 @@ class VerdictXmlReaderTest {
             assertThat(result.latency()).isPresent();
             LatencyDimension lat = result.latency().get();
             assertThat(lat.successfulSamples()).isEqualTo(90);
-            assertThat(lat.totalSamples()).isEqualTo(100);
             assertThat(lat.skipped()).isFalse();
             assertThat(lat.p95Ms()).isEqualTo(420);
             assertThat(lat.assertions()).hasSize(1);
             assertThat(lat.assertions().get(0).label()).isEqualTo("p95");
             assertThat(lat.assertions().get(0).passed()).isTrue();
-            assertThat(lat.assertions().get(0).source()).isEqualTo("from baseline");
-            assertThat(lat.caveats()).containsExactly("Small sample");
         }
 
         @Test
-        @DisplayName("preserves skipped latency")
-        void preservesSkippedLatency() throws Exception {
+        @DisplayName("omits latency when skipped")
+        void omitsSkippedLatency() throws Exception {
             ProbabilisticTestVerdict original = verdictWithSkippedLatency();
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.latency()).isPresent();
-            LatencyDimension lat = result.latency().get();
-            assertThat(lat.skipped()).isTrue();
-            assertThat(lat.skipReason()).contains("No successes");
+            // Skipped latency is not emitted in RP07
+            assertThat(result.latency()).isEmpty();
         }
     }
 
@@ -188,7 +189,6 @@ class VerdictXmlReaderTest {
             BaselineSummary b = result.statistics().baseline().get();
             assertThat(b.sourceFile()).isEqualTo("my-spec.yaml");
             assertThat(b.baselineSamples()).isEqualTo(1000);
-            assertThat(b.baselineSuccesses()).isEqualTo(940);
             assertThat(b.baselineRate()).isEqualTo(0.94);
             assertThat(b.derivedThreshold()).isEqualTo(0.92);
         }
@@ -214,7 +214,7 @@ class VerdictXmlReaderTest {
     class ProvenanceRoundTrip {
 
         @Test
-        @DisplayName("preserves provenance with expiration")
+        @DisplayName("preserves provenance origin and contract ref")
         void preservesProvenance() throws Exception {
             ProbabilisticTestVerdict original = verdictWithProvenance();
 
@@ -224,29 +224,64 @@ class VerdictXmlReaderTest {
             SpecProvenance prov = result.provenance().get();
             assertThat(prov.thresholdOriginName()).isEqualTo("SLA");
             assertThat(prov.contractRef()).isEqualTo("SLA-PAY-001");
+        }
 
-            assertThat(prov.expiration()).isPresent();
-            ExpirationInfo exp = prov.expiration().get();
+        @Test
+        @DisplayName("preserves expiration within provenance")
+        void preservesExpiration() throws Exception {
+            ProbabilisticTestVerdict original = verdictWithProvenance();
+
+            ProbabilisticTestVerdict result = roundTrip(original);
+
+            assertThat(result.provenance()).isPresent();
+            assertThat(result.provenance().get().expiration()).isPresent();
+            ExpirationInfo exp = result.provenance().get().expiration().get();
             assertThat(exp.status().requiresWarning()).isTrue();
             assertThat(exp.expiresAt()).contains(Instant.parse("2026-04-01T00:00:00Z"));
         }
     }
 
     @Nested
-    @DisplayName("round-trip: environment and termination")
-    class EnvironmentAndTerminationRoundTrip {
+    @DisplayName("round-trip: pacing")
+    class PacingRoundTrip {
+
+        @Test
+        @DisplayName("preserves pacing configuration")
+        void preservesPacing() throws Exception {
+            ProbabilisticTestVerdict original = fullVerdict();
+
+            ProbabilisticTestVerdict result = roundTrip(original);
+
+            assertThat(result.pacing()).isPresent();
+            PacingSummary p = result.pacing().get();
+            assertThat(p.maxRequestsPerSecond()).isEqualTo(10.0);
+            assertThat(p.maxRequestsPerMinute()).isEqualTo(600.0);
+            assertThat(p.maxConcurrentRequests()).isEqualTo(4);
+            assertThat(p.effectiveMinDelayMs()).isEqualTo(100);
+            assertThat(p.effectiveConcurrency()).isEqualTo(4);
+            assertThat(p.effectiveRps()).isEqualTo(10.0);
+        }
+    }
+
+    @Nested
+    @DisplayName("round-trip: environment")
+    class EnvironmentRoundTrip {
 
         @Test
         @DisplayName("preserves environment metadata")
         void preservesEnvironment() throws Exception {
-            ProbabilisticTestVerdict original = verdictWithEnvironment();
+            ProbabilisticTestVerdict original = fullVerdict();
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.environmentMetadata()).hasSize(2);
+            assertThat(result.environmentMetadata()).hasSize(1);
             assertThat(result.environmentMetadata()).containsEntry("environment", "staging");
-            assertThat(result.environmentMetadata()).containsEntry("instance", "web-01");
         }
+    }
+
+    @Nested
+    @DisplayName("round-trip: termination")
+    class TerminationRoundTrip {
 
         @Test
         @DisplayName("preserves budget exhaustion termination")
@@ -280,20 +315,18 @@ class VerdictXmlReaderTest {
     class FullRoundTrip {
 
         @Test
-        @DisplayName("round-trips a full verdict with all optional fields")
+        @DisplayName("round-trips a full verdict preserving RP07 fields")
         void roundTripsFullVerdict() throws Exception {
             ProbabilisticTestVerdict original = fullVerdict();
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.correlationId()).isEqualTo(original.correlationId());
             assertThat(result.identity().useCaseId()).contains("payment-gateway");
             assertThat(result.functional()).isPresent();
             assertThat(result.latency()).isPresent();
-            assertThat(result.pacing()).isPresent();
             assertThat(result.provenance()).isPresent();
             assertThat(result.statistics().baseline()).isPresent();
-            assertThat(result.environmentMetadata()).containsEntry("environment", "staging");
+            assertThat(result.punitVerdict()).isEqualTo(PunitVerdict.PASS);
         }
     }
 
@@ -324,7 +357,10 @@ class VerdictXmlReaderTest {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 passed,
-                punitVerdict
+                punitVerdict,
+                punitVerdict == PunitVerdict.PASS ? "0.9500 >= 0.9000"
+                        : punitVerdict == PunitVerdict.INCONCLUSIVE ? "covariate misalignment"
+                        : "0.8000 < 0.9000"
         );
     }
 
@@ -335,7 +371,8 @@ class VerdictXmlReaderTest {
                 Optional.of(new FunctionalDimension(95, 5, 0.95)),
                 base.latency(), base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -353,7 +390,8 @@ class VerdictXmlReaderTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -369,7 +407,8 @@ class VerdictXmlReaderTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -389,20 +428,23 @@ class VerdictXmlReaderTest {
                 base.functional(), base.latency(),
                 stats, base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
     private ProbabilisticTestVerdict verdictWithMisalignment() {
         ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
-                List.of(new Misalignment("model", "gpt-4", "gpt-4o")));
+                List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
+                Map.of(), Map.of());
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), base.latency(),
                 base.statistics(), cov, base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -418,19 +460,8 @@ class VerdictXmlReaderTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
-        );
-    }
-
-    private ProbabilisticTestVerdict verdictWithEnvironment() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
-        return new ProbabilisticTestVerdict(
-                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
-                base.functional(), base.latency(),
-                base.statistics(), base.covariates(), base.cost(),
-                base.pacing(), base.provenance(), base.termination(),
-                Map.of("environment", "staging", "instance", "web-01"),
-                base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -443,7 +474,8 @@ class VerdictXmlReaderTest {
                 base.pacing(), base.provenance(),
                 new Termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED,
                         Optional.of("Time budget exceeded")),
-                base.environmentMetadata(), false, PunitVerdict.FAIL
+                base.environmentMetadata(), false, PunitVerdict.FAIL,
+                "budget exhausted"
         );
     }
 
@@ -456,7 +488,8 @@ class VerdictXmlReaderTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -489,7 +522,8 @@ class VerdictXmlReaderTest {
                 Optional.of(pacing), Optional.of(prov),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of("environment", "staging"),
-                true, PunitVerdict.PASS
+                true, PunitVerdict.PASS,
+                "0.9500 >= 0.9000"
         );
     }
 }

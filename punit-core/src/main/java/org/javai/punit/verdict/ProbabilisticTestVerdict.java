@@ -1,6 +1,7 @@
 package org.javai.punit.verdict;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,7 +37,8 @@ public record ProbabilisticTestVerdict(
         Termination termination,
         Map<String, String> environmentMetadata,
         boolean junitPassed,
-        PunitVerdict punitVerdict
+        PunitVerdict punitVerdict,
+        String verdictReason
 ) {
 
     // ── TestIdentity ──────────────────────────────────────────────────────
@@ -241,17 +243,25 @@ public record ProbabilisticTestVerdict(
      *
      * @param aligned true if all covariates match the baseline
      * @param misalignments list of misaligned covariates (empty if aligned)
+     * @param baselineProfile all covariates from the baseline spec (empty if no covariates declared)
+     * @param observedProfile all covariates observed at test time (empty if no covariates declared)
      */
     public record CovariateStatus(
             boolean aligned,
-            List<Misalignment> misalignments
+            List<Misalignment> misalignments,
+            Map<String, String> baselineProfile,
+            Map<String, String> observedProfile
     ) {
         public CovariateStatus {
             misalignments = misalignments != null ? List.copyOf(misalignments) : List.of();
+            baselineProfile = baselineProfile != null
+                    ? Map.copyOf(new LinkedHashMap<>(baselineProfile)) : Map.of();
+            observedProfile = observedProfile != null
+                    ? Map.copyOf(new LinkedHashMap<>(observedProfile)) : Map.of();
         }
 
         public static CovariateStatus allAligned() {
-            return new CovariateStatus(true, List.of());
+            return new CovariateStatus(true, List.of(), Map.of(), Map.of());
         }
     }
 

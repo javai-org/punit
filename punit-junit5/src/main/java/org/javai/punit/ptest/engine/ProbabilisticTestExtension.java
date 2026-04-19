@@ -705,6 +705,15 @@ public class ProbabilisticTestExtension implements
 		if (!misalignments.isEmpty()) {
 			builder.misalignments(misalignments);
 		}
+		if (selectionResult != null && !selectionResult.conformanceDetails().isEmpty()) {
+			java.util.LinkedHashMap<String, String> baselineProfile = new java.util.LinkedHashMap<>();
+			java.util.LinkedHashMap<String, String> observedProfile = new java.util.LinkedHashMap<>();
+			for (var detail : selectionResult.conformanceDetails()) {
+				baselineProfile.put(detail.covariateKey(), detail.baselineValue().toCanonicalString());
+				observedProfile.put(detail.covariateKey(), detail.testValue().toCanonicalString());
+			}
+			builder.covariateProfiles(baselineProfile, observedProfile);
+		}
 
 		// Pacing
 		if (config.hasPacing()) {

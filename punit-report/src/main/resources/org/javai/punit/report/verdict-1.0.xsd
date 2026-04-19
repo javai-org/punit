@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://javai.org/verdict/1.0"
+           targetNamespace="http://javai.org/verdict/1.0"
+           elementFormDefault="qualified">
+
+  <!-- ===================================================================
+       Root elements
+       =================================================================== -->
+
+  <xs:element name="verdict-record" type="tns:VerdictRecordType"/>
+  <xs:element name="verdict-suite"  type="tns:VerdictSuiteType"/>
+
+  <!-- ===================================================================
+       Suite envelope (for batch processing / XSLT input)
+       =================================================================== -->
+
+  <xs:complexType name="VerdictSuiteType">
+    <xs:sequence>
+      <xs:element ref="tns:verdict-record" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="timestamp" type="xs:dateTime" use="optional"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Verdict record (one per test execution)
+       =================================================================== -->
+
+  <xs:complexType name="VerdictRecordType">
+    <xs:all>
+      <xs:element name="identity"     type="tns:IdentityType"/>
+      <xs:element name="execution"    type="tns:ExecutionType"/>
+      <xs:element name="functional"   type="tns:FunctionalType"   minOccurs="0"/>
+      <xs:element name="latency"      type="tns:LatencyType"      minOccurs="0"/>
+      <xs:element name="statistics"   type="tns:StatisticsType"   minOccurs="0"/>
+      <xs:element name="covariates"   type="tns:CovariatesType"/>
+      <xs:element name="provenance"   type="tns:ProvenanceType"   minOccurs="0"/>
+      <xs:element name="baseline"     type="tns:BaselineType"     minOccurs="0"/>
+      <xs:element name="termination"  type="tns:TerminationType"/>
+      <xs:element name="cost"         type="tns:CostType"         minOccurs="0"/>
+      <xs:element name="warnings"     type="tns:WarningsType"     minOccurs="0"/>
+      <xs:element name="pacing"       type="tns:PacingType"       minOccurs="0"/>
+      <xs:element name="environment"  type="tns:EnvironmentType"  minOccurs="0"/>
+      <xs:element name="verdict"      type="tns:VerdictType"/>
+    </xs:all>
+    <xs:attribute name="version"        type="xs:string"   use="required"/>
+    <xs:attribute name="timestamp"      type="xs:dateTime"  use="required"/>
+    <xs:attribute name="generator"      type="xs:string"    use="required"/>
+    <xs:attribute name="correlation-id" type="xs:string"    use="optional"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Identity
+       =================================================================== -->
+
+  <xs:complexType name="IdentityType">
+    <xs:attribute name="use-case-id" type="xs:string" use="required"/>
+    <xs:attribute name="test-name"   type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Execution
+       =================================================================== -->
+
+  <xs:complexType name="ExecutionType">
+    <xs:attribute name="planned-samples"  type="xs:int"    use="required"/>
+    <xs:attribute name="samples-executed" type="xs:int"    use="required"/>
+    <xs:attribute name="successes"        type="xs:int"    use="required"/>
+    <xs:attribute name="failures"         type="xs:int"    use="required"/>
+    <xs:attribute name="elapsed-ms"       type="xs:long"   use="required"/>
+    <xs:attribute name="intent"           type="tns:IntentEnum" use="required"/>
+    <xs:attribute name="confidence"       type="xs:double" use="required"/>
+    <xs:attribute name="warmup"           type="xs:int"    use="optional"/>
+  </xs:complexType>
+
+  <xs:simpleType name="IntentEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="VERIFICATION"/>
+      <xs:enumeration value="SMOKE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================================================================
+       Functional dimension
+       =================================================================== -->
+
+  <xs:complexType name="FunctionalType">
+    <xs:sequence>
+      <xs:element name="failure-distribution" type="tns:FailureDistributionType"
+                  minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="successes" type="xs:int"    use="required"/>
+    <xs:attribute name="failures"  type="xs:int"    use="required"/>
+    <xs:attribute name="pass-rate" type="xs:double" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="FailureDistributionType">
+    <xs:sequence>
+      <xs:element name="check" type="tns:CheckType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="CheckType">
+    <xs:attribute name="name"  type="xs:string" use="required"/>
+    <xs:attribute name="count" type="xs:int"    use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Latency dimension
+       =================================================================== -->
+
+  <xs:complexType name="LatencyType">
+    <xs:sequence>
+      <xs:element name="observed"    type="tns:ObservedPercentilesType" minOccurs="0"/>
+      <xs:element name="evaluations" type="tns:EvaluationsType"        minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="successful-samples"  type="xs:int" use="required"/>
+    <xs:attribute name="strict-violations"   type="xs:int" use="required"/>
+    <xs:attribute name="advisory-violations" type="xs:int" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="ObservedPercentilesType">
+    <xs:sequence>
+      <xs:element name="percentile" type="tns:ObservedPercentileType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ObservedPercentileType">
+    <xs:attribute name="label"    type="tns:PercentileLabelEnum" use="required"/>
+    <xs:attribute name="value-ms" type="xs:long"                 use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="EvaluationsType">
+    <xs:sequence>
+      <xs:element name="evaluation" type="tns:EvaluationType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="EvaluationType">
+    <xs:attribute name="percentile"          type="tns:PercentileLabelEnum"   use="required"/>
+    <xs:attribute name="observed-ms"         type="xs:long"                   use="optional"/>
+    <xs:attribute name="threshold-ms"        type="xs:long"                   use="required"/>
+    <xs:attribute name="provenance"          type="tns:LatencyProvenanceEnum" use="required"/>
+    <xs:attribute name="mode"                type="tns:EnforcementModeEnum"   use="required"/>
+    <xs:attribute name="status"              type="tns:EvaluationStatusEnum"  use="required"/>
+    <!-- Present only when provenance="baseline-derived" -->
+    <xs:attribute name="baseline-confidence" type="xs:double"                 use="optional"/>
+    <xs:attribute name="baseline-rank"       type="xs:int"                    use="optional"/>
+    <xs:attribute name="baseline-n"          type="xs:int"                    use="optional"/>
+  </xs:complexType>
+
+  <xs:simpleType name="PercentileLabelEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="p50"/>
+      <xs:enumeration value="p90"/>
+      <xs:enumeration value="p95"/>
+      <xs:enumeration value="p99"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="LatencyProvenanceEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="explicit"/>
+      <xs:enumeration value="baseline-derived"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="EnforcementModeEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="strict"/>
+      <xs:enumeration value="advisory"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="EvaluationStatusEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PASS"/>
+      <xs:enumeration value="STRICT_FAIL"/>
+      <xs:enumeration value="ADVISORY_WARN"/>
+      <xs:enumeration value="INFEASIBLE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================================================================
+       Statistical analysis
+       =================================================================== -->
+
+  <xs:complexType name="StatisticsType">
+    <xs:attribute name="confidence-level" type="xs:double"               use="required"/>
+    <xs:attribute name="standard-error"   type="xs:double"               use="required"/>
+    <xs:attribute name="ci-lower"         type="xs:double"               use="required"/>
+    <xs:attribute name="ci-upper"         type="xs:double"               use="required"/>
+    <xs:attribute name="threshold"        type="xs:double"               use="required"/>
+    <xs:attribute name="threshold-origin" type="tns:ThresholdOriginEnum" use="required"/>
+    <xs:attribute name="test-statistic"   type="xs:double"               use="optional"/>
+    <xs:attribute name="p-value"          type="xs:double"               use="optional"/>
+  </xs:complexType>
+
+  <xs:simpleType name="ThresholdOriginEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="SLA"/>
+      <xs:enumeration value="SLO"/>
+      <xs:enumeration value="POLICY"/>
+      <xs:enumeration value="EMPIRICAL"/>
+      <xs:enumeration value="UNSPECIFIED"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================================================================
+       Covariates
+       =================================================================== -->
+
+  <xs:complexType name="CovariatesType">
+    <xs:sequence>
+      <xs:element name="misalignment" type="tns:MisalignmentType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="aligned" type="xs:boolean" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="MisalignmentType">
+    <xs:attribute name="key"            type="xs:string" use="required"/>
+    <xs:attribute name="baseline-value" type="xs:string" use="required"/>
+    <xs:attribute name="observed-value" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Provenance (policy context)
+       =================================================================== -->
+
+  <xs:complexType name="ProvenanceType">
+    <xs:sequence>
+      <xs:element name="expiration" type="tns:ExpirationType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="origin"        type="tns:ThresholdOriginEnum" use="required"/>
+    <xs:attribute name="spec-filename" type="xs:string"               use="optional"/>
+    <xs:attribute name="contract-ref"  type="xs:string"               use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="ExpirationType">
+    <xs:attribute name="status"           type="tns:ExpirationStatusEnum" use="required"/>
+    <xs:attribute name="expires-at"       type="xs:dateTime"              use="optional"/>
+    <xs:attribute name="requires-warning" type="xs:boolean"               use="required"/>
+  </xs:complexType>
+
+  <xs:simpleType name="ExpirationStatusEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="NO_EXPIRATION"/>
+      <xs:enumeration value="VALID"/>
+      <xs:enumeration value="EXPIRING_SOON"/>
+      <xs:enumeration value="EXPIRING_IMMINENTLY"/>
+      <xs:enumeration value="EXPIRED"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================================================================
+       Baseline (measurement context)
+       =================================================================== -->
+
+  <xs:complexType name="BaselineType">
+    <xs:attribute name="source-file"       type="xs:string"   use="required"/>
+    <xs:attribute name="generated-at"      type="xs:dateTime" use="required"/>
+    <xs:attribute name="samples"           type="xs:int"      use="required"/>
+    <xs:attribute name="baseline-rate"     type="xs:double"   use="required"/>
+    <xs:attribute name="derived-threshold" type="xs:double"   use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Termination
+       =================================================================== -->
+
+  <xs:complexType name="TerminationType">
+    <xs:attribute name="reason" type="tns:TerminationReasonEnum" use="required"/>
+    <xs:attribute name="detail" type="xs:string"                 use="optional"/>
+  </xs:complexType>
+
+  <xs:simpleType name="TerminationReasonEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="COMPLETED"/>
+      <xs:enumeration value="FAILURE_INEVITABLE"/>
+      <xs:enumeration value="SUCCESS_GUARANTEED"/>
+      <xs:enumeration value="TIME_BUDGET_EXHAUSTED"/>
+      <xs:enumeration value="TOKEN_BUDGET_EXHAUSTED"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================================================================
+       Cost
+       =================================================================== -->
+
+  <xs:complexType name="CostType">
+    <xs:attribute name="total-time-ms"         type="xs:long" use="required"/>
+    <xs:attribute name="total-tokens"          type="xs:long" use="required"/>
+    <xs:attribute name="avg-time-per-sample-ms" type="xs:long" use="required"/>
+    <xs:attribute name="avg-tokens-per-sample" type="xs:long" use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Warnings
+       =================================================================== -->
+
+  <xs:complexType name="WarningsType">
+    <xs:sequence>
+      <xs:element name="warning" type="tns:WarningType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="WarningType" mixed="true">
+    <xs:attribute name="code" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Pacing
+       =================================================================== -->
+
+  <xs:complexType name="PacingType">
+    <xs:attribute name="max-rps"                type="xs:double" use="required"/>
+    <xs:attribute name="max-rpm"                type="xs:double" use="required"/>
+    <xs:attribute name="max-concurrent"         type="xs:int"    use="required"/>
+    <xs:attribute name="effective-min-delay-ms" type="xs:long"   use="required"/>
+    <xs:attribute name="effective-concurrency"  type="xs:int"    use="required"/>
+    <xs:attribute name="effective-rps"          type="xs:double" use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Environment metadata
+       =================================================================== -->
+
+  <xs:complexType name="EnvironmentType">
+    <xs:sequence>
+      <xs:element name="entry" type="tns:EnvironmentEntryType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="EnvironmentEntryType">
+    <xs:attribute name="key"   type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Verdict
+       =================================================================== -->
+
+  <xs:complexType name="VerdictType">
+    <xs:attribute name="value"  type="tns:VerdictEnum" use="required"/>
+    <xs:attribute name="reason" type="xs:string"       use="optional"/>
+  </xs:complexType>
+
+  <xs:simpleType name="VerdictEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PASS"/>
+      <xs:enumeration value="FAIL"/>
+      <xs:enumeration value="INCONCLUSIVE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

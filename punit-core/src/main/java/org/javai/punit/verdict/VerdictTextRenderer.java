@@ -107,7 +107,8 @@ public final class VerdictTextRenderer {
         appendDimensionBreakdown(sb, verdict);
 
         if (verdict.punitVerdict() == PunitVerdict.INCONCLUSIVE) {
-            sb.append(PUnitReporter.labelValueLn("Verdict:", "Inconclusive \u2014 covariate misalignment"));
+            sb.append(PUnitReporter.labelValueLn("Verdict:",
+                    "Inconclusive \u2014 " + verdict.verdictReason()));
         }
 
         if (term.reason() != TerminationReason.COMPLETED) {
@@ -178,6 +179,11 @@ public final class VerdictTextRenderer {
 
         if (!verdict.covariates().aligned()) {
             sb.append("\nCovariate misalignments:\n");
+            if (!verdict.covariates().baselineProfile().isEmpty()) {
+                sb.append("  Baseline:  ").append(formatProfile(verdict.covariates().baselineProfile())).append("\n");
+                sb.append("  Observed:  ").append(formatProfile(verdict.covariates().observedProfile())).append("\n");
+                sb.append("  Differs:\n");
+            }
             for (Misalignment m : verdict.covariates().misalignments()) {
                 sb.append(String.format("  %s: baseline=%s, test=%s\n",
                         m.covariateKey(), m.baselineValue(), m.testValue()));
@@ -185,6 +191,12 @@ public final class VerdictTextRenderer {
         }
 
         return sb.toString();
+    }
+
+    private static String formatProfile(Map<String, String> profile) {
+        return profile.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     // ── Tooltips for HTML report ────────────────────────────────────────

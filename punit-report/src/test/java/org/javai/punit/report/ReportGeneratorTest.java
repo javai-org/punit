@@ -139,7 +139,8 @@ class ReportGeneratorTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), true, PunitVerdict.PASS
+                Map.of(), true, PunitVerdict.PASS,
+                "0.9500 >= 0.9000"
         );
     }
 
@@ -158,7 +159,8 @@ class ReportGeneratorTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), false, PunitVerdict.FAIL
+                Map.of(), false, PunitVerdict.FAIL,
+                "0.8000 < 0.9000"
         );
     }
 }

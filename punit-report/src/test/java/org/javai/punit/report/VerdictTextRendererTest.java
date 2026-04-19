@@ -210,7 +210,10 @@ class VerdictTextRendererTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), passed, punitVerdict
+                Map.of(), passed, punitVerdict,
+                punitVerdict == PunitVerdict.PASS
+                        ? String.format("%.4f >= %.4f", observedRate, 0.9)
+                        : String.format("%.4f < %.4f", observedRate, 0.9)
         );
     }
 
@@ -225,7 +228,8 @@ class VerdictTextRendererTest {
                 base.pacing(), base.provenance(),
                 new Termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED,
                         Optional.of("Time budget exceeded")),
-                base.environmentMetadata(), false, PunitVerdict.FAIL
+                base.environmentMetadata(), false, PunitVerdict.FAIL,
+                "budget exhausted"
         );
     }
 
@@ -242,7 +246,8 @@ class VerdictTextRendererTest {
                 Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -259,7 +264,8 @@ class VerdictTextRendererTest {
                 Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -279,7 +285,8 @@ class VerdictTextRendererTest {
                 base.functional(), base.latency(),
                 stats, base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -296,7 +303,8 @@ class VerdictTextRendererTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -309,7 +317,8 @@ class VerdictTextRendererTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -322,20 +331,23 @@ class VerdictTextRendererTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
     private ProbabilisticTestVerdict verdictWithMisalignment() {
         ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
-                List.of(new Misalignment("model", "gpt-4", "gpt-4o")));
+                List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
+                Map.of(), Map.of());
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), base.latency(),
                 base.statistics(), cov, base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                "covariate misalignment"
         );
     }
 }

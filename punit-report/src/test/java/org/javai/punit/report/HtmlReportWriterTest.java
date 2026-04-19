@@ -493,7 +493,8 @@ class HtmlReportWriterTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), false, PunitVerdict.PASS
+                Map.of(), false, PunitVerdict.PASS,
+                "0.8000 >= 0.7000"
         );
     }
 
@@ -512,7 +513,12 @@ class HtmlReportWriterTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), passed, punitVerdict
+                Map.of(), passed, punitVerdict,
+                punitVerdict == PunitVerdict.PASS
+                        ? "0.9500 >= 0.9000"
+                        : punitVerdict == PunitVerdict.INCONCLUSIVE
+                                ? "covariate misalignment"
+                                : "0.9500 < 0.9000"
         );
     }
 
@@ -523,7 +529,8 @@ class HtmlReportWriterTest {
                 Optional.of(new FunctionalDimension(95, 5, 0.95)),
                 base.latency(), base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -539,7 +546,8 @@ class HtmlReportWriterTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -555,7 +563,8 @@ class HtmlReportWriterTest {
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -568,7 +577,8 @@ class HtmlReportWriterTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
@@ -585,20 +595,23 @@ class HtmlReportWriterTest {
                 base.functional(), base.latency(),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), Optional.of(prov), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason()
         );
     }
 
     private ProbabilisticTestVerdict inconclusiveVerdictWithMisalignment() {
         ProbabilisticTestVerdict base = minimalVerdict("shouldBeInconclusive", false, PunitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
-                List.of(new Misalignment("model", "gpt-4", "gpt-4o")));
+                List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
+                Map.of(), Map.of());
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), base.latency(),
                 base.statistics(), cov, base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict()
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                "covariate misalignment"
         );
     }
 }

@@ -129,7 +129,10 @@ class VerdictVerifierTest {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 passed,
-                punitVerdict
+                punitVerdict,
+                punitVerdict == PunitVerdict.PASS
+                        ? String.format("%.4f >= %.4f", observedPassRate, minPassRate)
+                        : String.format("%.4f < %.4f", observedPassRate, minPassRate)
         );
     }
 }

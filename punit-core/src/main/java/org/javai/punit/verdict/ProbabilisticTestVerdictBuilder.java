@@ -16,6 +16,7 @@ import org.javai.punit.controls.budget.SharedBudgetMonitor;
 import org.javai.punit.controls.pacing.PacingConfiguration;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
+import org.javai.punit.reporting.RateFormat;
 import org.javai.punit.spec.expiration.ExpirationEvaluator;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.BinomialProportionEstimator;
@@ -69,6 +70,8 @@ public class ProbabilisticTestVerdictBuilder {
 
     // ── Covariates ────────────────────────────────────────────────────────
     private List<MisalignmentInput> misalignments = List.of();
+    private Map<String, String> baselineCovariateProfile = Map.of();
+    private Map<String, String> observedCovariateProfile = Map.of();
 
     // ── Cost ──────────────────────────────────────────────────────────────
     private long methodTokensConsumed;
@@ -169,6 +172,13 @@ public class ProbabilisticTestVerdictBuilder {
         return this;
     }
 
+    public ProbabilisticTestVerdictBuilder covariateProfiles(Map<String, String> baselineProfile,
+                                                               Map<String, String> observedProfile) {
+        this.baselineCovariateProfile = baselineProfile != null ? baselineProfile : Map.of();
+        this.observedCovariateProfile = observedProfile != null ? observedProfile : Map.of();
+        return this;
+    }
+
     public ProbabilisticTestVerdictBuilder cost(long methodTokensConsumed,
                                                  long methodTimeBudgetMs,
                                                  long methodTokenBudget,
@@ -253,12 +263,13 @@ public class ProbabilisticTestVerdictBuilder {
         Optional<SpecProvenance> provenance = buildSpecProvenance();
         Termination termination = buildTermination();
         PunitVerdict punitVerdict = derivePunitVerdict(covariates);
+        String verdictReason = deriveVerdictReason(punitVerdict, covariates);
 
         return new ProbabilisticTestVerdict(
                 id, Instant.now(),
                 identity, execution, functional, latency, statistics,
                 covariates, cost, pacing, provenance, termination,
-                environmentMetadata, junitPassed, punitVerdict
+                environmentMetadata, junitPassed, punitVerdict, verdictReason
         );
     }
 
@@ -319,12 +330,15 @@ public class ProbabilisticTestVerdictBuilder {
 
     private CovariateStatus buildCovariateStatus() {
         if (misalignments.isEmpty()) {
-            return CovariateStatus.allAligned();
+            if (baselineCovariateProfile.isEmpty() && observedCovariateProfile.isEmpty()) {
+                return CovariateStatus.allAligned();
+            }
+            return new CovariateStatus(true, List.of(), baselineCovariateProfile, observedCovariateProfile);
         }
         List<Misalignment> converted = misalignments.stream()
                 .map(m -> new Misalignment(m.covariateKey(), m.baselineValue(), m.testValue()))
                 .toList();
-        return new CovariateStatus(false, converted);
+        return new CovariateStatus(false, converted, baselineCovariateProfile, observedCovariateProfile);
     }
 
     private StatisticalAnalysis buildStatisticalAnalysis(CovariateStatus covariates) {
@@ -489,6 +503,26 @@ public class ProbabilisticTestVerdictBuilder {
             return PunitVerdict.INCONCLUSIVE;
         }
         return passedStatistically ? PunitVerdict.PASS : PunitVerdict.FAIL;
+    }
+
+    private String deriveVerdictReason(PunitVerdict punitVerdict, CovariateStatus covariates) {
+        if (punitVerdict == PunitVerdict.INCONCLUSIVE) {
+            if (!covariates.aligned()) {
+                return "covariate misalignment";
+            }
+            if (terminationReason.isBudgetExhaustion()) {
+                return "budget exhausted";
+            }
+            return "insufficient evidence";
+        }
+        if (terminationReason.isBudgetExhaustion()) {
+            return "budget exhausted";
+        }
+        String comparator = observedPassRate >= minPassRate ? ">=" : "<";
+        return String.format("%s %s %s",
+                RateFormat.format(observedPassRate),
+                comparator,
+                RateFormat.format(minPassRate));
     }
 
     // ── Input records ─────────────────────────────────────────────────────

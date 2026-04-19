@@ -238,7 +238,7 @@ tasks.register("release") {
         if (ver.endsWith("-SNAPSHOT")) {
             throw GradleException(
                 "Cannot release a SNAPSHOT version ($ver). " +
-                "Set the release version in gradle.properties first, e.g. punitVersion=0.2.0"
+                "Set the release version in gradle.properties first, e.g. punitVersion=0.6.0"
             )
         }
 
