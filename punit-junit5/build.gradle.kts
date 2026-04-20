@@ -37,7 +37,7 @@ dependencies {
 
     // Test
     testImplementation("org.junit.platform:junit-platform-testkit")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.2")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.4")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
