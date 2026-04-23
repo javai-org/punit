@@ -285,10 +285,14 @@ class InputSourceIntegrationTest {
             return Stream.of("add milk", "remove bread", "clear cart");
         }
 
+        static String initialPrompt() {
+            return "test";
+        }
+
         @OptimizeExperiment(
                 useCase = TestUseCase.class,
                 controlFactor = "prompt",
-                initialControlFactorValue = "test",
+                initialFactor = "initialPrompt",
                 scorer = SuccessRateScorer.class,
                 mutator = StringNoOpMutator.class,
                 objective = OptimizationObjective.MAXIMIZE,

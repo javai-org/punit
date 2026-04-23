@@ -1,13 +1,10 @@
 package org.javai.punit.usecase;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.javai.punit.api.FactorAnnotations;
-import org.javai.punit.api.FactorSetter;
 import org.javai.punit.api.FactorValues;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.model.UseCaseAttributes;
@@ -27,7 +24,6 @@ public class UseCaseFactory {
 
     private final Map<Class<?>, Supplier<?>> factories = new ConcurrentHashMap<>();
     private final Map<Class<?>, Function<FactorValues, ?>> factorFactories = new ConcurrentHashMap<>();
-    private final Map<Class<?>, Supplier<?>> autoWiredFactories = new ConcurrentHashMap<>();
     private final Map<Class<?>, Object> singletons = new ConcurrentHashMap<>();
     private final Map<Class<?>, Object> lastCreatedInstances = new ConcurrentHashMap<>();
     private boolean useSingletons = false;
@@ -78,19 +74,6 @@ public class UseCaseFactory {
     }
 
     /**
-     * Registers a use case for automatic factor injection via {@link FactorSetter} annotations.
-     *
-     * @param useCaseClass the use case class
-     * @param factory      a supplier that creates base instances
-     * @param <T>          the use case type
-     */
-    public <T> UseCaseFactory registerAutoWired(Class<T> useCaseClass, Supplier<T> factory) {
-        autoWiredFactories.put(useCaseClass, factory);
-        singletons.remove(useCaseClass);
-        return this;
-    }
-
-    /**
      * Sets the current factor values for EXPLORE mode.
      *
      * @param factorValues the current factor values with names
@@ -126,10 +109,9 @@ public class UseCaseFactory {
     /**
      * Gets an instance of the specified use case class.
      *
-     * <p>Resolution order (when factor values are set):
+     * <p>Resolution order:
      * <ol>
-     *   <li>Factor factory ({@link #registerWithFactors})</li>
-     *   <li>Auto-wired factory ({@link #registerAutoWired})</li>
+     *   <li>Factor factory ({@link #registerWithFactors}), if factor values are set</li>
      *   <li>Regular factory ({@link #register})</li>
      * </ol>
      *
@@ -150,19 +132,10 @@ public class UseCaseFactory {
             return instance;
         }
 
-        // 2. Check for auto-wired factory (EXPLORE mode with @FactorSetter)
-        Supplier<?> autoWiredFactory = autoWiredFactories.get(useCaseClass);
-        if (autoWiredFactory != null && currentFactorValues != null) {
-            instance = (T) autoWiredFactory.get();
-            injectFactorValues(instance, useCaseClass, currentFactorValues, true);
-            lastCreatedInstances.put(useCaseClass, instance);
-            return instance;
-        }
-
-        // 3. Fall back to regular factory
+        // 2. Fall back to regular factory
         Supplier<?> factory = factories.get(useCaseClass);
 
-        if (factory == null && factorFactory == null && autoWiredFactory == null) {
+        if (factory == null && factorFactory == null) {
             throw new IllegalStateException(
                     "No factory registered for use case: " + useCaseClass.getName() + ". " +
                     "Register one during initialization: factory.register(" + useCaseClass.getSimpleName() +
@@ -182,89 +155,8 @@ public class UseCaseFactory {
             instance = (T) factory.get();
         }
 
-        // Inject factors if available (e.g., from OPTIMIZE mode)
-        // Use lenient mode: skip setters for factors that aren't provided
-        if (currentFactorValues != null) {
-            injectFactorValues(instance, useCaseClass, currentFactorValues, false);
-        }
-
         lastCreatedInstances.put(useCaseClass, instance);
         return instance;
-    }
-
-    /**
-     * Injects factor values into methods annotated with @FactorSetter.
-     */
-    private void injectFactorValues(Object instance, Class<?> useCaseClass, FactorValues factors, boolean strict) {
-        for (Method method : useCaseClass.getMethods()) {
-            FactorSetter annotation = method.getAnnotation(FactorSetter.class);
-            if (annotation != null) {
-                String factorName = FactorAnnotations.resolveSetterFactorName(method, annotation);
-
-                if (!factors.has(factorName)) {
-                    if (strict) {
-                        throw new IllegalStateException(
-                            "Use case " + useCaseClass.getSimpleName() + " has @FactorSetter for \"" +
-                            factorName + "\" but no such factor exists. Available: " + factors.names());
-                    }
-                    continue;
-                }
-
-                Object value = factors.get(factorName);
-                try {
-                    Class<?> paramType = method.getParameterTypes()[0];
-                    Object convertedValue = convertValue(value, paramType);
-                    method.setAccessible(true);
-                    method.invoke(instance, convertedValue);
-                } catch (Exception e) {
-                    throw new IllegalStateException(
-                        "Failed to inject @FactorSetter for \"" + factorName + "\" into " +
-                        useCaseClass.getSimpleName() + "." + method.getName() + "(): " + e.getMessage(), e);
-                }
-            }
-        }
-    }
-
-    /**
-     * Converts a factor value to the target type.
-     */
-    static Object convertValue(Object value, Class<?> targetType) {
-        if (value == null) {
-            return null;
-        }
-        if (targetType.isInstance(value)) {
-            return value;
-        }
-
-        if (targetType == double.class || targetType == Double.class) {
-            if (value instanceof Number) {
-                return ((Number) value).doubleValue();
-            }
-            return Double.parseDouble(value.toString());
-        }
-        if (targetType == int.class || targetType == Integer.class) {
-            if (value instanceof Number) {
-                return ((Number) value).intValue();
-            }
-            return Integer.parseInt(value.toString());
-        }
-        if (targetType == long.class || targetType == Long.class) {
-            if (value instanceof Number) {
-                return ((Number) value).longValue();
-            }
-            return Long.parseLong(value.toString());
-        }
-        if (targetType == boolean.class || targetType == Boolean.class) {
-            if (value instanceof Boolean) {
-                return value;
-            }
-            return Boolean.parseBoolean(value.toString());
-        }
-        if (targetType == String.class) {
-            return value.toString();
-        }
-
-        return value;
     }
 
     /**
@@ -283,16 +175,14 @@ public class UseCaseFactory {
      */
     public boolean isRegistered(Class<?> useCaseClass) {
         return factories.containsKey(useCaseClass)
-            || factorFactories.containsKey(useCaseClass)
-            || autoWiredFactories.containsKey(useCaseClass);
+            || factorFactories.containsKey(useCaseClass);
     }
 
     /**
      * Checks if a factor-aware factory is registered for the class.
      */
     public boolean hasFactorFactory(Class<?> useCaseClass) {
-        return factorFactories.containsKey(useCaseClass)
-            || autoWiredFactories.containsKey(useCaseClass);
+        return factorFactories.containsKey(useCaseClass);
     }
 
     /**
@@ -301,7 +191,6 @@ public class UseCaseFactory {
     public void clear() {
         factories.clear();
         factorFactories.clear();
-        autoWiredFactories.clear();
         singletons.clear();
         lastCreatedInstances.clear();
         currentFactorValues = null;

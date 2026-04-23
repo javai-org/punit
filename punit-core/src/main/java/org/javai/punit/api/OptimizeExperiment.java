@@ -55,20 +55,16 @@ import org.junit.jupiter.api.TestTemplate;
  * }
  * }</pre>
  *
- * <h2>Initial Value Resolution</h2>
- * <p>The initial control factor value is resolved in this order:
- * <ol>
- *   <li>{@link #initialControlFactorValue()} - inline value (for short strings, numbers)</li>
- *   <li>{@link #initialControlFactorSource()} - method reference returning the value</li>
- *   <li>{@link FactorGetter} on the use case - fallback to use case's current value</li>
- * </ol>
+ * <h2>Initial Factor Resolution</h2>
+ * <p>The initial control factor value is supplied by {@link #initialFactor()} —
+ * the name of a static, no-arg method on the experiment class that returns the
+ * starting value.
  *
- * <p>Example with initial value source:
  * <pre>{@code
  * @OptimizeExperiment(
  *     useCase = ShoppingUseCase.class,
  *     controlFactor = "systemPrompt",
- *     initialControlFactorSource = "createMinimalPrompt",
+ *     initialFactor = "createMinimalPrompt",
  *     ...
  * )
  * void optimize(...) { }
@@ -86,7 +82,6 @@ import org.junit.jupiter.api.TestTemplate;
  * @see MeasureExperiment
  * @see ExploreExperiment
  * @see ControlFactor
- * @see FactorGetter
  * @see Scorer
  * @see FactorMutator
  */
@@ -128,31 +123,19 @@ public @interface OptimizeExperiment {
     String controlFactor();
 
     /**
-     * Initial value for the control factor.
+     * Name of a static method on the experiment class that supplies the
+     * initial control factor value.
      *
-     * <p>Use this for simple inline values (short strings, numbers as strings).
-     * For complex or long values, use {@link #initialControlFactorSource()} instead.
+     * <p>The method must be static, take no parameters, and return the
+     * appropriate type (matching the {@link ControlFactor} parameter's type).
      *
-     * <p>If both this and {@link #initialControlFactorSource()} are empty,
-     * the initial value is obtained from the use case via {@link FactorGetter}.
-     *
-     * <p>Mutually exclusive with {@link #initialControlFactorSource()}.
-     *
-     * @return the initial value as a string, or empty to use other resolution
-     */
-    String initialControlFactorValue() default "";
-
-    /**
-     * Method name that provides the initial control factor value.
-     *
-     * <p>The method must be static, take no parameters, and return the appropriate type.
-     * It is looked up on the experiment class.
+     * <p><b>Required.</b>
      *
      * <p>Example:
      * <pre>{@code
      * @OptimizeExperiment(
      *     controlFactor = "systemPrompt",
-     *     initialControlFactorSource = "createStartingPrompt",
+     *     initialFactor = "createStartingPrompt",
      *     ...
      * )
      * void optimize(...) { }
@@ -162,11 +145,9 @@ public @interface OptimizeExperiment {
      * }
      * }</pre>
      *
-     * <p>Mutually exclusive with {@link #initialControlFactorValue()}.
-     *
-     * @return the method name, or empty to use other resolution
+     * @return the method name
      */
-    String initialControlFactorSource() default "";
+    String initialFactor();
 
     /**
      * Scorer class for evaluating iteration aggregates.

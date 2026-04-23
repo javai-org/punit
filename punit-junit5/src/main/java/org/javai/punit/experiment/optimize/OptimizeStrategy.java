@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,11 +12,9 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.javai.punit.api.ExperimentMode;
-import org.javai.punit.api.FactorAnnotations;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
 import org.javai.punit.experiment.engine.ExperimentConfig;
@@ -80,20 +77,18 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
             useCaseAttributes = new UseCaseAttributes(0, useCaseAttributes.maxConcurrent());
         }
 
-        // Validate mutual exclusivity of initial value options
-        if (!annotation.initialControlFactorValue().isEmpty() &&
-                !annotation.initialControlFactorSource().isEmpty()) {
+        if (annotation.initialFactor().isEmpty()) {
             throw new ExtensionConfigurationException(
-                    "Cannot specify both initialControlFactorValue and initialControlFactorSource. " +
-                            "Use one or the other.");
+                    "@OptimizeExperiment requires initialFactor to be set to the name of " +
+                            "a static no-arg method on the experiment class that returns " +
+                            "the starting control factor value.");
         }
 
         return new OptimizeConfig(
                 useCaseClass,
                 useCaseId,
                 annotation.controlFactor(),
-                annotation.initialControlFactorValue(),
-                annotation.initialControlFactorSource(),
+                annotation.initialFactor(),
                 annotation.scorer(),
                 annotation.mutator(),
                 annotation.objective(),
@@ -116,10 +111,7 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         OptimizeConfig optimizeConfig = (OptimizeConfig) config;
         Method testMethod = context.getRequiredTestMethod();
 
-        // Resolve the initial control factor value using priority order:
-        // 1. initialControlFactorValue (inline)
-        // 2. initialControlFactorSource (method reference)
-        // 3. @FactorGetter on use case (fallback)
+        // Resolve the initial control factor value from the initialFactor method.
         Object initialControlFactorValue = resolveInitialControlFactorValue(
                 context, optimizeConfig);
 
@@ -269,108 +261,36 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         return optimizeConfig.maxTotalSamples();
     }
 
-    // === Initial Value Resolution ===
+    // === Initial Factor Resolution ===
 
     /**
-     * Resolves the initial control factor value using priority order:
-     * <ol>
-     *   <li>initialControlFactorValue - inline value from annotation</li>
-     *   <li>initialControlFactorSource - method reference on experiment class</li>
-     *   <li>@FactorGetter on use case - fallback</li>
-     * </ol>
+     * Resolves the initial control factor value by invoking the static no-arg
+     * method named by {@link OptimizeExperiment#initialFactor()} on the
+     * experiment class.
      */
     private Object resolveInitialControlFactorValue(ExtensionContext context, OptimizeConfig config) {
-        // 1. Try inline value
-        if (config.hasInitialValue()) {
-            return config.initialControlFactorValue();
-        }
-
-        // 2. Try method source
-        if (config.hasInitialValueSource()) {
-            return resolveFromMethodSource(context, config.initialControlFactorSource());
-        }
-
-        // 3. Fall back to @FactorGetter on use case
-        Object useCaseInstance = getUseCaseInstance(context, config.useCaseClass());
-        return getControlFactorFromUseCase(useCaseInstance, config.useCaseClass(), config.controlFactor());
-    }
-
-    /**
-     * Resolves initial value from a static method on the experiment class.
-     */
-    private Object resolveFromMethodSource(ExtensionContext context, String methodName) {
         Class<?> testClass = context.getRequiredTestClass();
+        String methodName = config.initialFactor();
 
         try {
             Method method = testClass.getDeclaredMethod(methodName);
             if (!java.lang.reflect.Modifier.isStatic(method.getModifiers())) {
                 throw new ExtensionConfigurationException(
-                        "initialControlFactorSource method must be static: " + methodName);
+                        "initialFactor method must be static: " + methodName);
             }
             method.setAccessible(true);
             return method.invoke(null);
         } catch (NoSuchMethodException e) {
             throw new ExtensionConfigurationException(
-                    "initialControlFactorSource method not found: " + methodName +
+                    "initialFactor method not found: " + methodName +
                             " on class " + testClass.getName(), e);
         } catch (Exception e) {
             throw new ExtensionConfigurationException(
-                    "Failed to invoke initialControlFactorSource method: " + methodName, e);
+                    "Failed to invoke initialFactor method: " + methodName, e);
         }
     }
 
     // === Helper Methods ===
-
-    private Object getUseCaseInstance(ExtensionContext context, Class<?> useCaseClass) {
-        if (useCaseClass == Void.class) {
-            throw new ExtensionConfigurationException(
-                    "@OptimizeExperiment requires useCase to be specified");
-        }
-
-        // Try to get from UseCaseProvider
-        Optional<UseCaseProvider> providerOpt = findUseCaseFactory(context);
-        if (providerOpt.isPresent()) {
-            UseCaseProvider provider = providerOpt.get();
-            if (provider.isRegistered(useCaseClass)) {
-                return provider.getInstance(useCaseClass);
-            }
-        }
-
-        // Try to instantiate directly
-        try {
-            return useCaseClass.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new ExtensionConfigurationException(
-                    "Cannot instantiate use case class: " + useCaseClass.getName() +
-                            ". Either register it with UseCaseFactory or provide a no-arg constructor.", e);
-        }
-    }
-
-    private Object getControlFactorFromUseCase(Object useCaseInstance, Class<?> useCaseClass, String controlFactor) {
-        // Find method annotated with @FactorGetter matching the control factor
-        Optional<Method> getterOpt = FactorAnnotations.findFactorGetter(useCaseClass, controlFactor);
-
-        if (getterOpt.isEmpty()) {
-            throw new ExtensionConfigurationException(
-                    "No @FactorGetter for \"" + controlFactor + "\" found on use case class: " +
-                            useCaseClass.getName() + ". Either add a @FactorGetter method, or specify " +
-                            "initialControlFactorValue or initialControlFactorSource in @OptimizeExperiment.");
-        }
-
-        Method method = getterOpt.get();
-        if (method.getParameterCount() != 0) {
-            throw new ExtensionConfigurationException(
-                    "@FactorGetter method must have no parameters: " + method.getName());
-        }
-
-        try {
-            return method.invoke(useCaseInstance);
-        } catch (Exception e) {
-            throw new ExtensionConfigurationException(
-                    "Failed to get initial control factor value from @FactorGetter method: " +
-                            method.getName(), e);
-        }
-    }
 
     @SuppressWarnings("unchecked")
     private Scorer<OptimizationIterationAggregate> instantiateScorer(
@@ -409,33 +329,6 @@ public class OptimizeStrategy implements ExperimentModeStrategy {
         }
 
         return new OptimizeCompositeTerminationPolicy(policies);
-    }
-
-    private Optional<UseCaseProvider> findUseCaseFactory(ExtensionContext context) {
-        // Use getTestInstance() instead of getRequiredTestInstance() because
-        // during provideInvocationContexts(), the test instance may not exist yet
-        Optional<Object> testInstanceOpt = context.getTestInstance();
-        if (testInstanceOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Object testInstance = testInstanceOpt.get();
-        Class<?> clazz = testInstance.getClass();
-        while (clazz != null && clazz != Object.class) {
-            for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
-                if (field.isSynthetic()) continue;
-                if (UseCaseProvider.class.isAssignableFrom(field.getType())) {
-                    field.setAccessible(true);
-                    try {
-                        return Optional.of((UseCaseProvider) field.get(testInstance));
-                    } catch (IllegalAccessException e) {
-                        // Continue searching
-                    }
-                }
-            }
-            clazz = clazz.getSuperclass();
-        }
-        return Optional.empty();
     }
 
     /**
