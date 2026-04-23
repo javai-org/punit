@@ -10,8 +10,16 @@ import org.javai.punit.api.typed.spec.SampleObserver;
 
 /**
  * One-at-a-time sample executor. Invokes {@code useCase.apply(input)}
- * on the calling thread and forwards outcomes (or the {@link Throwable}
- * on failure) to the observer along with the wall-clock time taken.
+ * on the calling thread and forwards outcomes to the observer along
+ * with the wall-clock time taken.
+ *
+ * <p>Business-level failures are signalled by the use case returning
+ * a {@link UseCaseOutcome} whose inner {@link org.javai.outcome.Outcome}
+ * is a {@code Fail}; the executor just forwards those. Defects —
+ * exceptions thrown from {@code apply} — propagate naturally out of
+ * this method and terminate the run. Stage 3's RC12 / RC13 exception
+ * policy will introduce an executor variant that catches defects and
+ * treats them as sample failures.
  *
  * <p>Pacing, concurrency, and retry are not handled here — Stage 3
  * wires them through additional spec fields.
@@ -36,14 +44,9 @@ public final class SerialSampleExecutor implements SampleExecutor {
         for (int i = 0; i < sampleCount; i++) {
             IT input = inputs.get((cycleStart + i) % inputs.size());
             long t0 = System.nanoTime();
-            try {
-                UseCaseOutcome<OT> outcome = useCase.apply(input);
-                Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
-                observer.onSample(i, outcome, elapsed);
-            } catch (Throwable t) {
-                Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
-                observer.onError(i, t, elapsed);
-            }
+            UseCaseOutcome<OT> outcome = useCase.apply(input);
+            Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
+            observer.onSample(i, outcome, elapsed);
         }
     }
 }

@@ -3,13 +3,16 @@
  *
  * <p>This package holds the minimum vocabulary an author needs to
  * express a probabilistic test or experiment in the typed model:
- * a {@link org.javai.punit.api.typed.UseCase} interface, a
- * {@link org.javai.punit.api.typed.UseCaseOutcome} wrapper, and the
- * {@link org.javai.punit.api.typed.FactorValue} / {@link org.javai.punit.api.typed.FactorBundle}
- * pair that binds a factor record ({@code FT}) to a canonical,
- * content-addressable representation used by the baseline spec
- * filename ({@link org.javai.punit.api.typed.FactorBundle#bundleHash()})
- * and by the YAML factor block.
+ * a {@link org.javai.punit.api.typed.UseCase} interface, the
+ * {@link org.javai.punit.api.typed.UseCaseOutcome} wrapper that
+ * carries an {@link org.javai.outcome.Outcome Outcome&lt;OT&gt;} so
+ * business-level failures travel as data rather than as exceptions,
+ * and the {@link org.javai.punit.api.typed.FactorValue} /
+ * {@link org.javai.punit.api.typed.FactorBundle} pair that binds a
+ * factor record ({@code FT}) to a canonical, content-addressable
+ * representation used by the baseline spec filename
+ * ({@link org.javai.punit.api.typed.FactorBundle#bundleHash()}) and
+ * by the YAML factor block.
  *
  * <p>These types are language-neutral data definitions — they import
  * nothing from the broader punit codebase and nothing from JUnit.

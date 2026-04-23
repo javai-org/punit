@@ -1,12 +1,18 @@
 package org.javai.punit.api.typed;
 
+import org.javai.outcome.Outcome;
+
 /**
  * A stochastic service invocation expressed as a typed, three-parameter
  * function.
  *
  * <p>{@code FT} is the factor record — the configuration the author has
  * chosen to vary. {@code IT} is the per-sample input. {@code OT} is the
- * per-sample output value wrapped in a {@link UseCaseOutcome}.
+ * per-sample output value type; it is wrapped in a
+ * {@link UseCaseOutcome}, whose {@link UseCaseOutcome#value() value}
+ * is an {@link org.javai.outcome.Outcome Outcome&lt;OT&gt;} so that the
+ * use case can distinguish a produced value from an expected business
+ * failure without abusing exceptions.
  *
  * <p>A {@code UseCase} is constructed by the framework once per factor
  * configuration (via the factory declared on the spec). Once
@@ -29,11 +35,25 @@ public interface UseCase<FT, IT, OT> {
     /**
      * Invokes the service for one sample.
      *
-     * <p>Implementations may throw; the framework captures exceptions
-     * as failed samples according to the configured exception policy.
+     * <p>Return an outcome whose {@code value} is an {@link Outcome.Ok}
+     * for a successful invocation and an {@link Outcome.Fail} for an
+     * expected business-level failure (contract violation, validation
+     * error, service-returned error code). The engine counts
+     * {@code Ok} samples as successes and {@code Fail} samples as
+     * failures, preserving the full {@link org.javai.outcome.Failure}
+     * details in the {@code SampleSummary} for diagnostics.
+     *
+     * <p>Throwing from this method is reserved for <em>defects</em> —
+     * {@code NullPointerException}, {@code IllegalStateException},
+     * {@code OutOfMemoryError}, and the like — conditions the author
+     * did not anticipate and that indicate a bug or catastrophe. A
+     * thrown exception bubbles out of the engine and aborts the run.
+     * Do not throw to signal a failed sample; return
+     * {@link UseCaseOutcome#fail(String, String)
+     * UseCaseOutcome.fail(...)} instead.
      *
      * @param input the per-sample input
-     * @return the outcome wrapping the produced value
+     * @return the wrapped outcome
      */
     UseCaseOutcome<OT> apply(IT input);
 

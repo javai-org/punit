@@ -20,8 +20,9 @@ class PunitApiVisibilityTest {
     @Test
     @DisplayName("types from punit-api are visible and usable")
     void typesAreVisible() {
-        UseCaseOutcome<Integer> outcome = UseCaseOutcome.of(42);
-        assertThat(outcome.value()).isEqualTo(42);
+        UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(42);
+        assertThat(outcome.value().isOk()).isTrue();
+        assertThat(outcome.value().getOrThrow()).isEqualTo(42);
 
         FactorBundle bundle = FactorBundle.of(new SampleFactors(3));
         assertThat(bundle.canonicalJson()).isEqualTo("{\"n\":3}");

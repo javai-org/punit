@@ -1,6 +1,7 @@
 package org.javai.punit.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +33,7 @@ class EngineIntegrationTest {
     /** Always returns the length of the input. Used as a deterministic sample. */
     private static class LengthUseCase implements UseCase<LlmFactors, String, Integer> {
         @Override public UseCaseOutcome<Integer> apply(String input) {
-            return UseCaseOutcome.of(input.length());
+            return UseCaseOutcome.ok(input.length());
         }
     }
 
@@ -77,11 +78,11 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("ProbabilisticTestSpec (normative) produces a FAIL when observed rate below threshold")
+    @DisplayName("ProbabilisticTestSpec (normative) produces a FAIL when a use case returns business-level Fail outcomes")
     void normativeProducesFail() {
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
                 .<LlmFactors, Integer, Boolean>normative()
-                .useCaseFactory(f -> new AlwaysFailsUseCase())
+                .useCaseFactory(f -> new AlwaysReturnsFailUseCase())
                 .factors(new LlmFactors("gpt-4o", 0.3))
                 .inputs(1, 2, 3)
                 .samples(15)
@@ -91,6 +92,8 @@ class EngineIntegrationTest {
         EngineOutcome outcome = new Engine().run(spec);
         var verdict = ((EngineOutcome.ProbabilisticTestVerdict) outcome).verdictOutcome();
         assertThat(verdict.verdict()).isEqualTo(Verdict.FAIL);
+        assertThat(verdict.successes()).isZero();
+        assertThat(verdict.failures()).isEqualTo(15);
     }
 
     @Test
@@ -117,6 +120,22 @@ class EngineIntegrationTest {
     }
 
     @Test
+    @DisplayName("A thrown exception is treated as a defect and aborts the run")
+    void defectAbortsTheRun() {
+        MeasureSpec<LlmFactors, Integer, Boolean> spec = MeasureSpec
+                .<LlmFactors, Integer, Boolean>builder()
+                .useCaseFactory(f -> new DefectiveUseCase())
+                .factors(new LlmFactors("gpt-4o", 0.3))
+                .inputs(1, 2, 3)
+                .samples(5)
+                .build();
+
+        assertThatThrownBy(() -> new Engine().run(spec))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("simulated defect");
+    }
+
+    @Test
     @DisplayName("Round-robin input cycling is deterministic across runs")
     void roundRobinInputCyclingIsDeterministic() {
         List<String> observedA = runAndRecord();
@@ -129,7 +148,7 @@ class EngineIntegrationTest {
         UseCase<LlmFactors, String, Integer> recording = new UseCase<>() {
             @Override public UseCaseOutcome<Integer> apply(String input) {
                 observed.add(input);
-                return UseCaseOutcome.of(0);
+                return UseCaseOutcome.ok(0);
             }
         };
         MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec
@@ -147,13 +166,21 @@ class EngineIntegrationTest {
 
     private static class AlwaysPassesUseCase implements UseCase<LlmFactors, Integer, Boolean> {
         @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            return UseCaseOutcome.of(Boolean.TRUE);
+            return UseCaseOutcome.ok(Boolean.TRUE);
         }
     }
 
-    private static class AlwaysFailsUseCase implements UseCase<LlmFactors, Integer, Boolean> {
+    /** Returns business-level Fail outcomes — the "contract didn't hold" signal. */
+    private static class AlwaysReturnsFailUseCase implements UseCase<LlmFactors, Integer, Boolean> {
         @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            throw new RuntimeException("scripted failure");
+            return UseCaseOutcome.fail("contract_violation", "scripted failure for input " + input);
+        }
+    }
+
+    /** Throws — a defect, not a business-level failure. The engine aborts. */
+    private static class DefectiveUseCase implements UseCase<LlmFactors, Integer, Boolean> {
+        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+            throw new IllegalStateException("simulated defect — this should abort the run");
         }
     }
 }

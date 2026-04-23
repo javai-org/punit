@@ -70,23 +70,14 @@ public final class Engine {
     }
 
     private static final class Aggregator<OT> implements SampleObserver<OT> {
-        int successes = 0;
-        int failures = 0;
         final List<UseCaseOutcome<OT>> outcomes = new ArrayList<>();
-        final List<Throwable> errors = new ArrayList<>();
 
         @Override public void onSample(int index, UseCaseOutcome<OT> outcome, Duration elapsed) {
-            successes++;
             outcomes.add(outcome);
         }
 
-        @Override public void onError(int index, Throwable error, Duration elapsed) {
-            failures++;
-            errors.add(error);
-        }
-
         SampleSummary<OT> toSummary(Duration elapsed) {
-            return new SampleSummary<>(successes, failures, outcomes, errors, elapsed);
+            return new SampleSummary<>(outcomes, elapsed);
         }
     }
 }
