@@ -26,6 +26,7 @@
           <set>
             <option value="$PROJECT_DIR$/../outcome" />
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/punit-api" />
             <option value="$PROJECT_DIR$/punit-core" />
             <option value="$PROJECT_DIR$/punit-gradle-plugin" />
             <option value="$PROJECT_DIR$/punit-junit5" />
