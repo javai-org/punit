@@ -5,7 +5,7 @@ package org.javai.punit.api.typed;
  *
  * <p>Canonical form uses a minimal decimal representation — no trailing
  * zeros (e.g. {@code 0.3}, {@code 1.5}, {@code 2.0}). The
- * EX04 factor-bundle hash depends on this form being stable across
+ * factor-bundle hash depends on this form being stable across
  * language implementations.
  */
 public record DecimalValue(double value) implements FactorValue {
@@ -27,8 +27,8 @@ public record DecimalValue(double value) implements FactorValue {
         String s = Double.toString(value);
         // Double.toString already produces no trailing zeros beyond significance
         // (e.g. 0.3 → "0.3", 1.5 → "1.5"). It may produce scientific notation
-        // for very small / very large values; EX04 does not special-case that,
-        // so we keep Java's rendering.
+        // for very small / very large values; the canonical-form spec does
+        // not special-case that, so we keep Java's rendering.
         return s;
     }
 

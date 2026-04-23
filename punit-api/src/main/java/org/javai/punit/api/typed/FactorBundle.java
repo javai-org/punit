@@ -11,7 +11,7 @@ import java.util.TreeMap;
 
 /**
  * A content-addressable projection of a factor record into the
- * canonical form consumed by the EX04 baseline spec YAML and by the
+ * canonical form consumed by the baseline spec YAML and by the
  * {@code factorBundleHash} segment of the baseline filename.
  *
  * <p>The bundle is produced from a Java {@code record} — the canonical
@@ -29,10 +29,10 @@ import java.util.TreeMap;
  * <p>The empty bundle — produced by a record with no components — has
  * {@link #canonicalJson()} = {@code "{}"} and
  * {@link #bundleHash()} = the four-hex-char truncation of
- * {@code SHA-256("{}")}. The EX04 filename rules treat an empty
- * factor bundle by omitting the {@code factorBundleHash} segment,
- * not by emitting the hash of {@code "{}"}; that filename-layer rule
- * belongs to the serialiser, not here.
+ * {@code SHA-256("{}")}. The baseline-filename convention treats an
+ * empty factor bundle by omitting the {@code factorBundleHash}
+ * segment, not by emitting the hash of {@code "{}"}; that
+ * filename-layer rule belongs to the serialiser, not here.
  */
 public final class FactorBundle {
 

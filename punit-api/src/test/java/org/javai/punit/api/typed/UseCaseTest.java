@@ -10,25 +10,25 @@ class UseCaseTest {
 
     private static class SimpleUseCase implements UseCase<Object, String, Integer> {
         @Override public UseCaseOutcome<Integer> apply(String input) {
-            return UseCaseOutcome.of(input.length());
+            return UseCaseOutcome.ok(input.length());
         }
     }
 
     private static class ShoppingBasketUseCase implements UseCase<Object, String, String> {
         @Override public UseCaseOutcome<String> apply(String input) {
-            return UseCaseOutcome.of(input);
+            return UseCaseOutcome.ok(input);
         }
     }
 
     private static class HTTPClientUseCase implements UseCase<Object, String, String> {
         @Override public UseCaseOutcome<String> apply(String input) {
-            return UseCaseOutcome.of(input);
+            return UseCaseOutcome.ok(input);
         }
     }
 
     private static class PaymentGateway implements UseCase<Object, String, String> {
         @Override public UseCaseOutcome<String> apply(String input) {
-            return UseCaseOutcome.of(input);
+            return UseCaseOutcome.ok(input);
         }
     }
 
@@ -69,9 +69,10 @@ class UseCaseTest {
     }
 
     @Test
-    @DisplayName("apply wraps the output value")
+    @DisplayName("apply wraps the output value as an Ok outcome")
     void applyWrapsOutputValue() {
         var outcome = new SimpleUseCase().apply("hello");
-        assertThat(outcome.value()).isEqualTo(5);
+        assertThat(outcome.value().isOk()).isTrue();
+        assertThat(outcome.value().getOrThrow()).isEqualTo(5);
     }
 }

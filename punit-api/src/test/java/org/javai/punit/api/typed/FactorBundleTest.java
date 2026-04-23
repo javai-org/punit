@@ -32,8 +32,8 @@ class FactorBundleTest {
     @Test
     @DisplayName("canonicalJson sorts keys alphabetically with no whitespace")
     void canonicalJsonSortsKeys() {
-        // This example is lifted verbatim from the EX04 catalog README
-        // (Factor bundle hash section).
+        // Reference example from the factor-bundle-hash specification:
+        // keys sorted alphabetically, no whitespace, minimal decimals.
         FactorBundle b = FactorBundle.of(new LlmFactors("gpt-4o", 0.3, 2048, true));
         assertThat(b.canonicalJson())
                 .isEqualTo("{\"maxTokens\":2048,\"model\":\"gpt-4o\","
@@ -93,9 +93,9 @@ class FactorBundleTest {
     }
 
     @Test
-    @DisplayName("bundleHash produces the EX04 sample example")
-    void bundleHashReproducesEx04Example() {
-        // The canonical JSON matches EX04 exactly; the hash is the first
+    @DisplayName("bundleHash reproduces the canonical-JSON reference example")
+    void bundleHashReproducesCanonicalJsonExample() {
+        // The canonical JSON matches the specification exactly; the hash is the first
         // four hex chars of SHA-256 of that JSON — an independently
         // verifiable number.
         FactorBundle b = FactorBundle.of(new LlmFactors("gpt-4o", 0.3, 2048, true));
