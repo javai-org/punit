@@ -9,25 +9,29 @@ import java.lang.annotation.Target;
  * Marks a parameter to receive the current control factor value in an
  * {@code OptimizeExperiment}.
  *
- * <p>The value is resolved from the use case instance via a method annotated
- * with {@link FactorGetter}, then injected into this parameter. During optimization,
- * the value is mutated between iterations.
+ * <p>The value is the current iteration's control factor — initially the
+ * value returned by the method named by {@link OptimizeExperiment#initialFactor()},
+ * and subsequently the value produced by the
+ * {@link org.javai.punit.experiment.optimize.FactorMutator} between iterations.
  *
  * <h2>Example</h2>
  * <pre>{@code
  * @OptimizeExperiment(
  *     useCase = ShoppingUseCase.class,
- *     treatmentFactor = "systemPrompt",
+ *     controlFactor = "systemPrompt",
+ *     initialFactor = "initialPrompt",
  *     scorer = SuccessRateScorer.class,
  *     mutator = LLMStringFactorMutator.class
  * )
  * void optimizePrompt(
  *     ShoppingUseCase useCase,
- *     @ControlFactor String currentPrompt,  // Injected from use case
+ *     @ControlFactor String currentPrompt,
  *     OutcomeCaptor captor
  * ) {
  *     captor.record(useCase.searchProducts("headphones"));
  * }
+ *
+ * static String initialPrompt() { return "You are an assistant."; }
  * }</pre>
  *
  * <h2>Multi-Factor Optimization (Future)</h2>
@@ -40,8 +44,6 @@ import java.lang.annotation.Target;
  *     OutcomeCaptor captor
  * ) { ... }
  * }</pre>
- *
- * @see FactorGetter
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)

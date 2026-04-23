@@ -53,10 +53,11 @@ public record OptimizeInvocationContext(
     }
 
     /**
-     * Initializes the control factor on UseCaseFactory BEFORE parameter resolution.
+     * Initializes the control factor on UseCaseProvider BEFORE parameter resolution.
      *
-     * <p>This ensures @FactorSetter methods are invoked when the use case is created,
-     * allowing the control factor value to be applied to the use case instance.
+     * <p>Stores the current iteration's factor value on the provider so that a
+     * factor-aware factory (registered via {@code provider.registerWithFactors(...)})
+     * receives it when the use case is constructed for this sample.
      */
     private record ControlFactorInitializer(
             Object controlFactorValue,

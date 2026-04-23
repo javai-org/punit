@@ -1,5 +1,24 @@
 # Design: punit experiment DX
 
+## Status
+
+This refactor lands in **two PRs**:
+
+- **PR #1 — deprecated surface removal** (this branch's first substantial
+  commit). Deletes `@FactorSetter`, `@FactorGetter`, `registerAutoWired`,
+  `OptimizeExperiment.initialControlFactorValue`, `ExploreExperiment.expiresInDays`.
+  Renames `initialControlFactorSource` → `initialFactor`. Drops the
+  `@FactorGetter` fallback in `OptimizeStrategy`. The factor type system
+  (`@FactorSource`, `@ConfigSource`, `NamedConfig`, `@Factor`, `FactorArguments`,
+  `@ControlFactor`, `FactorValues`) is untouched.
+- **PR #2 — factor-record restructuring** (follow-up, separate iteration).
+  Adds `@FactorName`, the typed `register(Class, Class, Function)` overload,
+  new `@FactorSource` semantics over `Stream<F>`, and deletes the remaining
+  pre-IUC factor machinery.
+
+The sections below describe the full target DX. §5 Migration plan has
+been updated to reflect the two-PR sequencing.
+
 ## Scope
 
 This design targets punit's three experiment surfaces (`@MeasureExperiment`,

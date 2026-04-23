@@ -129,18 +129,6 @@ public @interface ExploreExperiment {
     String experimentId() default "";
 
     /**
-     * Number of days for which the baseline remains valid.
-     *
-     * <p>When set to a positive value, probabilistic tests using this baseline
-     * will display warnings as the expiration date approaches.
-     *
-     * <p><b>Default: 0 (no expiration)</b>
-     *
-     * @return validity period in days, or 0 for no expiration
-     */
-    int expiresInDays() default 0;
-
-    /**
      * Whether to skip warmup invocations for this experiment.
      *
      * <p>When {@code true}, the warmup count declared on the {@code @UseCase}

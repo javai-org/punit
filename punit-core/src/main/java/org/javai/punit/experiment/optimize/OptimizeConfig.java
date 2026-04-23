@@ -18,8 +18,7 @@ import org.javai.punit.model.UseCaseAttributes;
  * @param useCaseClass the use case class to test
  * @param useCaseId resolved use case identifier
  * @param controlFactor name of the factor to optimize
- * @param initialControlFactorValue inline initial value (empty = not specified)
- * @param initialControlFactorSource method name for initial value (empty = not specified)
+ * @param initialFactor method name that supplies the initial control factor value
  * @param scorerClass scorer class for evaluating iterations
  * @param mutatorClass mutator class for generating new factor values
  * @param objective optimization objective (MAXIMIZE or MINIMIZE)
@@ -35,8 +34,7 @@ public record OptimizeConfig(
         Class<?> useCaseClass,
         String useCaseId,
         String controlFactor,
-        String initialControlFactorValue,
-        String initialControlFactorSource,
+        String initialFactor,
         Class<? extends Scorer<OptimizationIterationAggregate>> scorerClass,
         Class<? extends FactorMutator<?>> mutatorClass,
         OptimizationObjective objective,
@@ -61,23 +59,5 @@ public record OptimizeConfig(
      */
     public int maxTotalSamples() {
         return samplesPerIteration * maxIterations;
-    }
-
-    /**
-     * Checks if an initial value is specified inline.
-     *
-     * @return true if initialControlFactorValue is non-empty
-     */
-    public boolean hasInitialValue() {
-        return initialControlFactorValue != null && !initialControlFactorValue.isEmpty();
-    }
-
-    /**
-     * Checks if an initial value source method is specified.
-     *
-     * @return true if initialControlFactorSource is non-empty
-     */
-    public boolean hasInitialValueSource() {
-        return initialControlFactorSource != null && !initialControlFactorSource.isEmpty();
     }
 }

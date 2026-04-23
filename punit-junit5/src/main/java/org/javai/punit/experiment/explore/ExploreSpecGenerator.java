@@ -46,7 +46,6 @@ public class ExploreSpecGenerator {
 
         ExploreConfig config = (ExploreConfig) store.get("config", ExperimentConfig.class);
         String useCaseId = config.useCaseId();
-        int expiresInDays = config.expiresInDays();
 
         UseCaseContext useCaseContext = DefaultUseCaseContext.builder().build();
 
@@ -56,7 +55,7 @@ public class ExploreSpecGenerator {
                 context.getTestClass().orElse(null),
                 context.getTestMethod().orElse(null),
                 useCaseContext,
-                expiresInDays
+                0
         );
 
         try {
@@ -90,7 +89,6 @@ public class ExploreSpecGenerator {
 
         ExploreConfig config = (ExploreConfig) store.get("config", ExperimentConfig.class);
         String useCaseId = config.useCaseId();
-        int expiresInDays = config.expiresInDays();
 
         UseCaseContext useCaseContext = DefaultUseCaseContext.builder().build();
 
@@ -100,7 +98,7 @@ public class ExploreSpecGenerator {
                 context.getTestClass().orElse(null),
                 context.getTestMethod().orElse(null),
                 useCaseContext,
-                expiresInDays
+                0
         );
 
         // Write spec to config-specific file using explore-specific output format

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed (breaking)
+- **`@FactorSetter`, `@FactorGetter` annotations.** Previously deprecated in 0.6.0. Factor values for EXPLORE and OPTIMIZE experiments must be supplied via `UseCaseProvider.registerWithFactors(...)`; mutable-setter patterns are no longer supported.
+- **`UseCaseProvider.registerAutoWired(...)`** (and the parallel `UseCaseFactory.registerAutoWired(...)`). Previously deprecated in 0.6.0. Use `registerWithFactors(...)` instead.
+- **`OptimizeExperiment.initialControlFactorValue`** (inline string attribute). Could not express typed initial values. Use `initialFactor` with a static method returning the typed value.
+- **`OptimizeExperiment.initialControlFactorSource`** (renamed). The attribute is now **`initialFactor`** with identical semantics — a static no-arg method on the experiment class that returns the starting control factor value. `initialFactor` is required.
+- **`@FactorGetter` fallback path** in `OptimizeStrategy`. Initial factor values now come solely from the `initialFactor` method — the reflective fallback that read a `@FactorGetter`-annotated accessor off the use case is gone.
+- **`ExploreExperiment.expiresInDays`**. Baseline expiration is a property of MEASURE-produced baseline specs, not exploration specs. `@MeasureExperiment` keeps the attribute. Exploration spec YAML no longer carries expiration metadata.
+
+This is the first breaking release of the experiment DX refactor described in `plan/DES-EXPERIMENT-DX.md`. Deeper structural changes (factor-record typing, `@FactorSource` semantics, `@ConfigSource` / `NamedConfig` / `@Factor` / `@ControlFactor` removal) land in a follow-up PR.
+
 ## [0.6.0] - 2026-04-16
 
 ### Changed

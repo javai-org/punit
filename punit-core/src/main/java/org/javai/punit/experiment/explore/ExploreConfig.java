@@ -18,7 +18,6 @@ import org.javai.punit.model.UseCaseAttributes;
  * @param timeBudgetMs time budget in milliseconds (0 = unlimited)
  * @param tokenBudget token budget (0 = unlimited)
  * @param experimentId experiment identifier for output naming
- * @param expiresInDays baseline expiration in days (0 = no expiration tracking)
  */
 public record ExploreConfig(
         Class<?> useCaseClass,
@@ -27,8 +26,7 @@ public record ExploreConfig(
         int samplesPerConfig,
         long timeBudgetMs,
         long tokenBudget,
-        String experimentId,
-        int expiresInDays
+        String experimentId
 ) implements ExperimentConfig {
 
     @Override

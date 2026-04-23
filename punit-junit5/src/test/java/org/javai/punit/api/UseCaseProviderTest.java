@@ -33,20 +33,6 @@ class UseCaseProviderTest {
     @UseCase
     static class DefaultAnnotatedUseCase {}
 
-    static class FactorAwareUseCase {
-        private String model;
-        private double temperature;
-        
-        @FactorSetter("model")
-        public void setModel(String model) { this.model = model; }
-        
-        @FactorSetter("temp")
-        public void setTemperature(double temp) { this.temperature = temp; }
-        
-        public String getModel() { return model; }
-        public double getTemperature() { return temperature; }
-    }
-
     @Nested
     @DisplayName("register and getInstance")
     class RegisterAndGetInstance {
@@ -158,40 +144,6 @@ class UseCaseProviderTest {
     }
 
     @Nested
-    @DisplayName("registerAutoWired")
-    class RegisterAutoWired {
-
-        @Test
-        @DisplayName("injects factor values via @FactorSetter methods")
-        void injectsFactorValues() {
-            provider.registerAutoWired(FactorAwareUseCase.class, FactorAwareUseCase::new);
-            provider.setCurrentFactorValues(
-                new Object[]{"gpt-4", 0.7}, 
-                List.of("model", "temp")
-            );
-
-            FactorAwareUseCase useCase = provider.getInstance(FactorAwareUseCase.class);
-
-            assertThat(useCase.getModel()).isEqualTo("gpt-4");
-            assertThat(useCase.getTemperature()).isEqualTo(0.7);
-        }
-
-        @Test
-        @DisplayName("throws when factor setter references missing factor")
-        void throwsWhenFactorMissing() {
-            provider.registerAutoWired(FactorAwareUseCase.class, FactorAwareUseCase::new);
-            provider.setCurrentFactorValues(
-                new Object[]{"gpt-4"}, 
-                List.of("model")  // Missing "temp"
-            );
-
-            assertThatThrownBy(() -> provider.getInstance(FactorAwareUseCase.class))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("no such factor exists");
-        }
-    }
-
-    @Nested
     @DisplayName("factor values management")
     class FactorValuesManagement {
 
@@ -244,14 +196,6 @@ class UseCaseProviderTest {
         }
 
         @Test
-        @DisplayName("returns true for auto-wired factory")
-        void returnsTrueForAutoWiredFactory() {
-            provider.registerAutoWired(FactorAwareUseCase.class, FactorAwareUseCase::new);
-
-            assertThat(provider.isRegistered(FactorAwareUseCase.class)).isTrue();
-        }
-
-        @Test
         @DisplayName("returns false for unregistered class")
         void returnsFalseForUnregisteredClass() {
             assertThat(provider.isRegistered(SimpleUseCase.class)).isFalse();
@@ -268,14 +212,6 @@ class UseCaseProviderTest {
             provider.registerWithFactors(SimpleUseCase.class, f -> new SimpleUseCase("test"));
 
             assertThat(provider.hasFactorFactory(SimpleUseCase.class)).isTrue();
-        }
-
-        @Test
-        @DisplayName("returns true for auto-wired factory")
-        void returnsTrueForAutoWiredFactory() {
-            provider.registerAutoWired(FactorAwareUseCase.class, FactorAwareUseCase::new);
-
-            assertThat(provider.hasFactorFactory(FactorAwareUseCase.class)).isTrue();
         }
 
         @Test
@@ -343,61 +279,5 @@ class UseCaseProviderTest {
         }
     }
 
-    @Nested
-    @DisplayName("value conversion")
-    class ValueConversion {
-
-        static class TypeConversionUseCase {
-            private int intValue;
-            private long longValue;
-            private boolean boolValue;
-            private String stringValue;
-
-            @FactorSetter("intVal")
-            public void setIntValue(int val) { this.intValue = val; }
-
-            @FactorSetter("longVal")
-            public void setLongValue(long val) { this.longValue = val; }
-
-            @FactorSetter("boolVal")
-            public void setBoolValue(boolean val) { this.boolValue = val; }
-
-            @FactorSetter("strVal")
-            public void setStringValue(String val) { this.stringValue = val; }
-        }
-
-        @Test
-        @DisplayName("converts Number to int")
-        void convertsNumberToInt() {
-            provider.registerAutoWired(TypeConversionUseCase.class, TypeConversionUseCase::new);
-            provider.setCurrentFactorValues(
-                new Object[]{42.5, 100L, true, "test"}, 
-                List.of("intVal", "longVal", "boolVal", "strVal")
-            );
-
-            TypeConversionUseCase useCase = provider.getInstance(TypeConversionUseCase.class);
-
-            assertThat(useCase.intValue).isEqualTo(42);
-            assertThat(useCase.longValue).isEqualTo(100L);
-            assertThat(useCase.boolValue).isTrue();
-            assertThat(useCase.stringValue).isEqualTo("test");
-        }
-
-        @Test
-        @DisplayName("converts String to numeric types")
-        void convertsStringToNumeric() {
-            provider.registerAutoWired(TypeConversionUseCase.class, TypeConversionUseCase::new);
-            provider.setCurrentFactorValues(
-                new Object[]{"42", "100", "true", "hello"}, 
-                List.of("intVal", "longVal", "boolVal", "strVal")
-            );
-
-            TypeConversionUseCase useCase = provider.getInstance(TypeConversionUseCase.class);
-
-            assertThat(useCase.intValue).isEqualTo(42);
-            assertThat(useCase.longValue).isEqualTo(100L);
-            assertThat(useCase.boolValue).isTrue();
-        }
-    }
 }
 

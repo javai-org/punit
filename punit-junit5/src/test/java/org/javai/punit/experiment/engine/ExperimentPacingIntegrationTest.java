@@ -278,7 +278,7 @@ class ExperimentPacingIntegrationTest {
             totalExecutionTime.set(0);
         }
 
-        @ExploreExperiment(samplesPerConfig = 3, expiresInDays = 0, useCase = SimpleTestUseCase.class)
+        @ExploreExperiment(samplesPerConfig = 3, useCase = SimpleTestUseCase.class)
         @FactorSource("options")
         @Pacing(minMsPerSample = 100)
         public void experimentWithPacing(
@@ -324,7 +324,7 @@ class ExperimentPacingIntegrationTest {
             totalExecutionTime.set(0);
         }
 
-        @ExploreExperiment(samplesPerConfig = 2, expiresInDays = 0, useCase = SimpleTestUseCase.class)
+        @ExploreExperiment(samplesPerConfig = 2, useCase = SimpleTestUseCase.class)
         @FactorSource("configs")
         @Pacing(minMsPerSample = 150)
         public void experimentWithGlobalCounter(

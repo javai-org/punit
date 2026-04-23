@@ -83,8 +83,7 @@ public class ExploreStrategy implements ExperimentModeStrategy {
                 annotation.samplesPerConfig(),
                 annotation.timeBudgetMs(),
                 annotation.tokenBudget(),
-                annotation.experimentId(),
-                annotation.expiresInDays()
+                annotation.experimentId()
         );
     }
 
