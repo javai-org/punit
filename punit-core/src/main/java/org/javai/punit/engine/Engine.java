@@ -77,7 +77,7 @@ public final class Engine {
         }
 
         SampleSummary<OT> toSummary(Duration elapsed) {
-            return new SampleSummary<>(outcomes, elapsed);
+            return SampleSummary.from(outcomes, elapsed);
         }
     }
 }

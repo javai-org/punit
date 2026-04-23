@@ -1,7 +1,10 @@
 package org.javai.punit.api.typed;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.javai.outcome.Outcome;
 import org.junit.jupiter.api.DisplayName;
@@ -15,36 +18,96 @@ class UseCaseOutcomeTest {
     void okWrapsValue() {
         UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(42);
         assertThat(outcome.value()).isInstanceOf(Outcome.Ok.class);
-        assertThat(((Outcome.Ok<Integer>) outcome.value()).value()).isEqualTo(42);
+        assertThat(outcome.value().getOrThrow()).isEqualTo(42);
+        assertThat(outcome.evaluatePostconditions()).isEmpty();
     }
 
     @Test
     @DisplayName("fail() wraps a failure Outcome with the given name and message")
     void failWrapsFailure() {
         UseCaseOutcome<String> outcome = UseCaseOutcome.fail("bad_input", "empty string");
-        assertThat(outcome.value()).isInstanceOf(Outcome.Fail.class);
         assertThat(outcome.value().isFail()).isTrue();
+        assertThat(outcome.evaluatePostconditions()).hasSize(1);
+        assertThat(outcome.evaluatePostconditions().get(0).failureMessage())
+                .contains("empty string");
     }
 
     @Test
-    @DisplayName("of() wraps an already-constructed Outcome")
-    void ofWrapsOutcome() {
-        Outcome<Integer> out = Outcome.ok(7);
-        UseCaseOutcome<Integer> wrapped = UseCaseOutcome.of(out);
-        assertThat(wrapped.value()).isSameAs(out);
+    @DisplayName("tokens default to zero and are record-accessible")
+    void tokensDefaultZero() {
+        assertThat(UseCaseOutcome.ok(1).tokens()).isZero();
+        assertThat(UseCaseOutcome.fail("x", "y").tokens()).isZero();
     }
 
     @Test
-    @DisplayName("ok() rejects null")
-    void rejectsNull() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> UseCaseOutcome.of(null));
+    @DisplayName("withTokens attaches a token cost to the outcome")
+    void withTokensPropagates() {
+        UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(1).withTokens(256);
+        assertThat(outcome.tokens()).isEqualTo(256L);
+        // Value / postconditions are preserved across withTokens
+        assertThat(outcome.value().getOrThrow()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("equality is structural via the wrapped Outcome")
-    void equalityByValue() {
-        assertThat(UseCaseOutcome.ok(1)).isEqualTo(UseCaseOutcome.ok(1));
-        assertThat(UseCaseOutcome.ok(1)).isNotEqualTo(UseCaseOutcome.ok(2));
+    @DisplayName("negative tokens are rejected")
+    void rejectsNegativeTokens() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> UseCaseOutcome.ok(1).withTokens(-1));
+    }
+
+    @Test
+    @DisplayName("postconditions are evaluated lazily and re-evaluated on each call")
+    void lazyPostconditionEvaluation() {
+        AtomicInteger evalCount = new AtomicInteger();
+        PostconditionEvaluator<Integer> evaluator = new PostconditionEvaluator<>() {
+            @Override public List<PostconditionResult> evaluate(Integer result) {
+                evalCount.incrementAndGet();
+                return List.of(PostconditionResult.passed("non-negative"));
+            }
+            @Override public int postconditionCount() { return 1; }
+        };
+        UseCaseOutcome<Integer> outcome = UseCaseOutcome.of(3, evaluator);
+
+        assertThat(evalCount).hasValue(0);
+
+        outcome.value();
+        outcome.evaluatePostconditions();
+        outcome.value();
+
+        // Each call re-evaluates — no caching at the outcome level
+        assertThat(evalCount).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("value() returns Fail when any postcondition fails, preserving the reason")
+    void valueReflectsPostconditionFailure() {
+        PostconditionEvaluator<Integer> evaluator = new PostconditionEvaluator<>() {
+            @Override public List<PostconditionResult> evaluate(Integer result) {
+                return List.of(
+                        PostconditionResult.passed("is integer"),
+                        PostconditionResult.failed("positive", "got " + result));
+            }
+            @Override public int postconditionCount() { return 2; }
+        };
+        UseCaseOutcome<Integer> outcome = UseCaseOutcome.of(-5, evaluator);
+
+        assertThat(outcome.value().isFail()).isTrue();
+        assertThat(((Outcome.Fail<Integer>) outcome.value()).failure().message())
+                .contains("got -5");
+    }
+
+    @Test
+    @DisplayName("value() returns Ok when all postconditions pass, wrapping the raw result")
+    void valueOkWhenAllPass() {
+        PostconditionEvaluator<Integer> evaluator = new PostconditionEvaluator<>() {
+            @Override public List<PostconditionResult> evaluate(Integer result) {
+                return List.of(PostconditionResult.passed("non-null"));
+            }
+            @Override public int postconditionCount() { return 1; }
+        };
+        UseCaseOutcome<Integer> outcome = UseCaseOutcome.of(7, evaluator);
+
+        assertThat(outcome.value().isOk()).isTrue();
+        assertThat(outcome.value().getOrThrow()).isEqualTo(7);
     }
 }
