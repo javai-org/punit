@@ -1,23 +1,43 @@
 # Design: punit experiment DX
 
+> **⚠ Superseded.** The second stage of this design (factor-record
+> restructuring: `@FactorName`, typed `register(Class, Class, Function)`,
+> `Stream<F>` semantics on `@FactorSource`, removal of `@ConfigSource` /
+> `NamedConfig` / `@Factor` / `FactorArguments` / `@ControlFactor` /
+> `FactorValues`) will **not** be implemented as planned here. A more
+> impactful API redesign is being conducted from the
+> **javai-orchestrator** project and will span the javai product family
+> rather than punit in isolation. Work from that redesign will land in
+> new design documents under the orchestrator repo.
+>
+> This document is preserved for historical context: it records the
+> principles that shaped the first-stage cleanup (PR #1 below) and the
+> thinking that fed into the broader cross-project redesign.
+
 ## Status
 
-This refactor lands in **two PRs**:
+What landed from this design:
 
-- **PR #1 — deprecated surface removal** (this branch's first substantial
-  commit). Deletes `@FactorSetter`, `@FactorGetter`, `registerAutoWired`,
-  `OptimizeExperiment.initialControlFactorValue`, `ExploreExperiment.expiresInDays`.
-  Renames `initialControlFactorSource` → `initialFactor`. Drops the
-  `@FactorGetter` fallback in `OptimizeStrategy`. The factor type system
-  (`@FactorSource`, `@ConfigSource`, `NamedConfig`, `@Factor`, `FactorArguments`,
-  `@ControlFactor`, `FactorValues`) is untouched.
-- **PR #2 — factor-record restructuring** (follow-up, separate iteration).
-  Adds `@FactorName`, the typed `register(Class, Class, Function)` overload,
-  new `@FactorSource` semantics over `Stream<F>`, and deletes the remaining
-  pre-IUC factor machinery.
+- **PR #1 — deprecated surface removal.** Merged. Deleted `@FactorSetter`,
+  `@FactorGetter`, `registerAutoWired`,
+  `OptimizeExperiment.initialControlFactorValue`,
+  `ExploreExperiment.expiresInDays`. Renamed
+  `initialControlFactorSource` → `initialFactor`. Dropped the
+  `@FactorGetter` fallback in `OptimizeStrategy`. `punitexamples` was
+  aligned in a companion PR.
 
-The sections below describe the full target DX. §5 Migration plan has
-been updated to reflect the two-PR sequencing.
+What was **planned** but will not land from this design:
+
+- **PR #2 — factor-record restructuring.** Abandoned in favour of a
+  javai-orchestrator-driven redesign. The original planned scope was:
+  `@FactorName`, the typed `register(Class, Class, Function)` overload,
+  new `@FactorSource` semantics over `Stream<F>`, and deletion of the
+  remaining pre-IUC factor machinery (`@ConfigSource`, `NamedConfig`,
+  `@Factor`, `FactorArguments`, `@ControlFactor`, `FactorValues`).
+
+The sections below describe the full originally-intended target DX. §5
+Migration plan is likewise a record of the plan that was in flight;
+it no longer describes scheduled work.
 
 ## Scope
 
