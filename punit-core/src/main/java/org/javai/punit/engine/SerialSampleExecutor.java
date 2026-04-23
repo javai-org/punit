@@ -17,12 +17,12 @@ import org.javai.punit.api.typed.spec.SampleObserver;
  * a {@link UseCaseOutcome} whose inner {@link org.javai.outcome.Outcome}
  * is a {@code Fail}; the executor just forwards those. Defects —
  * exceptions thrown from {@code apply} — propagate naturally out of
- * this method and terminate the run. Stage 3's RC12 / RC13 exception
+ * this method and terminate the run. A future exception-handling
  * policy will introduce an executor variant that catches defects and
  * treats them as sample failures.
  *
- * <p>Pacing, concurrency, and retry are not handled here — Stage 3
- * wires them through additional spec fields.
+ * <p>Pacing, concurrency, and retry are not handled here — they are
+ * wired through additional spec fields in a later stage.
  */
 public final class SerialSampleExecutor implements SampleExecutor {
 

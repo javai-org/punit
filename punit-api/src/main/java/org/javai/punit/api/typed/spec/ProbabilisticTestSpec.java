@@ -13,18 +13,19 @@ import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.UseCase;
 
 /**
- * A probabilistic test configured via one of three approaches:
+ * A probabilistic test configured via one of three statistical
+ * approaches:
  *
  * <ul>
- *   <li><b>PT01 threshold-first</b> — {@link #normative()} — a normative
+ *   <li><b>Threshold-first</b> — {@link #normative()} — a normative
  *       threshold is declared alongside a sample size.</li>
- *   <li><b>PT02 sample-size-first</b> — {@link #basedOn(Supplier)} +
+ *   <li><b>Sample-size-first</b> — {@link #basedOn(Supplier)} +
  *       {@link EmpiricalBuilder#samples(int)} — sample count declared,
- *       threshold derived from the baseline at Stage 4.</li>
- *   <li><b>PT03 confidence-first</b> — {@link #basedOn(Supplier)} +
+ *       threshold derived from the baseline at verdict time.</li>
+ *   <li><b>Confidence-first</b> — {@link #basedOn(Supplier)} +
  *       {@link EmpiricalBuilder#minDetectableEffect(double)} /
  *       {@link EmpiricalBuilder#power(double)} — sample count
- *       computed from a power analysis at Stage 4.</li>
+ *       computed from a power analysis.</li>
  * </ul>
  *
  * <p>Builder constraints enforced at compile time by the type split:
@@ -33,10 +34,10 @@ import org.javai.punit.api.typed.UseCase;
  * requires {@link EmpiricalBuilder}. Combinations that mix the two
  * paths do not compile.
  *
- * <p>Stage 2 implements the spec surface and placeholder verdict
- * synthesis. The placeholder evaluates "observed pass rate ≥
- * threshold → PASS"; Stage 4 replaces this with Wilson-score-based
- * verdict evaluation and, for PT03, a real power analysis.
+ * <p>Verdict synthesis is currently a placeholder that evaluates
+ * "observed pass rate ≥ threshold → PASS"; a later stage replaces
+ * this with Wilson-score-based verdict evaluation and, for the
+ * confidence-first path, a real power analysis.
  */
 public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
 
@@ -86,11 +87,11 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         return useCaseFactory;
     }
 
-    @Override public Iterator<Configuration<FT, IT>> configurations() {
-        return List.of(new Configuration<>(factors, inputs, samples)).iterator();
+    @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
+        return List.of(Configuration.<FT, IT, OT>of(factors, inputs, samples)).iterator();
     }
 
-    @Override public void consume(Configuration<FT, IT> config, SampleSummary<OT> summary) {
+    @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
         this.summary = summary;
     }
 
@@ -125,7 +126,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
     public TestIntent intent() { return intent; }
     public int samples() { return samples; }
 
-    // ── NormativeBuilder (PT01 threshold-first) ────────────────────
+    // ── NormativeBuilder (threshold-first) ─────────────────────────
 
     public static final class NormativeBuilder<FT, IT, OT> {
 
@@ -206,7 +207,8 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
             }
             if (Double.isNaN(threshold) || thresholdOrigin == null) {
                 throw new IllegalStateException(
-                        "threshold(value, origin) is required for normative (PT01) tests");
+                        "threshold(value, origin) is required for a normative "
+                                + "threshold-first probabilistic test");
             }
             return new ProbabilisticTestSpec<>(
                     useCaseFactory, factors, inputs, samples,
@@ -215,7 +217,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         }
     }
 
-    // ── EmpiricalBuilder (PT02 / PT03) ─────────────────────────────
+    // ── EmpiricalBuilder (sample-size-first / confidence-first) ────
 
     public static final class EmpiricalBuilder<FT, IT, OT> {
 
@@ -307,43 +309,43 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
                 throw new IllegalStateException("inputs is required and must be non-empty");
             }
 
-            boolean pt02 = samples != null;
-            boolean pt03 = minDetectableEffect != null || power != null;
+            boolean sampleSizeFirst = samples != null;
+            boolean confidenceFirst = minDetectableEffect != null || power != null;
 
-            if (pt02 && pt03) {
+            if (sampleSizeFirst && confidenceFirst) {
                 throw new IllegalStateException(
-                        "sample count is either declared (PT02) or computed from "
-                                + "power (PT03), not both; drop one of .samples() or "
+                        "sample count is either declared or computed from power, "
+                                + "not both; drop one of .samples() or "
                                 + ".minDetectableEffect()/.power()");
             }
-            if (pt03 && (minDetectableEffect == null || power == null)) {
+            if (confidenceFirst && (minDetectableEffect == null || power == null)) {
                 throw new IllegalStateException(
-                        "PT03 confidence-first requires both minDetectableEffect and power");
+                        "confidence-first requires both minDetectableEffect and power");
             }
-            if (!pt02 && !pt03) {
+            if (!sampleSizeFirst && !confidenceFirst) {
                 throw new IllegalStateException(
-                        "either .samples(n) (PT02) or .minDetectableEffect(...) + .power(...) (PT03) is required");
+                        "either .samples(n) or .minDetectableEffect(...) + .power(...) is required");
             }
 
-            // Stage 2 placeholder: Stage 4 uses the baseline to derive a real
-            // threshold (PT02) or compute sample size (PT03). For now we
-            // touch the supplier to make sure it resolves — Stage 4 will
-            // consume it properly.
+            // Placeholder resolution: a later stage uses the baseline to
+            // derive a real threshold (sample-size-first) or to compute
+            // sample size from a power analysis (confidence-first). For
+            // now we touch the supplier to make sure it resolves; the
+            // real wiring lands alongside the statistics work.
             try {
                 baseline.get();
             } catch (RuntimeException ignored) {
-                // the baseline may not resolve yet; that is a Stage 4 concern.
+                // the baseline may not resolve yet; handled later.
             }
 
-            int effectiveSamples = pt02 ? samples : 100;  // Stage 4 replaces with real power calc
-            double effectiveThreshold = 0.9;              // Stage 4 replaces with derived threshold
+            int effectiveSamples = sampleSizeFirst ? samples : 100;  // placeholder
+            double effectiveThreshold = 0.9;                         // placeholder
 
             List<String> defaultWarnings = List.of(
-                    "threshold derivation pending Stage 4 — using placeholder threshold 0.9",
-                    pt02
-                            ? "PT02 sample-size-first: verdict comparisons use placeholder stats"
-                            : "PT03 confidence-first: sample size pending Stage 4 power analysis, "
-                                    + "using placeholder n=100");
+                    "threshold derivation is a placeholder — using 0.9",
+                    sampleSizeFirst
+                            ? "sample-size-first: verdict comparisons use placeholder stats"
+                            : "confidence-first: sample size is a placeholder (n=100) pending a real power analysis");
 
             return new ProbabilisticTestSpec<>(
                     useCaseFactory, factors, inputs, effectiveSamples,

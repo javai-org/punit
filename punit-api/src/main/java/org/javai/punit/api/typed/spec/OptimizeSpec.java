@@ -66,11 +66,11 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         return useCaseFactory;
     }
 
-    @Override public Iterator<Configuration<FT, IT>> configurations() {
+    @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
         return new AdaptiveIterator();
     }
 
-    @Override public void consume(Configuration<FT, IT> config, SampleSummary<OT> summary) {
+    @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
         double score = scorer.score(summary);
         history.add(new IterationResult<>(config.factors(), score));
     }
@@ -102,7 +102,7 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         return objective == Objective.MAXIMIZE ? a > b : a < b;
     }
 
-    private final class AdaptiveIterator implements Iterator<Configuration<FT, IT>> {
+    private final class AdaptiveIterator implements Iterator<Configuration<FT, IT, OT>> {
 
         private FT next = initialFactors;
         private int issued = 0;
@@ -114,7 +114,7 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
             return next != null;
         }
 
-        @Override public Configuration<FT, IT> next() {
+        @Override public Configuration<FT, IT, OT> next() {
             refresh();
             if (next == null) {
                 throw new NoSuchElementException();
@@ -122,7 +122,7 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
             FT factors = next;
             next = null;
             issued++;
-            return new Configuration<>(factors, inputs, samplesPerIteration);
+            return Configuration.of(factors, inputs, samplesPerIteration);
         }
 
         private void refresh() {

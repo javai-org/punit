@@ -136,6 +136,86 @@ class EngineIntegrationTest {
     }
 
     @Test
+    @DisplayName("expectations: matching actuals count as successes; mismatches count as failures")
+    void instanceConformanceDrivesVerdict() {
+        // Use case: mirror the input, but uppercase it (deliberately wrong for half).
+        UseCase<LlmFactors, String, String> upperCase = new UseCase<>() {
+            @Override public UseCaseOutcome<String> apply(String input) {
+                return UseCaseOutcome.ok(input.toUpperCase());
+            }
+        };
+
+        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec
+                .<LlmFactors, String, String>builder()
+                .useCaseFactory(f -> upperCase)
+                .factors(new LlmFactors("gpt-4o", 0.0))
+                .expectations(
+                        org.javai.punit.api.typed.Expectation.of("a", "A"),   // match
+                        org.javai.punit.api.typed.Expectation.of("b", "Q"))   // mismatch
+                .samples(4)
+                .build();
+
+        EngineOutcome outcome = new Engine().run(spec);
+
+        assertThat(outcome).isInstanceOf(EngineOutcome.Artefact.class);
+        // 4 samples cycle through 2 expectations => 2 match, 2 mismatch
+        assertThat(((EngineOutcome.Artefact) outcome).message())
+                .contains("samples=4")
+                .contains("passRate=0.500");
+    }
+
+    @Test
+    @DisplayName("expectations: custom matcher overrides equality default")
+    void instanceConformanceUsesCustomMatcher() {
+        UseCase<LlmFactors, String, String> returnSameCase = new UseCase<>() {
+            @Override public UseCaseOutcome<String> apply(String input) {
+                return UseCaseOutcome.ok(input);
+            }
+        };
+
+        // Custom matcher: case-insensitive comparison.
+        org.javai.punit.api.typed.ValueMatcher<String> caseInsensitive =
+                (exp, act) -> exp.equalsIgnoreCase(act)
+                        ? org.javai.punit.api.typed.MatchResult.pass("equalsIgnoreCase", exp, act)
+                        : org.javai.punit.api.typed.MatchResult.fail("equalsIgnoreCase", exp, act,
+                                "case-insensitive comparison failed");
+
+        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec
+                .<LlmFactors, String, String>builder()
+                .useCaseFactory(f -> returnSameCase)
+                .factors(new LlmFactors("gpt-4o", 0.0))
+                .expectations(
+                        org.javai.punit.api.typed.Expectation.of("HELLO", "hello"),
+                        org.javai.punit.api.typed.Expectation.of("WORLD", "world"))
+                .matcher(caseInsensitive)
+                .samples(2)
+                .build();
+
+        EngineOutcome outcome = new Engine().run(spec);
+        assertThat(((EngineOutcome.Artefact) outcome).message())
+                .contains("passRate=1.000");
+    }
+
+    @Test
+    @DisplayName("builder rejects both .inputs() and .expectations() on the same spec")
+    void cannotCombineInputsAndExpectations() {
+        MeasureSpec.Builder<LlmFactors, String, String> b = MeasureSpec
+                .<LlmFactors, String, String>builder()
+                .useCaseFactory(f -> new UseCase<LlmFactors, String, String>() {
+                    @Override public UseCaseOutcome<String> apply(String input) {
+                        return UseCaseOutcome.ok(input);
+                    }
+                })
+                .factors(new LlmFactors("gpt-4o", 0.0))
+                .inputs("a");
+        assertThatThrownBy(() -> b.expectations(
+                org.javai.punit.api.typed.Expectation.of("a", "A")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(".inputs(...)")
+                .hasMessageContaining(".expectations(...)");
+    }
+
+    @Test
     @DisplayName("Round-robin input cycling is deterministic across runs")
     void roundRobinInputCyclingIsDeterministic() {
         List<String> observedA = runAndRecord();

@@ -47,15 +47,15 @@ public final class ExploreSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         return useCaseFactory;
     }
 
-    @Override public Iterator<Configuration<FT, IT>> configurations() {
-        List<Configuration<FT, IT>> configs = new ArrayList<>(factors.size());
+    @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
+        List<Configuration<FT, IT, OT>> configs = new ArrayList<>(factors.size());
         for (FT ft : factors) {
-            configs.add(new Configuration<>(ft, inputs, samplesPerConfig));
+            configs.add(Configuration.of(ft, inputs, samplesPerConfig));
         }
         return configs.iterator();
     }
 
-    @Override public void consume(Configuration<FT, IT> config, SampleSummary<OT> summary) {
+    @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
         perConfig.put(config.factors(), summary);
     }
 

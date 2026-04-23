@@ -15,8 +15,9 @@ import org.javai.punit.api.typed.UseCaseOutcome;
  * {@code Fail} (counted as a sample failure). Defects — exceptions
  * thrown from {@code UseCase.apply} — are not reported here; they
  * bubble out of the executor and the engine, aborting the run.
- * Stage 3 will introduce an exception policy (RC12 / RC13) that can
- * opt into catching defects and treating them as sample failures.
+ * A future exception-handling policy will let authors opt into
+ * catching defects and treating them as sample failures; the default
+ * stands for now.
  *
  * <p>Implementations must be thread-safe: a future concurrent
  * {@code SampleExecutor} will invoke this method from worker threads.

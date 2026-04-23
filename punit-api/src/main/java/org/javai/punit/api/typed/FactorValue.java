@@ -13,9 +13,10 @@ import java.time.Instant;
  * when a factor record is lifted into a {@link FactorBundle}.
  *
  * <p>Two projections are exposed: {@link #canonical()} produces the
- * string form used by the EX04 factor-bundle hash; {@link #yamlValue()}
- * produces the native representation serialised into the baseline
- * spec's {@code factors:} block.
+ * string form used to compute the factor-bundle hash in the baseline
+ * spec filename; {@link #yamlValue()} produces the native
+ * representation serialised into the baseline spec's {@code factors:}
+ * block.
  *
  * <p>Lifting a raw value is done with {@link #of(Object)}, which
  * matches the runtime type against the permitted set and throws if

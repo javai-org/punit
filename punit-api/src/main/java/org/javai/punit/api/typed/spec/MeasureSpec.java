@@ -3,14 +3,17 @@ package org.javai.punit.api.typed.spec;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.javai.punit.api.typed.Expectation;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.typed.ValueMatcher;
 
 /**
  * A single-configuration measurement experiment that produces a
@@ -27,6 +30,8 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
     private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
     private final FT factors;
     private final List<IT> inputs;
+    private final List<OT> expected;
+    private final Optional<ValueMatcher<OT>> matcher;
     private final int samples;
     private final String experimentId;
 
@@ -36,6 +41,8 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         this.useCaseFactory = b.useCaseFactory;
         this.factors = b.factors;
         this.inputs = b.inputs;
+        this.expected = b.expected;
+        this.matcher = Optional.ofNullable(b.matcher);
         this.samples = b.samples;
         this.experimentId = b.experimentId;
     }
@@ -48,11 +55,15 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         return useCaseFactory;
     }
 
-    @Override public Iterator<Configuration<FT, IT>> configurations() {
-        return List.of(new Configuration<>(factors, inputs, samples)).iterator();
+    @Override public Optional<ValueMatcher<OT>> matcher() {
+        return matcher;
     }
 
-    @Override public void consume(Configuration<FT, IT> config, SampleSummary<OT> summary) {
+    @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
+        return List.of(new Configuration<>(factors, inputs, expected, samples)).iterator();
+    }
+
+    @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
         this.lastSummary = Optional.of(summary);
     }
 
@@ -96,8 +107,11 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         private Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
         private FT factors;
         private List<IT> inputs;
+        private List<OT> expected = List.of();
+        private ValueMatcher<OT> matcher;
         private int samples = 1000;
         private String experimentId;
+        private boolean inputsOrExpectationsSet;
 
         private Builder() {}
 
@@ -113,13 +127,59 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
 
         public Builder<FT, IT, OT> inputs(List<IT> inputs) {
             Objects.requireNonNull(inputs, "inputs");
+            guardInputsVsExpectations();
             this.inputs = List.copyOf(inputs);
+            this.expected = List.of();
+            this.inputsOrExpectationsSet = true;
             return this;
         }
 
         @SafeVarargs
         public final Builder<FT, IT, OT> inputs(IT... inputs) {
             return inputs(List.of(inputs));
+        }
+
+        /**
+         * Supply input + expected pairs for instance-conformance
+         * checking. Alternative to {@link #inputs(List)}; calling both
+         * on the same builder is a build-time error.
+         *
+         * <p>The engine will run the spec's {@link #matcher(ValueMatcher)
+         * matcher} (default {@link ValueMatcher#equality()}) for each
+         * sample and attach a {@code MatchResult} to the outcome. A
+         * failed match counts as a failed sample.
+         */
+        public Builder<FT, IT, OT> expectations(List<Expectation<IT, OT>> pairs) {
+            Objects.requireNonNull(pairs, "pairs");
+            guardInputsVsExpectations();
+            if (pairs.isEmpty()) {
+                throw new IllegalArgumentException("expectations must be non-empty");
+            }
+            List<IT> in = new ArrayList<>(pairs.size());
+            List<OT> exp = new ArrayList<>(pairs.size());
+            for (Expectation<IT, OT> e : pairs) {
+                in.add(e.input());
+                exp.add(e.expected());
+            }
+            this.inputs = List.copyOf(in);
+            this.expected = List.copyOf(exp);
+            this.inputsOrExpectationsSet = true;
+            return this;
+        }
+
+        @SafeVarargs
+        public final Builder<FT, IT, OT> expectations(Expectation<IT, OT>... pairs) {
+            return expectations(List.of(pairs));
+        }
+
+        /**
+         * Instance-conformance matcher, invoked on each sample when
+         * expectations are supplied. Defaults to
+         * {@link ValueMatcher#equality()}.
+         */
+        public Builder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
+            this.matcher = Objects.requireNonNull(matcher, "matcher");
+            return this;
         }
 
         public Builder<FT, IT, OT> samples(int samples) {
@@ -143,12 +203,23 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
                 throw new IllegalStateException("factors is required");
             }
             if (inputs == null || inputs.isEmpty()) {
-                throw new IllegalStateException("inputs is required and must be non-empty");
+                throw new IllegalStateException(
+                        "inputs is required — call .inputs(...) or .expectations(...)");
+            }
+            if (!expected.isEmpty() && matcher == null) {
+                matcher = ValueMatcher.equality();
             }
             if (experimentId == null) {
                 experimentId = defaultExperimentId();
             }
             return new MeasureSpec<>(this);
+        }
+
+        private void guardInputsVsExpectations() {
+            if (inputsOrExpectationsSet) {
+                throw new IllegalStateException(
+                        "cannot call both .inputs(...) and .expectations(...) on the same builder");
+            }
         }
 
         private static String defaultExperimentId() {
