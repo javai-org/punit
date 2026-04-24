@@ -63,4 +63,16 @@ class PunitApiArchitectureTest {
                 .because("the typed API points outward, not to framework internals");
         rule.check(classes);
     }
+
+    @Test
+    @DisplayName("punit-api classes must not depend on Apache Commons (statistics stays out of the API)")
+    void mustNotDependOnApacheCommons() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("org.javai.punit.api.typed..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("org.apache.commons..")
+                .because("commons-statistics belongs in punit-core; keeping it off the author-facing classpath "
+                        + "stops a transitive dependency leaking to downstream consumers");
+        rule.check(classes);
+    }
 }
