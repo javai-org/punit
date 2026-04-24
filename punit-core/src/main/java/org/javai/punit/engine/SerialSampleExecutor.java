@@ -36,9 +36,11 @@ import org.javai.punit.api.typed.spec.SampleObserver;
  * <p>Business-level failures are signalled by the use case returning
  * a {@link UseCaseOutcome} whose inner {@link org.javai.outcome.Outcome}
  * is a {@code Fail}; the executor just forwards those. Defects —
- * exceptions thrown from {@code apply} — propagate naturally out of
- * this method and terminate the run. A later slice wires them through
- * the observer's {@code onDefect} channel.
+ * exceptions thrown from {@code apply} — are routed through the
+ * observer's {@code onDefect} channel, which the engine's aggregator
+ * uses to apply the spec's
+ * {@link org.javai.punit.api.typed.spec.ExceptionPolicy}. The
+ * executor itself makes no policy decisions.
  */
 public final class SerialSampleExecutor implements SampleExecutor {
 
@@ -73,7 +75,14 @@ public final class SerialSampleExecutor implements SampleExecutor {
             }
             IT input = inputs.get((cycleStart + i) % inputs.size());
             long t0 = System.nanoTime();
-            UseCaseOutcome<OT> outcome = useCase.apply(input);
+            UseCaseOutcome<OT> outcome;
+            try {
+                outcome = useCase.apply(input);
+            } catch (Throwable t) {
+                Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
+                observer.onDefect(i, t, elapsed);
+                continue;
+            }
             Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
             observer.onSample(i, outcome, elapsed);
         }

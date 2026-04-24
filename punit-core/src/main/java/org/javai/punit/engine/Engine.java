@@ -14,6 +14,7 @@ import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.ValueMatcher;
 import org.javai.punit.api.typed.spec.Configuration;
 import org.javai.punit.api.typed.spec.EngineOutcome;
+import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
 import org.javai.punit.api.typed.spec.SampleSummary;
@@ -78,6 +79,7 @@ public final class Engine {
                 cfg.expected(),
                 cycleStart,
                 spec.matcher(),
+                spec.exceptionPolicy(),
                 spec.maxExampleFailures(),
                 tracker);
 
@@ -104,6 +106,7 @@ public final class Engine {
         private final List<OT> expected;
         private final int cycleStart;
         private final Optional<ValueMatcher<OT>> matcher;
+        private final ExceptionPolicy exceptionPolicy;
         private final int maxExampleFailures;
         private final BudgetTracker tracker;
         // retained is exposed via the summary; failure detail beyond
@@ -120,11 +123,13 @@ public final class Engine {
         Aggregator(List<OT> expected,
                    int cycleStart,
                    Optional<ValueMatcher<OT>> matcher,
+                   ExceptionPolicy exceptionPolicy,
                    int maxExampleFailures,
                    BudgetTracker tracker) {
             this.expected = expected;
             this.cycleStart = cycleStart;
             this.matcher = matcher;
+            this.exceptionPolicy = exceptionPolicy;
             this.maxExampleFailures = maxExampleFailures;
             this.tracker = tracker;
         }
@@ -134,6 +139,26 @@ public final class Engine {
             UseCaseOutcome<OT> stamped = outcome.withDuration(elapsed);
             stamped = maybeAttachMatch(index, stamped);
             record(stamped);
+        }
+
+        @Override
+        public void onDefect(int index, Throwable throwable, Duration elapsed) {
+            // Errors (OOM, StackOverflow, LinkageError) always propagate
+            // — they are not caught regardless of the spec's policy.
+            if (throwable instanceof Error e) {
+                throw e;
+            }
+            if (exceptionPolicy == ExceptionPolicy.ABORT_TEST) {
+                if (throwable instanceof RuntimeException re) {
+                    throw re;
+                }
+                throw new RuntimeException(throwable);
+            }
+            // FAIL_SAMPLE: synthesise a failing outcome and continue.
+            UseCaseOutcome<OT> synthetic = UseCaseOutcome
+                    .<OT>fail("defect", throwable.toString())
+                    .withDuration(elapsed);
+            record(synthetic);
         }
 
         private void record(UseCaseOutcome<OT> stamped) {
