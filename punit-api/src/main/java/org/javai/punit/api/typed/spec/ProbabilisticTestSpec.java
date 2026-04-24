@@ -133,7 +133,9 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         Optional<LatencyVerdict> latencyVerdictOpt = summary == null
                 ? Optional.empty()
                 : LatencyVerdict.evaluate(latency, summary.latencyResult());
-        Verdict projected = Verdict.project(functionalVerdict, latencyVerdictOpt, assertOn());
+        Verdict projected = latencyVerdictOpt.isPresent()
+                ? Verdict.project(functionalVerdict, latencyVerdictOpt.get(), assertOn())
+                : Verdict.project(functionalVerdict, assertOn());
 
         List<String> warnings = new ArrayList<>(defaultWarnings);
         warnings.add("statistics pending Stage 4 — verdict uses placeholder threshold comparison");

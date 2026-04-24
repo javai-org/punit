@@ -1,7 +1,6 @@
 package org.javai.punit.api.typed.spec;
 
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Three-state statistical verdict returned by a
@@ -36,8 +35,7 @@ public enum Verdict {
      *   <li>{@link VerdictDimension#FUNCTIONAL} — returns the
      *       functional verdict unchanged.</li>
      *   <li>{@link VerdictDimension#LATENCY} — returns the latency
-     *       verdict if present, else {@link #PASS} (nothing asserted
-     *       on this axis).</li>
+     *       verdict.</li>
      *   <li>{@link VerdictDimension#BOTH} — combines the two with
      *       three-valued logic: {@link #INCONCLUSIVE} if either is
      *       inconclusive, else {@link #FAIL} if either failed, else
@@ -45,16 +43,45 @@ public enum Verdict {
      * </ul>
      */
     public static Verdict project(Verdict functional,
-                                  Optional<LatencyVerdict> latency,
+                                  LatencyVerdict latency,
                                   VerdictDimension dimension) {
         Objects.requireNonNull(functional, "functional");
         Objects.requireNonNull(latency, "latency");
         Objects.requireNonNull(dimension, "dimension");
-        Verdict lat = latency.map(LatencyVerdict::verdict).orElse(PASS);
         return switch (dimension) {
             case FUNCTIONAL -> functional;
-            case LATENCY -> lat;
-            case BOTH -> combineBoth(functional, lat);
+            case LATENCY -> latency.verdict();
+            case BOTH -> combineBoth(functional, latency.verdict());
+        };
+    }
+
+    /**
+     * Project a functional-only verdict — for the case where no
+     * latency verdict is available (spec declared no latency
+     * thresholds, or the run produced no samples to compute them
+     * from).
+     *
+     * <p>The latency side is treated as vacuously {@link #PASS}
+     * under this overload: nothing was asserted about latency, so
+     * nothing failed it.
+     *
+     * <ul>
+     *   <li>{@link VerdictDimension#FUNCTIONAL} — returns the
+     *       functional verdict unchanged.</li>
+     *   <li>{@link VerdictDimension#LATENCY} — returns {@link #PASS}
+     *       (nothing asserted on this axis).</li>
+     *   <li>{@link VerdictDimension#BOTH} — returns the functional
+     *       verdict (the latency side vacuously passes, so the
+     *       combined verdict is determined by the functional side
+     *       alone).</li>
+     * </ul>
+     */
+    public static Verdict project(Verdict functional, VerdictDimension dimension) {
+        Objects.requireNonNull(functional, "functional");
+        Objects.requireNonNull(dimension, "dimension");
+        return switch (dimension) {
+            case FUNCTIONAL, BOTH -> functional;
+            case LATENCY -> PASS;
         };
     }
 
