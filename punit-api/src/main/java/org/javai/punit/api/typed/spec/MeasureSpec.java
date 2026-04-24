@@ -38,6 +38,7 @@ public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
     private final int samples;
     private final String experimentId;
     private final ResourceControls resourceControls;
+    private final LatencySpec latency;
 
     private Optional<SampleSummary<OT>> lastSummary = Optional.empty();
 
@@ -50,6 +51,7 @@ public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
         this.samples = b.samples;
         this.experimentId = b.experimentId;
         this.resourceControls = b.resources.build();
+        this.latency = b.latency;
     }
 
     public static <FT, IT, OT> Builder<FT, IT, OT> builder() {
@@ -81,7 +83,7 @@ public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
         return new ExperimentResult(message, path);
     }
 
-    // ── Stage-3 spec-interface accessors, delegated to ResourceControls ────
+    // ── Stage-3 spec-interface accessors ─────────────────────────────
 
     @Override public Optional<Duration> timeBudget() { return resourceControls.timeBudget(); }
     @Override public OptionalLong tokenBudget() { return resourceControls.tokenBudget(); }
@@ -89,7 +91,7 @@ public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
     @Override public BudgetExhaustionPolicy budgetPolicy() { return resourceControls.budgetPolicy(); }
     @Override public ExceptionPolicy exceptionPolicy() { return resourceControls.exceptionPolicy(); }
     @Override public int maxExampleFailures() { return resourceControls.maxExampleFailures(); }
-    @Override public LatencySpec latency() { return resourceControls.latency(); }
+    @Override public LatencySpec latency() { return latency; }
 
     public String experimentId() {
         return experimentId;
@@ -137,6 +139,7 @@ public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
         private String experimentId;
         private boolean inputsOrExpectationsSet;
         private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
+        private LatencySpec latency = LatencySpec.disabled();
 
         private Builder() {}
 
@@ -171,7 +174,7 @@ public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
         }
 
         public Builder<FT, IT, OT> latency(LatencySpec spec) {
-            resources.latency(spec);
+            this.latency = Objects.requireNonNull(spec, "latency");
             return this;
         }
 

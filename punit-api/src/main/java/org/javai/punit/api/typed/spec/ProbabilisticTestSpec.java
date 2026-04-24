@@ -74,6 +74,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     private final TestIntent intent;
     private final List<String> defaultWarnings;
     private final ResourceControls resourceControls;
+    private final LatencySpec latency;
     private final Optional<VerdictDimension> assertOnOverride;
 
     private SampleSummary<OT> summary;
@@ -89,6 +90,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
             TestIntent intent,
             List<String> defaultWarnings,
             ResourceControls resourceControls,
+            LatencySpec latency,
             Optional<VerdictDimension> assertOnOverride) {
         this.useCaseFactory = useCaseFactory;
         this.factors = factors;
@@ -100,6 +102,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         this.intent = intent;
         this.defaultWarnings = defaultWarnings;
         this.resourceControls = resourceControls;
+        this.latency = latency;
         this.assertOnOverride = assertOnOverride;
     }
 
@@ -166,7 +169,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     }
 
     private Optional<LatencyVerdict> evaluateLatency() {
-        LatencySpec latSpec = resourceControls.latency();
+        LatencySpec latSpec = latency;
         if (latSpec.isDisabled() || summary == null || summary.total() == 0) {
             return Optional.empty();
         }
@@ -222,7 +225,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     @Override public BudgetExhaustionPolicy budgetPolicy() { return resourceControls.budgetPolicy(); }
     @Override public ExceptionPolicy exceptionPolicy() { return resourceControls.exceptionPolicy(); }
     @Override public int maxExampleFailures() { return resourceControls.maxExampleFailures(); }
-    @Override public LatencySpec latency() { return resourceControls.latency(); }
+    @Override public LatencySpec latency() { return latency; }
 
     /**
      * Which verdict dimension projects through the probabilistic
@@ -239,7 +242,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         if (assertOnOverride.isPresent()) {
             return assertOnOverride.get();
         }
-        return resourceControls.latency().hasAnyThreshold()
+        return latency.hasAnyThreshold()
                 ? VerdictDimension.BOTH
                 : VerdictDimension.FUNCTIONAL;
     }
@@ -257,6 +260,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         private String contractRef;
         private TestIntent intent = TestIntent.VERIFICATION;
         private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
+        private LatencySpec latency = LatencySpec.disabled();
         private VerdictDimension assertOnOverride;
 
         private NormativeBuilder() {}
@@ -292,7 +296,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         }
 
         public NormativeBuilder<FT, IT, OT> latency(LatencySpec spec) {
-            resources.latency(spec);
+            this.latency = Objects.requireNonNull(spec, "latency");
             return this;
         }
 
@@ -375,6 +379,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
                     threshold, thresholdOrigin, contractRef, intent,
                     List.of(),
                     resources.build(),
+                    latency,
                     Optional.ofNullable(assertOnOverride));
         }
     }
@@ -394,6 +399,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         private String contractRef;
         private TestIntent intent = TestIntent.VERIFICATION;
         private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
+        private LatencySpec latency = LatencySpec.disabled();
         private VerdictDimension assertOnOverride;
 
         private EmpiricalBuilder(Supplier<MeasureSpec<FT, IT, OT>> baseline) {
@@ -431,7 +437,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         }
 
         public EmpiricalBuilder<FT, IT, OT> latency(LatencySpec spec) {
-            resources.latency(spec);
+            this.latency = Objects.requireNonNull(spec, "latency");
             return this;
         }
 
@@ -556,6 +562,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
                     effectiveThreshold, ThresholdOrigin.EMPIRICAL, contractRef, intent,
                     defaultWarnings,
                     resources.build(),
+                    latency,
                     Optional.ofNullable(assertOnOverride));
         }
     }

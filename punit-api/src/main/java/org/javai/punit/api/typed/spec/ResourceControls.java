@@ -5,17 +5,23 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 
-import org.javai.punit.api.typed.LatencySpec;
-
 /**
- * Bundled resource-control / latency values shared by every
- * Stage-3 spec builder.
+ * Bundled run-bounding values shared by every Stage-3 spec builder.
  *
  * <p>All four spec flavours (Measure, Explore, Optimize,
- * ProbabilisticTest) expose the same eight Stage-3 knobs. Rather than
- * duplicate the builder-side field declarations and validation, each
- * spec keeps a single {@code ResourceControls} instance and delegates
- * the {@link DataGenerationSpec} interface's default accessors to its fields.
+ * ProbabilisticTest) expose the same knobs for governing
+ * <em>how</em> a run executes: how long it can take, how much it
+ * can cost, how to react to budget exhaustion, how to react to a
+ * thrown defect, and how much failure detail to retain. Rather than
+ * duplicate the field declarations and validation across four spec
+ * builders, each spec keeps a single {@code ResourceControls}
+ * instance and delegates the corresponding
+ * {@link DataGenerationSpec} interface accessors to its fields.
+ *
+ * <p>Evaluation-time thresholds (latency percentiles, functional
+ * pass-rate) are <em>not</em> resource controls — they judge the
+ * observed data rather than bound the run — and so live on the
+ * concrete spec directly, not in this bundle.
  *
  * <p>This record is internal plumbing; authors see only the fluent
  * builder methods. Exposed as package-public so concrete specs can
@@ -28,8 +34,6 @@ import org.javai.punit.api.typed.LatencySpec;
  * @param exceptionPolicy how to treat a thrown exception from
  *                       {@code UseCase.apply}; default ABORT_TEST
  * @param maxExampleFailures cap on retained failure detail; default 10
- * @param latency optional latency-threshold declaration; default
- *                {@link LatencySpec#disabled()}
  */
 public record ResourceControls(
         Optional<Duration> timeBudget,
@@ -37,8 +41,7 @@ public record ResourceControls(
         long tokenCharge,
         BudgetExhaustionPolicy budgetPolicy,
         ExceptionPolicy exceptionPolicy,
-        int maxExampleFailures,
-        LatencySpec latency) {
+        int maxExampleFailures) {
 
     private static final ResourceControls DEFAULTS = new ResourceControls(
             Optional.empty(),
@@ -46,15 +49,13 @@ public record ResourceControls(
             0L,
             BudgetExhaustionPolicy.FAIL,
             ExceptionPolicy.ABORT_TEST,
-            10,
-            LatencySpec.disabled());
+            10);
 
     public ResourceControls {
         Objects.requireNonNull(timeBudget, "timeBudget");
         Objects.requireNonNull(tokenBudget, "tokenBudget");
         Objects.requireNonNull(budgetPolicy, "budgetPolicy");
         Objects.requireNonNull(exceptionPolicy, "exceptionPolicy");
-        Objects.requireNonNull(latency, "latency");
         if (timeBudget.isPresent() && (timeBudget.get().isZero() || timeBudget.get().isNegative())) {
             throw new IllegalArgumentException(
                     "timeBudget must be > 0, got " + timeBudget.get());
@@ -73,7 +74,7 @@ public record ResourceControls(
         }
     }
 
-    /** The default-valued bundle — empty budgets, FAIL, ABORT_TEST, 10, disabled latency. */
+    /** The default-valued bundle — empty budgets, FAIL, ABORT_TEST, 10. */
     public static ResourceControls defaults() {
         return DEFAULTS;
     }

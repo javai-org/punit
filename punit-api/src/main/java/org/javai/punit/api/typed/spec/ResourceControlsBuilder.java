@@ -5,12 +5,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 
-import org.javai.punit.api.typed.LatencySpec;
-
 /**
  * Mutable accumulator used by each spec builder to collect the
- * Stage-3 resource-control / latency knobs before sealing them into
- * an immutable {@link ResourceControls} at {@code build()} time.
+ * Stage-3 run-bounding knobs before sealing them into an immutable
+ * {@link ResourceControls} at {@code build()} time.
  *
  * <p>Not exposed to authors — spec builders delegate to this internally
  * and surface the fluent methods themselves. Keeping the accumulator
@@ -24,7 +22,6 @@ final class ResourceControlsBuilder {
     private BudgetExhaustionPolicy budgetPolicy = BudgetExhaustionPolicy.FAIL;
     private ExceptionPolicy exceptionPolicy = ExceptionPolicy.ABORT_TEST;
     private int maxExampleFailures = 10;
-    private LatencySpec latency = LatencySpec.disabled();
 
     ResourceControlsBuilder() {}
 
@@ -69,10 +66,6 @@ final class ResourceControlsBuilder {
         this.maxExampleFailures = cap;
     }
 
-    void latency(LatencySpec spec) {
-        this.latency = Objects.requireNonNull(spec, "latency");
-    }
-
     ResourceControls build() {
         return new ResourceControls(
                 timeBudget,
@@ -80,7 +73,6 @@ final class ResourceControlsBuilder {
                 tokenCharge,
                 budgetPolicy,
                 exceptionPolicy,
-                maxExampleFailures,
-                latency);
+                maxExampleFailures);
     }
 }

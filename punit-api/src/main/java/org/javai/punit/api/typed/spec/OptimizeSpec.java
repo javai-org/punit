@@ -50,6 +50,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
     private final List<IterationResult<FT>> history = new ArrayList<>();
 
     private final ResourceControls resourceControls;
+    private final LatencySpec latency;
 
     private OptimizeSpec(Builder<FT, IT, OT> b) {
         this.useCaseFactory = b.useCaseFactory;
@@ -63,6 +64,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
         this.noImprovementWindow = b.noImprovementWindow;
         this.experimentId = b.experimentId;
         this.resourceControls = b.resources.build();
+        this.latency = b.latency;
     }
 
     public static <FT, IT, OT> Builder<FT, IT, OT> builder() {
@@ -103,7 +105,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
     @Override public BudgetExhaustionPolicy budgetPolicy() { return resourceControls.budgetPolicy(); }
     @Override public ExceptionPolicy exceptionPolicy() { return resourceControls.exceptionPolicy(); }
     @Override public int maxExampleFailures() { return resourceControls.maxExampleFailures(); }
-    @Override public LatencySpec latency() { return resourceControls.latency(); }
+    @Override public LatencySpec latency() { return latency; }
 
     private IterationResult<FT> bestSoFar() {
         IterationResult<FT> best = null;
@@ -185,6 +187,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
         private int noImprovementWindow = 5;
         private String experimentId;
         private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
+        private LatencySpec latency = LatencySpec.disabled();
 
         private Builder() {}
 
@@ -219,7 +222,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
         }
 
         public Builder<FT, IT, OT> latency(LatencySpec spec) {
-            resources.latency(spec);
+            this.latency = Objects.requireNonNull(spec, "latency");
             return this;
         }
 
