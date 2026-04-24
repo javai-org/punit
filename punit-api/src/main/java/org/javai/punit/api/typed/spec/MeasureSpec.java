@@ -25,7 +25,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  * <p>Stage 2 implements the spec surface and the strategy-method
  * dispatch; artefact serialisation to YAML lands in Stage 4, at which
  * point {@link #conclude()} becomes load-bearing. For now it returns
- * an {@link EngineOutcome.Artefact} with a placeholder message and the
+ * an {@link ExperimentResult} with a placeholder message and the
  * path where the baseline *would* be written.
  */
 public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
@@ -72,13 +72,13 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         this.lastSummary = Optional.of(summary);
     }
 
-    @Override public EngineOutcome conclude() {
+    @Override public EngineResult conclude() {
         FactorBundle bundle = FactorBundle.of(factors);
         Path path = defaultBaselinePath(experimentId, bundle);
         String message = "measure baseline (stage 2 placeholder — serialisation lands in stage 4); "
                 + "samples=" + lastSummary.map(SampleSummary::total).orElse(0)
                 + ", passRate=" + lastSummary.map(s -> String.format("%.3f", s.passRate())).orElse("n/a");
-        return new EngineOutcome.Artefact(message, path);
+        return new ExperimentResult(message, path);
     }
 
     // ── Stage-3 spec-interface accessors, delegated to ResourceControls ────

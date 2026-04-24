@@ -82,13 +82,13 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         history.add(new IterationResult<>(config.factors(), score));
     }
 
-    @Override public EngineOutcome conclude() {
+    @Override public EngineResult conclude() {
         IterationResult<FT> best = bestSoFar();
         Path dir = Paths.get("optimizations", experimentId);
         String message = "optimize artefact (stage 2 placeholder); iterations="
                 + history.size()
                 + (best == null ? "" : ", bestScore=" + String.format("%.3f", best.score()));
-        return new EngineOutcome.Artefact(message, dir);
+        return new ExperimentResult(message, dir);
     }
 
     public List<IterationResult<FT>> history() {

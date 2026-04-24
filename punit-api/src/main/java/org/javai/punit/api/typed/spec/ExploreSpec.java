@@ -65,11 +65,11 @@ public final class ExploreSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         perConfig.put(config.factors(), summary);
     }
 
-    @Override public EngineOutcome conclude() {
+    @Override public EngineResult conclude() {
         Path dir = Paths.get("explorations", experimentId);
         String message = "explore artefact (stage 2 placeholder); configurations="
                 + perConfig.size();
-        return new EngineOutcome.Artefact(message, dir);
+        return new ExperimentResult(message, dir);
     }
 
     public List<FT> factors() { return factors; }

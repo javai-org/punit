@@ -13,7 +13,7 @@ import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.ValueMatcher;
 import org.javai.punit.api.typed.spec.Configuration;
-import org.javai.punit.api.typed.spec.EngineOutcome;
+import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
@@ -29,7 +29,7 @@ import org.javai.punit.api.typed.spec.Spec;
  * {@link SampleSummary} to
  * {@link Spec#consume(Configuration, SampleSummary) spec.consume(...)},
  * and finally invokes {@link Spec#conclude() spec.conclude()} to
- * obtain the run's {@link EngineOutcome}.
+ * obtain the run's {@link EngineResult}.
  *
  * <p>Resource controls declared on the spec (time budget, token
  * budget, static token charge, example-failure cap) are honoured here
@@ -53,7 +53,7 @@ public final class Engine {
         this.executor = Objects.requireNonNull(executor, "executor");
     }
 
-    public <FT, IT, OT> EngineOutcome run(Spec<FT, IT, OT> spec) {
+    public <FT, IT, OT> EngineResult run(Spec<FT, IT, OT> spec) {
         Objects.requireNonNull(spec, "spec");
         Iterator<Configuration<FT, IT, OT>> it = spec.configurations();
         int cycleStart = 0;

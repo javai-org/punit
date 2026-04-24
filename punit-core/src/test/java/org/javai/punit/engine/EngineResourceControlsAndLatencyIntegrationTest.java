@@ -13,11 +13,11 @@ import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.typed.spec.Dimension;
-import org.javai.punit.api.typed.spec.EngineOutcome;
+import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.MeasureSpec;
 import org.javai.punit.api.typed.spec.ProbabilisticTestSpec;
-import org.javai.punit.api.typed.spec.ProbabilisticTestVerdictOutcome;
+import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.SampleSummary;
 import org.javai.punit.api.typed.spec.TerminationReason;
 import org.javai.punit.api.typed.spec.Verdict;
@@ -355,9 +355,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .latency(LatencySpec.builder().p50Millis(10L).build())
                 .build();
 
-        EngineOutcome outcome = new Engine().run(spec);
-        ProbabilisticTestVerdictOutcome v =
-                ((EngineOutcome.ProbabilisticTestVerdict) outcome).verdictOutcome();
+        EngineResult outcome = new Engine().run(spec);
+        ProbabilisticTestResult v =
+                ((ProbabilisticTestResult) outcome);
 
         assertThat(v.latencyVerdict()).isPresent();
         assertThat(v.latencyVerdict().get().verdict()).isEqualTo(Verdict.FAIL);
@@ -387,7 +387,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .threshold(0.95, ThresholdOrigin.SLA)
                 .latency(LatencySpec.builder().p50Millis(10L).build())
                 .build();
-        var vBoth = ((EngineOutcome.ProbabilisticTestVerdict) new Engine().run(both)).verdictOutcome();
+        var vBoth = ((ProbabilisticTestResult) new Engine().run(both));
         assertThat(vBoth.verdict()).isEqualTo(Verdict.FAIL);
         assertThat(vBoth.latencyVerdict()).isPresent();
         assertThat(vBoth.latencyVerdict().get().verdict()).isEqualTo(Verdict.FAIL);
@@ -403,7 +403,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .latency(LatencySpec.builder().p50Millis(10L).build())
                 .assertOn(Dimension.FUNCTIONAL)
                 .build();
-        var vFunc = ((EngineOutcome.ProbabilisticTestVerdict) new Engine().run(funcOnly)).verdictOutcome();
+        var vFunc = ((ProbabilisticTestResult) new Engine().run(funcOnly));
         assertThat(vFunc.verdict()).isEqualTo(Verdict.PASS);
         // Latency verdict side channel still populated (it was declared).
         assertThat(vFunc.latencyVerdict()).isPresent();
@@ -433,7 +433,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .assertOn(Dimension.LATENCY)
                 .build();
 
-        var v = ((EngineOutcome.ProbabilisticTestVerdict) new Engine().run(spec)).verdictOutcome();
+        var v = ((ProbabilisticTestResult) new Engine().run(spec));
 
         // Functional side is a total FAIL (contract violations) but
         // assertOn(LATENCY) ignores it — latency passes (5ms ≤ 100ms).
@@ -445,7 +445,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     // ── verdict round-trip (acceptance criterion 6) ─────────────────
 
     @Test
-    @DisplayName("ProbabilisticTestVerdictOutcome round-trips a two-dimensional verdict")
+    @DisplayName("ProbabilisticTestResult round-trips a two-dimensional verdict")
     void verdictRoundTripsTwoDimensionalShape() {
         UseCase<Factors, Integer, Boolean> fine = new UseCase<>() {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
@@ -462,7 +462,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .latency(LatencySpec.builder().p95Millis(500L).build())
                 .build();
 
-        var v = ((EngineOutcome.ProbabilisticTestVerdict) new Engine().run(spec)).verdictOutcome();
+        var v = ((ProbabilisticTestResult) new Engine().run(spec));
         assertThat(v.verdict()).isEqualTo(Verdict.PASS);
         assertThat(v.latencyVerdict()).isPresent();
         assertThat(v.latencyVerdict().get().verdict()).isEqualTo(Verdict.PASS);

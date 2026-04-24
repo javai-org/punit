@@ -106,7 +106,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         this.summary = summary;
     }
 
-    @Override public EngineOutcome conclude() {
+    @Override public EngineResult conclude() {
         int successes = summary == null ? 0 : summary.successes();
         int failures = summary == null ? 0 : summary.failures();
         double observed = summary == null ? Double.NaN : summary.passRate();
@@ -124,8 +124,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         Optional<LatencyVerdict> latencyVerdictOpt = evaluateLatency();
         Verdict projected = projectVerdict(functionalVerdict, latencyVerdictOpt);
 
-        return new EngineOutcome.ProbabilisticTestVerdict(
-                new ProbabilisticTestVerdictOutcome(
+        return new ProbabilisticTestResult(
                         projected,
                         FactorBundle.of(factors),
                         successes,
@@ -133,7 +132,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
                         threshold,
                         thresholdOrigin,
                         warnings,
-                        latencyVerdictOpt));
+                        latencyVerdictOpt);
     }
 
     private Optional<LatencyVerdict> evaluateLatency() {

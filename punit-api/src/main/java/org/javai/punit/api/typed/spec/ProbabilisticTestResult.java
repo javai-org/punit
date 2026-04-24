@@ -8,9 +8,8 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.FactorBundle;
 
 /**
- * Lightweight verdict summary returned by a
- * {@link ProbabilisticTestSpec}'s
- * {@link Spec#conclude() conclude()} call.
+ * The result of running a {@link ProbabilisticTestSpec} — a concluded
+ * verdict plus the evidence that produced it.
  *
  * <p>Intentionally thinner than the full
  * {@code org.javai.punit.verdict.ProbabilisticTestVerdict} — this Stage 2
@@ -37,7 +36,7 @@ import org.javai.punit.api.typed.FactorBundle;
  *                      the spec declared a non-disabled
  *                      {@link org.javai.punit.api.typed.LatencySpec}
  */
-public record ProbabilisticTestVerdictOutcome(
+public record ProbabilisticTestResult(
         Verdict verdict,
         FactorBundle factors,
         int successes,
@@ -45,9 +44,9 @@ public record ProbabilisticTestVerdictOutcome(
         double threshold,
         ThresholdOrigin thresholdOrigin,
         List<String> warnings,
-        Optional<LatencyVerdict> latencyVerdict) {
+        Optional<LatencyVerdict> latencyVerdict) implements EngineResult {
 
-    public ProbabilisticTestVerdictOutcome {
+    public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
         Objects.requireNonNull(factors, "factors");
         Objects.requireNonNull(thresholdOrigin, "thresholdOrigin");
@@ -64,7 +63,7 @@ public record ProbabilisticTestVerdictOutcome(
      * latency verdict — defaults {@code latencyVerdict} to
      * {@link Optional#empty()}.
      */
-    public ProbabilisticTestVerdictOutcome(
+    public ProbabilisticTestResult(
             Verdict verdict,
             FactorBundle factors,
             int successes,

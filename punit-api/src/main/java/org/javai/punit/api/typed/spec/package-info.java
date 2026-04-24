@@ -14,7 +14,7 @@
  * {@link org.javai.punit.api.typed.spec.Spec#consume(Configuration, SampleSummary)
  * spec.consume(...)}, and finishes by invoking
  * {@link org.javai.punit.api.typed.spec.Spec#conclude() spec.conclude()}
- * — which yields a {@link org.javai.punit.api.typed.spec.EngineOutcome}.
+ * — which yields a {@link org.javai.punit.api.typed.spec.EngineResult}.
  *
  * <p>The engine never inspects the concrete spec subtype. All
  * flavour-specific behaviour reaches the engine through the strategy

@@ -26,7 +26,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  *       receives the per-configuration aggregate; the spec accumulates
  *       what it needs for {@link #conclude()}.</li>
  *   <li>{@link #conclude()} produces the
- *       {@link EngineOutcome} — a verdict for a probabilistic test,
+ *       {@link EngineResult} — a verdict for a probabilistic test,
  *       an artefact description for an experiment.</li>
  * </ul>
  *
@@ -59,7 +59,7 @@ public sealed interface Spec<FT, IT, OT>
 
     void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary);
 
-    EngineOutcome conclude();
+    EngineResult conclude();
 
     // ── Stage-3 resource-control / latency accessors ────────────────
 
