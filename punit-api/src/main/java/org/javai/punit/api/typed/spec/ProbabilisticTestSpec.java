@@ -1,15 +1,19 @@
 package org.javai.punit.api.typed.spec;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.UseCase;
 
 /**
@@ -50,6 +54,8 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
     private final String contractRef;
     private final TestIntent intent;
     private final List<String> defaultWarnings;
+    private final ResourceControls resourceControls;
+    private final Optional<Dimension> assertOnOverride;
 
     private SampleSummary<OT> summary;
 
@@ -62,7 +68,9 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
             ThresholdOrigin thresholdOrigin,
             String contractRef,
             TestIntent intent,
-            List<String> defaultWarnings) {
+            List<String> defaultWarnings,
+            ResourceControls resourceControls,
+            Optional<Dimension> assertOnOverride) {
         this.useCaseFactory = useCaseFactory;
         this.factors = factors;
         this.inputs = inputs;
@@ -72,6 +80,8 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         this.contractRef = contractRef;
         this.intent = intent;
         this.defaultWarnings = defaultWarnings;
+        this.resourceControls = resourceControls;
+        this.assertOnOverride = assertOnOverride;
     }
 
     public static <FT, IT, OT> NormativeBuilder<FT, IT, OT> normative() {
@@ -126,6 +136,36 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
     public TestIntent intent() { return intent; }
     public int samples() { return samples; }
 
+    // ── Stage-3 spec-interface accessors ─────────────────────────────
+
+    @Override public Optional<Duration> timeBudget() { return resourceControls.timeBudget(); }
+    @Override public OptionalLong tokenBudget() { return resourceControls.tokenBudget(); }
+    @Override public long tokenCharge() { return resourceControls.tokenCharge(); }
+    @Override public BudgetExhaustionPolicy budgetPolicy() { return resourceControls.budgetPolicy(); }
+    @Override public ExceptionPolicy exceptionPolicy() { return resourceControls.exceptionPolicy(); }
+    @Override public int maxExampleFailures() { return resourceControls.maxExampleFailures(); }
+    @Override public LatencySpec latency() { return resourceControls.latency(); }
+
+    /**
+     * Which verdict dimension projects through the probabilistic
+     * test's single-valued outcome. Derived from the spec's latency
+     * configuration when not explicitly set:
+     *
+     * <ul>
+     *   <li>{@link Dimension#BOTH} when a non-disabled
+     *       {@link LatencySpec} is declared;</li>
+     *   <li>{@link Dimension#FUNCTIONAL} otherwise.</li>
+     * </ul>
+     */
+    public Dimension assertOn() {
+        if (assertOnOverride.isPresent()) {
+            return assertOnOverride.get();
+        }
+        return resourceControls.latency().hasAnyThreshold()
+                ? Dimension.BOTH
+                : Dimension.FUNCTIONAL;
+    }
+
     // ── NormativeBuilder (threshold-first) ─────────────────────────
 
     public static final class NormativeBuilder<FT, IT, OT> {
@@ -138,8 +178,50 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         private ThresholdOrigin thresholdOrigin;
         private String contractRef;
         private TestIntent intent = TestIntent.VERIFICATION;
+        private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
+        private Dimension assertOnOverride;
 
         private NormativeBuilder() {}
+
+        public NormativeBuilder<FT, IT, OT> timeBudget(Duration budget) {
+            resources.timeBudget(budget);
+            return this;
+        }
+
+        public NormativeBuilder<FT, IT, OT> tokenBudget(long tokens) {
+            resources.tokenBudget(tokens);
+            return this;
+        }
+
+        public NormativeBuilder<FT, IT, OT> tokenCharge(long tokens) {
+            resources.tokenCharge(tokens);
+            return this;
+        }
+
+        public NormativeBuilder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
+            resources.onBudgetExhausted(policy);
+            return this;
+        }
+
+        public NormativeBuilder<FT, IT, OT> onException(ExceptionPolicy policy) {
+            resources.onException(policy);
+            return this;
+        }
+
+        public NormativeBuilder<FT, IT, OT> maxExampleFailures(int cap) {
+            resources.maxExampleFailures(cap);
+            return this;
+        }
+
+        public NormativeBuilder<FT, IT, OT> latency(LatencySpec spec) {
+            resources.latency(spec);
+            return this;
+        }
+
+        public NormativeBuilder<FT, IT, OT> assertOn(Dimension dimension) {
+            this.assertOnOverride = Objects.requireNonNull(dimension, "dimension");
+            return this;
+        }
 
         public NormativeBuilder<FT, IT, OT> useCaseFactory(
                 Function<FT, UseCase<FT, IT, OT>> factory) {
@@ -213,7 +295,9 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
             return new ProbabilisticTestSpec<>(
                     useCaseFactory, factors, inputs, samples,
                     threshold, thresholdOrigin, contractRef, intent,
-                    List.of());
+                    List.of(),
+                    resources.build(),
+                    Optional.ofNullable(assertOnOverride));
         }
     }
 
@@ -231,9 +315,51 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         private Double power;
         private String contractRef;
         private TestIntent intent = TestIntent.VERIFICATION;
+        private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
+        private Dimension assertOnOverride;
 
         private EmpiricalBuilder(Supplier<MeasureSpec<FT, IT, OT>> baseline) {
             this.baseline = Objects.requireNonNull(baseline, "baseline");
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> timeBudget(Duration budget) {
+            resources.timeBudget(budget);
+            return this;
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> tokenBudget(long tokens) {
+            resources.tokenBudget(tokens);
+            return this;
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> tokenCharge(long tokens) {
+            resources.tokenCharge(tokens);
+            return this;
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
+            resources.onBudgetExhausted(policy);
+            return this;
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> onException(ExceptionPolicy policy) {
+            resources.onException(policy);
+            return this;
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> maxExampleFailures(int cap) {
+            resources.maxExampleFailures(cap);
+            return this;
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> latency(LatencySpec spec) {
+            resources.latency(spec);
+            return this;
+        }
+
+        public EmpiricalBuilder<FT, IT, OT> assertOn(Dimension dimension) {
+            this.assertOnOverride = Objects.requireNonNull(dimension, "dimension");
+            return this;
         }
 
         public EmpiricalBuilder<FT, IT, OT> useCaseFactory(
@@ -350,7 +476,9 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
             return new ProbabilisticTestSpec<>(
                     useCaseFactory, factors, inputs, effectiveSamples,
                     effectiveThreshold, ThresholdOrigin.EMPIRICAL, contractRef, intent,
-                    defaultWarnings);
+                    defaultWarnings,
+                    resources.build(),
+                    Optional.ofNullable(assertOnOverride));
         }
     }
 }

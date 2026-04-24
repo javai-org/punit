@@ -2,16 +2,19 @@ package org.javai.punit.api.typed.spec;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.function.Function;
 
 import org.javai.punit.api.typed.Expectation;
 import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.ValueMatcher;
 
@@ -34,6 +37,7 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
     private final Optional<ValueMatcher<OT>> matcher;
     private final int samples;
     private final String experimentId;
+    private final ResourceControls resourceControls;
 
     private Optional<SampleSummary<OT>> lastSummary = Optional.empty();
 
@@ -45,6 +49,7 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         this.matcher = Optional.ofNullable(b.matcher);
         this.samples = b.samples;
         this.experimentId = b.experimentId;
+        this.resourceControls = b.resources.build();
     }
 
     public static <FT, IT, OT> Builder<FT, IT, OT> builder() {
@@ -75,6 +80,16 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
                 + ", passRate=" + lastSummary.map(s -> String.format("%.3f", s.passRate())).orElse("n/a");
         return new EngineOutcome.Artefact(message, path);
     }
+
+    // ── Stage-3 spec-interface accessors, delegated to ResourceControls ────
+
+    @Override public Optional<Duration> timeBudget() { return resourceControls.timeBudget(); }
+    @Override public OptionalLong tokenBudget() { return resourceControls.tokenBudget(); }
+    @Override public long tokenCharge() { return resourceControls.tokenCharge(); }
+    @Override public BudgetExhaustionPolicy budgetPolicy() { return resourceControls.budgetPolicy(); }
+    @Override public ExceptionPolicy exceptionPolicy() { return resourceControls.exceptionPolicy(); }
+    @Override public int maxExampleFailures() { return resourceControls.maxExampleFailures(); }
+    @Override public LatencySpec latency() { return resourceControls.latency(); }
 
     public String experimentId() {
         return experimentId;
@@ -112,8 +127,44 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         private int samples = 1000;
         private String experimentId;
         private boolean inputsOrExpectationsSet;
+        private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
 
         private Builder() {}
+
+        public Builder<FT, IT, OT> timeBudget(Duration budget) {
+            resources.timeBudget(budget);
+            return this;
+        }
+
+        public Builder<FT, IT, OT> tokenBudget(long tokens) {
+            resources.tokenBudget(tokens);
+            return this;
+        }
+
+        public Builder<FT, IT, OT> tokenCharge(long tokens) {
+            resources.tokenCharge(tokens);
+            return this;
+        }
+
+        public Builder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
+            resources.onBudgetExhausted(policy);
+            return this;
+        }
+
+        public Builder<FT, IT, OT> onException(ExceptionPolicy policy) {
+            resources.onException(policy);
+            return this;
+        }
+
+        public Builder<FT, IT, OT> maxExampleFailures(int cap) {
+            resources.maxExampleFailures(cap);
+            return this;
+        }
+
+        public Builder<FT, IT, OT> latency(LatencySpec spec) {
+            resources.latency(spec);
+            return this;
+        }
 
         public Builder<FT, IT, OT> useCaseFactory(Function<FT, UseCase<FT, IT, OT>> factory) {
             this.useCaseFactory = Objects.requireNonNull(factory, "useCaseFactory");
