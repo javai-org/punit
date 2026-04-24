@@ -20,11 +20,11 @@ import org.javai.punit.api.typed.FactorBundle;
  * <p>Stage 3 extends the record with an optional
  * {@link LatencyVerdict}. When present, {@link #verdict()} reflects
  * the <em>projected</em> outcome selected by the spec's
- * {@link Dimension}; {@link #latencyVerdict()} exposes the latency
+ * {@link VerdictDimension}; {@link #latencyVerdict()} exposes the latency
  * side independently.
  *
  * @param verdict the projected PASS / FAIL / INCONCLUSIVE chosen by
- *                the spec's {@code assertOn(Dimension)}
+ *                the spec's {@code assertOn(VerdictDimension)}
  * @param factors the factor bundle observed
  * @param successes number of passing samples
  * @param failures number of failing samples

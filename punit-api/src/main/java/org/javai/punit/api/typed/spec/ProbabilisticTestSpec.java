@@ -56,7 +56,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
     private final TestIntent intent;
     private final List<String> defaultWarnings;
     private final ResourceControls resourceControls;
-    private final Optional<Dimension> assertOnOverride;
+    private final Optional<VerdictDimension> assertOnOverride;
 
     private SampleSummary<OT> summary;
 
@@ -71,7 +71,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
             TestIntent intent,
             List<String> defaultWarnings,
             ResourceControls resourceControls,
-            Optional<Dimension> assertOnOverride) {
+            Optional<VerdictDimension> assertOnOverride) {
         this.useCaseFactory = useCaseFactory;
         this.factors = factors;
         this.inputs = inputs;
@@ -159,7 +159,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
     }
 
     private Verdict projectVerdict(Verdict functional, Optional<LatencyVerdict> latency) {
-        Dimension dim = assertOn();
+        VerdictDimension dim = assertOn();
         Verdict lat = latency.map(LatencyVerdict::verdict).orElse(Verdict.PASS);
         return switch (dim) {
             case FUNCTIONAL -> functional;
@@ -200,18 +200,18 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
      * configuration when not explicitly set:
      *
      * <ul>
-     *   <li>{@link Dimension#BOTH} when a non-disabled
+     *   <li>{@link VerdictDimension#BOTH} when a non-disabled
      *       {@link LatencySpec} is declared;</li>
-     *   <li>{@link Dimension#FUNCTIONAL} otherwise.</li>
+     *   <li>{@link VerdictDimension#FUNCTIONAL} otherwise.</li>
      * </ul>
      */
-    public Dimension assertOn() {
+    public VerdictDimension assertOn() {
         if (assertOnOverride.isPresent()) {
             return assertOnOverride.get();
         }
         return resourceControls.latency().hasAnyThreshold()
-                ? Dimension.BOTH
-                : Dimension.FUNCTIONAL;
+                ? VerdictDimension.BOTH
+                : VerdictDimension.FUNCTIONAL;
     }
 
     // ── NormativeBuilder (threshold-first) ─────────────────────────
@@ -227,7 +227,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         private String contractRef;
         private TestIntent intent = TestIntent.VERIFICATION;
         private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
-        private Dimension assertOnOverride;
+        private VerdictDimension assertOnOverride;
 
         private NormativeBuilder() {}
 
@@ -266,7 +266,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
             return this;
         }
 
-        public NormativeBuilder<FT, IT, OT> assertOn(Dimension dimension) {
+        public NormativeBuilder<FT, IT, OT> assertOn(VerdictDimension dimension) {
             this.assertOnOverride = Objects.requireNonNull(dimension, "dimension");
             return this;
         }
@@ -364,7 +364,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
         private String contractRef;
         private TestIntent intent = TestIntent.VERIFICATION;
         private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
-        private Dimension assertOnOverride;
+        private VerdictDimension assertOnOverride;
 
         private EmpiricalBuilder(Supplier<MeasureSpec<FT, IT, OT>> baseline) {
             this.baseline = Objects.requireNonNull(baseline, "baseline");
@@ -405,7 +405,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT>
             return this;
         }
 
-        public EmpiricalBuilder<FT, IT, OT> assertOn(Dimension dimension) {
+        public EmpiricalBuilder<FT, IT, OT> assertOn(VerdictDimension dimension) {
             this.assertOnOverride = Objects.requireNonNull(dimension, "dimension");
             return this;
         }

@@ -12,7 +12,7 @@ import org.javai.punit.api.typed.Pacing;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BudgetExhaustionPolicy;
-import org.javai.punit.api.typed.spec.Dimension;
+import org.javai.punit.api.typed.spec.VerdictDimension;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.MeasureSpec;
@@ -369,7 +369,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
 
     @Test
     @DisplayName("LT05: functional PASS + latency FAIL under BOTH yields FAIL; under FUNCTIONAL yields PASS")
-    void twoDimensionalVerdictProjection() {
+    void twoVerdictDimensionalVerdictProjection() {
         UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
                 sleep(50);
@@ -401,7 +401,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .threshold(0.95, ThresholdOrigin.SLA)
                 .latency(LatencySpec.builder().p50Millis(10L).build())
-                .assertOn(Dimension.FUNCTIONAL)
+                .assertOn(VerdictDimension.FUNCTIONAL)
                 .build();
         var vFunc = ((ProbabilisticTestResult) new Engine().run(funcOnly));
         assertThat(vFunc.verdict()).isEqualTo(Verdict.PASS);
@@ -430,7 +430,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .threshold(0.95, ThresholdOrigin.SLA)
                 .latency(LatencySpec.builder().p50Millis(100L).build())
-                .assertOn(Dimension.LATENCY)
+                .assertOn(VerdictDimension.LATENCY)
                 .build();
 
         var v = ((ProbabilisticTestResult) new Engine().run(spec));
@@ -446,7 +446,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
 
     @Test
     @DisplayName("ProbabilisticTestResult round-trips a two-dimensional verdict")
-    void verdictRoundTripsTwoDimensionalShape() {
+    void verdictRoundTripsTwoVerdictDimensionalShape() {
         UseCase<Factors, Integer, Boolean> fine = new UseCase<>() {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
                 return UseCaseOutcome.ok(Boolean.TRUE);

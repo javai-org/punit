@@ -2,11 +2,12 @@ package org.javai.punit.api.typed.spec;
 
 /**
  * Which measurement dimension(s) drive a probabilistic test's overall
- * outcome.
+ * verdict.
  *
  * <p>Every run produces both a functional (pass-rate) verdict and a
- * latency verdict; {@code Dimension} selects which projection the spec
- * exposes through its single-valued {@code verdict()} accessor.
+ * latency verdict; {@code VerdictDimension} selects which projection
+ * the spec exposes through its single-valued {@code verdict()}
+ * accessor.
  *
  * <p>Defaults:
  * <ul>
@@ -16,7 +17,7 @@ package org.javai.punit.api.typed.spec;
  *       configured.</li>
  * </ul>
  */
-public enum Dimension {
+public enum VerdictDimension {
 
     /** Only the functional (pass-rate) verdict drives the outcome. */
     FUNCTIONAL,

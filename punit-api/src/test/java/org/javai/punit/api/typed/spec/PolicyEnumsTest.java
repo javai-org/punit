@@ -23,9 +23,9 @@ class PolicyEnumsTest {
     }
 
     @Test
-    @DisplayName("Dimension carries exactly FUNCTIONAL, LATENCY, BOTH")
+    @DisplayName("VerdictDimension carries exactly FUNCTIONAL, LATENCY, BOTH")
     void dimensionShape() {
-        assertThat(Dimension.values())
-                .containsExactly(Dimension.FUNCTIONAL, Dimension.LATENCY, Dimension.BOTH);
+        assertThat(VerdictDimension.values())
+                .containsExactly(VerdictDimension.FUNCTIONAL, VerdictDimension.LATENCY, VerdictDimension.BOTH);
     }
 }

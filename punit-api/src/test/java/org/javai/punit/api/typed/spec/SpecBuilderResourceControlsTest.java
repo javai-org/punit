@@ -53,7 +53,7 @@ class SpecBuilderResourceControlsTest {
     @DisplayName("defaults: ProbabilisticTestSpec (normative) assertOn() is FUNCTIONAL when no latency declared")
     void probSpecAssertOnDefaultFunctional() {
         ProbabilisticTestSpec<Factors, String, Integer> spec = baseProbNormativeBuilder().build();
-        assertThat(spec.assertOn()).isEqualTo(Dimension.FUNCTIONAL);
+        assertThat(spec.assertOn()).isEqualTo(VerdictDimension.FUNCTIONAL);
     }
 
     @Test
@@ -62,7 +62,7 @@ class SpecBuilderResourceControlsTest {
         ProbabilisticTestSpec<Factors, String, Integer> spec = baseProbNormativeBuilder()
                 .latency(LatencySpec.builder().p95Millis(500L).build())
                 .build();
-        assertThat(spec.assertOn()).isEqualTo(Dimension.BOTH);
+        assertThat(spec.assertOn()).isEqualTo(VerdictDimension.BOTH);
     }
 
     @Test
@@ -70,9 +70,9 @@ class SpecBuilderResourceControlsTest {
     void assertOnExplicitOverride() {
         ProbabilisticTestSpec<Factors, String, Integer> spec = baseProbNormativeBuilder()
                 .latency(LatencySpec.builder().p95Millis(500L).build())
-                .assertOn(Dimension.LATENCY)
+                .assertOn(VerdictDimension.LATENCY)
                 .build();
-        assertThat(spec.assertOn()).isEqualTo(Dimension.LATENCY);
+        assertThat(spec.assertOn()).isEqualTo(VerdictDimension.LATENCY);
     }
 
     // ── Positive round-trip ──────────────────────────────────────────
