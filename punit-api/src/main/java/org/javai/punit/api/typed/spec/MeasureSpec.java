@@ -107,6 +107,15 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         return inputs;
     }
 
+    /**
+     * The summary of the most recent run, if any — useful for engine
+     * integration tests asserting on termination reason, latency
+     * result, or failure counts without wrapping the spec.
+     */
+    public Optional<SampleSummary<OT>> lastSummary() {
+        return lastSummary;
+    }
+
     static Path defaultBaselinePath(String experimentId, FactorBundle bundle) {
         String filename = experimentId;
         if (!bundle.isEmpty()) {
