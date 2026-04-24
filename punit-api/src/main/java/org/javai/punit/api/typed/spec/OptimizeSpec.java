@@ -15,14 +15,15 @@ import java.util.OptionalLong;
 import java.util.function.Function;
 
 import org.javai.punit.api.typed.LatencySpec;
+import org.javai.punit.api.typed.SamplingShape;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
 
 /**
  * An iterative factor-space search. Each iteration runs
- * {@code samplesPerIteration} samples, scores the outcome, and asks
- * the {@link FactorMutator} for the next factor record. The iterator
- * stops when:
+ * {@code shape.samples()} samples under the current factor bundle,
+ * scores the outcome, and asks the {@link FactorMutator} for the
+ * next factor record. The iterator stops when:
  *
  * <ul>
  *   <li>the mutator returns {@code null};</li>
@@ -31,48 +32,53 @@ import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
  *       improve the best score.</li>
  * </ul>
  *
- * <p>Stage 2 delivers the builder, the iterator, and a placeholder
- * artefact outcome. YAML serialisation lands in Stage 4.
+ * <p>Constructed via {@link #optimizing(SamplingShape)}. All sample-
+ * production knobs (use case factory, inputs, sample count, budgets,
+ * exception policy) live on the {@link SamplingShape}; the optimize
+ * spec carries only the search-specific knobs.
  */
 public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
-    private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+    private final SamplingShape<FT, IT, OT> shape;
     private final FT initialFactors;
-    private final List<IT> inputs;
     private final FactorMutator<FT> mutator;
     private final Scorer scorer;
     private final Objective objective;
-    private final int samplesPerIteration;
     private final int maxIterations;
     private final int noImprovementWindow;
     private final String experimentId;
 
     private final List<IterationResult<FT>> history = new ArrayList<>();
 
-    private final ResourceControls resourceControls;
-    private final LatencySpec latency;
-
     private OptimizeSpec(Builder<FT, IT, OT> b) {
-        this.useCaseFactory = b.useCaseFactory;
+        this.shape = b.shape;
         this.initialFactors = b.initialFactors;
-        this.inputs = b.inputs;
         this.mutator = b.mutator;
         this.scorer = b.scorer;
         this.objective = b.objective;
-        this.samplesPerIteration = b.samplesPerIteration;
         this.maxIterations = b.maxIterations;
         this.noImprovementWindow = b.noImprovementWindow;
-        this.experimentId = b.experimentId;
-        this.resourceControls = b.resources.build();
-        this.latency = b.latency;
+        this.experimentId = b.experimentId != null
+                ? b.experimentId
+                : "optimize-" + Instant.now().toEpochMilli();
     }
 
-    public static <FT, IT, OT> Builder<FT, IT, OT> builder() {
-        return new Builder<>();
+    /** Entry point — compose an optimize experiment over a SamplingShape. */
+    public static <FT, IT, OT> Builder<FT, IT, OT> optimizing(SamplingShape<FT, IT, OT> shape) {
+        return new Builder<>(Objects.requireNonNull(shape, "shape"));
     }
+
+    public SamplingShape<FT, IT, OT> shape() { return shape; }
+    public FT initialFactors() { return initialFactors; }
+    public int maxIterations() { return maxIterations; }
+    public int noImprovementWindow() { return noImprovementWindow; }
+    public String experimentId() { return experimentId; }
+
+    /** Convenience delegate to {@code shape().samples()}. */
+    public int samplesPerIteration() { return shape.samples(); }
 
     @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-        return useCaseFactory;
+        return shape.useCaseFactory();
     }
 
     @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
@@ -97,15 +103,13 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
         return Collections.unmodifiableList(history);
     }
 
-    // ── Stage-3 spec-interface accessors ─────────────────────────────
-
-    @Override public Optional<Duration> timeBudget() { return resourceControls.timeBudget(); }
-    @Override public OptionalLong tokenBudget() { return resourceControls.tokenBudget(); }
-    @Override public long tokenCharge() { return resourceControls.tokenCharge(); }
-    @Override public BudgetExhaustionPolicy budgetPolicy() { return resourceControls.budgetPolicy(); }
-    @Override public ExceptionPolicy exceptionPolicy() { return resourceControls.exceptionPolicy(); }
-    @Override public int maxExampleFailures() { return resourceControls.maxExampleFailures(); }
-    @Override public LatencySpec latency() { return latency; }
+    @Override public Optional<Duration> timeBudget() { return shape.timeBudget(); }
+    @Override public OptionalLong tokenBudget() { return shape.tokenBudget(); }
+    @Override public long tokenCharge() { return shape.tokenCharge(); }
+    @Override public BudgetExhaustionPolicy budgetPolicy() { return shape.budgetPolicy(); }
+    @Override public ExceptionPolicy exceptionPolicy() { return shape.exceptionPolicy(); }
+    @Override public int maxExampleFailures() { return shape.maxExampleFailures(); }
+    @Override public LatencySpec latency() { return LatencySpec.disabled(); }
 
     private IterationResult<FT> bestSoFar() {
         IterationResult<FT> best = null;
@@ -141,7 +145,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
             FT factors = next;
             next = null;
             issued++;
-            return Configuration.of(factors, inputs, samplesPerIteration);
+            return Configuration.of(factors, shape.inputs(), shape.samples());
         }
 
         private void refresh() {
@@ -151,7 +155,6 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
             if (issued >= maxIterations) {
                 return;
             }
-            // Update plateau detection against history.
             if (!history.isEmpty()) {
                 IterationResult<FT> last = history.get(history.size() - 1);
                 if (Double.isNaN(bestScoreSeen)
@@ -172,63 +175,19 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
         }
     }
 
-    // ── Builder ─────────────────────────────────────────────────────
-
     public static final class Builder<FT, IT, OT> {
 
-        private Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+        private final SamplingShape<FT, IT, OT> shape;
         private FT initialFactors;
-        private List<IT> inputs;
         private FactorMutator<FT> mutator;
         private Scorer scorer;
         private Objective objective = Objective.MAXIMIZE;
-        private int samplesPerIteration = 20;
         private int maxIterations = 20;
         private int noImprovementWindow = 5;
         private String experimentId;
-        private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
-        private LatencySpec latency = LatencySpec.disabled();
 
-        private Builder() {}
-
-        public Builder<FT, IT, OT> timeBudget(Duration budget) {
-            resources.timeBudget(budget);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> tokenBudget(long tokens) {
-            resources.tokenBudget(tokens);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> tokenCharge(long tokens) {
-            resources.tokenCharge(tokens);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
-            resources.onBudgetExhausted(policy);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> onException(ExceptionPolicy policy) {
-            resources.onException(policy);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> maxExampleFailures(int cap) {
-            resources.maxExampleFailures(cap);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> latency(LatencySpec spec) {
-            this.latency = Objects.requireNonNull(spec, "latency");
-            return this;
-        }
-
-        public Builder<FT, IT, OT> useCaseFactory(Function<FT, UseCase<FT, IT, OT>> factory) {
-            this.useCaseFactory = Objects.requireNonNull(factory, "useCaseFactory");
-            return this;
+        private Builder(SamplingShape<FT, IT, OT> shape) {
+            this.shape = shape;
         }
 
         public Builder<FT, IT, OT> initialFactors(FT factors) {
@@ -236,43 +195,26 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
             return this;
         }
 
-        public Builder<FT, IT, OT> inputs(List<IT> inputs) {
-            Objects.requireNonNull(inputs, "inputs");
-            this.inputs = List.copyOf(inputs);
-            return this;
-        }
-
-        @SafeVarargs
-        public final Builder<FT, IT, OT> inputs(IT... inputs) {
-            return inputs(List.of(inputs));
-        }
-
         public Builder<FT, IT, OT> mutator(FactorMutator<FT> m) {
             this.mutator = Objects.requireNonNull(m, "mutator");
             return this;
         }
 
-        public Builder<FT, IT, OT> scorer(Scorer s) {
+        /** The reducer that collapses an iteration's sample summary to a comparable score. */
+        public Builder<FT, IT, OT> scoredBy(Scorer s) {
             this.scorer = Objects.requireNonNull(s, "scorer");
             return this;
         }
 
-        public Builder<FT, IT, OT> objective(Objective o) {
+        /** The optimisation direction. */
+        public Builder<FT, IT, OT> toward(Objective o) {
             this.objective = Objects.requireNonNull(o, "objective");
-            return this;
-        }
-
-        public Builder<FT, IT, OT> samplesPerIteration(int n) {
-            if (n < 1) {
-                throw new IllegalArgumentException("samplesPerIteration must be ≥ 1");
-            }
-            this.samplesPerIteration = n;
             return this;
         }
 
         public Builder<FT, IT, OT> maxIterations(int n) {
             if (n < 1) {
-                throw new IllegalArgumentException("maxIterations must be ≥ 1");
+                throw new IllegalArgumentException("maxIterations must be >= 1");
             }
             this.maxIterations = n;
             return this;
@@ -280,7 +222,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
 
         public Builder<FT, IT, OT> noImprovementWindow(int n) {
             if (n < 1) {
-                throw new IllegalArgumentException("noImprovementWindow must be ≥ 1");
+                throw new IllegalArgumentException("noImprovementWindow must be >= 1");
             }
             this.noImprovementWindow = n;
             return this;
@@ -292,23 +234,14 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
         }
 
         public OptimizeSpec<FT, IT, OT> build() {
-            if (useCaseFactory == null) {
-                throw new IllegalStateException("useCaseFactory is required");
-            }
             if (initialFactors == null) {
                 throw new IllegalStateException("initialFactors is required");
-            }
-            if (inputs == null || inputs.isEmpty()) {
-                throw new IllegalStateException("inputs is required and must be non-empty");
             }
             if (mutator == null) {
                 throw new IllegalStateException("mutator is required");
             }
             if (scorer == null) {
-                throw new IllegalStateException("scorer is required");
-            }
-            if (experimentId == null) {
-                experimentId = "optimize-" + Instant.now().toEpochMilli();
+                throw new IllegalStateException("scorer is required — call .scoredBy(...)");
             }
             return new OptimizeSpec<>(this);
         }
