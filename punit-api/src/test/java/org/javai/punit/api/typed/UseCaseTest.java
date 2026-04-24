@@ -69,6 +69,12 @@ class UseCaseTest {
     }
 
     @Test
+    @DisplayName("pacing defaults to unlimited")
+    void pacingDefaultsUnlimited() {
+        assertThat(new SimpleUseCase().pacing()).isSameAs(Pacing.unlimited());
+    }
+
+    @Test
     @DisplayName("apply wraps the output value as an Ok outcome")
     void applyWrapsOutputValue() {
         var outcome = new SimpleUseCase().apply("hello");

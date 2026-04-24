@@ -100,6 +100,25 @@ public interface UseCase<FT, IT, OT> {
     }
 
     /**
+     * The rate and concurrency limits the engine must respect when
+     * invoking this use case.
+     *
+     * <p>Pacing belongs to the service under test, not to a specific
+     * experiment or probabilistic test exercising it — every test of
+     * the same service should respect the same rate limit. Authors
+     * override this method on their use case implementation; spec
+     * builders do not expose pacing knobs.
+     *
+     * <p>Defaults to {@link Pacing#unlimited()} (no rate or
+     * concurrency cap).
+     *
+     * @return the pacing record; never null
+     */
+    default Pacing pacing() {
+        return Pacing.unlimited();
+    }
+
+    /**
      * Computes the default id for a class: the simple class name with
      * any {@code UseCase} suffix stripped, camel-case boundaries
      * converted to kebab-case, and the whole string lower-cased.
