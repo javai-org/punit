@@ -1,5 +1,6 @@
 package org.javai.punit.api.typed;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -71,19 +72,28 @@ import org.javai.outcome.Outcome;
  *              {@link Optional#empty()} otherwise
  * @param tokens the token cost consumed by this invocation; {@code 0}
  *               when the use case does not report a cost
+ * @param duration the wall-clock time this invocation took; typically
+ *                 filled in by the engine after {@code apply()}
+ *                 returns. Authors creating outcomes by hand leave it
+ *                 at {@link Duration#ZERO}.
  * @param <OT> the raw result type
  */
 public record UseCaseOutcome<OT>(
         OT rawResult,
         PostconditionEvaluator<OT> postconditions,
         Optional<MatchResult> match,
-        long tokens) {
+        long tokens,
+        Duration duration) {
 
     public UseCaseOutcome {
         Objects.requireNonNull(postconditions, "postconditions");
         Objects.requireNonNull(match, "match");
+        Objects.requireNonNull(duration, "duration");
         if (tokens < 0) {
             throw new IllegalArgumentException("tokens must be non-negative, got " + tokens);
+        }
+        if (duration.isNegative()) {
+            throw new IllegalArgumentException("duration must be non-negative, got " + duration);
         }
     }
 
@@ -118,7 +128,7 @@ public record UseCaseOutcome<OT>(
      * {@code n}.
      */
     public UseCaseOutcome<OT> withTokens(long n) {
-        return new UseCaseOutcome<>(rawResult, postconditions, match, n);
+        return new UseCaseOutcome<>(rawResult, postconditions, match, n, duration);
     }
 
     /**
@@ -130,37 +140,51 @@ public record UseCaseOutcome<OT>(
      */
     public UseCaseOutcome<OT> withMatch(MatchResult matchResult) {
         Objects.requireNonNull(matchResult, "matchResult");
-        return new UseCaseOutcome<>(rawResult, postconditions, Optional.of(matchResult), tokens);
+        return new UseCaseOutcome<>(rawResult, postconditions, Optional.of(matchResult), tokens, duration);
+    }
+
+    /**
+     * Returns a copy of this outcome with {@code duration} set to the
+     * given value. Called by the engine immediately after the use
+     * case's {@code apply()} returns, so the aggregated summary can
+     * compute latency percentiles.
+     */
+    public UseCaseOutcome<OT> withDuration(Duration d) {
+        Objects.requireNonNull(d, "duration");
+        return new UseCaseOutcome<>(rawResult, postconditions, match, tokens, d);
     }
 
     // ── Contract-free convenience factories ──────────────────────────
 
     /**
-     * Build a success outcome with no postconditions, no match, and
-     * zero tokens.
+     * Build a success outcome with no postconditions, no match, zero
+     * tokens, and zero duration.
      *
      * @param value the successful value; may be {@code null}
      */
     public static <OT> UseCaseOutcome<OT> ok(OT value) {
-        return new UseCaseOutcome<>(value, PostconditionEvaluator.trivial(), Optional.empty(), 0L);
+        return new UseCaseOutcome<>(value, PostconditionEvaluator.trivial(), Optional.empty(),
+                0L, Duration.ZERO);
     }
 
     /**
-     * Build a failure outcome with no raw result, no match, and zero
-     * tokens, carrying a single always-failing postcondition.
+     * Build a failure outcome with no raw result, no match, zero
+     * tokens, and zero duration, carrying a single always-failing
+     * postcondition.
      */
     public static <OT> UseCaseOutcome<OT> fail(String name, String message) {
         return new UseCaseOutcome<>(null, PostconditionEvaluator.alwaysFailing(name, message),
-                Optional.empty(), 0L);
+                Optional.empty(), 0L, Duration.ZERO);
     }
 
     /**
      * Build an outcome from a raw result and a
      * {@link PostconditionEvaluator}. Match defaults to empty, tokens
-     * to zero; use {@link #withMatch(MatchResult)} and
-     * {@link #withTokens(long)} to attach.
+     * to zero, duration to zero; use {@link #withMatch(MatchResult)},
+     * {@link #withTokens(long)}, and {@link #withDuration(Duration)}
+     * to attach.
      */
     public static <OT> UseCaseOutcome<OT> of(OT rawResult, PostconditionEvaluator<OT> postconditions) {
-        return new UseCaseOutcome<>(rawResult, postconditions, Optional.empty(), 0L);
+        return new UseCaseOutcome<>(rawResult, postconditions, Optional.empty(), 0L, Duration.ZERO);
     }
 }
