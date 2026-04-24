@@ -1,8 +1,10 @@
 package org.javai.punit.api.typed.spec;
 
+import java.util.Objects;
+
 /**
  * Three-state statistical verdict returned by a
- * {@link ProbabilisticTestSpec}'s {@link Spec#conclude() conclude()}
+ * {@link ProbabilisticTestSpec}'s {@link DataGenerationSpec#conclude() conclude()}
  * call.
  *
  * <p>Kept distinct from the legacy
@@ -18,5 +20,48 @@ public enum Verdict {
     FAIL,
 
     /** Covariate misalignment or statistical ambiguity prevents a confident verdict. */
-    INCONCLUSIVE
+    INCONCLUSIVE;
+
+    /**
+     * Project a two-dimensional verdict (functional + latency) onto
+     * a single value, as chosen by the spec's
+     * {@link VerdictDimension}.
+     *
+     * <p>Model-agnostic: the functional verdict argument can come
+     * from any statistical model (Bernoulli, collision probability,
+     * etc.) — this method only knows how to pick and combine.
+     *
+     * <ul>
+     *   <li>{@link VerdictDimension#FUNCTIONAL} — returns the
+     *       functional verdict unchanged.</li>
+     *   <li>{@link VerdictDimension#LATENCY} — returns the latency
+     *       verdict.</li>
+     *   <li>{@link VerdictDimension#BOTH} — combines the two with
+     *       three-valued logic: {@link #INCONCLUSIVE} if either is
+     *       inconclusive, else {@link #FAIL} if either failed, else
+     *       {@link #PASS}.</li>
+     * </ul>
+     */
+    public static Verdict project(Verdict functional,
+                                  LatencyVerdict latency,
+                                  VerdictDimension dimension) {
+        Objects.requireNonNull(functional, "functional");
+        Objects.requireNonNull(latency, "latency");
+        Objects.requireNonNull(dimension, "dimension");
+        return switch (dimension) {
+            case FUNCTIONAL -> functional;
+            case LATENCY -> latency.verdict();
+            case BOTH -> combineBoth(functional, latency.verdict());
+        };
+    }
+
+    private static Verdict combineBoth(Verdict functional, Verdict latency) {
+        if (functional == INCONCLUSIVE || latency == INCONCLUSIVE) {
+            return INCONCLUSIVE;
+        }
+        if (functional == FAIL || latency == FAIL) {
+            return FAIL;
+        }
+        return PASS;
+    }
 }

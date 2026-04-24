@@ -9,7 +9,9 @@ import java.util.List;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
-import org.javai.punit.api.typed.spec.EngineOutcome;
+import org.javai.punit.api.typed.spec.EngineResult;
+import org.javai.punit.api.typed.spec.ExperimentResult;
+import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.MeasureSpec;
 import org.javai.punit.api.typed.spec.ProbabilisticTestSpec;
 import org.javai.punit.api.typed.spec.Verdict;
@@ -21,7 +23,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>No JUnit extensions, no annotation scanning, no reflection
  * into PUnit internals. Constructs typed specs, runs them through
- * {@link Engine}, and asserts the resulting {@link EngineOutcome}.
+ * {@link Engine}, and asserts the resulting {@link EngineResult}.
  *
  * <p>This is the Stage 2 validation signal.
  */
@@ -47,10 +49,10 @@ class EngineIntegrationTest {
                 .samples(9)
                 .build();
 
-        EngineOutcome outcome = new Engine().run(spec);
+        EngineResult outcome = new Engine().run(spec);
 
-        assertThat(outcome).isInstanceOf(EngineOutcome.Artefact.class);
-        EngineOutcome.Artefact art = (EngineOutcome.Artefact) outcome;
+        assertThat(outcome).isInstanceOf(ExperimentResult.class);
+        ExperimentResult art = (ExperimentResult) outcome;
         assertThat(art.destination().toString()).startsWith("specs");
         assertThat(art.message()).contains("samples=9");
     }
@@ -67,10 +69,10 @@ class EngineIntegrationTest {
                 .threshold(0.95, ThresholdOrigin.SLA)
                 .build();
 
-        EngineOutcome outcome = new Engine().run(spec);
+        EngineResult outcome = new Engine().run(spec);
 
-        assertThat(outcome).isInstanceOf(EngineOutcome.ProbabilisticTestVerdict.class);
-        var verdict = ((EngineOutcome.ProbabilisticTestVerdict) outcome).verdictOutcome();
+        assertThat(outcome).isInstanceOf(ProbabilisticTestResult.class);
+        var verdict = ((ProbabilisticTestResult) outcome);
         assertThat(verdict.verdict()).isEqualTo(Verdict.PASS);
         assertThat(verdict.thresholdOrigin()).isEqualTo(ThresholdOrigin.SLA);
         assertThat(verdict.threshold()).isEqualTo(0.95);
@@ -89,8 +91,8 @@ class EngineIntegrationTest {
                 .threshold(0.95, ThresholdOrigin.SLO)
                 .build();
 
-        EngineOutcome outcome = new Engine().run(spec);
-        var verdict = ((EngineOutcome.ProbabilisticTestVerdict) outcome).verdictOutcome();
+        EngineResult outcome = new Engine().run(spec);
+        var verdict = ((ProbabilisticTestResult) outcome);
         assertThat(verdict.verdict()).isEqualTo(Verdict.FAIL);
         assertThat(verdict.successes()).isZero();
         assertThat(verdict.failures()).isEqualTo(15);
@@ -112,11 +114,11 @@ class EngineIntegrationTest {
                 .samples(20)
                 .build();
 
-        EngineOutcome outcome = new Engine().run(spec);
-        var verdict = ((EngineOutcome.ProbabilisticTestVerdict) outcome).verdictOutcome();
+        EngineResult outcome = new Engine().run(spec);
+        var verdict = ((ProbabilisticTestResult) outcome);
         assertThat(verdict.thresholdOrigin()).isEqualTo(ThresholdOrigin.EMPIRICAL);
         assertThat(verdict.warnings())
-                .anyMatch(w -> w.contains("Stage 4"));
+                .anyMatch(w -> w.contains("placeholder"));
     }
 
     @Test
@@ -155,11 +157,11 @@ class EngineIntegrationTest {
                 .samples(4)
                 .build();
 
-        EngineOutcome outcome = new Engine().run(spec);
+        EngineResult outcome = new Engine().run(spec);
 
-        assertThat(outcome).isInstanceOf(EngineOutcome.Artefact.class);
+        assertThat(outcome).isInstanceOf(ExperimentResult.class);
         // 4 samples cycle through 2 expectations => 2 match, 2 mismatch
-        assertThat(((EngineOutcome.Artefact) outcome).message())
+        assertThat(((ExperimentResult) outcome).message())
                 .contains("samples=4")
                 .contains("passRate=0.500");
     }
@@ -191,8 +193,8 @@ class EngineIntegrationTest {
                 .samples(2)
                 .build();
 
-        EngineOutcome outcome = new Engine().run(spec);
-        assertThat(((EngineOutcome.Artefact) outcome).message())
+        EngineResult outcome = new Engine().run(spec);
+        assertThat(((ExperimentResult) outcome).message())
                 .contains("passRate=1.000");
     }
 

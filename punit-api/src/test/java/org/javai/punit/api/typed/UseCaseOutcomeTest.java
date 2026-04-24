@@ -3,6 +3,7 @@ package org.javai.punit.api.typed;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -94,6 +95,31 @@ class UseCaseOutcomeTest {
         assertThat(outcome.value().isFail()).isTrue();
         assertThat(((Outcome.Fail<Integer>) outcome.value()).failure().message())
                 .contains("got -5");
+    }
+
+    @Test
+    @DisplayName("duration defaults to Duration.ZERO for the convenience factories")
+    void durationDefaultsZero() {
+        assertThat(UseCaseOutcome.ok(1).duration()).isEqualTo(Duration.ZERO);
+        assertThat(UseCaseOutcome.fail("x", "y").duration()).isEqualTo(Duration.ZERO);
+    }
+
+    @Test
+    @DisplayName("withDuration attaches a measured duration to the outcome")
+    void withDurationPropagates() {
+        Duration d = Duration.ofMillis(125);
+        UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(1).withDuration(d);
+        assertThat(outcome.duration()).isEqualTo(d);
+        // Value / tokens preserved across withDuration
+        assertThat(outcome.value().getOrThrow()).isEqualTo(1);
+        assertThat(outcome.tokens()).isZero();
+    }
+
+    @Test
+    @DisplayName("negative duration is rejected")
+    void rejectsNegativeDuration() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> UseCaseOutcome.ok(1).withDuration(Duration.ofMillis(-1)));
     }
 
     @Test

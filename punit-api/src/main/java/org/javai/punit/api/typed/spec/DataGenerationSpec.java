@@ -1,9 +1,12 @@
 package org.javai.punit.api.typed.spec;
 
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.function.Function;
 
+import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.ValueMatcher;
 
@@ -23,7 +26,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  *       receives the per-configuration aggregate; the spec accumulates
  *       what it needs for {@link #conclude()}.</li>
  *   <li>{@link #conclude()} produces the
- *       {@link EngineOutcome} — a verdict for a probabilistic test,
+ *       {@link EngineResult} — a verdict for a probabilistic test,
  *       an artefact description for an experiment.</li>
  * </ul>
  *
@@ -36,7 +39,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  * @param <IT> the per-sample input type
  * @param <OT> the per-sample outcome value type
  */
-public sealed interface Spec<FT, IT, OT>
+public sealed interface DataGenerationSpec<FT, IT, OT>
         permits MeasureSpec, ExploreSpec, OptimizeSpec, ProbabilisticTestSpec {
 
     Iterator<Configuration<FT, IT, OT>> configurations();
@@ -56,5 +59,49 @@ public sealed interface Spec<FT, IT, OT>
 
     void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary);
 
-    EngineOutcome conclude();
+    EngineResult conclude();
+
+    // ── Stage-3 resource-control / latency accessors ────────────────
+
+    /**
+     * Wall-clock budget the engine honours when sampling this spec.
+     * Empty = no limit.
+     */
+    default Optional<Duration> timeBudget() { return Optional.empty(); }
+
+    /** Token budget the engine honours when sampling this spec. Empty = no limit. */
+    default OptionalLong tokenBudget() { return OptionalLong.empty(); }
+
+    /**
+     * Static per-sample token charge added to the token tally in
+     * addition to whatever the use case reports via
+     * {@link org.javai.punit.api.typed.UseCaseOutcome#tokens()}.
+     */
+    default long tokenCharge() { return 0L; }
+
+    /** What the engine does when a budget exhausts early. */
+    default BudgetExhaustionPolicy budgetPolicy() {
+        return BudgetExhaustionPolicy.FAIL;
+    }
+
+    /**
+     * How the engine treats a thrown exception from
+     * {@link UseCase#apply(Object)}.
+     */
+    default ExceptionPolicy exceptionPolicy() {
+        return ExceptionPolicy.ABORT_TEST;
+    }
+
+    /**
+     * Upper bound on the number of detailed failing outcomes retained
+     * for diagnostics. Counting is never affected; only example
+     * retention is capped.
+     */
+    default int maxExampleFailures() { return 10; }
+
+    /**
+     * Optional latency-threshold declaration. Computation is always
+     * performed; enforcement depends on this spec.
+     */
+    default LatencySpec latency() { return LatencySpec.disabled(); }
 }
