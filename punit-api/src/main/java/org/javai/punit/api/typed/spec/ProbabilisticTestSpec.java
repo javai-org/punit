@@ -44,7 +44,7 @@ import org.javai.punit.api.typed.UseCase;
  * this with Wilson-score-based verdict evaluation and, for the
  * confidence-first path, a real power analysis.
  */
-public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
     private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
     private final FT factors;

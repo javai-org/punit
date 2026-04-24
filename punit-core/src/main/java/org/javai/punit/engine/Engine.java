@@ -18,17 +18,17 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
 import org.javai.punit.api.typed.spec.SampleSummary;
-import org.javai.punit.api.typed.spec.Spec;
+import org.javai.punit.api.typed.spec.DataGenerationSpec;
 
 /**
  * The one engine, shared by every spec flavour.
  *
  * <p>The engine iterates
- * {@link Spec#configurations() spec.configurations()}, samples each
+ * {@link DataGenerationSpec#configurations() spec.configurations()}, samples each
  * configuration through a {@link SampleExecutor}, hands the resulting
  * {@link SampleSummary} to
- * {@link Spec#consume(Configuration, SampleSummary) spec.consume(...)},
- * and finally invokes {@link Spec#conclude() spec.conclude()} to
+ * {@link DataGenerationSpec#consume(Configuration, SampleSummary) spec.consume(...)},
+ * and finally invokes {@link DataGenerationSpec#conclude() spec.conclude()} to
  * obtain the run's {@link EngineResult}.
  *
  * <p>Resource controls declared on the spec (time budget, token
@@ -53,7 +53,7 @@ public final class Engine {
         this.executor = Objects.requireNonNull(executor, "executor");
     }
 
-    public <FT, IT, OT> EngineResult run(Spec<FT, IT, OT> spec) {
+    public <FT, IT, OT> EngineResult run(DataGenerationSpec<FT, IT, OT> spec) {
         Objects.requireNonNull(spec, "spec");
         Iterator<Configuration<FT, IT, OT>> it = spec.configurations();
         int cycleStart = 0;
@@ -68,7 +68,7 @@ public final class Engine {
     }
 
     private <FT, IT, OT> SampleSummary<OT> runConfig(
-            Spec<FT, IT, OT> spec,
+            DataGenerationSpec<FT, IT, OT> spec,
             UseCase<FT, IT, OT> useCase,
             Configuration<FT, IT, OT> cfg,
             int cycleStart) {

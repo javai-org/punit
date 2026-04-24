@@ -15,7 +15,7 @@ import org.javai.punit.api.typed.LatencySpec;
  * ProbabilisticTest) expose the same eight Stage-3 knobs. Rather than
  * duplicate the builder-side field declarations and validation, each
  * spec keeps a single {@code ResourceControls} instance and delegates
- * the {@link Spec} interface's default accessors to its fields.
+ * the {@link DataGenerationSpec} interface's default accessors to its fields.
  *
  * <p>This record is internal plumbing; authors see only the fluent
  * builder methods. Exposed as package-public so concrete specs can

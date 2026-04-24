@@ -28,7 +28,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  * an {@link ExperimentResult} with a placeholder message and the
  * path where the baseline *would* be written.
  */
-public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
     private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
     private final FT factors;

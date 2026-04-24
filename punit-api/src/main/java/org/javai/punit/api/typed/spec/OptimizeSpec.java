@@ -34,7 +34,7 @@ import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
  * <p>Stage 2 delivers the builder, the iterator, and a placeholder
  * artefact outcome. YAML serialisation lands in Stage 4.
  */
-public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
     private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
     private final FT initialFactors;

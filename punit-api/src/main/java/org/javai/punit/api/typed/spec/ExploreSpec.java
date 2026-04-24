@@ -25,7 +25,7 @@ import org.javai.punit.api.typed.UseCase;
  * <p>Stage 2 surfaces the builder and strategy-method dispatch;
  * per-configuration YAML serialisation lands in Stage 4.
  */
-public final class ExploreSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
     private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
     private final List<FT> factors;

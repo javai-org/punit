@@ -2,7 +2,7 @@ package org.javai.punit.api.typed.spec;
 
 /**
  * Three-state statistical verdict returned by a
- * {@link ProbabilisticTestSpec}'s {@link Spec#conclude() conclude()}
+ * {@link ProbabilisticTestSpec}'s {@link DataGenerationSpec#conclude() conclude()}
  * call.
  *
  * <p>Kept distinct from the legacy
