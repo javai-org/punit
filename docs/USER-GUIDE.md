@@ -6,6 +6,16 @@ All attribution licensing is ARL.
 
 ---
 
+> **A spec is a declarative description of a data-generating process.**
+> **Running it realises a sample from that process.**
+>
+> Hold this framing in mind throughout the guide — it is the shape
+> every probabilistic test and every experiment in PUnit takes, and
+> it is what separates probabilistic testing from the single-execution
+> premise of traditional unit testing.
+
+---
+
 ## Table of Contents
 
 - [Introduction](#introduction)
