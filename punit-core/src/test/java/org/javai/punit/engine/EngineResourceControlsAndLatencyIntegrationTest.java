@@ -7,8 +7,10 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.DataGeneration;
 import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.Pacing;
+import org.javai.punit.api.typed.SamplingShape;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BudgetExhaustionPolicy;
@@ -76,13 +78,15 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("RC01: time budget terminates sampling early with TIME_BUDGET marker")
     void timeBudgetTerminatesEarly() {
         UseCase<Factors, Integer, Integer> sleeper = new SleepyUseCase(100, 0);
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> sleeper)
-                .factors(new Factors("m"))
                 .inputs(1, 2, 3)
                 .samples(1000)
                 .timeBudget(Duration.ofMillis(500))
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
         SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
@@ -107,14 +111,16 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 return UseCaseOutcome.ok(input);
             }
         };
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> zeroOutcomeTokens)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(100)
                 .tokenBudget(250)
                 .tokenCharge(100)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
         SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
@@ -134,13 +140,15 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 return UseCaseOutcome.ok(input);
             }
         };
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> zeroCost)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(5)
                 .tokenCharge(50)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
         SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
@@ -155,14 +163,16 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("RC05: budget exhaustion produces a summary the spec can detect (terminatedEarly)")
     void passIncompleteSurfacesPartialResult() {
         UseCase<Factors, Integer, Integer> sleeper = new SleepyUseCase(50, 0);
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> sleeper)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(100)
                 .timeBudget(Duration.ofMillis(200))
                 .onBudgetExhausted(BudgetExhaustionPolicy.PASS_INCOMPLETE)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
         SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
@@ -185,12 +195,14 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 return Pacing.builder().maxRequestsPerSecond(10.0).build();
             }
         };
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> pacingUc)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(5)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         long t0 = System.nanoTime();
         new Engine().run(spec);
@@ -215,12 +227,14 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                         .build();
             }
         };
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> pacingUc)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(3)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         long t0 = System.nanoTime();
         new Engine().run(spec);
@@ -245,13 +259,15 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 return UseCaseOutcome.ok(input);
             }
         };
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> flaky)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(10)
                 .onException(ExceptionPolicy.FAIL_SAMPLE)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
         SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
@@ -269,12 +285,14 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 throw new IllegalStateException("never mind the exception policy, this is a defect");
             }
         };
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> defective)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(5)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
                 .isInstanceOf(IllegalStateException.class)
@@ -291,13 +309,15 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 return UseCaseOutcome.fail("scripted", "boom");
             }
         };
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> failing)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(50)
                 .maxExampleFailures(3)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
         SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
@@ -316,12 +336,14 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void latencyPercentilesComputed() {
         // Scripted sleeps 10/20/30/40/50ms.
         UseCase<Factors, Integer, Integer> scripted = new ScriptedLatencyUseCase(10L, 20L, 30L, 40L, 50L);
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.<Factors, Integer, Integer>builder()
+        DataGeneration<Factors, Integer, Integer> plan = SamplingShape
+                .<Factors, Integer, Integer>builder()
                 .useCaseFactory(f -> scripted)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(5)
-                .build();
+                .build()
+                .at(new Factors("m"));
+        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
         SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();

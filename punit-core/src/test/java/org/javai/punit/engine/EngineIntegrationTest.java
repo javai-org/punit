@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.DataGeneration;
+import org.javai.punit.api.typed.SamplingShape;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.EngineResult;
@@ -42,12 +44,14 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("MeasureSpec runs end-to-end and reports an artefact outcome")
     void measureSpecRunsEndToEnd() {
-        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.<LlmFactors, String, Integer>builder()
+        DataGeneration<LlmFactors, String, Integer> plan = SamplingShape
+                .<LlmFactors, String, Integer>builder()
                 .useCaseFactory(f -> new LengthUseCase())
-                .factors(new LlmFactors("gpt-4o", 0.3))
                 .inputs("a", "bb", "ccc")
                 .samples(9)
-                .build();
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.3));
+        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
 
         EngineResult outcome = new Engine().run(spec);
 
@@ -102,11 +106,13 @@ class EngineIntegrationTest {
     @DisplayName("ProbabilisticTestSpec (empirical) produces a verdict with EMPIRICAL threshold origin")
     void empiricalProducesVerdictWithEmpiricalOrigin() {
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .<LlmFactors, Integer, Boolean>basedOn(() -> MeasureSpec.<LlmFactors, Integer, Boolean>builder()
-                        .useCaseFactory(f -> new AlwaysPassesUseCase())
-                        .factors(new LlmFactors("gpt-4o", 0.3))
-                        .inputs(1, 2, 3)
-                        .samples(10)
+                .<LlmFactors, Integer, Boolean>basedOn(() -> MeasureSpec.measuring(
+                                SamplingShape.<LlmFactors, Integer, Boolean>builder()
+                                        .useCaseFactory(f -> new AlwaysPassesUseCase())
+                                        .inputs(1, 2, 3)
+                                        .samples(10)
+                                        .build()
+                                        .at(new LlmFactors("gpt-4o", 0.3)))
                         .build())
                 .useCaseFactory(f -> new AlwaysPassesUseCase())
                 .factors(new LlmFactors("gpt-4o", 0.3))
@@ -124,13 +130,14 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("A thrown exception is treated as a defect and aborts the run")
     void defectAbortsTheRun() {
-        MeasureSpec<LlmFactors, Integer, Boolean> spec = MeasureSpec
+        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
                 .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new DefectiveUseCase())
-                .factors(new LlmFactors("gpt-4o", 0.3))
                 .inputs(1, 2, 3)
                 .samples(5)
-                .build();
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.3));
+        MeasureSpec<LlmFactors, Integer, Boolean> spec = MeasureSpec.measuring(plan).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
                 .isInstanceOf(IllegalStateException.class)
@@ -147,14 +154,15 @@ class EngineIntegrationTest {
             }
         };
 
-        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec
+        DataGeneration<LlmFactors, String, String> plan = SamplingShape
                 .<LlmFactors, String, String>builder()
                 .useCaseFactory(f -> upperCase)
-                .factors(new LlmFactors("gpt-4o", 0.0))
-                .expectations(
-                        org.javai.punit.api.typed.Expectation.of("a", "A"),   // match
-                        org.javai.punit.api.typed.Expectation.of("b", "Q"))   // mismatch
+                .inputs("a", "b")
                 .samples(4)
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.0));
+        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(plan)
+                .expectedOutputs("A", "Q") // match, mismatch
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -182,15 +190,16 @@ class EngineIntegrationTest {
                         : org.javai.punit.api.typed.MatchResult.fail("equalsIgnoreCase", exp, act,
                                 "case-insensitive comparison failed");
 
-        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec
+        DataGeneration<LlmFactors, String, String> plan = SamplingShape
                 .<LlmFactors, String, String>builder()
                 .useCaseFactory(f -> returnSameCase)
-                .factors(new LlmFactors("gpt-4o", 0.0))
-                .expectations(
-                        org.javai.punit.api.typed.Expectation.of("HELLO", "hello"),
-                        org.javai.punit.api.typed.Expectation.of("WORLD", "world"))
-                .matcher(caseInsensitive)
+                .inputs("HELLO", "WORLD")
                 .samples(2)
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.0));
+        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(plan)
+                .expectedOutputs("hello", "world")
+                .matcher(caseInsensitive)
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -199,22 +208,24 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("builder rejects both .inputs() and .expectations() on the same spec")
-    void cannotCombineInputsAndExpectations() {
-        MeasureSpec.Builder<LlmFactors, String, String> b = MeasureSpec
+    @DisplayName("MeasureSpec rejects expectedOutputs whose length does not match plan.inputs")
+    void rejectsMismatchedExpectedOutputsLength() {
+        DataGeneration<LlmFactors, String, String> plan = SamplingShape
                 .<LlmFactors, String, String>builder()
                 .useCaseFactory(f -> new UseCase<LlmFactors, String, String>() {
                     @Override public UseCaseOutcome<String> apply(String input) {
                         return UseCaseOutcome.ok(input);
                     }
                 })
-                .factors(new LlmFactors("gpt-4o", 0.0))
-                .inputs("a");
-        assertThatThrownBy(() -> b.expectations(
-                org.javai.punit.api.typed.Expectation.of("a", "A")))
+                .inputs("a", "b")
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.0));
+        assertThatThrownBy(() -> MeasureSpec.measuring(plan)
+                .expectedOutputs("A") // only one; inputs has two
+                .build())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(".inputs(...)")
-                .hasMessageContaining(".expectations(...)");
+                .hasMessageContaining("expectedOutputs")
+                .hasMessageContaining("inputs");
     }
 
     @Test
@@ -233,13 +244,14 @@ class EngineIntegrationTest {
                 return UseCaseOutcome.ok(0);
             }
         };
-        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec
+        DataGeneration<LlmFactors, String, Integer> plan = SamplingShape
                 .<LlmFactors, String, Integer>builder()
                 .useCaseFactory(f -> recording)
-                .factors(new LlmFactors("gpt-4o", 0.3))
                 .inputs("x", "y", "z")
                 .samples(7)
-                .build();
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.3));
+        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
         new Engine().run(spec);
         return observed;
     }
