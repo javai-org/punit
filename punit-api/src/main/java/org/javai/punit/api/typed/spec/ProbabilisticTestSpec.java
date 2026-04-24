@@ -56,9 +56,10 @@ import org.javai.punit.api.typed.UseCase;
  * paths do not compile.
  *
  * <p>Verdict synthesis is currently a placeholder that evaluates
- * "observed pass rate ≥ threshold → PASS"; Stage 4 replaces it with
- * Wilson-score-based evaluation and, for the confidence-first path,
- * a real power analysis. The Bernoulli-specific step is isolated in
+ * "observed pass rate ≥ threshold → PASS". The intended replacement
+ * is Wilson-score-based evaluation and, for the confidence-first
+ * path, a real power analysis — both pending future work. The
+ * Bernoulli-specific step is isolated in
  * {@link #bernoulliFunctionalVerdict()}.
  */
 public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
@@ -138,7 +139,8 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
                 : functionalVerdict;
 
         List<String> warnings = new ArrayList<>(defaultWarnings);
-        warnings.add("statistics pending Stage 4 — verdict uses placeholder threshold comparison");
+        warnings.add("verdict uses a placeholder pass-rate threshold comparison; "
+                + "Wilson-score-based evaluation pending");
 
         return new ProbabilisticTestResult(
                         projected,
@@ -162,8 +164,8 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
      * to {@link LatencyVerdict#evaluate} and {@link Verdict#project},
      * both model-agnostic.
      *
-     * <p>Placeholder until Stage 4 replaces the inequality with a
-     * Wilson-score-based evaluation.
+     * <p>Placeholder implementation; the inequality will be replaced
+     * with a Wilson-score-based evaluation.
      */
     private Verdict bernoulliFunctionalVerdict() {
         if (summary == null || summary.total() == 0) {
@@ -178,7 +180,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     public TestIntent intent() { return intent; }
     public int samples() { return samples; }
 
-    // ── Stage-3 spec-interface accessors ─────────────────────────────
+    // ── spec-interface accessors ─────────────────────────────────────
 
     @Override public Optional<Duration> timeBudget() { return resourceControls.timeBudget(); }
     @Override public OptionalLong tokenBudget() { return resourceControls.tokenBudget(); }
@@ -498,11 +500,10 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
                         "either .samples(n) or .minDetectableEffect(...) + .power(...) is required");
             }
 
-            // Placeholder resolution: a later stage uses the baseline to
-            // derive a real threshold (sample-size-first) or to compute
-            // sample size from a power analysis (confidence-first). For
-            // now we touch the supplier to make sure it resolves; the
-            // real wiring lands alongside the statistics work.
+            // Placeholder resolution: the real wiring will use the baseline
+            // to derive a threshold (sample-size-first) or to compute sample
+            // size from a power analysis (confidence-first). For now we
+            // touch the supplier to make sure it resolves.
             try {
                 baseline.get();
             } catch (RuntimeException ignored) {

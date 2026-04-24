@@ -118,7 +118,7 @@ class EngineIntegrationTest {
         var verdict = ((ProbabilisticTestResult) outcome);
         assertThat(verdict.thresholdOrigin()).isEqualTo(ThresholdOrigin.EMPIRICAL);
         assertThat(verdict.warnings())
-                .anyMatch(w -> w.contains("Stage 4"));
+                .anyMatch(w -> w.contains("placeholder"));
     }
 
     @Test
