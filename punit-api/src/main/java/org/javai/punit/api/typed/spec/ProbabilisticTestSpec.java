@@ -18,19 +18,36 @@ import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.UseCase;
 
 /**
- * A probabilistic test configured via one of three statistical
- * approaches:
+ * A probabilistic test whose per-sample outcomes are Bernoulli
+ * trials: every sample is a binary pass/fail against the service's
+ * contract, and the functional verdict is synthesised from the
+ * observed pass rate of N such trials.
+ *
+ * <p>This makes {@code ProbabilisticTestSpec} the <em>Bernoulli
+ * embodiment</em> of the probabilistic-test concept. Other
+ * statistical models — collision probability for randomly-generated
+ * identifiers, expected-value tests over continuous outputs,
+ * distributional goodness-of-fit — belong in sibling spec types
+ * with their own verdict-synthesis logic. Those siblings share the
+ * same engine, the same {@link DataGenerationSpec} strategy
+ * contract, and the same latency machinery, and differ only in how
+ * they turn a stream of samples into a functional verdict.
+ *
+ * <p>Configured via one of three statistical approaches, all three
+ * Bernoulli-specific:
  *
  * <ul>
  *   <li><b>Threshold-first</b> — {@link #normative()} — a normative
- *       threshold is declared alongside a sample size.</li>
+ *       pass-rate threshold is declared alongside a sample size.</li>
  *   <li><b>Sample-size-first</b> — {@link #basedOn(Supplier)} +
  *       {@link EmpiricalBuilder#samples(int)} — sample count declared,
- *       threshold derived from the baseline at verdict time.</li>
+ *       threshold derived from the baseline's observed pass rate at
+ *       verdict time.</li>
  *   <li><b>Confidence-first</b> — {@link #basedOn(Supplier)} +
  *       {@link EmpiricalBuilder#minDetectableEffect(double)} /
  *       {@link EmpiricalBuilder#power(double)} — sample count
- *       computed from a power analysis.</li>
+ *       computed from a power analysis over a difference in
+ *       proportions.</li>
  * </ul>
  *
  * <p>Builder constraints enforced at compile time by the type split:
@@ -40,9 +57,10 @@ import org.javai.punit.api.typed.UseCase;
  * paths do not compile.
  *
  * <p>Verdict synthesis is currently a placeholder that evaluates
- * "observed pass rate ≥ threshold → PASS"; a later stage replaces
- * this with Wilson-score-based verdict evaluation and, for the
- * confidence-first path, a real power analysis.
+ * "observed pass rate ≥ threshold → PASS"; Stage 4 replaces it with
+ * Wilson-score-based evaluation and, for the confidence-first path,
+ * a real power analysis. The Bernoulli-specific step is isolated in
+ * {@link #bernoulliFunctionalVerdict()}.
  */
 public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
@@ -109,15 +127,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     @Override public EngineResult conclude() {
         int successes = summary == null ? 0 : summary.successes();
         int failures = summary == null ? 0 : summary.failures();
-        double observed = summary == null ? Double.NaN : summary.passRate();
-        Verdict functionalVerdict;
-        if (summary == null || summary.total() == 0) {
-            functionalVerdict = Verdict.INCONCLUSIVE;
-        } else if (observed >= threshold) {
-            functionalVerdict = Verdict.PASS;
-        } else {
-            functionalVerdict = Verdict.FAIL;
-        }
+        Verdict functionalVerdict = bernoulliFunctionalVerdict();
         List<String> warnings = new ArrayList<>(defaultWarnings);
         warnings.add("statistics pending Stage 4 — verdict uses placeholder threshold comparison");
 
@@ -133,6 +143,26 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
                         thresholdOrigin,
                         warnings,
                         latencyVerdictOpt);
+    }
+
+    /**
+     * Functional verdict for the Bernoulli-trial model: every sample
+     * is a binary success/failure; the observed pass rate is compared
+     * to the declared threshold.
+     *
+     * <p>This is the model-specific step. A sibling spec type built
+     * on a different statistical model (collision probability,
+     * expected-value, etc.) would compute its functional verdict from
+     * a different statistic.
+     *
+     * <p>Placeholder until Stage 4 replaces the inequality with a
+     * Wilson-score-based evaluation.
+     */
+    private Verdict bernoulliFunctionalVerdict() {
+        if (summary == null || summary.total() == 0) {
+            return Verdict.INCONCLUSIVE;
+        }
+        return summary.passRate() >= threshold ? Verdict.PASS : Verdict.FAIL;
     }
 
     private Optional<LatencyVerdict> evaluateLatency() {
