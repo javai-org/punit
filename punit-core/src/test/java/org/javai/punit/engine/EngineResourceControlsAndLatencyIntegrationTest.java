@@ -13,11 +13,15 @@ import org.javai.punit.api.typed.Pacing;
 import org.javai.punit.api.typed.SamplingShape;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.typed.spec.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.BudgetExhaustionPolicy;
-import org.javai.punit.api.typed.spec.VerdictDimension;
+import org.javai.punit.api.typed.spec.CriterionRole;
+import org.javai.punit.api.typed.spec.EvaluatedCriterion;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.MeasureSpec;
+import org.javai.punit.api.typed.spec.PercentileKey;
+import org.javai.punit.api.typed.spec.PercentileLatency;
 import org.javai.punit.api.typed.spec.ProbabilisticTestSpec;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.SampleSummary;
@@ -355,11 +359,11 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         assertThat(lr.p90()).isGreaterThanOrEqualTo(Duration.ofMillis(48));
     }
 
-    // ── 11. LT02 explicit threshold breach → FAIL latency verdict ───
+    // ── 11. PercentileLatency contractual breach → FAIL ─────────────
 
     @Test
-    @DisplayName("LT02: explicit threshold breach produces a FAIL latency verdict with a PercentileBreach")
-    void latencyThresholdBreachProducesFailVerdict() {
+    @DisplayName("PercentileLatency.meeting() produces FAIL with breach detail when observed exceeds ceiling")
+    void percentileLatencyBreachProducesFail() {
         // 50ms sleeps, assert p50 ≤ 10ms.
         UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
@@ -367,128 +371,119 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 return UseCaseOutcome.ok(Boolean.TRUE);
             }
         };
-        ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .<Factors, Integer, Boolean>normative()
+        DataGeneration<Factors, Integer, Boolean> plan = SamplingShape
+                .<Factors, Integer, Boolean>builder()
                 .useCaseFactory(f -> slow)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(5)
-                .threshold(0.95, ThresholdOrigin.SLA)
-                .latency(LatencySpec.builder().p50Millis(10L).build())
+                .build()
+                .at(new Factors("m"));
+        ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
+                .testing(plan)
+                .criterion(PercentileLatency.<Boolean>meeting(
+                        LatencySpec.builder().p50Millis(10L).build(),
+                        ThresholdOrigin.SLA))
                 .build();
 
-        EngineResult outcome = new Engine().run(spec);
-        ProbabilisticTestResult v =
-                ((ProbabilisticTestResult) outcome);
-
-        assertThat(v.latencyVerdict()).isPresent();
-        assertThat(v.latencyVerdict().get().verdict()).isEqualTo(Verdict.FAIL);
-        assertThat(v.latencyVerdict().get().breaches()).hasSize(1);
-        assertThat(v.latencyVerdict().get().breaches().get(0).percentile()).isEqualTo("p50");
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
+        assertThat(result.verdict()).isEqualTo(Verdict.FAIL);
+        EvaluatedCriterion entry = result.criterionResults().get(0);
+        assertThat(entry.role()).isEqualTo(CriterionRole.REQUIRED);
+        assertThat(entry.result().verdict()).isEqualTo(Verdict.FAIL);
+        assertThat(entry.result().detail()).containsKey("breach.p50");
     }
 
-    // ── 12. LT05 two-dimensional verdict: functional pass + latency fail
+    // ── 12. Mixed criteria: functional pass + latency fail  ─────────
 
     @Test
-    @DisplayName("LT05: functional PASS + latency FAIL under BOTH yields FAIL; under FUNCTIONAL yields PASS")
-    void twoVerdictDimensionalVerdictProjection() {
+    @DisplayName("mixed criteria: functional PASS + latency FAIL composes to FAIL when both REQUIRED")
+    void mixedCriteriaBothRequiredComposesToFail() {
         UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
                 sleep(50);
                 return UseCaseOutcome.ok(Boolean.TRUE);
             }
         };
+        DataGeneration<Factors, Integer, Boolean> plan = SamplingShape
+                .<Factors, Integer, Boolean>builder()
+                .useCaseFactory(f -> slow)
+                .inputs(1)
+                .samples(5)
+                .build()
+                .at(new Factors("m"));
 
-        // Default assertOn when latency is declared is BOTH.
         ProbabilisticTestSpec<Factors, Integer, Boolean> both = ProbabilisticTestSpec
-                .<Factors, Integer, Boolean>normative()
-                .useCaseFactory(f -> slow)
-                .factors(new Factors("m"))
-                .inputs(1)
-                .samples(5)
-                .threshold(0.95, ThresholdOrigin.SLA)
-                .latency(LatencySpec.builder().p50Millis(10L).build())
+                .testing(plan)
+                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PercentileLatency.<Boolean>meeting(
+                        LatencySpec.builder().p50Millis(10L).build(),
+                        ThresholdOrigin.SLA))
                 .build();
-        var vBoth = ((ProbabilisticTestResult) new Engine().run(both));
-        assertThat(vBoth.verdict()).isEqualTo(Verdict.FAIL);
-        assertThat(vBoth.latencyVerdict()).isPresent();
-        assertThat(vBoth.latencyVerdict().get().verdict()).isEqualTo(Verdict.FAIL);
-
-        // Project only the functional side.
-        ProbabilisticTestSpec<Factors, Integer, Boolean> funcOnly = ProbabilisticTestSpec
-                .<Factors, Integer, Boolean>normative()
-                .useCaseFactory(f -> slow)
-                .factors(new Factors("m"))
-                .inputs(1)
-                .samples(5)
-                .threshold(0.95, ThresholdOrigin.SLA)
-                .latency(LatencySpec.builder().p50Millis(10L).build())
-                .assertOn(VerdictDimension.FUNCTIONAL)
-                .build();
-        var vFunc = ((ProbabilisticTestResult) new Engine().run(funcOnly));
-        assertThat(vFunc.verdict()).isEqualTo(Verdict.PASS);
-        // Latency verdict side channel still populated (it was declared).
-        assertThat(vFunc.latencyVerdict()).isPresent();
-        assertThat(vFunc.latencyVerdict().get().verdict()).isEqualTo(Verdict.FAIL);
+        var rBoth = (ProbabilisticTestResult) new Engine().run(both);
+        assertThat(rBoth.verdict()).isEqualTo(Verdict.FAIL);
+        assertThat(rBoth.criterionResults()).hasSize(2);
     }
 
-    // ── 13. LT06 assertOn(LATENCY) ──────────────────────────────────
+    @Test
+    @DisplayName("reportOnly latency: functional PASS + latency FAIL(report-only) composes to PASS")
+    void reportOnlyLatencyExcludedFromComposition() {
+        UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
+            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+                sleep(50);
+                return UseCaseOutcome.ok(Boolean.TRUE);
+            }
+        };
+        DataGeneration<Factors, Integer, Boolean> plan = SamplingShape
+                .<Factors, Integer, Boolean>builder()
+                .useCaseFactory(f -> slow)
+                .inputs(1)
+                .samples(5)
+                .build()
+                .at(new Factors("m"));
+        ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
+                .testing(plan)
+                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .reportOnly(PercentileLatency.<Boolean>meeting(
+                        LatencySpec.builder().p50Millis(10L).build(),
+                        ThresholdOrigin.SLA))
+                .build();
+
+        var r = (ProbabilisticTestResult) new Engine().run(spec);
+        assertThat(r.verdict()).isEqualTo(Verdict.PASS);
+        assertThat(r.criterionResults()).hasSize(2);
+        // Latency result is attached with REPORT_ONLY role
+        EvaluatedCriterion latency = r.criterionResults().get(1);
+        assertThat(latency.role()).isEqualTo(CriterionRole.REPORT_ONLY);
+        assertThat(latency.result().verdict()).isEqualTo(Verdict.FAIL);
+    }
 
     @Test
-    @DisplayName("LT06: assertOn(LATENCY) projects the latency-only verdict")
-    void assertOnLatencyOnly() {
+    @DisplayName("reportOnly functional: contract failures reported but excluded → latency criterion determines verdict")
+    void reportOnlyFunctionalExcludedFromComposition() {
         UseCase<Factors, Integer, Boolean> fastButBroken = new UseCase<>() {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
                 sleep(5);
                 return UseCaseOutcome.fail("scripted", "functional fail intentional");
             }
         };
-
-        ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .<Factors, Integer, Boolean>normative()
+        DataGeneration<Factors, Integer, Boolean> plan = SamplingShape
+                .<Factors, Integer, Boolean>builder()
                 .useCaseFactory(f -> fastButBroken)
-                .factors(new Factors("m"))
                 .inputs(1)
                 .samples(5)
-                .threshold(0.95, ThresholdOrigin.SLA)
-                .latency(LatencySpec.builder().p50Millis(100L).build())
-                .assertOn(VerdictDimension.LATENCY)
-                .build();
-
-        var v = ((ProbabilisticTestResult) new Engine().run(spec));
-
-        // Functional side is a total FAIL (contract violations) but
-        // assertOn(LATENCY) ignores it — latency passes (5ms ≤ 100ms).
-        assertThat(v.verdict()).isEqualTo(Verdict.PASS);
-        assertThat(v.latencyVerdict()).isPresent();
-        assertThat(v.latencyVerdict().get().verdict()).isEqualTo(Verdict.PASS);
-    }
-
-    // ── verdict round-trip (acceptance criterion 6) ─────────────────
-
-    @Test
-    @DisplayName("ProbabilisticTestResult round-trips a two-dimensional verdict")
-    void verdictRoundTripsTwoVerdictDimensionalShape() {
-        UseCase<Factors, Integer, Boolean> fine = new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-                return UseCaseOutcome.ok(Boolean.TRUE);
-            }
-        };
+                .build()
+                .at(new Factors("m"));
         ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .<Factors, Integer, Boolean>normative()
-                .useCaseFactory(f -> fine)
-                .factors(new Factors("m"))
-                .inputs(1)
-                .samples(10)
-                .threshold(0.95, ThresholdOrigin.SLO)
-                .latency(LatencySpec.builder().p95Millis(500L).build())
+                .testing(plan)
+                .criterion(PercentileLatency.<Boolean>meeting(
+                        LatencySpec.builder().p50Millis(100L).build(),
+                        ThresholdOrigin.SLA))
+                .reportOnly(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
-        var v = ((ProbabilisticTestResult) new Engine().run(spec));
-        assertThat(v.verdict()).isEqualTo(Verdict.PASS);
-        assertThat(v.latencyVerdict()).isPresent();
-        assertThat(v.latencyVerdict().get().verdict()).isEqualTo(Verdict.PASS);
-        assertThat(v.latencyVerdict().get().breaches()).isEmpty();
+        var r = (ProbabilisticTestResult) new Engine().run(spec);
+        // Functional is a total FAIL but report-only; latency PASSes (5ms ≤ 100ms).
+        assertThat(r.verdict()).isEqualTo(Verdict.PASS);
     }
 
     // ── helpers ─────────────────────────────────────────────────────

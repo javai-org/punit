@@ -2,85 +2,38 @@ package org.javai.punit.api.typed.spec;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
-import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.FactorBundle;
 
 /**
- * The result of running a {@link ProbabilisticTestSpec} — a concluded
- * verdict plus the evidence that produced it.
+ * The result of running a {@link ProbabilisticTestSpec} — the composed
+ * verdict plus the ordered list of per-criterion results that produced
+ * it.
  *
- * <p>Intentionally thinner than the full
- * {@code org.javai.punit.verdict.ProbabilisticTestVerdict} — this Stage 2
- * shape carries only the fields the new engine can populate with
- * placeholder statistics. Stage 4 replaces the statistics and Stage 5
- * bridges to the richer record for reporting.
+ * <p>The list carries both {@link CriterionRole#REQUIRED REQUIRED} and
+ * {@link CriterionRole#REPORT_ONLY REPORT_ONLY} entries in the order the
+ * spec builder registered them, so reporters can surface every criterion
+ * regardless of its contribution to composition. The combined
+ * {@link #verdict()} is {@link Verdict#compose(List) Verdict.compose}'d
+ * from the REQUIRED subset.
  *
- * <p>Stage 3 extends the record with an optional
- * {@link LatencyVerdict}. When present, {@link #verdict()} reflects
- * the <em>projected</em> outcome selected by the spec's
- * {@link VerdictDimension}; {@link #latencyVerdict()} exposes the latency
- * side independently.
- *
- * @param verdict the projected PASS / FAIL / INCONCLUSIVE chosen by
- *                the spec's {@code assertOn(VerdictDimension)}
- * @param factors the factor bundle observed
- * @param successes number of passing samples
- * @param failures number of failing samples
- * @param threshold the threshold evaluated against
- * @param thresholdOrigin provenance of the threshold
- * @param warnings free-form warnings attached to the verdict (e.g.
- *                 "statistics pending Stage 4")
- * @param latencyVerdict optional latency-side verdict; present when
- *                      the spec declared a non-disabled
- *                      {@link org.javai.punit.api.typed.LatencySpec}
+ * @param verdict          the composed PASS / FAIL / INCONCLUSIVE
+ * @param factors          the factor bundle observed
+ * @param criterionResults the full ordered list of evaluated criteria
+ * @param warnings         free-form warnings (e.g. "statistics wiring pending")
  */
 public record ProbabilisticTestResult(
         Verdict verdict,
         FactorBundle factors,
-        int successes,
-        int failures,
-        double threshold,
-        ThresholdOrigin thresholdOrigin,
-        List<String> warnings,
-        Optional<LatencyVerdict> latencyVerdict) implements EngineResult {
+        List<EvaluatedCriterion> criterionResults,
+        List<String> warnings) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
         Objects.requireNonNull(factors, "factors");
-        Objects.requireNonNull(thresholdOrigin, "thresholdOrigin");
+        Objects.requireNonNull(criterionResults, "criterionResults");
         Objects.requireNonNull(warnings, "warnings");
-        Objects.requireNonNull(latencyVerdict, "latencyVerdict");
-        if (successes < 0 || failures < 0) {
-            throw new IllegalArgumentException("successes and failures must be non-negative");
-        }
+        criterionResults = List.copyOf(criterionResults);
         warnings = List.copyOf(warnings);
-    }
-
-    /**
-     * Stage-2-compatible constructor for consumers that don't carry a
-     * latency verdict — defaults {@code latencyVerdict} to
-     * {@link Optional#empty()}.
-     */
-    public ProbabilisticTestResult(
-            Verdict verdict,
-            FactorBundle factors,
-            int successes,
-            int failures,
-            double threshold,
-            ThresholdOrigin thresholdOrigin,
-            List<String> warnings) {
-        this(verdict, factors, successes, failures, threshold, thresholdOrigin,
-                warnings, Optional.empty());
-    }
-
-    public int total() {
-        return successes + failures;
-    }
-
-    public double observedPassRate() {
-        int t = total();
-        return t == 0 ? Double.NaN : (double) successes / (double) t;
     }
 }

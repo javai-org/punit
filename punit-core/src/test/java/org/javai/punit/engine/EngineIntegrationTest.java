@@ -11,6 +11,7 @@ import org.javai.punit.api.typed.DataGeneration;
 import org.javai.punit.api.typed.SamplingShape;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.typed.spec.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExperimentResult;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
@@ -62,69 +63,78 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("ProbabilisticTestSpec (normative) produces a PASS when observed rate beats threshold")
-    void normativeProducesPass() {
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .<LlmFactors, Integer, Boolean>normative()
+    @DisplayName("ProbabilisticTestSpec with BernoulliPassRate.meeting() produces PASS when observed beats threshold")
+    void contractualProducesPass() {
+        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
+                .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new AlwaysPassesUseCase())
-                .factors(new LlmFactors("gpt-4o", 0.3))
                 .inputs(1, 2, 3)
                 .samples(30)
-                .threshold(0.95, ThresholdOrigin.SLA)
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.3));
+        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
+                .testing(plan)
+                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
 
         assertThat(outcome).isInstanceOf(ProbabilisticTestResult.class);
-        var verdict = ((ProbabilisticTestResult) outcome);
-        assertThat(verdict.verdict()).isEqualTo(Verdict.PASS);
-        assertThat(verdict.thresholdOrigin()).isEqualTo(ThresholdOrigin.SLA);
-        assertThat(verdict.threshold()).isEqualTo(0.95);
-        assertThat(verdict.total()).isEqualTo(30);
+        var result = (ProbabilisticTestResult) outcome;
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+        assertThat(result.criterionResults()).hasSize(1);
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsEntry("origin", "SLA");
+        assertThat(detail).containsEntry("threshold", 0.95);
+        assertThat(detail).containsEntry("total", 30);
     }
 
     @Test
-    @DisplayName("ProbabilisticTestSpec (normative) produces a FAIL when a use case returns business-level Fail outcomes")
-    void normativeProducesFail() {
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .<LlmFactors, Integer, Boolean>normative()
+    @DisplayName("ProbabilisticTestSpec with BernoulliPassRate.meeting() produces FAIL when observed below threshold")
+    void contractualProducesFail() {
+        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
+                .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new AlwaysReturnsFailUseCase())
-                .factors(new LlmFactors("gpt-4o", 0.3))
                 .inputs(1, 2, 3)
                 .samples(15)
-                .threshold(0.95, ThresholdOrigin.SLO)
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.3));
+        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
+                .testing(plan)
+                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
-        var verdict = ((ProbabilisticTestResult) outcome);
-        assertThat(verdict.verdict()).isEqualTo(Verdict.FAIL);
-        assertThat(verdict.successes()).isZero();
-        assertThat(verdict.failures()).isEqualTo(15);
+        var result = (ProbabilisticTestResult) outcome;
+        assertThat(result.verdict()).isEqualTo(Verdict.FAIL);
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsEntry("successes", 0);
+        assertThat(detail).containsEntry("failures", 15);
     }
 
     @Test
-    @DisplayName("ProbabilisticTestSpec (empirical) produces a verdict with EMPIRICAL threshold origin")
-    void empiricalProducesVerdictWithEmpiricalOrigin() {
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .<LlmFactors, Integer, Boolean>basedOn(() -> MeasureSpec.measuring(
-                                SamplingShape.<LlmFactors, Integer, Boolean>builder()
-                                        .useCaseFactory(f -> new AlwaysPassesUseCase())
-                                        .inputs(1, 2, 3)
-                                        .samples(10)
-                                        .build()
-                                        .at(new LlmFactors("gpt-4o", 0.3)))
-                        .build())
+    @DisplayName("BernoulliPassRate.empirical() yields INCONCLUSIVE under the Stage-3.5 stub baseline resolver")
+    void empiricalYieldsInconclusiveUnderStubResolver() {
+        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
+                .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new AlwaysPassesUseCase())
-                .factors(new LlmFactors("gpt-4o", 0.3))
                 .inputs(1, 2, 3)
                 .samples(20)
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.3));
+        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
+                .testing(plan)
+                .criterion(BernoulliPassRate.<Boolean>empirical())
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
-        var verdict = ((ProbabilisticTestResult) outcome);
-        assertThat(verdict.thresholdOrigin()).isEqualTo(ThresholdOrigin.EMPIRICAL);
-        assertThat(verdict.warnings())
-                .anyMatch(w -> w.contains("placeholder"));
+        var result = (ProbabilisticTestResult) outcome;
+        assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(result.criterionResults()).hasSize(1);
+        assertThat(result.criterionResults().get(0).result().verdict())
+                .isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(result.criterionResults().get(0).result().explanation())
+                .contains("baseline");
     }
 
     @Test
