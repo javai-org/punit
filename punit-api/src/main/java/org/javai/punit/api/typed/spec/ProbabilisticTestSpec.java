@@ -13,7 +13,6 @@ import java.util.function.Supplier;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.LatencyResult;
 import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.UseCase;
 
@@ -131,11 +130,13 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         int successes = summary == null ? 0 : summary.successes();
         int failures = summary == null ? 0 : summary.failures();
         Verdict functionalVerdict = bernoulliFunctionalVerdict();
+        Optional<LatencyVerdict> latencyVerdictOpt = summary == null
+                ? Optional.empty()
+                : LatencyVerdict.evaluate(latency, summary.latencyResult());
+        Verdict projected = Verdict.project(functionalVerdict, latencyVerdictOpt, assertOn());
+
         List<String> warnings = new ArrayList<>(defaultWarnings);
         warnings.add("statistics pending Stage 4 — verdict uses placeholder threshold comparison");
-
-        Optional<LatencyVerdict> latencyVerdictOpt = evaluateLatency();
-        Verdict projected = projectVerdict(functionalVerdict, latencyVerdictOpt);
 
         return new ProbabilisticTestResult(
                         projected,
@@ -153,10 +154,11 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
      * is a binary success/failure; the observed pass rate is compared
      * to the declared threshold.
      *
-     * <p>This is the model-specific step. A sibling spec type built
-     * on a different statistical model (collision probability,
-     * expected-value, etc.) would compute its functional verdict from
-     * a different statistic.
+     * <p>This is the model-specific step — the only part of
+     * {@link #conclude()} that ties this spec type to the Bernoulli
+     * trial. Latency evaluation and verdict projection are delegated
+     * to {@link LatencyVerdict#evaluate} and {@link Verdict#project},
+     * both model-agnostic.
      *
      * <p>Placeholder until Stage 4 replaces the inequality with a
      * Wilson-score-based evaluation.
@@ -166,49 +168,6 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
             return Verdict.INCONCLUSIVE;
         }
         return summary.passRate() >= threshold ? Verdict.PASS : Verdict.FAIL;
-    }
-
-    private Optional<LatencyVerdict> evaluateLatency() {
-        LatencySpec latSpec = latency;
-        if (latSpec.isDisabled() || summary == null || summary.total() == 0) {
-            return Optional.empty();
-        }
-        LatencyResult observed = summary.latencyResult();
-        List<PercentileBreach> breaches = new ArrayList<>();
-        latSpec.p50Millis().ifPresent(t -> checkBreach("p50", t, observed.p50(), breaches));
-        latSpec.p90Millis().ifPresent(t -> checkBreach("p90", t, observed.p90(), breaches));
-        latSpec.p95Millis().ifPresent(t -> checkBreach("p95", t, observed.p95(), breaches));
-        latSpec.p99Millis().ifPresent(t -> checkBreach("p99", t, observed.p99(), breaches));
-        Verdict v = breaches.isEmpty() ? Verdict.PASS : Verdict.FAIL;
-        return Optional.of(new LatencyVerdict(v, breaches));
-    }
-
-    private static void checkBreach(String name, long thresholdMillis,
-                                    Duration observed, List<PercentileBreach> out) {
-        Duration threshold = Duration.ofMillis(thresholdMillis);
-        if (observed.compareTo(threshold) > 0) {
-            out.add(new PercentileBreach(name, threshold, observed));
-        }
-    }
-
-    private Verdict projectVerdict(Verdict functional, Optional<LatencyVerdict> latency) {
-        VerdictDimension dim = assertOn();
-        Verdict lat = latency.map(LatencyVerdict::verdict).orElse(Verdict.PASS);
-        return switch (dim) {
-            case FUNCTIONAL -> functional;
-            case LATENCY -> lat;
-            case BOTH -> combineBoth(functional, lat);
-        };
-    }
-
-    private static Verdict combineBoth(Verdict functional, Verdict latency) {
-        if (functional == Verdict.INCONCLUSIVE || latency == Verdict.INCONCLUSIVE) {
-            return Verdict.INCONCLUSIVE;
-        }
-        if (functional == Verdict.FAIL || latency == Verdict.FAIL) {
-            return Verdict.FAIL;
-        }
-        return Verdict.PASS;
     }
 
     public double threshold() { return threshold; }
