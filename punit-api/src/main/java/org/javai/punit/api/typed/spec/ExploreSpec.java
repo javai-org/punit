@@ -14,51 +14,56 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-import org.javai.punit.api.typed.LatencySpec;
+import org.javai.punit.api.typed.SamplingShape;
 import org.javai.punit.api.typed.UseCase;
 
 /**
- * A grid-of-configurations experiment: runs {@code samplesPerConfig}
- * samples against each {@link #factors()} entry and records the
- * per-config outcome.
+ * A grid-of-configurations experiment: runs {@code shape.samples()}
+ * samples against each factor bundle in {@link #factors()} and records
+ * the per-config outcome.
  *
- * <p>Stage 2 surfaces the builder and strategy-method dispatch;
- * per-configuration YAML serialisation lands in Stage 4.
+ * <p>Constructed via {@link #exploring(SamplingShape)}. All sample-
+ * production knobs (use case factory, inputs, sample count, budgets,
+ * exception policy) live on the {@link SamplingShape}; the explore
+ * spec itself carries only the varied factor list and the experiment
+ * id.
  */
 public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
-    private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+    private final SamplingShape<FT, IT, OT> shape;
     private final List<FT> factors;
-    private final List<IT> inputs;
-    private final int samplesPerConfig;
     private final String experimentId;
-    private final ResourceControls resourceControls;
-    private final LatencySpec latency;
 
     private final Map<FT, SampleSummary<OT>> perConfig = new LinkedHashMap<>();
 
     private ExploreSpec(Builder<FT, IT, OT> b) {
-        this.useCaseFactory = b.useCaseFactory;
+        this.shape = b.shape;
         this.factors = b.factors;
-        this.inputs = b.inputs;
-        this.samplesPerConfig = b.samplesPerConfig;
-        this.experimentId = b.experimentId;
-        this.resourceControls = b.resources.build();
-        this.latency = b.latency;
+        this.experimentId = b.experimentId != null
+                ? b.experimentId
+                : "explore-" + Instant.now().toEpochMilli();
     }
 
-    public static <FT, IT, OT> Builder<FT, IT, OT> builder() {
-        return new Builder<>();
+    /** Entry point — compose an explore experiment over a SamplingShape. */
+    public static <FT, IT, OT> Builder<FT, IT, OT> exploring(SamplingShape<FT, IT, OT> shape) {
+        return new Builder<>(Objects.requireNonNull(shape, "shape"));
     }
+
+    public SamplingShape<FT, IT, OT> shape() { return shape; }
+    public List<FT> factors() { return factors; }
+    public String experimentId() { return experimentId; }
+
+    /** Convenience delegate to {@code shape().samples()}. */
+    public int samplesPerConfig() { return shape.samples(); }
 
     @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-        return useCaseFactory;
+        return shape.useCaseFactory();
     }
 
     @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
         List<Configuration<FT, IT, OT>> configs = new ArrayList<>(factors.size());
         for (FT ft : factors) {
-            configs.add(Configuration.of(ft, inputs, samplesPerConfig));
+            configs.add(Configuration.of(ft, shape.inputs(), shape.samples()));
         }
         return configs.iterator();
     }
@@ -74,102 +79,36 @@ public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
         return new ExperimentResult(message, dir);
     }
 
-    public List<FT> factors() { return factors; }
-    public int samplesPerConfig() { return samplesPerConfig; }
-    public String experimentId() { return experimentId; }
-
-    // ── Stage-3 spec-interface accessors ─────────────────────────────
-
-    @Override public Optional<Duration> timeBudget() { return resourceControls.timeBudget(); }
-    @Override public OptionalLong tokenBudget() { return resourceControls.tokenBudget(); }
-    @Override public long tokenCharge() { return resourceControls.tokenCharge(); }
-    @Override public BudgetExhaustionPolicy budgetPolicy() { return resourceControls.budgetPolicy(); }
-    @Override public ExceptionPolicy exceptionPolicy() { return resourceControls.exceptionPolicy(); }
-    @Override public int maxExampleFailures() { return resourceControls.maxExampleFailures(); }
-    @Override public LatencySpec latency() { return latency; }
-
-    // ── Builder ─────────────────────────────────────────────────────
+    @Override public Optional<Duration> timeBudget() { return shape.timeBudget(); }
+    @Override public OptionalLong tokenBudget() { return shape.tokenBudget(); }
+    @Override public long tokenCharge() { return shape.tokenCharge(); }
+    @Override public BudgetExhaustionPolicy budgetPolicy() { return shape.budgetPolicy(); }
+    @Override public ExceptionPolicy exceptionPolicy() { return shape.exceptionPolicy(); }
+    @Override public int maxExampleFailures() { return shape.maxExampleFailures(); }
 
     public static final class Builder<FT, IT, OT> {
 
-        private Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+        private final SamplingShape<FT, IT, OT> shape;
         private List<FT> factors;
-        private List<IT> inputs;
-        private int samplesPerConfig = 1;
         private String experimentId;
-        private final ResourceControlsBuilder resources = new ResourceControlsBuilder();
-        private LatencySpec latency = LatencySpec.disabled();
 
-        private Builder() {}
-
-        public Builder<FT, IT, OT> timeBudget(Duration budget) {
-            resources.timeBudget(budget);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> tokenBudget(long tokens) {
-            resources.tokenBudget(tokens);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> tokenCharge(long tokens) {
-            resources.tokenCharge(tokens);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
-            resources.onBudgetExhausted(policy);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> onException(ExceptionPolicy policy) {
-            resources.onException(policy);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> maxExampleFailures(int cap) {
-            resources.maxExampleFailures(cap);
-            return this;
-        }
-
-        public Builder<FT, IT, OT> latency(LatencySpec spec) {
-            this.latency = Objects.requireNonNull(spec, "latency");
-            return this;
-        }
-
-        public Builder<FT, IT, OT> useCaseFactory(Function<FT, UseCase<FT, IT, OT>> factory) {
-            this.useCaseFactory = Objects.requireNonNull(factory, "useCaseFactory");
-            return this;
+        private Builder(SamplingShape<FT, IT, OT> shape) {
+            this.shape = shape;
         }
 
         public Builder<FT, IT, OT> factors(List<FT> grid) {
             Objects.requireNonNull(grid, "factors");
+            if (grid.isEmpty()) {
+                throw new IllegalArgumentException("factors must be non-empty");
+            }
             this.factors = List.copyOf(grid);
             return this;
         }
 
         @SafeVarargs
         public final Builder<FT, IT, OT> factors(FT... grid) {
+            Objects.requireNonNull(grid, "factors");
             return factors(List.of(grid));
-        }
-
-        public Builder<FT, IT, OT> inputs(List<IT> inputs) {
-            Objects.requireNonNull(inputs, "inputs");
-            this.inputs = List.copyOf(inputs);
-            return this;
-        }
-
-        @SafeVarargs
-        public final Builder<FT, IT, OT> inputs(IT... inputs) {
-            return inputs(List.of(inputs));
-        }
-
-        public Builder<FT, IT, OT> samplesPerConfig(int n) {
-            if (n < 1) {
-                throw new IllegalArgumentException("samplesPerConfig must be ≥ 1");
-            }
-            this.samplesPerConfig = n;
-            return this;
         }
 
         public Builder<FT, IT, OT> experimentId(String id) {
@@ -178,17 +117,8 @@ public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
         }
 
         public ExploreSpec<FT, IT, OT> build() {
-            if (useCaseFactory == null) {
-                throw new IllegalStateException("useCaseFactory is required");
-            }
-            if (factors == null || factors.isEmpty()) {
-                throw new IllegalStateException("factors grid is required and must be non-empty");
-            }
-            if (inputs == null || inputs.isEmpty()) {
-                throw new IllegalStateException("inputs is required and must be non-empty");
-            }
-            if (experimentId == null) {
-                experimentId = "explore-" + Instant.now().toEpochMilli();
+            if (factors == null) {
+                throw new IllegalStateException("factors is required — call .factors(...)");
             }
             return new ExploreSpec<>(this);
         }

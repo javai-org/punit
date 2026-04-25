@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.ValueMatcher;
 
@@ -98,10 +97,4 @@ public sealed interface DataGenerationSpec<FT, IT, OT>
      * retention is capped.
      */
     default int maxExampleFailures() { return 10; }
-
-    /**
-     * Optional latency-threshold declaration. Computation is always
-     * performed; enforcement depends on this spec.
-     */
-    default LatencySpec latency() { return LatencySpec.disabled(); }
 }
