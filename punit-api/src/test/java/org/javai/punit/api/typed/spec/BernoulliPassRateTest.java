@@ -29,7 +29,8 @@ class BernoulliPassRateTest {
                 Duration.ofMillis(1),
                 successes, failures, 0L, 0,
                 LatencyResult.empty(),
-                TerminationReason.COMPLETED);
+                TerminationReason.COMPLETED,
+                List.of());
     }
 
     private static <OT> EvaluationContext<OT, PassRateStatistics> ctx(

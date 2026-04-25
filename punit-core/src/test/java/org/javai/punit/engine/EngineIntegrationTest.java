@@ -246,6 +246,32 @@ class EngineIntegrationTest {
         assertThat(observedA).isEqualTo(observedB);
     }
 
+    @Test
+    @DisplayName("Engine populates SampleSummary.trials with one entry per sample, in order, with the cycled input")
+    void enginePopulatesOrderedTrials() {
+        DataGeneration<LlmFactors, String, Integer> plan = SamplingShape
+                .<LlmFactors, String, Integer>builder()
+                .useCaseFactory(f -> new LengthUseCase())
+                .inputs("a", "bb", "ccc")
+                .samples(7)
+                .build()
+                .at(new LlmFactors("gpt-4o", 0.0));
+        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
+
+        new Engine().run(spec);
+        var summary = spec.lastSummary().orElseThrow();
+
+        assertThat(summary.trials()).hasSize(7);
+        // Round-robin order: a, bb, ccc, a, bb, ccc, a
+        assertThat(summary.trials().get(0).input()).isEqualTo("a");
+        assertThat(summary.trials().get(1).input()).isEqualTo("bb");
+        assertThat(summary.trials().get(2).input()).isEqualTo("ccc");
+        assertThat(summary.trials().get(3).input()).isEqualTo("a");
+        assertThat(summary.trials().get(6).input()).isEqualTo("a");
+        // LengthUseCase returns input.length()
+        assertThat(summary.trials().get(2).outcome().rawResult()).isEqualTo(3);
+    }
+
     private List<String> runAndRecord() {
         List<String> observed = new ArrayList<>();
         UseCase<LlmFactors, String, Integer> recording = new UseCase<>() {

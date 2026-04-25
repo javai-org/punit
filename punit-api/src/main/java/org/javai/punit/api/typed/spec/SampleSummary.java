@@ -24,6 +24,14 @@ import org.javai.punit.api.typed.UseCaseOutcome;
  * <p>{@link #latencyResult()} is always computed; a spec's latency
  * threshold is enforced separately by the engine.
  *
+ * <p>{@link #trials()} exposes the full ordered per-trial history —
+ * every trial that contributed to the aggregate counts, including
+ * the ones whose detail was elided from {@code outcomes()} by the
+ * failure cap. History-sensitive criteria (collision rate, Shewhart
+ * runs-rules, autocorrelation, sequence-distribution analysis) read
+ * this stream; aggregate-only criteria (Bernoulli pass-rate) ignore
+ * it.
+ *
  * @param outcomes the per-sample outcomes, possibly with failure
  *                 details elided per {@link #failuresDropped()}
  * @param elapsed wall-clock time spent sampling this configuration
@@ -36,6 +44,8 @@ import org.javai.punit.api.typed.UseCaseOutcome;
  *                       reached; zero when no cap fired
  * @param latencyResult computed p50/p90/p95/p99 for this configuration
  * @param terminationReason why the sample loop stopped
+ * @param trials the full ordered per-trial history (input, outcome,
+ *               duration) — same length as {@link #total()}
  * @param <OT> the outcome value type
  */
 public record SampleSummary<OT>(
@@ -46,13 +56,15 @@ public record SampleSummary<OT>(
         long tokensConsumed,
         int failuresDropped,
         LatencyResult latencyResult,
-        TerminationReason terminationReason) {
+        TerminationReason terminationReason,
+        List<Trial<?, OT>> trials) {
 
     public SampleSummary {
         Objects.requireNonNull(outcomes, "outcomes");
         Objects.requireNonNull(elapsed, "elapsed");
         Objects.requireNonNull(latencyResult, "latencyResult");
         Objects.requireNonNull(terminationReason, "terminationReason");
+        Objects.requireNonNull(trials, "trials");
         if (successes < 0 || failures < 0) {
             throw new IllegalArgumentException("counts must be non-negative");
         }
@@ -69,7 +81,14 @@ public record SampleSummary<OT>(
                             + " - " + failuresDropped + ") must equal outcomes count ("
                             + outcomes.size() + ")");
         }
+        int total = successes + failures;
+        if (!trials.isEmpty() && trials.size() != total) {
+            throw new IllegalArgumentException(
+                    "trials count (" + trials.size() + ") must equal successes + failures ("
+                            + total + ") when trials is non-empty");
+        }
         outcomes = List.copyOf(outcomes);
+        trials = List.copyOf(trials);
     }
 
     /**
@@ -79,7 +98,7 @@ public record SampleSummary<OT>(
      * <p>Convenience for test code and for engine paths that have not
      * yet applied failure capping. Production code in punit-core's
      * engine constructs summaries via the canonical constructor
-     * directly.
+     * directly with a populated trials list.
      */
     public static <OT> SampleSummary<OT> from(
             List<UseCaseOutcome<OT>> outcomes,
@@ -94,7 +113,7 @@ public record SampleSummary<OT>(
             tokens += o.tokens();
         }
         return new SampleSummary<>(outcomes, elapsed, s, f, tokens, 0,
-                latencyResult, terminationReason);
+                latencyResult, terminationReason, List.of());
     }
 
     /**
