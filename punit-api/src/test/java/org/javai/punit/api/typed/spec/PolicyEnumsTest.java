@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Stage 3 policy enums")
+@DisplayName("Sample-loop policy enums")
 class PolicyEnumsTest {
 
     @Test
@@ -23,9 +23,9 @@ class PolicyEnumsTest {
     }
 
     @Test
-    @DisplayName("VerdictDimension carries exactly FUNCTIONAL, LATENCY, BOTH")
-    void dimensionShape() {
-        assertThat(VerdictDimension.values())
-                .containsExactly(VerdictDimension.FUNCTIONAL, VerdictDimension.LATENCY, VerdictDimension.BOTH);
+    @DisplayName("CriterionRole carries exactly REQUIRED and REPORT_ONLY")
+    void criterionRoleShape() {
+        assertThat(CriterionRole.values())
+                .containsExactly(CriterionRole.REQUIRED, CriterionRole.REPORT_ONLY);
     }
 }

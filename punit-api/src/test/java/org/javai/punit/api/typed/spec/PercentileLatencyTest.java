@@ -30,7 +30,8 @@ class PercentileLatencyTest {
                 Duration.ofMillis(1),
                 successes, failures, 0L, 0,
                 latency,
-                TerminationReason.COMPLETED);
+                TerminationReason.COMPLETED,
+                List.of());
     }
 
     private static LatencyResult observed(long p50, long p90, long p95, long p99, int n) {

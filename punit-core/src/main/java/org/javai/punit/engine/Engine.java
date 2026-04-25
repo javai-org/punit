@@ -18,6 +18,7 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
 import org.javai.punit.api.typed.spec.SampleSummary;
+import org.javai.punit.api.typed.spec.Trial;
 import org.javai.punit.api.typed.spec.DataGenerationSpec;
 
 /**
@@ -75,7 +76,8 @@ public final class Engine {
 
         BudgetTracker tracker = new BudgetTracker(
                 spec.timeBudget(), spec.tokenBudget(), spec.tokenCharge());
-        Aggregator<OT> agg = new Aggregator<>(
+        Aggregator<IT, OT> agg = new Aggregator<>(
+                cfg.inputs(),
                 cfg.expected(),
                 cycleStart,
                 spec.matcher(),
@@ -101,8 +103,9 @@ public final class Engine {
      * supplied a matcher, records the token cost on the tracker, and
      * caps retained failure detail at {@code maxExampleFailures}.
      */
-    private static final class Aggregator<OT> implements SampleObserver<OT> {
+    private static final class Aggregator<IT, OT> implements SampleObserver<OT> {
 
+        private final List<IT> inputs;
         private final List<OT> expected;
         private final int cycleStart;
         private final Optional<ValueMatcher<OT>> matcher;
@@ -112,20 +115,25 @@ public final class Engine {
         // retained is exposed via the summary; failure detail beyond
         // maxExampleFailures is elided. allForLatency holds durations
         // from every sample so latency stats never skew on drop.
+        // trials carries the full ordered (input, outcome, duration)
+        // history regardless of the failure cap.
         private final List<UseCaseOutcome<OT>> retained = new ArrayList<>();
         private final List<UseCaseOutcome<OT>> allForLatency = new ArrayList<>();
+        private final List<Trial<?, OT>> trials = new ArrayList<>();
         private int successes = 0;
         private int failures = 0;
         private int retainedFailures = 0;
         private long tokensConsumed = 0L;
         private int failuresDropped = 0;
 
-        Aggregator(List<OT> expected,
+        Aggregator(List<IT> inputs,
+                   List<OT> expected,
                    int cycleStart,
                    Optional<ValueMatcher<OT>> matcher,
                    ExceptionPolicy exceptionPolicy,
                    int maxExampleFailures,
                    BudgetTracker tracker) {
+            this.inputs = inputs;
             this.expected = expected;
             this.cycleStart = cycleStart;
             this.matcher = matcher;
@@ -138,7 +146,7 @@ public final class Engine {
         public void onSample(int index, UseCaseOutcome<OT> outcome, Duration elapsed) {
             UseCaseOutcome<OT> stamped = outcome.withDuration(elapsed);
             stamped = maybeAttachMatch(index, stamped);
-            record(stamped);
+            record(index, stamped, elapsed);
         }
 
         @Override
@@ -158,12 +166,13 @@ public final class Engine {
             UseCaseOutcome<OT> synthetic = UseCaseOutcome
                     .<OT>fail("defect", throwable.toString())
                     .withDuration(elapsed);
-            record(synthetic);
+            record(index, synthetic, elapsed);
         }
 
-        private void record(UseCaseOutcome<OT> stamped) {
+        private void record(int index, UseCaseOutcome<OT> stamped, Duration duration) {
             tracker.recordSampleTokens(stamped.tokens());
             allForLatency.add(stamped);
+            trials.add(new Trial<>(inputForIndex(index), stamped, duration));
             boolean ok = stamped.value().isOk();
             if (ok) {
                 successes++;
@@ -178,6 +187,11 @@ public final class Engine {
                 }
             }
             tokensConsumed += stamped.tokens() + tracker.tokenCharge();
+        }
+
+        private IT inputForIndex(int index) {
+            int cycleIndex = (cycleStart + index) % inputs.size();
+            return inputs.get(cycleIndex);
         }
 
         private UseCaseOutcome<OT> maybeAttachMatch(int index, UseCaseOutcome<OT> outcome) {
@@ -201,7 +215,8 @@ public final class Engine {
                     tokensConsumed,
                     failuresDropped,
                     latencyResult,
-                    tracker.terminationReason());
+                    tracker.terminationReason(),
+                    trials);
         }
     }
 }
