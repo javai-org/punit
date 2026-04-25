@@ -14,6 +14,10 @@ import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExperimentResult;
+import org.javai.punit.api.typed.spec.ExploreSpec;
+import org.javai.punit.api.typed.spec.FactorMutator;
+import org.javai.punit.api.typed.spec.Objective;
+import org.javai.punit.api.typed.spec.OptimizeSpec;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.MeasureSpec;
 import org.javai.punit.api.typed.spec.ProbabilisticTestSpec;
@@ -270,6 +274,69 @@ class EngineIntegrationTest {
         assertThat(summary.trials().get(6).input()).isEqualTo("a");
         // LengthUseCase returns input.length()
         assertThat(summary.trials().get(2).outcome().rawResult()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("ExploreSpec.exploring(shape).factors(...) runs each bundle once with the shape's sample count")
+    void exploreSpecRunsEachFactorBundle() {
+        var observedByModel = new java.util.LinkedHashMap<String, Integer>();
+        UseCase<LlmFactors, String, Integer> counting = new UseCase<>() {
+            @Override public UseCaseOutcome<Integer> apply(String input) {
+                return UseCaseOutcome.ok(0);
+            }
+        };
+        SamplingShape<LlmFactors, String, Integer> shape = SamplingShape
+                .<LlmFactors, String, Integer>builder()
+                .useCaseFactory(f -> {
+                    observedByModel.merge(f.model(), 0, (a, b) -> a);
+                    return counting;
+                })
+                .inputs("a", "b")
+                .samples(3)
+                .build();
+        ExploreSpec<LlmFactors, String, Integer> spec = ExploreSpec.exploring(shape)
+                .factors(
+                        new LlmFactors("gpt-4o", 0.0),
+                        new LlmFactors("gpt-4o", 0.5),
+                        new LlmFactors("claude-3-sonnet", 0.0))
+                .build();
+
+        EngineResult outcome = new Engine().run(spec);
+        assertThat(outcome).isInstanceOf(ExperimentResult.class);
+        assertThat(((ExperimentResult) outcome).message()).contains("configurations=3");
+        assertThat(observedByModel).containsOnlyKeys("gpt-4o", "claude-3-sonnet");
+    }
+
+    @Test
+    @DisplayName("OptimizeSpec.optimizing(shape) runs the mutator/scorer loop up to maxIterations")
+    void optimizeSpecRunsIterationLoop() {
+        UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
+            @Override public UseCaseOutcome<Integer> apply(String input) {
+                return UseCaseOutcome.ok(input.length());
+            }
+        };
+        SamplingShape<LlmFactors, String, Integer> shape = SamplingShape
+                .<LlmFactors, String, Integer>builder()
+                .useCaseFactory(f -> echo)
+                .inputs("a")
+                .samples(1)
+                .build();
+        // Mutator that walks temperature up by 0.1 each iteration, capping at 1.0.
+        FactorMutator<LlmFactors> mutator = (current, history) ->
+                current.temperature() >= 0.95
+                        ? null
+                        : new LlmFactors(current.model(), current.temperature() + 0.1);
+        OptimizeSpec<LlmFactors, String, Integer> spec = OptimizeSpec.optimizing(shape)
+                .initialFactors(new LlmFactors("gpt-4o", 0.0))
+                .mutator(mutator)
+                .scoredBy(s -> 1.0 / (1.0 + s.failures()))
+                .toward(Objective.MAXIMIZE)
+                .maxIterations(5)
+                .noImprovementWindow(10)
+                .build();
+
+        new Engine().run(spec);
+        assertThat(spec.history()).hasSize(5);
     }
 
     private List<String> runAndRecord() {
