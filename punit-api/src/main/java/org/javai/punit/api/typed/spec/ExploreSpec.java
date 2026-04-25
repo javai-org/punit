@@ -14,7 +14,6 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.SamplingShape;
 import org.javai.punit.api.typed.UseCase;
 
@@ -86,7 +85,6 @@ public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
     @Override public BudgetExhaustionPolicy budgetPolicy() { return shape.budgetPolicy(); }
     @Override public ExceptionPolicy exceptionPolicy() { return shape.exceptionPolicy(); }
     @Override public int maxExampleFailures() { return shape.maxExampleFailures(); }
-    @Override public LatencySpec latency() { return LatencySpec.disabled(); }
 
     public static final class Builder<FT, IT, OT> {
 

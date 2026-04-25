@@ -11,7 +11,6 @@ import java.util.function.Function;
 
 import org.javai.punit.api.typed.DataGeneration;
 import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.UseCase;
 
 /**
@@ -108,7 +107,6 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     @Override public BudgetExhaustionPolicy budgetPolicy() { return plan.budgetPolicy(); }
     @Override public ExceptionPolicy exceptionPolicy() { return plan.exceptionPolicy(); }
     @Override public int maxExampleFailures() { return plan.maxExampleFailures(); }
-    @Override public LatencySpec latency() { return LatencySpec.disabled(); }
 
     // ── Builder ──────────────────────────────────────────────────────
 
