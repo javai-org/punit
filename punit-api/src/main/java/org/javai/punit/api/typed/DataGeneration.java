@@ -13,7 +13,7 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
 /**
  * A {@link SamplingShape} bound to one factor bundle.
  *
- * <p>Produced only by {@link SamplingShape#at(Object)}; there is no
+ * <p>Produced only by {@link SamplingShape#factors(Object)}; there is no
  * public constructor or builder. Measure and probabilistic-test
  * specs consume a {@code DataGeneration} via their
  * {@code .measuring(plan)} / {@code .testing(plan)} entry points.

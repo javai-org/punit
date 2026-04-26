@@ -41,7 +41,7 @@ class DataGenerationTest {
         SamplingShape<Factors, String, String> s = shape();
         Factors f = new Factors("claude-3-sonnet", 0.7);
 
-        DataGeneration<Factors, String, String> plan = s.at(f);
+        DataGeneration<Factors, String, String> plan = s.factors(f);
 
         assertThat(plan.shape()).isSameAs(s);
         assertThat(plan.factors()).isEqualTo(f);
@@ -63,8 +63,8 @@ class DataGenerationTest {
         Factors a = new Factors("gpt-4o", 0.0);
         Factors b = new Factors("gpt-4o", 0.5);
 
-        DataGeneration<Factors, String, String> planA = s.at(a);
-        DataGeneration<Factors, String, String> planB = s.at(b);
+        DataGeneration<Factors, String, String> planA = s.factors(a);
+        DataGeneration<Factors, String, String> planB = s.factors(b);
 
         assertThat(planA.shape()).isSameAs(planB.shape());
         assertThat(planA.factors()).isNotEqualTo(planB.factors());
@@ -84,10 +84,10 @@ class DataGenerationTest {
     }
 
     @Test
-    @DisplayName(".at(null) throws NullPointerException")
+    @DisplayName(".factors(null) throws NullPointerException")
     void atRejectsNull() {
         SamplingShape<Factors, String, String> s = shape();
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> s.at(null));
+                .isThrownBy(() -> s.factors(null));
     }
 }

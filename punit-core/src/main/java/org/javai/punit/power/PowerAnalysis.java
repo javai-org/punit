@@ -20,7 +20,7 @@ import org.javai.punit.api.typed.spec.MeasureSpec;
  *
  * <pre>{@code
  * int n = PowerAnalysis.sampleSize(this::shoppingBaseline, 0.02, 0.80);
- * var plan = shapeTemplate().samples(n).at(factors);
+ * var plan = shapeTemplate().samples(n).factors(factors);
  * }</pre>
  *
  * <p>The default confidence level is {@value #DEFAULT_CONFIDENCE} —

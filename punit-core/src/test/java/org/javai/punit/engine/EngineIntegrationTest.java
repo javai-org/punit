@@ -55,7 +55,7 @@ class EngineIntegrationTest {
                 .inputs("a", "bb", "ccc")
                 .samples(9)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .factors(new LlmFactors("gpt-4o", 0.3));
         MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -75,7 +75,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(30)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .factors(new LlmFactors("gpt-4o", 0.3));
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
                 .testing(plan)
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
@@ -102,7 +102,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(15)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .factors(new LlmFactors("gpt-4o", 0.3));
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
                 .testing(plan)
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
@@ -125,7 +125,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(20)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .factors(new LlmFactors("gpt-4o", 0.3));
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
                 .testing(plan)
                 .criterion(BernoulliPassRate.<Boolean>empirical())
@@ -150,7 +150,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(5)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .factors(new LlmFactors("gpt-4o", 0.3));
         MeasureSpec<LlmFactors, Integer, Boolean> spec = MeasureSpec.measuring(plan).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
@@ -174,7 +174,7 @@ class EngineIntegrationTest {
                 .inputs("a", "b")
                 .samples(4)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
+                .factors(new LlmFactors("gpt-4o", 0.0));
         MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(plan)
                 .expectedOutputs("A", "Q") // match, mismatch
                 .build();
@@ -210,7 +210,7 @@ class EngineIntegrationTest {
                 .inputs("HELLO", "WORLD")
                 .samples(2)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
+                .factors(new LlmFactors("gpt-4o", 0.0));
         MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(plan)
                 .expectedOutputs("hello", "world")
                 .matcher(caseInsensitive)
@@ -233,7 +233,7 @@ class EngineIntegrationTest {
                 })
                 .inputs("a", "b")
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
+                .factors(new LlmFactors("gpt-4o", 0.0));
         assertThatThrownBy(() -> MeasureSpec.measuring(plan)
                 .expectedOutputs("A") // only one; inputs has two
                 .build())
@@ -259,7 +259,7 @@ class EngineIntegrationTest {
                 .inputs("a", "bb", "ccc")
                 .samples(7)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
+                .factors(new LlmFactors("gpt-4o", 0.0));
         MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -353,7 +353,7 @@ class EngineIntegrationTest {
                 .inputs("x", "y", "z")
                 .samples(7)
                 .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .factors(new LlmFactors("gpt-4o", 0.3));
         MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
         new Engine().run(spec);
         return observed;

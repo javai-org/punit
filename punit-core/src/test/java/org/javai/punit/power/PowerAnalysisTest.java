@@ -31,7 +31,7 @@ class PowerAnalysisTest {
                     .inputs("a")
                     .samples(100)
                     .build()
-                    .at(new Factors("m"));
+                    .factors(new Factors("m"));
             return MeasureSpec.measuring(plan).build();
         };
     }

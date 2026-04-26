@@ -89,7 +89,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(1000)
                 .timeBudget(Duration.ofMillis(500))
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -123,7 +123,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .tokenBudget(250)
                 .tokenCharge(100)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -151,7 +151,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .tokenCharge(50)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -175,7 +175,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .timeBudget(Duration.ofMillis(200))
                 .onBudgetExhausted(BudgetExhaustionPolicy.PASS_INCOMPLETE)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -205,7 +205,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         long t0 = System.nanoTime();
@@ -237,7 +237,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(3)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         long t0 = System.nanoTime();
@@ -270,7 +270,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(10)
                 .onException(ExceptionPolicy.FAIL_SAMPLE)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -295,7 +295,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
@@ -320,7 +320,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(50)
                 .maxExampleFailures(3)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -346,7 +346,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(plan).build();
 
         new Engine().run(spec);
@@ -377,7 +377,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
                 .testing(plan)
                 .criterion(PercentileLatency.<Boolean>meeting(
@@ -410,7 +410,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
 
         ProbabilisticTestSpec<Factors, Integer, Boolean> both = ProbabilisticTestSpec
                 .testing(plan)
@@ -439,7 +439,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
                 .testing(plan)
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
@@ -472,7 +472,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build()
-                .at(new Factors("m"));
+                .factors(new Factors("m"));
         ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
                 .testing(plan)
                 .criterion(PercentileLatency.<Boolean>meeting(

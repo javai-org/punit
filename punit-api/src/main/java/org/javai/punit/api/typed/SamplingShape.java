@@ -19,7 +19,7 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  * sampling loop once a factor bundle is bound.
  *
  * <p>Binding a factor bundle is deliberately a separate step:
- * {@link #at(Object) shape.at(factors)} yields a
+ * {@link #factors(Object) shape.factors(myFactors)} yields a
  * {@link DataGeneration} that measure and probabilistic-test specs
  * consume, while explore and optimize specs consume the shape
  * directly. One shape, four consumers, no factor-drift opportunity.
@@ -93,7 +93,7 @@ public final class SamplingShape<FT, IT, OT> {
      * single-configuration {@link DataGeneration}. The shape is
      * unchanged; a different bundle may be bound independently.
      */
-    public DataGeneration<FT, IT, OT> at(FT factors) {
+    public DataGeneration<FT, IT, OT> factors(FT factors) {
         Objects.requireNonNull(factors, "factors");
         return new DataGeneration<>(this, factors);
     }

@@ -70,7 +70,7 @@ class SamplingShapeTest {
     }
 
     @Test
-    @DisplayName("builder has no .factors(...) method — factors bind at .at(...) time")
+    @DisplayName("builder has no .factors(...) method — factors bind at .factors(...) time")
     void builderHasNoFactorsMethod() {
         for (var method : SamplingShape.Builder.class.getMethods()) {
             assertThat(method.getName())
@@ -80,12 +80,12 @@ class SamplingShapeTest {
     }
 
     @Test
-    @DisplayName(".at(factors) produces a DataGeneration carrying the shape and bundle")
+    @DisplayName(".factors(factors) produces a DataGeneration carrying the shape and bundle")
     void atProducesDataGeneration() {
         SamplingShape<Factors, String, String> shape = baseBuilder().samples(10).build();
         Factors f = new Factors("gpt-4o", 0.3);
 
-        DataGeneration<Factors, String, String> plan = shape.at(f);
+        DataGeneration<Factors, String, String> plan = shape.factors(f);
 
         assertThat(plan.shape()).isSameAs(shape);
         assertThat(plan.factors()).isEqualTo(f);
@@ -94,11 +94,11 @@ class SamplingShapeTest {
     }
 
     @Test
-    @DisplayName(".at(null) is rejected")
+    @DisplayName(".factors(null) is rejected")
     void atNullFactors() {
         SamplingShape<Factors, String, String> shape = baseBuilder().build();
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> shape.at(null));
+                .isThrownBy(() -> shape.factors(null));
     }
 
     @Test
