@@ -3,7 +3,7 @@
  *
  * <p>One {@link org.javai.punit.engine.Engine} drives every spec
  * flavour through the strategy methods declared on
- * {@link org.javai.punit.api.typed.spec.DataGenerationSpec}. Samples are invoked
+ * {@link org.javai.punit.api.typed.spec.Spec}. Samples are invoked
  * through a
  * {@link org.javai.punit.api.typed.spec.SampleExecutor} — today the
  * shipped implementation is

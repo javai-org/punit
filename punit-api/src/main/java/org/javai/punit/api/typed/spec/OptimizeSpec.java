@@ -36,7 +36,7 @@ import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
  * exception policy) live on the {@link Sampling}; the optimize
  * spec carries only the search-specific knobs.
  */
-public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
+public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
 
     private final Sampling<FT, IT, OT> shape;
     private final FT initialFactors;

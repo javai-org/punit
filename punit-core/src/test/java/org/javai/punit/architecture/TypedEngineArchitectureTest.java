@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
  * <p>The core guarantee this stage locks in: the engine does not
  * branch on spec subtype. It reaches flavour-specific behaviour only
  * through the strategy methods on
- * {@code org.javai.punit.api.typed.spec.DataGenerationSpec}.
+ * {@code org.javai.punit.api.typed.spec.Spec}.
  */
 @DisplayName("typed engine architecture rules")
 class TypedEngineArchitectureTest {
@@ -32,7 +32,7 @@ class TypedEngineArchitectureTest {
     }
 
     @Test
-    @DisplayName("engine must not import concrete DataGenerationSpec subtypes")
+    @DisplayName("engine must not import concrete Spec subtypes")
     void engineMustNotImportConcreteSpecs() {
         ArchRule rule = noClasses()
                 .that().resideInAPackage("org.javai.punit.engine..")
@@ -48,7 +48,7 @@ class TypedEngineArchitectureTest {
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
                         "org.javai.punit.api.typed.spec.ProbabilisticTestSpec")
-                .because("engine must dispatch through the DataGenerationSpec strategy interface, "
+                .because("engine must dispatch through the Spec strategy interface, "
                         + "never instanceof / switch on subtype");
         rule.check(engineClasses);
     }

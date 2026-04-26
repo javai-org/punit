@@ -16,7 +16,7 @@ import java.util.OptionalLong;
  * duplicate the field declarations and validation across four spec
  * builders, each spec keeps a single {@code ResourceControls}
  * instance and delegates the corresponding
- * {@link DataGenerationSpec} interface accessors to its fields.
+ * {@link Spec} interface accessors to its fields.
  *
  * <p>Evaluation-time thresholds (latency percentiles, functional
  * pass-rate) are <em>not</em> resource controls — they judge the

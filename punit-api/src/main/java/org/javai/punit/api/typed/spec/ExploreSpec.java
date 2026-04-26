@@ -28,7 +28,7 @@ import org.javai.punit.api.typed.UseCase;
  * spec itself carries only the varied factor list and the experiment
  * id.
  */
-public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
+public final class ExploreSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
 
     private final Sampling<FT, IT, OT> shape;
     private final List<FT> factors;
