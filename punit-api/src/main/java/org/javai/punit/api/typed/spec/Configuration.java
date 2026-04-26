@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * One run-unit as surfaced by {@link DataGenerationSpec#configurations()}: the factor
+ * One run-unit as surfaced by {@link Spec#configurations()}: the factor
  * values to instantiate the use case with, the inputs to cycle through,
  * optionally a parallel list of expected values (instance-conformance
  * checking), and how many samples to execute.

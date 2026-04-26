@@ -38,7 +38,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  * @param <IT> the per-sample input type
  * @param <OT> the per-sample outcome value type
  */
-public sealed interface DataGenerationSpec<FT, IT, OT>
+public sealed interface Spec<FT, IT, OT>
         permits MeasureSpec, ExploreSpec, OptimizeSpec, ProbabilisticTestSpec {
 
     Iterator<Configuration<FT, IT, OT>> configurations();

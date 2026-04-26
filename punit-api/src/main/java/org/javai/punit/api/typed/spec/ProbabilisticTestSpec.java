@@ -33,7 +33,7 @@ import org.javai.punit.api.typed.UseCase;
  * yield {@link Verdict#INCONCLUSIVE} with a diagnostic. The real
  * resolver and Wilson-score-aware comparisons land in Stage 4.
  */
-public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
+public final class ProbabilisticTestSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
 
     private final Sampling<FT, IT, OT> sampling;
     private final FT factors;
@@ -122,7 +122,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         return (CriterionResult) raw.evaluate(ctx);
     }
 
-    // ── DataGenerationSpec pass-throughs to the sampling ────────────
+    // ── Spec pass-throughs to the sampling ────────────
 
     @Override public Optional<Duration> timeBudget() { return sampling.timeBudget(); }
     @Override public OptionalLong tokenBudget() { return sampling.tokenBudget(); }

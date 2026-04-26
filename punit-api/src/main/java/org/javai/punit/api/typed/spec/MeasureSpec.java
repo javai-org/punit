@@ -34,7 +34,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  * {@link ExperimentResult} with a placeholder message and the path
  * where the baseline <em>would</em> be written.
  */
-public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
+public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
 
     private final Sampling<FT, IT, OT> sampling;
     private final FT factors;
@@ -92,7 +92,7 @@ public final class MeasureSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
         return experimentId;
     }
 
-    // ── DataGenerationSpec — run-loop delegates to the sampling ─────
+    // ── Spec — run-loop delegates to the sampling ─────
 
     @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
         return sampling.useCaseFactory();

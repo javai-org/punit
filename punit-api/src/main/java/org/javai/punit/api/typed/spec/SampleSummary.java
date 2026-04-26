@@ -9,7 +9,7 @@ import org.javai.punit.api.typed.UseCaseOutcome;
 
 /**
  * Per-configuration aggregate of observed samples. Produced by the
- * engine, consumed by the spec via {@link DataGenerationSpec#consume(Configuration, SampleSummary)}.
+ * engine, consumed by the spec via {@link Spec#consume(Configuration, SampleSummary)}.
  *
  * <p>{@link #outcomes()} holds the (optionally capped) list of
  * per-sample outcomes; the success / failure counts and token totals
