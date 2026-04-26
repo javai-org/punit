@@ -16,7 +16,6 @@ import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExperimentResult;
 import org.javai.punit.api.typed.spec.ExploreSpec;
 import org.javai.punit.api.typed.spec.FactorMutator;
-import org.javai.punit.api.typed.spec.Objective;
 import org.javai.punit.api.typed.spec.OptimizeSpec;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.MeasureSpec;
@@ -320,8 +319,7 @@ class EngineIntegrationTest {
         OptimizeSpec<LlmFactors, String, Integer> spec = OptimizeSpec.optimizing(shape)
                 .initialFactors(new LlmFactors("gpt-4o", 0.0))
                 .mutator(mutator)
-                .scoredBy(s -> 1.0 / (1.0 + s.failures()))
-                .toward(Objective.MAXIMIZE)
+                .maximize(s -> 1.0 / (1.0 + s.failures()))
                 .maxIterations(5)
                 .noImprovementWindow(10)
                 .build();

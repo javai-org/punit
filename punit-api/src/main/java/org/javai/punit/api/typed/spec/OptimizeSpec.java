@@ -35,6 +35,12 @@ import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
  * production knobs (use case factory, inputs, sample count, budgets,
  * exception policy) live on the {@link Sampling}; the optimize
  * spec carries only the search-specific knobs.
+ *
+ * <p>The optimisation direction is expressed by which builder method
+ * the author calls — {@link Builder#maximize(Scorer)} or
+ * {@link Builder#minimize(Scorer)} — rather than by a separate
+ * direction enum. The two methods are mutually exclusive at the API
+ * level: one of them must be called and the last one wins.
  */
 public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
 
@@ -42,7 +48,7 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
     private final FT initialFactors;
     private final FactorMutator<FT> mutator;
     private final Scorer scorer;
-    private final Objective objective;
+    private final boolean maximizing;
     private final int maxIterations;
     private final int noImprovementWindow;
     private final String experimentId;
@@ -54,7 +60,7 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         this.initialFactors = b.initialFactors;
         this.mutator = b.mutator;
         this.scorer = b.scorer;
-        this.objective = b.objective;
+        this.maximizing = b.maximizing;
         this.maxIterations = b.maxIterations;
         this.noImprovementWindow = b.noImprovementWindow;
         this.experimentId = b.experimentId != null
@@ -72,6 +78,9 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
     public int maxIterations() { return maxIterations; }
     public int noImprovementWindow() { return noImprovementWindow; }
     public String experimentId() { return experimentId; }
+
+    /** {@code true} if the spec is maximising the score, {@code false} if minimising. */
+    public boolean isMaximizing() { return maximizing; }
 
     /** Convenience delegate to {@code shape().samples()}. */
     public int samplesPerIteration() { return shape.samples(); }
@@ -120,7 +129,7 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
     }
 
     private boolean isBetter(double a, double b) {
-        return objective == Objective.MAXIMIZE ? a > b : a < b;
+        return maximizing ? a > b : a < b;
     }
 
     private final class AdaptiveIterator implements Iterator<Configuration<FT, IT, OT>> {
@@ -179,7 +188,8 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
         private FT initialFactors;
         private FactorMutator<FT> mutator;
         private Scorer scorer;
-        private Objective objective = Objective.MAXIMIZE;
+        private boolean maximizing;
+        private boolean directionSet;
         private int maxIterations = 20;
         private int noImprovementWindow = 5;
         private String experimentId;
@@ -198,15 +208,29 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
             return this;
         }
 
-        /** The reducer that collapses an iteration's sample summary to a comparable score. */
-        public Builder<FT, IT, OT> scoredBy(Scorer s) {
-            this.scorer = Objects.requireNonNull(s, "scorer");
+        /**
+         * Sets the scorer and declares the optimisation direction as
+         * "maximise the score." Mutually exclusive with
+         * {@link #minimize(Scorer)} — the last one called wins. One
+         * of {@code maximize} / {@code minimize} is required.
+         */
+        public Builder<FT, IT, OT> maximize(Scorer scorer) {
+            this.scorer = Objects.requireNonNull(scorer, "scorer");
+            this.maximizing = true;
+            this.directionSet = true;
             return this;
         }
 
-        /** The optimisation direction. */
-        public Builder<FT, IT, OT> toward(Objective o) {
-            this.objective = Objects.requireNonNull(o, "objective");
+        /**
+         * Sets the scorer and declares the optimisation direction as
+         * "minimise the score." Mutually exclusive with
+         * {@link #maximize(Scorer)} — the last one called wins. One
+         * of {@code maximize} / {@code minimize} is required.
+         */
+        public Builder<FT, IT, OT> minimize(Scorer scorer) {
+            this.scorer = Objects.requireNonNull(scorer, "scorer");
+            this.maximizing = false;
+            this.directionSet = true;
             return this;
         }
 
@@ -238,8 +262,9 @@ public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
             if (mutator == null) {
                 throw new IllegalStateException("mutator is required");
             }
-            if (scorer == null) {
-                throw new IllegalStateException("scorer is required — call .scoredBy(...)");
+            if (!directionSet) {
+                throw new IllegalStateException(
+                        "scorer is required — call .maximize(...) or .minimize(...)");
             }
             return new OptimizeSpec<>(this);
         }
