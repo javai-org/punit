@@ -25,24 +25,36 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  * reused across all four spec kinds:
  *
  * <pre>{@code
- * private Sampling<F, I, O> sampling(int samples) { ... }
+ * private Sampling<F, I, O> sampling(int samples) {
+ *     return Sampling.of(f -> new MyUseCase(f), samples, input1, input2);
+ * }
  *
- * @Experiment        MeasureSpec<F, I, O> baseline() {
+ * @Experiment        MeasureSpec baseline() {
  *     return MeasureSpec.measuring(sampling(1000), factors).build();
  * }
- * @ProbabilisticTest ProbabilisticTestSpec<F, I, O> meets() {
+ * @ProbabilisticTest ProbabilisticTestSpec meets() {
  *     return ProbabilisticTestSpec.testing(sampling(100), factors)
  *             .criterion(BernoulliPassRate.empirical())
  *             .build();
  * }
- * @Experiment        ExploreSpec<F, I, O> compare() {
+ * @Experiment        ExploreSpec compare() {
  *     return ExploreSpec.exploring(sampling(50)).factors(a, b, c).build();
  * }
- * @Experiment        OptimizeSpec<F, I, O> tune() {
+ * @Experiment        OptimizeSpec tune() {
  *     return OptimizeSpec.optimizing(sampling(20))
- *             .initialFactors(f0).mutator(...).scoredBy(...).toward(...).build();
+ *             .initialFactors(f0).mutator(...).maximize(...).build();
  * }
  * }</pre>
+ *
+ * <p>Two construction paths:
+ * <ul>
+ *   <li>{@link #of(Function, int, List) Sampling.of(useCase, samples, inputs)}
+ *       — compact form for the common case. Defaults applied for all
+ *       optional knobs (no budgets, {@code FAIL} on exhaustion,
+ *       {@code ABORT_TEST} on exception, {@code maxExampleFailures = 10}).</li>
+ *   <li>{@link #builder()} — full control over budgets, policies, and
+ *       failure-retention. The 20% case.</li>
+ * </ul>
  */
 public final class Sampling<FT, IT, OT> {
 
@@ -70,6 +82,49 @@ public final class Sampling<FT, IT, OT> {
 
     public static <FT, IT, OT> Builder<FT, IT, OT> builder() {
         return new Builder<>();
+    }
+
+    /**
+     * Compact form for the common case — three required values, all
+     * optional knobs (budgets, exception policy, failure-retention cap)
+     * left at their defaults. Equivalent to:
+     *
+     * <pre>{@code
+     * Sampling.<FT, IT, OT>builder()
+     *         .useCaseFactory(useCaseFactory)
+     *         .inputs(inputs)
+     *         .samples(samples)
+     *         .build();
+     * }</pre>
+     *
+     * <p>For samplings that need a time / token budget, a non-default
+     * exception policy, or a custom failure-retention cap, use the
+     * full {@link #builder()} form. The two paths are bit-for-bit
+     * equivalent at the data level — {@code of(...)} simply skips the
+     * builder ceremony for the 80% case.
+     */
+    public static <FT, IT, OT> Sampling<FT, IT, OT> of(
+            Function<FT, UseCase<FT, IT, OT>> useCaseFactory,
+            int samples,
+            List<IT> inputs) {
+        return Sampling.<FT, IT, OT>builder()
+                .useCaseFactory(useCaseFactory)
+                .inputs(inputs)
+                .samples(samples)
+                .build();
+    }
+
+    /**
+     * Varargs form of {@link #of(Function, int, List)} — convenient
+     * when the inputs are inline literals.
+     */
+    @SafeVarargs
+    public static <FT, IT, OT> Sampling<FT, IT, OT> of(
+            Function<FT, UseCase<FT, IT, OT>> useCaseFactory,
+            int samples,
+            IT... inputs) {
+        Objects.requireNonNull(inputs, "inputs");
+        return of(useCaseFactory, samples, List.of(inputs));
     }
 
     public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
