@@ -18,73 +18,93 @@ import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 
 /**
- * A grid-of-configurations experiment: runs {@code shape.samples()}
- * samples against each factor bundle in {@link #factors()} and records
+ * A grid-of-configurations experiment: runs {@code sampling.samples()}
+ * samples against each factor bundle in the explored grid and records
  * the per-config outcome.
  *
  * <p>Constructed via {@link #exploring(Sampling)}. All sample-
- * production knobs (use case factory, inputs, sample count, budgets,
- * exception policy) live on the {@link Sampling}; the explore
- * spec itself carries only the varied factor list and the experiment
- * id.
+ * production knobs live on the {@link Sampling}; the explore spec
+ * itself carries only the varied factor list and the experiment id.
+ *
+ * <p>The public class carries no type parameters — composition-time
+ * type safety lives on the typed {@link Builder}, and the engine
+ * recovers the typed view via {@link Spec#dispatch(Dispatcher)}.
  */
-public final class ExploreSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class ExploreSpec implements Spec {
 
-    private final Sampling<FT, IT, OT> shape;
-    private final List<FT> factors;
-    private final String experimentId;
+    private final Internal<?, ?, ?> internal;
 
-    private final Map<FT, SampleSummary<OT>> perConfig = new LinkedHashMap<>();
-
-    private ExploreSpec(Builder<FT, IT, OT> b) {
-        this.shape = b.shape;
-        this.factors = b.factors;
-        this.experimentId = b.experimentId != null
-                ? b.experimentId
-                : "explore-" + Instant.now().toEpochMilli();
+    private ExploreSpec(Internal<?, ?, ?> internal) {
+        this.internal = internal;
     }
 
     /** Entry point — compose an explore experiment over a Sampling. */
-    public static <FT, IT, OT> Builder<FT, IT, OT> exploring(Sampling<FT, IT, OT> shape) {
-        return new Builder<>(Objects.requireNonNull(shape, "shape"));
+    public static <FT, IT, OT> Builder<FT, IT, OT> exploring(Sampling<FT, IT, OT> sampling) {
+        return new Builder<>(Objects.requireNonNull(sampling, "sampling"));
     }
 
-    public Sampling<FT, IT, OT> shape() { return shape; }
-    public List<FT> factors() { return factors; }
-    public String experimentId() { return experimentId; }
-
-    /** Convenience delegate to {@code shape().samples()}. */
-    public int samplesPerConfig() { return shape.samples(); }
-
-    @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-        return shape.useCaseFactory();
+    @Override
+    public <R> R dispatch(Dispatcher<R> dispatcher) {
+        return doDispatch(internal, dispatcher);
     }
 
-    @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
-        List<Configuration<FT, IT, OT>> configs = new ArrayList<>(factors.size());
-        for (FT ft : factors) {
-            configs.add(Configuration.of(ft, shape.inputs(), shape.samples()));
+    private static <FT, IT, OT, R> R doDispatch(Internal<FT, IT, OT> typed, Dispatcher<R> d) {
+        return d.apply(typed);
+    }
+
+    // ── Public scalar accessors (no type parameters) ───────────────
+
+    public String experimentId() { return internal.experimentId; }
+    public int samplesPerConfig() { return internal.shape.samples(); }
+
+    // ── Typed internal delegate (engine-facing) ─────────────────────
+
+    private static final class Internal<FT, IT, OT> implements TypedSpec<FT, IT, OT> {
+
+        private final Sampling<FT, IT, OT> shape;
+        private final List<FT> factors;
+        private final String experimentId;
+
+        private final Map<FT, SampleSummary<OT>> perConfig = new LinkedHashMap<>();
+
+        private Internal(Builder<FT, IT, OT> b) {
+            this.shape = b.shape;
+            this.factors = b.factors;
+            this.experimentId = b.experimentId != null
+                    ? b.experimentId
+                    : "explore-" + Instant.now().toEpochMilli();
         }
-        return configs.iterator();
-    }
 
-    @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
-        perConfig.put(config.factors(), summary);
-    }
+        @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
+            return shape.useCaseFactory();
+        }
 
-    @Override public EngineResult conclude() {
-        Path dir = Paths.get("explorations", experimentId);
-        String message = "explore artefact (stage 2 placeholder); configurations="
-                + perConfig.size();
-        return new ExperimentResult(message, dir);
-    }
+        @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
+            List<Configuration<FT, IT, OT>> configs = new ArrayList<>(factors.size());
+            for (FT ft : factors) {
+                configs.add(Configuration.of(ft, shape.inputs(), shape.samples()));
+            }
+            return configs.iterator();
+        }
 
-    @Override public Optional<Duration> timeBudget() { return shape.timeBudget(); }
-    @Override public OptionalLong tokenBudget() { return shape.tokenBudget(); }
-    @Override public long tokenCharge() { return shape.tokenCharge(); }
-    @Override public BudgetExhaustionPolicy budgetPolicy() { return shape.budgetPolicy(); }
-    @Override public ExceptionPolicy exceptionPolicy() { return shape.exceptionPolicy(); }
-    @Override public int maxExampleFailures() { return shape.maxExampleFailures(); }
+        @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
+            perConfig.put(config.factors(), summary);
+        }
+
+        @Override public EngineResult conclude() {
+            Path dir = Paths.get("explorations", experimentId);
+            String message = "explore artefact (stage 2 placeholder); configurations="
+                    + perConfig.size();
+            return new ExperimentResult(message, dir);
+        }
+
+        @Override public Optional<Duration> timeBudget() { return shape.timeBudget(); }
+        @Override public OptionalLong tokenBudget() { return shape.tokenBudget(); }
+        @Override public long tokenCharge() { return shape.tokenCharge(); }
+        @Override public BudgetExhaustionPolicy budgetPolicy() { return shape.budgetPolicy(); }
+        @Override public ExceptionPolicy exceptionPolicy() { return shape.exceptionPolicy(); }
+        @Override public int maxExampleFailures() { return shape.maxExampleFailures(); }
+    }
 
     public static final class Builder<FT, IT, OT> {
 
@@ -116,11 +136,11 @@ public final class ExploreSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
             return this;
         }
 
-        public ExploreSpec<FT, IT, OT> build() {
+        public ExploreSpec build() {
             if (factors == null) {
                 throw new IllegalStateException("factors is required — call .factors(...)");
             }
-            return new ExploreSpec<>(this);
+            return new ExploreSpec(new Internal<>(this));
         }
     }
 }

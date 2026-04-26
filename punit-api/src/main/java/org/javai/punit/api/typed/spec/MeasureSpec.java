@@ -22,36 +22,21 @@ import org.javai.punit.api.typed.ValueMatcher;
  *
  * <p>Constructed via {@link #measuring(Sampling, Object)}. The
  * {@link Sampling} carries the factor-free sample-production
- * parameters (use case factory, inputs, sample count, budgets,
- * exception policy); the second argument is the factor bundle the
- * measure runs against. The measure spec itself carries only the
+ * parameters; the second argument is the factor bundle the measure
+ * runs against. The measure spec itself carries only the
  * measure-specific overlay (experiment id, expected outputs for
  * instance conformance, matcher, baseline expiration window).
  *
- * <p>Stage 2 implements the spec surface and strategy-method dispatch;
- * artefact serialisation to YAML lands in Stage 4, at which point
- * {@link #conclude()} becomes load-bearing. For now it returns an
- * {@link ExperimentResult} with a placeholder message and the path
- * where the baseline <em>would</em> be written.
+ * <p>The public class carries no type parameters — composition-time
+ * type safety lives on the typed {@link Builder}, and the engine
+ * recovers the typed view via {@link Spec#dispatch(Dispatcher)}.
  */
-public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class MeasureSpec implements Spec {
 
-    private final Sampling<FT, IT, OT> sampling;
-    private final FT factors;
-    private final List<OT> expectedOutputs;
-    private final Optional<ValueMatcher<OT>> matcher;
-    private final String experimentId;
-    private final Optional<Integer> expiresInDays;
+    private final Internal<?, ?, ?> internal;
 
-    private Optional<SampleSummary<OT>> lastSummary = Optional.empty();
-
-    private MeasureSpec(Builder<FT, IT, OT> b) {
-        this.sampling = b.sampling;
-        this.factors = b.factors;
-        this.expectedOutputs = b.expected;
-        this.matcher = Optional.ofNullable(b.matcher);
-        this.experimentId = b.experimentId != null ? b.experimentId : defaultExperimentId();
-        this.expiresInDays = Optional.ofNullable(b.expiresInDays);
+    private MeasureSpec(Internal<?, ?, ?> internal) {
+        this.internal = internal;
     }
 
     /**
@@ -65,80 +50,86 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
                 Objects.requireNonNull(factors, "factors"));
     }
 
-    // ── Overlay accessors ───────────────────────────────────────────
-
-    /** The factor-free sampling backing this measure. */
-    public Sampling<FT, IT, OT> sampling() {
-        return sampling;
+    @Override
+    public <R> R dispatch(Dispatcher<R> dispatcher) {
+        return doDispatch(internal, dispatcher);
     }
 
-    /** The factor bundle this measure runs against. */
-    public FT factors() {
-        return factors;
+    private static <FT, IT, OT, R> R doDispatch(Internal<FT, IT, OT> typed, Dispatcher<R> d) {
+        return d.apply(typed);
     }
 
-    /** The optional expected-output list for instance-conformance checking. */
-    public Optional<List<OT>> expectedOutputs() {
-        return expectedOutputs.isEmpty() ? Optional.empty() : Optional.of(expectedOutputs);
-    }
+    // ── Public scalar accessors (no type parameters) ───────────────
 
-    /** Optional baseline validity window in days. */
-    public Optional<Integer> expiresInDays() {
-        return expiresInDays;
-    }
-
-    /** The experiment id written into the baseline YAML metadata. */
-    public String experimentId() {
-        return experimentId;
-    }
-
-    // ── Spec — run-loop delegates to the sampling ─────
-
-    @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-        return sampling.useCaseFactory();
-    }
-
-    @Override public Optional<ValueMatcher<OT>> matcher() {
-        return matcher;
-    }
-
-    @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
-        return List.of(new Configuration<>(
-                factors, sampling.inputs(), expectedOutputs, sampling.samples())).iterator();
-    }
-
-    @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
-        this.lastSummary = Optional.of(summary);
-    }
-
-    @Override public EngineResult conclude() {
-        FactorBundle bundle = FactorBundle.of(factors);
-        Path path = defaultBaselinePath(experimentId, bundle);
-        String message = "measure baseline (stage 2 placeholder — serialisation lands in stage 4); "
-                + "samples=" + lastSummary.map(SampleSummary::total).orElse(0)
-                + ", passRate=" + lastSummary.map(s -> String.format("%.3f", s.passRate())).orElse("n/a");
-        return new ExperimentResult(message, path);
-    }
-
-    @Override public Optional<Duration> timeBudget() { return sampling.timeBudget(); }
-    @Override public OptionalLong tokenBudget() { return sampling.tokenBudget(); }
-    @Override public long tokenCharge() { return sampling.tokenCharge(); }
-    @Override public BudgetExhaustionPolicy budgetPolicy() { return sampling.budgetPolicy(); }
-    @Override public ExceptionPolicy exceptionPolicy() { return sampling.exceptionPolicy(); }
-    @Override public int maxExampleFailures() { return sampling.maxExampleFailures(); }
-
-    // ── Convenience delegates ───────────────────────────────────────
-
-    public int samples() { return sampling.samples(); }
-    public List<IT> inputs() { return sampling.inputs(); }
+    public int samples() { return internal.sampling.samples(); }
+    public String experimentId() { return internal.experimentId; }
+    public Optional<Integer> expiresInDays() { return internal.expiresInDays; }
 
     /**
      * The summary of the most recent run, if any — useful for engine
      * integration tests asserting on termination reason, latency
-     * result, or failure counts without wrapping the spec.
+     * result, or failure counts without wrapping the spec. Returns a
+     * wildcard-typed summary; tests that need typed access can cast
+     * at the assertion site or reach the typed view via dispatch.
      */
-    public Optional<SampleSummary<OT>> lastSummary() {
-        return lastSummary;
+    public Optional<SampleSummary<?>> lastSummary() {
+        return Optional.ofNullable(internal.lastSummary.orElse(null));
+    }
+
+    // ── Typed internal delegate (engine-facing) ─────────────────────
+
+    private static final class Internal<FT, IT, OT> implements TypedSpec<FT, IT, OT> {
+
+        private final Sampling<FT, IT, OT> sampling;
+        private final FT factors;
+        private final List<OT> expectedOutputs;
+        private final Optional<ValueMatcher<OT>> matcher;
+        private final String experimentId;
+        private final Optional<Integer> expiresInDays;
+
+        private Optional<SampleSummary<OT>> lastSummary = Optional.empty();
+
+        private Internal(Builder<FT, IT, OT> b) {
+            this.sampling = b.sampling;
+            this.factors = b.factors;
+            this.expectedOutputs = b.expected;
+            this.matcher = Optional.ofNullable(b.matcher);
+            this.experimentId = b.experimentId != null ? b.experimentId : defaultExperimentId();
+            this.expiresInDays = Optional.ofNullable(b.expiresInDays);
+        }
+
+        @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
+            return sampling.useCaseFactory();
+        }
+
+        @Override public Optional<ValueMatcher<OT>> matcher() {
+            return matcher;
+        }
+
+        @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
+            return List.of(new Configuration<>(
+                    factors, sampling.inputs(), expectedOutputs, sampling.samples())).iterator();
+        }
+
+        @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
+            this.lastSummary = Optional.of(summary);
+        }
+
+        @Override public EngineResult conclude() {
+            FactorBundle bundle = FactorBundle.of(factors);
+            Path path = defaultBaselinePath(experimentId, bundle);
+            String message = "measure baseline (stage 2 placeholder — serialisation lands in stage 4); "
+                    + "samples=" + lastSummary.map(SampleSummary::total).orElse(0)
+                    + ", passRate=" + lastSummary.map(s -> String.format("%.3f", s.passRate())).orElse("n/a");
+            return new ExperimentResult(message, path);
+        }
+
+        @Override public Optional<Duration> timeBudget() { return sampling.timeBudget(); }
+        @Override public OptionalLong tokenBudget() { return sampling.tokenBudget(); }
+        @Override public long tokenCharge() { return sampling.tokenCharge(); }
+        @Override public BudgetExhaustionPolicy budgetPolicy() { return sampling.budgetPolicy(); }
+        @Override public ExceptionPolicy exceptionPolicy() { return sampling.exceptionPolicy(); }
+        @Override public int maxExampleFailures() { return sampling.maxExampleFailures(); }
     }
 
     static Path defaultBaselinePath(String experimentId, FactorBundle bundle) {
@@ -211,7 +202,7 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
             return this;
         }
 
-        public MeasureSpec<FT, IT, OT> build() {
+        public MeasureSpec build() {
             if (!expected.isEmpty() && expected.size() != sampling.inputs().size()) {
                 throw new IllegalStateException(
                         "expectedOutputs (" + expected.size() + ") and sampling.inputs() ("
@@ -220,7 +211,7 @@ public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
             if (!expected.isEmpty() && matcher == null) {
                 matcher = ValueMatcher.equality();
             }
-            return new MeasureSpec<>(this);
+            return new MeasureSpec(new Internal<>(this));
         }
     }
 }

@@ -22,7 +22,7 @@ class PowerAnalysisTest {
         @Override public UseCaseOutcome<String> apply(String input) { return UseCaseOutcome.ok(input); }
     };
 
-    private static Supplier<MeasureSpec<Factors, String, String>> baseline() {
+    private static Supplier<MeasureSpec> baseline() {
         return () -> {
             Sampling<Factors, String, String> sampling = Sampling
                     .<Factors, String, String>builder()
@@ -117,7 +117,7 @@ class PowerAnalysisTest {
     @DisplayName("invokes the baseline supplier exactly once")
     void invokesSupplierOnce() {
         int[] callCount = {0};
-        Supplier<MeasureSpec<Factors, String, String>> counting = () -> {
+        Supplier<MeasureSpec> counting = () -> {
             callCount[0]++;
             return baseline().get();
         };

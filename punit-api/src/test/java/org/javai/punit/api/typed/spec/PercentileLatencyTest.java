@@ -163,7 +163,7 @@ class PercentileLatencyTest {
     @Test
     @DisplayName("empiricalFrom() exposes the supplier for framework routing")
     void empiricalFromExposesSupplier() {
-        java.util.function.Supplier<MeasureSpec<?, ?, ?>> supplier = () -> null;
+        java.util.function.Supplier<MeasureSpec> supplier = () -> null;
 
         PercentileLatency<String> criterion = PercentileLatency.empiricalFrom(
                 supplier, PercentileKey.P95);

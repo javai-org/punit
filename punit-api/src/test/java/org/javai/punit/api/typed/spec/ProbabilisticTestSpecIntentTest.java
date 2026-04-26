@@ -30,7 +30,7 @@ class ProbabilisticTestSpecIntentTest {
     @Test
     @DisplayName("default intent is VERIFICATION")
     void defaultIntentIsVerification() {
-        ProbabilisticTestSpec<Factors, String, String> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling(), new Factors("m"))
                 .build();
 
@@ -40,7 +40,7 @@ class ProbabilisticTestSpecIntentTest {
     @Test
     @DisplayName(".intent(SMOKE) overrides the default")
     void intentSmokeOverridesDefault() {
-        ProbabilisticTestSpec<Factors, String, String> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling(), new Factors("m"))
                 .intent(TestIntent.SMOKE)
                 .build();
@@ -51,7 +51,7 @@ class ProbabilisticTestSpecIntentTest {
     @Test
     @DisplayName(".intent(VERIFICATION) is permitted (idempotent with default)")
     void intentVerificationIsPermitted() {
-        ProbabilisticTestSpec<Factors, String, String> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling(), new Factors("m"))
                 .intent(TestIntent.VERIFICATION)
                 .build();
