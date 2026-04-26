@@ -7,8 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.DataGeneration;
-import org.javai.punit.api.typed.SamplingShape;
+import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BernoulliPassRate;
@@ -49,14 +48,13 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("MeasureSpec runs end-to-end and reports an artefact outcome")
     void measureSpecRunsEndToEnd() {
-        DataGeneration<LlmFactors, String, Integer> plan = SamplingShape
+        Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
                 .useCaseFactory(f -> new LengthUseCase())
                 .inputs("a", "bb", "ccc")
                 .samples(9)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
-        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
+                .build();
+        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
 
         EngineResult outcome = new Engine().run(spec);
 
@@ -69,15 +67,14 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("ProbabilisticTestSpec with BernoulliPassRate.meeting() produces PASS when observed beats threshold")
     void contractualProducesPass() {
-        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
+        Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new AlwaysPassesUseCase())
                 .inputs(1, 2, 3)
                 .samples(30)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .build();
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .testing(plan)
+                .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
@@ -96,15 +93,14 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("ProbabilisticTestSpec with BernoulliPassRate.meeting() produces FAIL when observed below threshold")
     void contractualProducesFail() {
-        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
+        Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new AlwaysReturnsFailUseCase())
                 .inputs(1, 2, 3)
                 .samples(15)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .build();
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .testing(plan)
+                .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
                 .build();
 
@@ -119,15 +115,14 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("BernoulliPassRate.empirical() yields INCONCLUSIVE under the Stage-3.5 stub baseline resolver")
     void empiricalYieldsInconclusiveUnderStubResolver() {
-        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
+        Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new AlwaysPassesUseCase())
                 .inputs(1, 2, 3)
                 .samples(20)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
+                .build();
         ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
-                .testing(plan)
+                .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>empirical())
                 .build();
 
@@ -144,14 +139,13 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("A thrown exception is treated as a defect and aborts the run")
     void defectAbortsTheRun() {
-        DataGeneration<LlmFactors, Integer, Boolean> plan = SamplingShape
+        Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
                 .useCaseFactory(f -> new DefectiveUseCase())
                 .inputs(1, 2, 3)
                 .samples(5)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
-        MeasureSpec<LlmFactors, Integer, Boolean> spec = MeasureSpec.measuring(plan).build();
+                .build();
+        MeasureSpec<LlmFactors, Integer, Boolean> spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
                 .isInstanceOf(IllegalStateException.class)
@@ -168,14 +162,13 @@ class EngineIntegrationTest {
             }
         };
 
-        DataGeneration<LlmFactors, String, String> plan = SamplingShape
+        Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
                 .useCaseFactory(f -> upperCase)
                 .inputs("a", "b")
                 .samples(4)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
-        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(plan)
+                .build();
+        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A", "Q") // match, mismatch
                 .build();
 
@@ -204,14 +197,13 @@ class EngineIntegrationTest {
                         : org.javai.punit.api.typed.MatchResult.fail("equalsIgnoreCase", exp, act,
                                 "case-insensitive comparison failed");
 
-        DataGeneration<LlmFactors, String, String> plan = SamplingShape
+        Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
                 .useCaseFactory(f -> returnSameCase)
                 .inputs("HELLO", "WORLD")
                 .samples(2)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
-        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(plan)
+                .build();
+        MeasureSpec<LlmFactors, String, String> spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("hello", "world")
                 .matcher(caseInsensitive)
                 .build();
@@ -222,9 +214,9 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("MeasureSpec rejects expectedOutputs whose length does not match plan.inputs")
+    @DisplayName("MeasureSpec rejects expectedOutputs whose length does not match sampling.inputs")
     void rejectsMismatchedExpectedOutputsLength() {
-        DataGeneration<LlmFactors, String, String> plan = SamplingShape
+        Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
                 .useCaseFactory(f -> new UseCase<LlmFactors, String, String>() {
                     @Override public UseCaseOutcome<String> apply(String input) {
@@ -232,9 +224,8 @@ class EngineIntegrationTest {
                     }
                 })
                 .inputs("a", "b")
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
-        assertThatThrownBy(() -> MeasureSpec.measuring(plan)
+                .build();
+        assertThatThrownBy(() -> MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A") // only one; inputs has two
                 .build())
                 .isInstanceOf(IllegalStateException.class)
@@ -253,14 +244,13 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("Engine populates SampleSummary.trials with one entry per sample, in order, with the cycled input")
     void enginePopulatesOrderedTrials() {
-        DataGeneration<LlmFactors, String, Integer> plan = SamplingShape
+        Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
                 .useCaseFactory(f -> new LengthUseCase())
                 .inputs("a", "bb", "ccc")
                 .samples(7)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.0));
-        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
+                .build();
+        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0)).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -285,7 +275,7 @@ class EngineIntegrationTest {
                 return UseCaseOutcome.ok(0);
             }
         };
-        SamplingShape<LlmFactors, String, Integer> shape = SamplingShape
+        Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
                 .useCaseFactory(f -> {
                     observedByModel.merge(f.model(), 0, (a, b) -> a);
@@ -315,7 +305,7 @@ class EngineIntegrationTest {
                 return UseCaseOutcome.ok(input.length());
             }
         };
-        SamplingShape<LlmFactors, String, Integer> shape = SamplingShape
+        Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
                 .useCaseFactory(f -> echo)
                 .inputs("a")
@@ -347,14 +337,13 @@ class EngineIntegrationTest {
                 return UseCaseOutcome.ok(0);
             }
         };
-        DataGeneration<LlmFactors, String, Integer> plan = SamplingShape
+        Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
                 .useCaseFactory(f -> recording)
                 .inputs("x", "y", "z")
                 .samples(7)
-                .build()
-                .at(new LlmFactors("gpt-4o", 0.3));
-        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(plan).build();
+                .build();
+        MeasureSpec<LlmFactors, String, Integer> spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
         new Engine().run(spec);
         return observed;
     }

@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-import org.javai.punit.api.typed.SamplingShape;
+import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 
 /**
@@ -22,15 +22,15 @@ import org.javai.punit.api.typed.UseCase;
  * samples against each factor bundle in {@link #factors()} and records
  * the per-config outcome.
  *
- * <p>Constructed via {@link #exploring(SamplingShape)}. All sample-
+ * <p>Constructed via {@link #exploring(Sampling)}. All sample-
  * production knobs (use case factory, inputs, sample count, budgets,
- * exception policy) live on the {@link SamplingShape}; the explore
+ * exception policy) live on the {@link Sampling}; the explore
  * spec itself carries only the varied factor list and the experiment
  * id.
  */
 public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
-    private final SamplingShape<FT, IT, OT> shape;
+    private final Sampling<FT, IT, OT> shape;
     private final List<FT> factors;
     private final String experimentId;
 
@@ -44,12 +44,12 @@ public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
                 : "explore-" + Instant.now().toEpochMilli();
     }
 
-    /** Entry point — compose an explore experiment over a SamplingShape. */
-    public static <FT, IT, OT> Builder<FT, IT, OT> exploring(SamplingShape<FT, IT, OT> shape) {
+    /** Entry point — compose an explore experiment over a Sampling. */
+    public static <FT, IT, OT> Builder<FT, IT, OT> exploring(Sampling<FT, IT, OT> shape) {
         return new Builder<>(Objects.requireNonNull(shape, "shape"));
     }
 
-    public SamplingShape<FT, IT, OT> shape() { return shape; }
+    public Sampling<FT, IT, OT> shape() { return shape; }
     public List<FT> factors() { return factors; }
     public String experimentId() { return experimentId; }
 
@@ -88,11 +88,11 @@ public final class ExploreSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT,
 
     public static final class Builder<FT, IT, OT> {
 
-        private final SamplingShape<FT, IT, OT> shape;
+        private final Sampling<FT, IT, OT> shape;
         private List<FT> factors;
         private String experimentId;
 
-        private Builder(SamplingShape<FT, IT, OT> shape) {
+        private Builder(Sampling<FT, IT, OT> shape) {
             this.shape = shape;
         }
 

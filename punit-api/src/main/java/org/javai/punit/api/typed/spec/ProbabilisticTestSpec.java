@@ -9,19 +9,20 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-import org.javai.punit.api.typed.DataGeneration;
 import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 
 /**
- * A probabilistic test: runs a {@link DataGeneration} and evaluates
- * one or more {@link Criterion} values against the resulting sample
- * summary.
+ * A probabilistic test: runs a {@link Sampling} bound to a factor
+ * bundle and evaluates one or more {@link Criterion} values against
+ * the resulting sample summary.
  *
- * <p>Constructed via {@link #testing(DataGeneration)}. The sample
- * production is governed by the {@link DataGeneration}; the claims the
- * spec makes about the resulting population are expressed by the
- * criteria registered via {@link Builder#criterion(Criterion)}
+ * <p>Constructed via {@link #testing(Sampling, Object)}. The sample
+ * production is governed by the factor-free {@link Sampling}; the
+ * second argument is the factor bundle the test runs against. The
+ * claims the spec makes about the resulting population are expressed
+ * by the criteria registered via {@link Builder#criterion(Criterion)}
  * (REQUIRED) and {@link Builder#reportOnly(Criterion)} (REPORT_ONLY).
  * The combined verdict is {@link Verdict#compose(List)}'d from the
  * REQUIRED subset.
@@ -33,30 +34,39 @@ import org.javai.punit.api.typed.UseCase;
  */
 public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
-    private final DataGeneration<FT, IT, OT> plan;
+    private final Sampling<FT, IT, OT> sampling;
+    private final FT factors;
     private final List<Registered<OT>> registered;
 
     private SampleSummary<OT> summary;
 
     private ProbabilisticTestSpec(Builder<FT, IT, OT> b) {
-        this.plan = b.plan;
+        this.sampling = b.sampling;
+        this.factors = b.factors;
         this.registered = List.copyOf(b.registered);
     }
 
-    /** Entry point — compose a probabilistic test over a DataGeneration. */
-    public static <FT, IT, OT> Builder<FT, IT, OT> testing(DataGeneration<FT, IT, OT> plan) {
-        return new Builder<>(Objects.requireNonNull(plan, "plan"));
+    /**
+     * Entry point — compose a probabilistic test over a factor-free
+     * {@link Sampling} and the factor bundle it should run against.
+     */
+    public static <FT, IT, OT> Builder<FT, IT, OT> testing(
+            Sampling<FT, IT, OT> sampling, FT factors) {
+        return new Builder<>(
+                Objects.requireNonNull(sampling, "sampling"),
+                Objects.requireNonNull(factors, "factors"));
     }
 
-    public DataGeneration<FT, IT, OT> dataGeneration() { return plan; }
-    public int samples() { return plan.samples(); }
+    public Sampling<FT, IT, OT> sampling() { return sampling; }
+    public FT factors() { return factors; }
+    public int samples() { return sampling.samples(); }
 
     @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-        return plan.useCaseFactory();
+        return sampling.useCaseFactory();
     }
 
     @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
-        return List.of(Configuration.<FT, IT, OT>of(plan.factors(), plan.inputs(), plan.samples()))
+        return List.of(Configuration.<FT, IT, OT>of(factors, sampling.inputs(), sampling.samples()))
                 .iterator();
     }
 
@@ -68,7 +78,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         SampleSummary<OT> s = summary != null
                 ? summary
                 : SampleSummary.from(List.of(), Duration.ZERO);
-        FactorBundle factorBundle = FactorBundle.of(plan.factors());
+        FactorBundle factorBundle = FactorBundle.of(factors);
 
         List<EvaluatedCriterion> evaluated = new ArrayList<>(registered.size());
         for (Registered<OT> entry : registered) {
@@ -86,7 +96,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private CriterionResult evaluate(
-            Criterion<OT, ?> criterion, SampleSummary<OT> s, FactorBundle factors) {
+            Criterion<OT, ?> criterion, SampleSummary<OT> s, FactorBundle factorBundle) {
         // Stage 3.5 stub baseline resolver: always empty. The criterion dispatches
         // on its declared statisticsType() — the context's baseline is typed
         // Optional<S> where S matches the criterion's parameter.
@@ -94,29 +104,31 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         EvaluationContext ctx = new EvaluationContext<OT, BaselineStatistics>() {
             @Override public SampleSummary<OT> summary() { return s; }
             @Override public Optional<BaselineStatistics> baseline() { return Optional.empty(); }
-            @Override public FactorBundle factors() { return factors; }
+            @Override public FactorBundle factors() { return factorBundle; }
         };
         return (CriterionResult) raw.evaluate(ctx);
     }
 
-    // ── DataGenerationSpec pass-throughs to the plan ─────────────────
+    // ── DataGenerationSpec pass-throughs to the sampling ────────────
 
-    @Override public Optional<Duration> timeBudget() { return plan.timeBudget(); }
-    @Override public OptionalLong tokenBudget() { return plan.tokenBudget(); }
-    @Override public long tokenCharge() { return plan.tokenCharge(); }
-    @Override public BudgetExhaustionPolicy budgetPolicy() { return plan.budgetPolicy(); }
-    @Override public ExceptionPolicy exceptionPolicy() { return plan.exceptionPolicy(); }
-    @Override public int maxExampleFailures() { return plan.maxExampleFailures(); }
+    @Override public Optional<Duration> timeBudget() { return sampling.timeBudget(); }
+    @Override public OptionalLong tokenBudget() { return sampling.tokenBudget(); }
+    @Override public long tokenCharge() { return sampling.tokenCharge(); }
+    @Override public BudgetExhaustionPolicy budgetPolicy() { return sampling.budgetPolicy(); }
+    @Override public ExceptionPolicy exceptionPolicy() { return sampling.exceptionPolicy(); }
+    @Override public int maxExampleFailures() { return sampling.maxExampleFailures(); }
 
     // ── Builder ──────────────────────────────────────────────────────
 
     public static final class Builder<FT, IT, OT> {
 
-        private final DataGeneration<FT, IT, OT> plan;
+        private final Sampling<FT, IT, OT> sampling;
+        private final FT factors;
         private final List<Registered<OT>> registered = new ArrayList<>();
 
-        private Builder(DataGeneration<FT, IT, OT> plan) {
-            this.plan = plan;
+        private Builder(Sampling<FT, IT, OT> sampling, FT factors) {
+            this.sampling = sampling;
+            this.factors = factors;
         }
 
         /** Register a criterion that contributes to the combined verdict. */

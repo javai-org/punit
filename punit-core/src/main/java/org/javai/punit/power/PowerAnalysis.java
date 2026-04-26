@@ -16,11 +16,15 @@ import org.javai.punit.api.typed.spec.MeasureSpec;
  * baseline rate.
  *
  * <p>Authors call this at spec-construction time and stamp the
- * computed sample count onto a template shape:
+ * computed sample count onto a template sampling, then bind factors
+ * at the spec entry point:
  *
  * <pre>{@code
  * int n = PowerAnalysis.sampleSize(this::shoppingBaseline, 0.02, 0.80);
- * var plan = shapeTemplate().samples(n).at(factors);
+ * var sampling = samplingTemplate().samples(n);
+ * return ProbabilisticTestSpec.testing(sampling, factors)
+ *         .criterion(BernoulliPassRate.empirical())
+ *         .build();
  * }</pre>
  *
  * <p>The default confidence level is {@value #DEFAULT_CONFIDENCE} —

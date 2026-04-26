@@ -13,18 +13,38 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
 /**
  * A factor-free description of <em>how</em> to produce samples.
  *
- * <p>A shape carries the use case factory, the input cycle, the
- * sample count, and the sample-loop governors (budgets, exception
- * policy, failure-retention cap) — everything needed to drive the
- * sampling loop once a factor bundle is bound.
+ * <p>A {@code Sampling} carries the use case factory, the input
+ * cycle, the sample count, and the sample-loop governors (budgets,
+ * exception policy, failure-retention cap) — everything needed to
+ * drive the sampling loop, with one deliberate exception: the
+ * factor bundle. Factors are supplied at the spec entry point that
+ * consumes the sampling, never carried on the {@code Sampling}
+ * itself.
  *
- * <p>Binding a factor bundle is deliberately a separate step:
- * {@link #at(Object) shape.at(factors)} yields a
- * {@link DataGeneration} that measure and probabilistic-test specs
- * consume, while explore and optimize specs consume the shape
- * directly. One shape, four consumers, no factor-drift opportunity.
+ * <p>The factor-free invariant is what lets one helper method be
+ * reused across all four spec kinds:
+ *
+ * <pre>{@code
+ * private Sampling<F, I, O> sampling(int samples) { ... }
+ *
+ * @Experiment        MeasureSpec<F, I, O> baseline() {
+ *     return MeasureSpec.measuring(sampling(1000), factors).build();
+ * }
+ * @ProbabilisticTest ProbabilisticTestSpec<F, I, O> meets() {
+ *     return ProbabilisticTestSpec.testing(sampling(100), factors)
+ *             .criterion(BernoulliPassRate.empirical())
+ *             .build();
+ * }
+ * @Experiment        ExploreSpec<F, I, O> compare() {
+ *     return ExploreSpec.exploring(sampling(50)).factors(a, b, c).build();
+ * }
+ * @Experiment        OptimizeSpec<F, I, O> tune() {
+ *     return OptimizeSpec.optimizing(sampling(20))
+ *             .initialFactors(f0).mutator(...).scoredBy(...).toward(...).build();
+ * }
+ * }</pre>
  */
-public final class SamplingShape<FT, IT, OT> {
+public final class Sampling<FT, IT, OT> {
 
     private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
     private final List<IT> inputs;
@@ -36,7 +56,7 @@ public final class SamplingShape<FT, IT, OT> {
     private final ExceptionPolicy exceptionPolicy;
     private final int maxExampleFailures;
 
-    private SamplingShape(Builder<FT, IT, OT> b) {
+    private Sampling(Builder<FT, IT, OT> b) {
         this.useCaseFactory = b.useCaseFactory;
         this.inputs = b.inputs;
         this.samples = b.samples;
@@ -89,22 +109,12 @@ public final class SamplingShape<FT, IT, OT> {
     }
 
     /**
-     * Bind a factor bundle to this shape, producing a
-     * single-configuration {@link DataGeneration}. The shape is
-     * unchanged; a different bundle may be bound independently.
-     */
-    public DataGeneration<FT, IT, OT> at(FT factors) {
-        Objects.requireNonNull(factors, "factors");
-        return new DataGeneration<>(this, factors);
-    }
-
-    /**
-     * Returns a new shape with the sample count replaced. Supports the
-     * confidence-first authoring pattern:
+     * Returns a new sampling with the sample count replaced. Supports
+     * the confidence-first authoring pattern:
      * {@code PowerAnalysis.sampleSize(...)} computes an {@code int},
-     * which this wither then stamps onto a template shape.
+     * which this wither stamps onto a template sampling.
      */
-    public SamplingShape<FT, IT, OT> samples(int samples) {
+    public Sampling<FT, IT, OT> samples(int samples) {
         if (samples < 1) {
             throw new IllegalArgumentException("samples must be >= 1, got " + samples);
         }
@@ -213,14 +223,14 @@ public final class SamplingShape<FT, IT, OT> {
             return this;
         }
 
-        public SamplingShape<FT, IT, OT> build() {
+        public Sampling<FT, IT, OT> build() {
             if (useCaseFactory == null) {
                 throw new IllegalStateException("useCaseFactory is required");
             }
             if (inputs == null) {
                 throw new IllegalStateException("inputs is required");
             }
-            return new SamplingShape<>(this);
+            return new Sampling<>(this);
         }
     }
 }
