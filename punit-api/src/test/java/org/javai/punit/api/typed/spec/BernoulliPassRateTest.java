@@ -157,7 +157,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empiricalFrom() exposes the supplier for framework routing")
     void empiricalFromExposesSupplier() {
-        java.util.function.Supplier<MeasureSpec<?, ?, ?>> supplier = () -> null;
+        java.util.function.Supplier<MeasureSpec> supplier = () -> null;
 
         BernoulliPassRate<String> criterion = BernoulliPassRate.empiricalFrom(supplier);
 

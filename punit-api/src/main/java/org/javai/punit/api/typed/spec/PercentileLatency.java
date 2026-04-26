@@ -44,14 +44,14 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
     private final LatencySpec declaredSpec;
     private final ThresholdOrigin origin;
     private final EnumSet<PercentileKey> assertedPercentiles;
-    private final Supplier<MeasureSpec<?, ?, ?>> baselineSupplier;
+    private final Supplier<MeasureSpec> baselineSupplier;
 
     private PercentileLatency(
             Mode mode,
             LatencySpec declaredSpec,
             ThresholdOrigin origin,
             EnumSet<PercentileKey> assertedPercentiles,
-            Supplier<MeasureSpec<?, ?, ?>> baselineSupplier) {
+            Supplier<MeasureSpec> baselineSupplier) {
         this.mode = mode;
         this.declaredSpec = declaredSpec;
         this.origin = origin;
@@ -84,7 +84,7 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
     }
 
     public static <OT> PercentileLatency<OT> empiricalFrom(
-            Supplier<MeasureSpec<?, ?, ?>> baseline,
+            Supplier<MeasureSpec> baseline,
             PercentileKey first,
             PercentileKey... rest) {
         Objects.requireNonNull(baseline, "baseline");
@@ -94,7 +94,7 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
     }
 
     /** The baseline supplier when pinned; empty otherwise. */
-    public Optional<Supplier<MeasureSpec<?, ?, ?>>> baselineSupplier() {
+    public Optional<Supplier<MeasureSpec>> baselineSupplier() {
         return Optional.ofNullable(baselineSupplier);
     }
 

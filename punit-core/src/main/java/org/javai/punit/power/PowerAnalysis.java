@@ -77,8 +77,8 @@ public final class PowerAnalysis {
      *                                  {@code rate - mde ≤ 0} or
      *                                  {@code rate + mde ≥ 1})
      */
-    public static <FT, IT, OT> int sampleSize(
-            Supplier<MeasureSpec<FT, IT, OT>> baseline,
+    public static int sampleSize(
+            Supplier<MeasureSpec> baseline,
             double mde,
             double power) {
         Objects.requireNonNull(baseline, "baseline");
@@ -88,7 +88,7 @@ public final class PowerAnalysis {
         // real baseline-producing method and not a thunk that will blow up
         // at evaluate-time. The returned MeasureSpec is unused under the
         // Stage-3.5 placeholder; Stage 4 reads its observed rate.
-        MeasureSpec<FT, IT, OT> resolved = Objects.requireNonNull(
+        MeasureSpec resolved = Objects.requireNonNull(
                 baseline.get(),
                 "baseline supplier returned null");
 

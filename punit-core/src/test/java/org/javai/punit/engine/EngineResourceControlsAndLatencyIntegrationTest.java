@@ -88,10 +88,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(1000)
                 .timeBudget(Duration.ofMillis(500))
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
-        SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
+        var summary = spec.lastSummary().orElseThrow();
 
         assertThat(summary.total()).isLessThanOrEqualTo(7);
         assertThat(summary.terminationReason()).isEqualTo(TerminationReason.TIME_BUDGET);
@@ -121,10 +121,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .tokenBudget(250)
                 .tokenCharge(100)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
-        SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
+        var summary = spec.lastSummary().orElseThrow();
 
         assertThat(summary.total()).isEqualTo(2);
         assertThat(summary.tokensConsumed()).isEqualTo(200L);
@@ -148,10 +148,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .tokenCharge(50)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
-        SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
+        var summary = spec.lastSummary().orElseThrow();
 
         assertThat(summary.total()).isEqualTo(5);
         assertThat(summary.tokensConsumed()).isEqualTo(50L * 5);
@@ -171,10 +171,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .timeBudget(Duration.ofMillis(200))
                 .onBudgetExhausted(BudgetExhaustionPolicy.PASS_INCOMPLETE)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
-        SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
+        var summary = spec.lastSummary().orElseThrow();
 
         assertThat(summary.terminatedEarly()).isTrue();
         assertThat(summary.total()).isBetween(2, 7);
@@ -200,7 +200,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         long t0 = System.nanoTime();
         new Engine().run(spec);
@@ -231,7 +231,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(3)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         long t0 = System.nanoTime();
         new Engine().run(spec);
@@ -263,10 +263,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(10)
                 .onException(ExceptionPolicy.FAIL_SAMPLE)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
-        SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
+        var summary = spec.lastSummary().orElseThrow();
 
         assertThat(summary.total()).isEqualTo(10);
         assertThat(summary.successes()).isEqualTo(5);
@@ -287,7 +287,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
                 .isInstanceOf(IllegalStateException.class)
@@ -311,10 +311,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(50)
                 .maxExampleFailures(3)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
-        SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
+        var summary = spec.lastSummary().orElseThrow();
 
         assertThat(summary.total()).isEqualTo(50);
         assertThat(summary.failures()).isEqualTo(50);
@@ -336,10 +336,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        MeasureSpec<Factors, Integer, Integer> spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
-        SampleSummary<Integer> summary = spec.lastSummary().orElseThrow();
+        var summary = spec.lastSummary().orElseThrow();
         var lr = summary.latencyResult();
         // Nearest-rank: p50 index = ceil(0.5*5)-1 = 2 -> 30ms; p90 = ceil(4.5)-1 = 4 -> 50ms.
         assertThat(lr.sampleCount()).isEqualTo(5);
