@@ -10,17 +10,13 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("SamplingShape")
-class SamplingShapeTest {
+@DisplayName("Sampling")
+class SamplingTest {
 
     record Factors(String model, double temperature) {}
 
     static final class EchoUseCase implements UseCase<Factors, String, String> {
-        private final Factors factors;
-
-        EchoUseCase(Factors factors) {
-            this.factors = factors;
-        }
+        EchoUseCase(Factors factors) {}
 
         @Override
         public UseCaseOutcome<String> apply(String input) {
@@ -33,16 +29,16 @@ class SamplingShapeTest {
         }
     }
 
-    private SamplingShape.Builder<Factors, String, String> baseBuilder() {
-        return SamplingShape.<Factors, String, String>builder()
+    private Sampling.Builder<Factors, String, String> baseBuilder() {
+        return Sampling.<Factors, String, String>builder()
                 .useCaseFactory(EchoUseCase::new)
                 .inputs("alpha", "beta");
     }
 
     @Test
-    @DisplayName("builder produces a shape with the declared fields")
+    @DisplayName("builder produces a sampling with the declared fields")
     void buildsWithDeclaredFields() {
-        SamplingShape<Factors, String, String> shape = baseBuilder()
+        Sampling<Factors, String, String> sampling = baseBuilder()
                 .samples(250)
                 .timeBudget(Duration.ofSeconds(30))
                 .tokenBudget(10_000)
@@ -52,60 +48,43 @@ class SamplingShapeTest {
                 .maxExampleFailures(3)
                 .build();
 
-        assertThat(shape.inputs()).containsExactly("alpha", "beta");
-        assertThat(shape.samples()).isEqualTo(250);
-        assertThat(shape.timeBudget()).contains(Duration.ofSeconds(30));
-        assertThat(shape.tokenBudget().getAsLong()).isEqualTo(10_000L);
-        assertThat(shape.tokenCharge()).isEqualTo(5L);
-        assertThat(shape.budgetPolicy()).isEqualTo(BudgetExhaustionPolicy.PASS_INCOMPLETE);
-        assertThat(shape.exceptionPolicy()).isEqualTo(ExceptionPolicy.FAIL_SAMPLE);
-        assertThat(shape.maxExampleFailures()).isEqualTo(3);
+        assertThat(sampling.inputs()).containsExactly("alpha", "beta");
+        assertThat(sampling.samples()).isEqualTo(250);
+        assertThat(sampling.timeBudget()).contains(Duration.ofSeconds(30));
+        assertThat(sampling.tokenBudget().getAsLong()).isEqualTo(10_000L);
+        assertThat(sampling.tokenCharge()).isEqualTo(5L);
+        assertThat(sampling.budgetPolicy()).isEqualTo(BudgetExhaustionPolicy.PASS_INCOMPLETE);
+        assertThat(sampling.exceptionPolicy()).isEqualTo(ExceptionPolicy.FAIL_SAMPLE);
+        assertThat(sampling.maxExampleFailures()).isEqualTo(3);
     }
 
     @Test
     @DisplayName("default samples is 1000")
     void defaultSamples() {
-        SamplingShape<Factors, String, String> shape = baseBuilder().build();
-        assertThat(shape.samples()).isEqualTo(1000);
+        Sampling<Factors, String, String> sampling = baseBuilder().build();
+        assertThat(sampling.samples()).isEqualTo(1000);
     }
 
     @Test
-    @DisplayName("builder has no .factors(...) method — factors bind at .at(...) time")
-    void builderHasNoFactorsMethod() {
-        for (var method : SamplingShape.Builder.class.getMethods()) {
+    @DisplayName("Sampling carries no factors — neither builder nor accessor exposes them")
+    void factorFreeInvariant() {
+        for (var method : Sampling.class.getMethods()) {
             assertThat(method.getName())
-                    .as("SamplingShape.Builder method %s", method)
+                    .as("Sampling method %s", method)
                     .isNotEqualTo("factors");
         }
-    }
-
-    @Test
-    @DisplayName(".at(factors) produces a DataGeneration carrying the shape and bundle")
-    void atProducesDataGeneration() {
-        SamplingShape<Factors, String, String> shape = baseBuilder().samples(10).build();
-        Factors f = new Factors("gpt-4o", 0.3);
-
-        DataGeneration<Factors, String, String> plan = shape.at(f);
-
-        assertThat(plan.shape()).isSameAs(shape);
-        assertThat(plan.factors()).isEqualTo(f);
-        assertThat(plan.inputs()).isEqualTo(shape.inputs());
-        assertThat(plan.samples()).isEqualTo(10);
-    }
-
-    @Test
-    @DisplayName(".at(null) is rejected")
-    void atNullFactors() {
-        SamplingShape<Factors, String, String> shape = baseBuilder().build();
-        assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> shape.at(null));
+        for (var method : Sampling.Builder.class.getMethods()) {
+            assertThat(method.getName())
+                    .as("Sampling.Builder method %s", method)
+                    .isNotEqualTo("factors");
+        }
     }
 
     @Test
     @DisplayName("build() without useCaseFactory is rejected")
     void buildWithoutFactory() {
         assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(() -> SamplingShape.<Factors, String, String>builder()
+                .isThrownBy(() -> Sampling.<Factors, String, String>builder()
                         .inputs("x")
                         .build())
                 .withMessageContaining("useCaseFactory");
@@ -115,7 +94,7 @@ class SamplingShapeTest {
     @DisplayName("build() without inputs is rejected")
     void buildWithoutInputs() {
         assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(() -> SamplingShape.<Factors, String, String>builder()
+                .isThrownBy(() -> Sampling.<Factors, String, String>builder()
                         .useCaseFactory(EchoUseCase::new)
                         .build())
                 .withMessageContaining("inputs");
@@ -125,7 +104,7 @@ class SamplingShapeTest {
     @DisplayName("empty inputs list is rejected")
     void emptyInputsList() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> SamplingShape.<Factors, String, String>builder()
+                .isThrownBy(() -> Sampling.<Factors, String, String>builder()
                         .useCaseFactory(EchoUseCase::new)
                         .inputs(java.util.List.of()))
                 .withMessageContaining("inputs");
@@ -167,23 +146,23 @@ class SamplingShapeTest {
     }
 
     @Test
-    @DisplayName("samples(int) wither returns a new shape with the updated count")
+    @DisplayName("samples(int) wither returns a new sampling with the updated count")
     void samplesWither() {
-        SamplingShape<Factors, String, String> shape = baseBuilder().samples(100).build();
+        Sampling<Factors, String, String> sampling = baseBuilder().samples(100).build();
 
-        SamplingShape<Factors, String, String> reshaped = shape.samples(500);
+        Sampling<Factors, String, String> reshaped = sampling.samples(500);
 
         assertThat(reshaped.samples()).isEqualTo(500);
-        assertThat(shape.samples()).isEqualTo(100);
-        assertThat(reshaped.inputs()).isEqualTo(shape.inputs());
-        assertThat(reshaped.useCaseFactory()).isSameAs(shape.useCaseFactory());
+        assertThat(sampling.samples()).isEqualTo(100);
+        assertThat(reshaped.inputs()).isEqualTo(sampling.inputs());
+        assertThat(reshaped.useCaseFactory()).isSameAs(sampling.useCaseFactory());
     }
 
     @Test
     @DisplayName("samples(int) wither rejects non-positive counts")
     void samplesWitherRejectsNonPositive() {
-        SamplingShape<Factors, String, String> shape = baseBuilder().build();
+        Sampling<Factors, String, String> sampling = baseBuilder().build();
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> shape.samples(0));
+                .isThrownBy(() -> sampling.samples(0));
     }
 }

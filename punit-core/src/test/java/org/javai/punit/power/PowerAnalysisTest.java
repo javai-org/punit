@@ -6,8 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.function.Supplier;
 
-import org.javai.punit.api.typed.DataGeneration;
-import org.javai.punit.api.typed.SamplingShape;
+import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.MeasureSpec;
@@ -25,14 +24,13 @@ class PowerAnalysisTest {
 
     private static Supplier<MeasureSpec<Factors, String, String>> baseline() {
         return () -> {
-            DataGeneration<Factors, String, String> plan = SamplingShape
+            Sampling<Factors, String, String> sampling = Sampling
                     .<Factors, String, String>builder()
                     .useCaseFactory(f -> ECHO)
                     .inputs("a")
                     .samples(100)
-                    .build()
-                    .at(new Factors("m"));
-            return MeasureSpec.measuring(plan).build();
+                    .build();
+            return MeasureSpec.measuring(sampling, new Factors("m")).build();
         };
     }
 

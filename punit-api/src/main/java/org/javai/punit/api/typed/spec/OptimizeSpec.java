@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-import org.javai.punit.api.typed.SamplingShape;
+import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
 
@@ -31,14 +31,14 @@ import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
  *       improve the best score.</li>
  * </ul>
  *
- * <p>Constructed via {@link #optimizing(SamplingShape)}. All sample-
+ * <p>Constructed via {@link #optimizing(Sampling)}. All sample-
  * production knobs (use case factory, inputs, sample count, budgets,
- * exception policy) live on the {@link SamplingShape}; the optimize
+ * exception policy) live on the {@link Sampling}; the optimize
  * spec carries only the search-specific knobs.
  */
 public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT, OT> {
 
-    private final SamplingShape<FT, IT, OT> shape;
+    private final Sampling<FT, IT, OT> shape;
     private final FT initialFactors;
     private final FactorMutator<FT> mutator;
     private final Scorer scorer;
@@ -62,12 +62,12 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
                 : "optimize-" + Instant.now().toEpochMilli();
     }
 
-    /** Entry point — compose an optimize experiment over a SamplingShape. */
-    public static <FT, IT, OT> Builder<FT, IT, OT> optimizing(SamplingShape<FT, IT, OT> shape) {
+    /** Entry point — compose an optimize experiment over a Sampling. */
+    public static <FT, IT, OT> Builder<FT, IT, OT> optimizing(Sampling<FT, IT, OT> shape) {
         return new Builder<>(Objects.requireNonNull(shape, "shape"));
     }
 
-    public SamplingShape<FT, IT, OT> shape() { return shape; }
+    public Sampling<FT, IT, OT> shape() { return shape; }
     public FT initialFactors() { return initialFactors; }
     public int maxIterations() { return maxIterations; }
     public int noImprovementWindow() { return noImprovementWindow; }
@@ -175,7 +175,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
 
     public static final class Builder<FT, IT, OT> {
 
-        private final SamplingShape<FT, IT, OT> shape;
+        private final Sampling<FT, IT, OT> shape;
         private FT initialFactors;
         private FactorMutator<FT> mutator;
         private Scorer scorer;
@@ -184,7 +184,7 @@ public final class OptimizeSpec<FT, IT, OT> implements DataGenerationSpec<FT, IT
         private int noImprovementWindow = 5;
         private String experimentId;
 
-        private Builder(SamplingShape<FT, IT, OT> shape) {
+        private Builder(Sampling<FT, IT, OT> shape) {
             this.shape = shape;
         }
 
