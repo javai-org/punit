@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
@@ -327,6 +328,32 @@ class EngineIntegrationTest {
 
         new Engine().run(spec);
         assertThat(spec.history()).hasSize(5);
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTestSpec threads its declared intent through to the result")
+    void intentThreadsThroughToResult() {
+        Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
+                .<LlmFactors, Integer, Boolean>builder()
+                .useCaseFactory(f -> new AlwaysPassesUseCase())
+                .inputs(1, 2, 3)
+                .samples(10)
+                .build();
+        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> verification = ProbabilisticTestSpec
+                .testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .build();
+        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> smoke = ProbabilisticTestSpec
+                .testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .intent(TestIntent.SMOKE)
+                .build();
+
+        var verResult = (ProbabilisticTestResult) new Engine().run(verification);
+        var smkResult = (ProbabilisticTestResult) new Engine().run(smoke);
+
+        assertThat(verResult.intent()).isEqualTo(TestIntent.VERIFICATION);
+        assertThat(smkResult.intent()).isEqualTo(TestIntent.SMOKE);
     }
 
     private List<String> runAndRecord() {

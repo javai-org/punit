@@ -3,6 +3,7 @@ package org.javai.punit.api.typed.spec;
 import java.util.List;
 import java.util.Objects;
 
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.typed.FactorBundle;
 
 /**
@@ -17,21 +18,30 @@ import org.javai.punit.api.typed.FactorBundle;
  * {@link #verdict()} is {@link Verdict#compose(List) Verdict.compose}'d
  * from the REQUIRED subset.
  *
+ * <p>{@link #intent()} carries the test's declared intent through to
+ * reporting so that sentinel-grade smoke verdicts can be flagged with
+ * an explicit caveat ("not sized for verification") and so that the
+ * future feasibility-check machinery can decide whether a verification
+ * claim is statistically supportable for the chosen sample size.
+ *
  * @param verdict          the composed PASS / FAIL / INCONCLUSIVE
  * @param factors          the factor bundle observed
  * @param criterionResults the full ordered list of evaluated criteria
+ * @param intent           the test's declared intent (VERIFICATION / SMOKE)
  * @param warnings         free-form warnings (e.g. "statistics wiring pending")
  */
 public record ProbabilisticTestResult(
         Verdict verdict,
         FactorBundle factors,
         List<EvaluatedCriterion> criterionResults,
+        TestIntent intent,
         List<String> warnings) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
         Objects.requireNonNull(factors, "factors");
         Objects.requireNonNull(criterionResults, "criterionResults");
+        Objects.requireNonNull(intent, "intent");
         Objects.requireNonNull(warnings, "warnings");
         criterionResults = List.copyOf(criterionResults);
         warnings = List.copyOf(warnings);
