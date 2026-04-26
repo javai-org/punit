@@ -20,6 +20,7 @@ import org.javai.punit.api.typed.spec.SampleObserver;
 import org.javai.punit.api.typed.spec.SampleSummary;
 import org.javai.punit.api.typed.spec.Trial;
 import org.javai.punit.api.typed.spec.Spec;
+import org.javai.punit.api.typed.spec.TypedSpec;
 
 /**
  * The one engine, shared by every spec flavour.
@@ -54,8 +55,17 @@ public final class Engine {
         this.executor = Objects.requireNonNull(executor, "executor");
     }
 
-    public <FT, IT, OT> EngineResult run(Spec<FT, IT, OT> spec) {
+    public EngineResult run(Spec spec) {
         Objects.requireNonNull(spec, "spec");
+        return spec.dispatch(new Spec.Dispatcher<EngineResult>() {
+            @Override
+            public <FT, IT, OT> EngineResult apply(TypedSpec<FT, IT, OT> typed) {
+                return runTyped(typed);
+            }
+        });
+    }
+
+    private <FT, IT, OT> EngineResult runTyped(TypedSpec<FT, IT, OT> spec) {
         Iterator<Configuration<FT, IT, OT>> it = spec.configurations();
         int cycleStart = 0;
         while (it.hasNext()) {
@@ -69,7 +79,7 @@ public final class Engine {
     }
 
     private <FT, IT, OT> SampleSummary<OT> runConfig(
-            Spec<FT, IT, OT> spec,
+            TypedSpec<FT, IT, OT> spec,
             UseCase<FT, IT, OT> useCase,
             Configuration<FT, IT, OT> cfg,
             int cycleStart) {

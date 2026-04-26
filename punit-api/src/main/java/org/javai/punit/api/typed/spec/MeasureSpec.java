@@ -34,7 +34,13 @@ import org.javai.punit.api.typed.ValueMatcher;
  * {@link ExperimentResult} with a placeholder message and the path
  * where the baseline <em>would</em> be written.
  */
-public final class MeasureSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class MeasureSpec<FT, IT, OT> implements Spec, TypedSpec<FT, IT, OT> {
+
+    @Override
+    public <R> R dispatch(Dispatcher<R> dispatcher) {
+        return dispatcher.apply(this);
+    }
+
 
     private final Sampling<FT, IT, OT> sampling;
     private final FT factors;

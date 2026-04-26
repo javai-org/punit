@@ -366,7 +366,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling, new Factors("m"))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(10L).build(),
@@ -399,7 +399,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .build();
 
-        ProbabilisticTestSpec<Factors, Integer, Boolean> both = ProbabilisticTestSpec
+        ProbabilisticTestSpec both = ProbabilisticTestSpec
                 .testing(sampling, new Factors("m"))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Boolean>meeting(
@@ -426,7 +426,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling, new Factors("m"))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .reportOnly(PercentileLatency.<Boolean>meeting(
@@ -458,7 +458,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec<Factors, Integer, Boolean> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling, new Factors("m"))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(100L).build(),

@@ -1,100 +1,39 @@
 package org.javai.punit.api.typed.spec;
 
-import java.time.Duration;
-import java.util.Iterator;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.function.Function;
-
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.ValueMatcher;
-
 /**
- * Strategy contract the engine dispatches through.
+ * The user-facing strategy interface every spec kind implements.
  *
- * <p>Per {@code DES-SPEC-AS-STRATEGY.md}:
- * <ul>
- *   <li>{@link #configurations()} yields a finite, reproducible
- *       iterator of run-units.</li>
- *   <li>{@link #useCaseFactory()} supplies the constructor the engine
- *       invokes once per configuration.</li>
- *   <li>{@link #matcher()} supplies the instance-conformance
- *       matcher; present when the spec was built with
- *       {@code .expectations(...)}, empty otherwise.</li>
- *   <li>{@link #consume(Configuration, SampleSummary) consume(cfg, summary)}
- *       receives the per-configuration aggregate; the spec accumulates
- *       what it needs for {@link #conclude()}.</li>
- *   <li>{@link #conclude()} produces the
- *       {@link EngineResult} — a verdict for a probabilistic test,
- *       an artefact description for an experiment.</li>
- * </ul>
+ * <p>Sealed over the four spec families — measure, explore, optimize,
+ * probabilistic test. Carries <strong>no</strong> type parameters at
+ * the user-facing level: the typed work happens inside each spec via
+ * an internal {@link TypedSpec} delegate, reached through
+ * {@link #dispatch(Dispatcher)}. The dispatch pattern lets the engine
+ * recover the typed view without unchecked casts — Java captures the
+ * wildcards on the internal delegate into the generic method on the
+ * dispatcher.
  *
- * <p>The engine must not branch on the concrete subtype. The sealed
- * {@code permits} clause exists for tool-side exhaustive matching
- * (reporters, doc generators) — the engine itself treats the spec
- * polymorphically.
+ * <p>The user touches this interface only as a return type from
+ * {@code @ProbabilisticTest} / {@code @Experiment} methods; the
+ * dispatch mechanism is engine-internal.
  *
- * @param <FT> the factor record type
- * @param <IT> the per-sample input type
- * @param <OT> the per-sample outcome value type
+ * @see TypedSpec
  */
-public sealed interface Spec<FT, IT, OT>
+public sealed interface Spec
         permits MeasureSpec, ExploreSpec, OptimizeSpec, ProbabilisticTestSpec {
 
-    Iterator<Configuration<FT, IT, OT>> configurations();
-
-    Function<FT, UseCase<FT, IT, OT>> useCaseFactory();
+    /**
+     * Engine entry point — dispatches to a typed view of this spec.
+     * Authors do not call this directly.
+     */
+    <R> R dispatch(Dispatcher<R> dispatcher);
 
     /**
-     * @return the spec's instance-conformance matcher, when the spec
-     *         was built with {@code .expectations(...)}; empty
-     *         otherwise. The engine consults this only when the
-     *         current {@link Configuration} has non-empty
-     *         {@code expected} values.
+     * Engine-facing visitor over the typed view of a spec. The
+     * {@link #apply} method is generic over the spec's
+     * {@code <FT, IT, OT>}, allowing implementations (the engine, in
+     * practice) to remain fully type-safe.
      */
-    default Optional<ValueMatcher<OT>> matcher() {
-        return Optional.empty();
+    interface Dispatcher<R> {
+        <FT, IT, OT> R apply(TypedSpec<FT, IT, OT> typed);
     }
-
-    void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary);
-
-    EngineResult conclude();
-
-    // ── Stage-3 resource-control / latency accessors ────────────────
-
-    /**
-     * Wall-clock budget the engine honours when sampling this spec.
-     * Empty = no limit.
-     */
-    default Optional<Duration> timeBudget() { return Optional.empty(); }
-
-    /** Token budget the engine honours when sampling this spec. Empty = no limit. */
-    default OptionalLong tokenBudget() { return OptionalLong.empty(); }
-
-    /**
-     * Static per-sample token charge added to the token tally in
-     * addition to whatever the use case reports via
-     * {@link org.javai.punit.api.typed.UseCaseOutcome#tokens()}.
-     */
-    default long tokenCharge() { return 0L; }
-
-    /** What the engine does when a budget exhausts early. */
-    default BudgetExhaustionPolicy budgetPolicy() {
-        return BudgetExhaustionPolicy.FAIL;
-    }
-
-    /**
-     * How the engine treats a thrown exception from
-     * {@link UseCase#apply(Object)}.
-     */
-    default ExceptionPolicy exceptionPolicy() {
-        return ExceptionPolicy.ABORT_TEST;
-    }
-
-    /**
-     * Upper bound on the number of detailed failing outcomes retained
-     * for diagnostics. Counting is never affected; only example
-     * retention is capped.
-     */
-    default int maxExampleFailures() { return 10; }
 }

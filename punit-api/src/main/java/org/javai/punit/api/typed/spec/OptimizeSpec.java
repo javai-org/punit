@@ -42,7 +42,13 @@ import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
  * direction enum. The two methods are mutually exclusive at the API
  * level: one of them must be called and the last one wins.
  */
-public final class OptimizeSpec<FT, IT, OT> implements Spec<FT, IT, OT> {
+public final class OptimizeSpec<FT, IT, OT> implements Spec, TypedSpec<FT, IT, OT> {
+
+    @Override
+    public <R> R dispatch(Dispatcher<R> dispatcher) {
+        return dispatcher.apply(this);
+    }
+
 
     private final Sampling<FT, IT, OT> shape;
     private final FT initialFactors;

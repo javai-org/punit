@@ -73,7 +73,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(30)
                 .build();
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
@@ -99,7 +99,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(15)
                 .build();
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
                 .build();
@@ -121,7 +121,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(20)
                 .build();
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> spec = ProbabilisticTestSpec
+        ProbabilisticTestSpec spec = ProbabilisticTestSpec
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>empirical())
                 .build();
@@ -337,11 +337,11 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(10)
                 .build();
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> verification = ProbabilisticTestSpec
+        ProbabilisticTestSpec verification = ProbabilisticTestSpec
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
-        ProbabilisticTestSpec<LlmFactors, Integer, Boolean> smoke = ProbabilisticTestSpec
+        ProbabilisticTestSpec smoke = ProbabilisticTestSpec
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .intent(TestIntent.SMOKE)
