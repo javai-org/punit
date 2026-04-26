@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
@@ -37,6 +38,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     private final Sampling<FT, IT, OT> sampling;
     private final FT factors;
     private final List<Registered<OT>> registered;
+    private final TestIntent intent;
 
     private SampleSummary<OT> summary;
 
@@ -44,6 +46,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         this.sampling = b.sampling;
         this.factors = b.factors;
         this.registered = List.copyOf(b.registered);
+        this.intent = b.intent;
     }
 
     /**
@@ -60,6 +63,16 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
     public Sampling<FT, IT, OT> sampling() { return sampling; }
     public FT factors() { return factors; }
     public int samples() { return sampling.samples(); }
+
+    /**
+     * The test's declared intent. {@link TestIntent#VERIFICATION} (default)
+     * claims evidential status — the framework will refuse to run a
+     * configuration too small to support a verification-grade verdict
+     * once feasibility checking lands. {@link TestIntent#SMOKE} is a
+     * sentinel-grade lightweight check; verdicts under SMOKE carry an
+     * explicit "not sized for verification" caveat.
+     */
+    public TestIntent intent() { return intent; }
 
     @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
         return sampling.useCaseFactory();
@@ -91,7 +104,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         warnings.add("baseline resolver is a Stage-3.5 stub — empirical criteria "
                 + "yield INCONCLUSIVE until Stage 4 lands real resolution");
 
-        return new ProbabilisticTestResult(composed, factorBundle, evaluated, warnings);
+        return new ProbabilisticTestResult(composed, factorBundle, evaluated, intent, warnings);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -125,6 +138,7 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         private final Sampling<FT, IT, OT> sampling;
         private final FT factors;
         private final List<Registered<OT>> registered = new ArrayList<>();
+        private TestIntent intent = TestIntent.VERIFICATION;
 
         private Builder(Sampling<FT, IT, OT> sampling, FT factors) {
             this.sampling = sampling;
@@ -142,6 +156,18 @@ public final class ProbabilisticTestSpec<FT, IT, OT> implements DataGenerationSp
         public Builder<FT, IT, OT> reportOnly(Criterion<OT, ?> criterion) {
             Objects.requireNonNull(criterion, "criterion");
             registered.add(new Registered<>(criterion, CriterionRole.REPORT_ONLY));
+            return this;
+        }
+
+        /**
+         * Declares the test's intent. Defaults to
+         * {@link TestIntent#VERIFICATION}. Authors of sentinel-grade
+         * smoke checks against external providers (where the
+         * sample-size cost would be prohibitive for a verification
+         * claim) opt into {@link TestIntent#SMOKE} explicitly.
+         */
+        public Builder<FT, IT, OT> intent(TestIntent intent) {
+            this.intent = Objects.requireNonNull(intent, "intent");
             return this;
         }
 
