@@ -12,6 +12,7 @@ import org.javai.punit.api.typed.MatchResult;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.ValueMatcher;
+import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.Configuration;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
@@ -46,13 +47,23 @@ import org.javai.punit.api.typed.spec.TypedSpec;
 public final class Engine {
 
     private final SampleExecutor executor;
+    private final BaselineProvider baselineProvider;
 
     public Engine() {
-        this(new SerialSampleExecutor());
+        this(new SerialSampleExecutor(), BaselineProvider.EMPTY);
     }
 
     public Engine(SampleExecutor executor) {
+        this(executor, BaselineProvider.EMPTY);
+    }
+
+    public Engine(BaselineProvider baselineProvider) {
+        this(new SerialSampleExecutor(), baselineProvider);
+    }
+
+    public Engine(SampleExecutor executor, BaselineProvider baselineProvider) {
         this.executor = Objects.requireNonNull(executor, "executor");
+        this.baselineProvider = Objects.requireNonNull(baselineProvider, "baselineProvider");
     }
 
     public EngineResult run(Spec spec) {
@@ -75,7 +86,7 @@ public final class Engine {
             spec.consume(cfg, summary);
             cycleStart = (cycleStart + summary.total()) % cfg.inputs().size();
         }
-        return spec.conclude();
+        return spec.conclude(baselineProvider);
     }
 
     private <FT, IT, OT> SampleSummary<OT> runConfig(
