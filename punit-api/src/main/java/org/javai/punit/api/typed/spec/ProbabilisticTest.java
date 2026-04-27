@@ -159,33 +159,43 @@ public final class ProbabilisticTest implements Spec {
             this.summary = summary;
         }
 
-        @Override public EngineResult conclude() {
+        @Override public EngineResult conclude(BaselineProvider provider) {
+            Objects.requireNonNull(provider, "provider");
             SampleSummary<OT> s = summary != null
                     ? summary
                     : SampleSummary.from(List.of(), Duration.ZERO);
             FactorBundle factorBundle = FactorBundle.of(factors);
+            String useCaseId = sampling.useCaseFactory().apply(factors).id();
 
             List<EvaluatedCriterion> evaluated = new ArrayList<>(registered.size());
             for (Registered<OT> entry : registered) {
-                CriterionResult result = evaluate(entry.criterion(), s, factorBundle);
+                CriterionResult result = evaluate(
+                        entry.criterion(), s, factorBundle, useCaseId, provider);
                 evaluated.add(new EvaluatedCriterion(result, entry.role()));
             }
 
             Verdict composed = Verdict.compose(evaluated);
-            List<String> warnings = new ArrayList<>();
-            warnings.add("baseline resolver is a Stage-3.5 stub — empirical criteria "
-                    + "yield INCONCLUSIVE until Stage 4 lands real resolution");
-
-            return new ProbabilisticTestResult(composed, factorBundle, evaluated, intent, warnings);
+            return new ProbabilisticTestResult(
+                    composed, factorBundle, evaluated, intent, List.of());
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         private CriterionResult evaluate(
-                Criterion<OT, ?> criterion, SampleSummary<OT> s, FactorBundle factorBundle) {
+                Criterion<OT, ?> criterion,
+                SampleSummary<OT> s,
+                FactorBundle factorBundle,
+                String useCaseId,
+                BaselineProvider provider) {
             Criterion raw = criterion;
+            Optional<? extends BaselineStatistics> resolved = criterion.isEmpirical()
+                    ? provider.baselineFor(
+                            useCaseId, factorBundle, criterion.name(), criterion.statisticsType())
+                    : Optional.empty();
             EvaluationContext ctx = new EvaluationContext<OT, BaselineStatistics>() {
                 @Override public SampleSummary<OT> summary() { return s; }
-                @Override public Optional<BaselineStatistics> baseline() { return Optional.empty(); }
+                @Override public Optional<BaselineStatistics> baseline() {
+                    return (Optional<BaselineStatistics>) resolved;
+                }
                 @Override public FactorBundle factors() { return factorBundle; }
             };
             return (CriterionResult) raw.evaluate(ctx);

@@ -237,7 +237,7 @@ public final class Experiment implements Spec {
             this.lastSummary = Optional.of(summary);
         }
 
-        @Override public EngineResult conclude() {
+        @Override public EngineResult conclude(BaselineProvider provider) {
             FactorBundle bundle = FactorBundle.of(factors);
             Path path = defaultBaselinePath(experimentId, bundle);
             String message = "measure baseline (stage 2 placeholder — serialisation lands in stage 4); "
@@ -339,7 +339,7 @@ public final class Experiment implements Spec {
             perConfig.put(config.factors(), summary);
         }
 
-        @Override public EngineResult conclude() {
+        @Override public EngineResult conclude(BaselineProvider provider) {
             Path dir = Paths.get("explorations", experimentId);
             String message = "explore artefact (stage 2 placeholder); configurations="
                     + perConfig.size();
@@ -421,7 +421,7 @@ public final class Experiment implements Spec {
             history.add(new IterationResult<>(config.factors(), score));
         }
 
-        @Override public EngineResult conclude() {
+        @Override public EngineResult conclude(BaselineProvider provider) {
             IterationResult<FT> best = bestSoFar();
             Path dir = Paths.get("optimizations", experimentId);
             String message = "optimize artefact (stage 2 placeholder); iterations="

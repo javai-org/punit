@@ -38,7 +38,18 @@ public interface TypedSpec<FT, IT, OT> {
 
     void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary);
 
-    EngineResult conclude();
+    /**
+     * Engine-driven termination of the run. The {@code provider}
+     * supplies baseline statistics for empirical criteria; specs that
+     * make no empirical claims (every {@link Experiment} kind) ignore
+     * the parameter.
+     */
+    EngineResult conclude(BaselineProvider provider);
+
+    /** Convenience shortcut for tests and other callers without a real provider. */
+    default EngineResult conclude() {
+        return conclude(BaselineProvider.EMPTY);
+    }
 
     default Optional<Duration> timeBudget() { return Optional.empty(); }
     default OptionalLong tokenBudget() { return OptionalLong.empty(); }
