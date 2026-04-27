@@ -14,11 +14,11 @@ import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExperimentResult;
-import org.javai.punit.api.typed.spec.ExploreSpec;
+import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.FactorMutator;
-import org.javai.punit.api.typed.spec.OptimizeSpec;
+import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.MeasureSpec;
+import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.javai.punit.api.typed.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +46,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("MeasureSpec runs end-to-end and reports an artefact outcome")
+    @DisplayName("Experiment runs end-to-end and reports an artefact outcome")
     void measureSpecRunsEndToEnd() {
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
@@ -54,7 +54,7 @@ class EngineIntegrationTest {
                 .inputs("a", "bb", "ccc")
                 .samples(9)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
 
         EngineResult outcome = new Engine().run(spec);
 
@@ -145,7 +145,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(5)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
                 .isInstanceOf(IllegalStateException.class)
@@ -168,7 +168,7 @@ class EngineIntegrationTest {
                 .inputs("a", "b")
                 .samples(4)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A", "Q") // match, mismatch
                 .build();
 
@@ -203,7 +203,7 @@ class EngineIntegrationTest {
                 .inputs("HELLO", "WORLD")
                 .samples(2)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("hello", "world")
                 .matcher(caseInsensitive)
                 .build();
@@ -214,7 +214,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("MeasureSpec rejects expectedOutputs whose length does not match sampling.inputs")
+    @DisplayName("Experiment rejects expectedOutputs whose length does not match sampling.inputs")
     void rejectsMismatchedExpectedOutputsLength() {
         Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
@@ -225,7 +225,7 @@ class EngineIntegrationTest {
                 })
                 .inputs("a", "b")
                 .build();
-        assertThatThrownBy(() -> MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
+        assertThatThrownBy(() -> Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A") // only one; inputs has two
                 .build())
                 .isInstanceOf(IllegalStateException.class)
@@ -250,7 +250,7 @@ class EngineIntegrationTest {
                 .inputs("a", "bb", "ccc")
                 .samples(7)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.0)).build();
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0)).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -267,7 +267,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("ExploreSpec.exploring(shape).factors(...) runs each bundle once with the shape's sample count")
+    @DisplayName("Experiment.exploring(shape).factors(...) runs each bundle once with the shape's sample count")
     void exploreSpecRunsEachFactorBundle() {
         var observedByModel = new java.util.LinkedHashMap<String, Integer>();
         UseCase<LlmFactors, String, Integer> counting = new UseCase<>() {
@@ -284,7 +284,7 @@ class EngineIntegrationTest {
                 .inputs("a", "b")
                 .samples(3)
                 .build();
-        ExploreSpec spec = ExploreSpec.exploring(shape)
+        Experiment spec = Experiment.exploring(shape)
                 .factors(
                         new LlmFactors("gpt-4o", 0.0),
                         new LlmFactors("gpt-4o", 0.5),
@@ -298,7 +298,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("OptimizeSpec.optimizing(shape) runs the mutator/scorer loop up to maxIterations")
+    @DisplayName("Experiment.optimizing(shape) runs the mutator/scorer loop up to maxIterations")
     void optimizeSpecRunsIterationLoop() {
         UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
             @Override public UseCaseOutcome<Integer> apply(String input) {
@@ -316,7 +316,7 @@ class EngineIntegrationTest {
                 current.temperature() >= 0.95
                         ? null
                         : new LlmFactors(current.model(), current.temperature() + 0.1);
-        OptimizeSpec spec = OptimizeSpec.optimizing(shape)
+        Experiment spec = Experiment.optimizing(shape)
                 .initialFactors(new LlmFactors("gpt-4o", 0.0))
                 .mutator(mutator)
                 .maximize(s -> 1.0 / (1.0 + s.failures()))
@@ -368,7 +368,7 @@ class EngineIntegrationTest {
                 .inputs("x", "y", "z")
                 .samples(7)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.3)).build();
         new Engine().run(spec);
         return observed;
     }

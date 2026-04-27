@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import org.apache.commons.statistics.distribution.NormalDistribution;
-import org.javai.punit.api.typed.spec.MeasureSpec;
+import org.javai.punit.api.typed.spec.Experiment;
 
 /**
  * Authoring-time sample-size utility for the confidence-first
@@ -59,10 +59,10 @@ public final class PowerAnalysis {
      * baseline supplier surfaces immediately) but uses a placeholder
      * observed rate of 0.5 for the variance term. Stage 4 replaces
      * the placeholder with the real resolver that reads the
-     * persisted baseline matching the MeasureSpec's use-case
+     * persisted baseline matching the Experiment's use-case
      * identity + factor / covariate profile.
      *
-     * @param baseline a supplier that yields the baseline MeasureSpec
+     * @param baseline a supplier that yields the baseline Experiment
      *                 — typically a method reference to an
      *                 {@code @Experiment} method
      * @param mde      the minimum detectable effect, in (0, 1)
@@ -78,7 +78,7 @@ public final class PowerAnalysis {
      *                                  {@code rate + mde ≥ 1})
      */
     public static int sampleSize(
-            Supplier<MeasureSpec> baseline,
+            Supplier<Experiment> baseline,
             double mde,
             double power) {
         Objects.requireNonNull(baseline, "baseline");
@@ -86,9 +86,9 @@ public final class PowerAnalysis {
 
         // Invoke the supplier once — validates that the author wired up a
         // real baseline-producing method and not a thunk that will blow up
-        // at evaluate-time. The returned MeasureSpec is unused under the
+        // at evaluate-time. The returned Experiment is unused under the
         // Stage-3.5 placeholder; Stage 4 reads its observed rate.
-        MeasureSpec resolved = Objects.requireNonNull(
+        Experiment resolved = Objects.requireNonNull(
                 baseline.get(),
                 "baseline supplier returned null");
 

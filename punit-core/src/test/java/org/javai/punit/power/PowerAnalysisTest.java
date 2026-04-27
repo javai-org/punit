@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
-import org.javai.punit.api.typed.spec.MeasureSpec;
+import org.javai.punit.api.typed.spec.Experiment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +22,7 @@ class PowerAnalysisTest {
         @Override public UseCaseOutcome<String> apply(String input) { return UseCaseOutcome.ok(input); }
     };
 
-    private static Supplier<MeasureSpec> baseline() {
+    private static Supplier<Experiment> baseline() {
         return () -> {
             Sampling<Factors, String, String> sampling = Sampling
                     .<Factors, String, String>builder()
@@ -30,7 +30,7 @@ class PowerAnalysisTest {
                     .inputs("a")
                     .samples(100)
                     .build();
-            return MeasureSpec.measuring(sampling, new Factors("m")).build();
+            return Experiment.measuring(sampling, new Factors("m")).build();
         };
     }
 
@@ -117,7 +117,7 @@ class PowerAnalysisTest {
     @DisplayName("invokes the baseline supplier exactly once")
     void invokesSupplierOnce() {
         int[] callCount = {0};
-        Supplier<MeasureSpec> counting = () -> {
+        Supplier<Experiment> counting = () -> {
             callCount[0]++;
             return baseline().get();
         };

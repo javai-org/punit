@@ -29,19 +29,19 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  *     return Sampling.of(f -> new MyUseCase(f), samples, input1, input2);
  * }
  *
- * @Experiment        MeasureSpec baseline() {
- *     return MeasureSpec.measuring(sampling(1000), factors).build();
+ * @Experiment        Experiment baseline() {
+ *     return Experiment.measuring(sampling(1000), factors).build();
  * }
  * @ProbabilisticTest ProbabilisticTest meets() {
  *     return ProbabilisticTest.testing(sampling(100), factors)
  *             .criterion(BernoulliPassRate.empirical())
  *             .build();
  * }
- * @Experiment        ExploreSpec compare() {
- *     return ExploreSpec.exploring(sampling(50)).factors(a, b, c).build();
+ * @Experiment        Experiment compare() {
+ *     return Experiment.exploring(sampling(50)).factors(a, b, c).build();
  * }
- * @Experiment        OptimizeSpec tune() {
- *     return OptimizeSpec.optimizing(sampling(20))
+ * @Experiment        Experiment tune() {
+ *     return Experiment.optimizing(sampling(20))
  *             .initialFactors(f0).mutator(...).maximize(...).build();
  * }
  * }</pre>

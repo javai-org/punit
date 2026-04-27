@@ -38,13 +38,13 @@ class TypedEngineArchitectureTest {
                 .that().resideInAPackage("org.javai.punit.engine..")
                 .should().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.MeasureSpec")
+                        "org.javai.punit.api.typed.spec.Experiment")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.ExploreSpec")
+                        "org.javai.punit.api.typed.spec.Experiment")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.OptimizeSpec")
+                        "org.javai.punit.api.typed.spec.Experiment")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
                         "org.javai.punit.api.typed.spec.ProbabilisticTest")

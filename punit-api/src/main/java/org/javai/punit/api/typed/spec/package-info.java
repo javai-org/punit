@@ -2,9 +2,9 @@
  * Typed spec builders and the strategy contract the engine dispatches
  * through.
  *
- * <p>Each concrete spec ({@link org.javai.punit.api.typed.spec.MeasureSpec},
- * {@link org.javai.punit.api.typed.spec.ExploreSpec},
- * {@link org.javai.punit.api.typed.spec.OptimizeSpec},
+ * <p>Each concrete spec ({@link org.javai.punit.api.typed.spec.Experiment},
+ * {@link org.javai.punit.api.typed.spec.Experiment},
+ * {@link org.javai.punit.api.typed.spec.Experiment},
  * {@link org.javai.punit.api.typed.spec.ProbabilisticTest}) implements
  * {@link org.javai.punit.api.typed.spec.Spec}. The engine iterates
  * {@link org.javai.punit.api.typed.spec.Spec#configurations()},
