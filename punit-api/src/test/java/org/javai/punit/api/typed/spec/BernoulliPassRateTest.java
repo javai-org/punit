@@ -33,12 +33,25 @@ class BernoulliPassRateTest {
                 List.of());
     }
 
+    private static final String DEFAULT_IDENTITY = "sha256:test-default-identity";
+
     private static <OT> EvaluationContext<OT, PassRateStatistics> ctx(
             SampleSummary<OT> summary, Optional<PassRateStatistics> baseline) {
+        return ctx(summary, baseline, DEFAULT_IDENTITY,
+                baseline.isPresent() ? Optional.of(DEFAULT_IDENTITY) : Optional.empty());
+    }
+
+    private static <OT> EvaluationContext<OT, PassRateStatistics> ctx(
+            SampleSummary<OT> summary,
+            Optional<PassRateStatistics> baseline,
+            String testIdentity,
+            Optional<String> baselineIdentity) {
         return new EvaluationContext<OT, PassRateStatistics>() {
             @Override public SampleSummary<OT> summary() { return summary; }
             @Override public Optional<PassRateStatistics> baseline() { return baseline; }
             @Override public FactorBundle factors() { return FactorBundle.of(new Factors("x")); }
+            @Override public String testInputsIdentity() { return testIdentity; }
+            @Override public Optional<String> baselineInputsIdentity() { return baselineIdentity; }
         };
     }
 
@@ -158,6 +171,57 @@ class BernoulliPassRateTest {
         CriterionResult result = criterion.evaluate(ctx(summary(45, 5), Optional.of(baseline)));
 
         assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+    }
+
+    // ── inputs-identity check ───────────────────────────────────────
+
+    @Test
+    @DisplayName("empirical() with mismatched test/baseline inputs identity returns INCONCLUSIVE")
+    void empiricalRejectsIdentityMismatch() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
+
+        CriterionResult result = criterion.evaluate(ctx(
+                summary(90, 10), Optional.of(baseline),
+                "sha256:test-inputs-A",
+                Optional.of("sha256:baseline-inputs-B")));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(result.explanation())
+                .contains("inputs identity")
+                .contains("re-run the baseline measure");
+        assertThat(result.detail())
+                .containsEntry("testInputsIdentity", "sha256:test-inputs-A")
+                .containsEntry("baselineInputsIdentity", "sha256:baseline-inputs-B");
+    }
+
+    @Test
+    @DisplayName("empirical() with matching test/baseline identity proceeds to verdict")
+    void empiricalAcceptsMatchingIdentity() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
+
+        CriterionResult result = criterion.evaluate(ctx(
+                summary(90, 10), Optional.of(baseline),
+                "sha256:matching-id",
+                Optional.of("sha256:matching-id")));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+    }
+
+    @Test
+    @DisplayName("empirical() identity-mismatch fires before sample-size — identity is the more fundamental violation")
+    void identityMismatchPrecedesSampleSize() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 100);
+
+        // Both rules would fire: 200 test samples > 100 baseline AND identities differ.
+        CriterionResult result = criterion.evaluate(ctx(
+                summary(180, 20), Optional.of(baseline),
+                "sha256:test-id", Optional.of("sha256:baseline-id")));
+
+        assertThat(result.explanation()).contains("inputs identity");
+        assertThat(result.explanation()).doesNotContain("sample size");
     }
 
     @Test

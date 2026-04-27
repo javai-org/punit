@@ -35,12 +35,18 @@ class CriterionResultDetailTest {
                 List.of());
     }
 
+    private static final String DEFAULT_IDENTITY = "sha256:test-default-identity";
+
     private static <S extends BaselineStatistics> EvaluationContext<Integer, S> ctx(
             SampleSummary<Integer> s, Optional<S> baseline) {
         return new EvaluationContext<Integer, S>() {
             @Override public SampleSummary<Integer> summary() { return s; }
             @Override public Optional<S> baseline() { return baseline; }
             @Override public FactorBundle factors() { return FactorBundle.of(new Factors("m")); }
+            @Override public String testInputsIdentity() { return DEFAULT_IDENTITY; }
+            @Override public Optional<String> baselineInputsIdentity() {
+                return baseline.isPresent() ? Optional.of(DEFAULT_IDENTITY) : Optional.empty();
+            }
         };
     }
 

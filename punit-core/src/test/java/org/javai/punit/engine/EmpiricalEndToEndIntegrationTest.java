@@ -56,12 +56,29 @@ class EmpiricalEndToEndIntegrationTest {
                 .build();
     }
 
+    /**
+     * Writes a baseline whose recorded inputs identity matches what
+     * {@link #sampling(int)} produces — the in-process integrity
+     * guarantee, restated cross-process. Tests that want to exercise
+     * an identity mismatch use {@link #writeBaselineWithMismatchedIdentity}.
+     */
     private static void writeBaselineWithPassRate(
             Path baselineDir, double passRate, int sampleCount) throws IOException {
+        writeBaseline(baselineDir, passRate, sampleCount, sampling(1).inputsIdentity());
+    }
+
+    private static void writeBaselineWithMismatchedIdentity(
+            Path baselineDir, double passRate, int sampleCount) throws IOException {
+        writeBaseline(baselineDir, passRate, sampleCount, "sha256:other-input-population");
+    }
+
+    private static void writeBaseline(
+            Path baselineDir, double passRate, int sampleCount,
+            String inputsIdentity) throws IOException {
         String fingerprint = FactorsFingerprint.of(FactorBundle.of(FACTORS));
         BaselineRecord record = new BaselineRecord(
                 USE_CASE_ID, "measureBaseline", fingerprint,
-                "sha256:any", sampleCount,
+                inputsIdentity, sampleCount,
                 Instant.parse("2026-04-26T15:30:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "bernoulli-pass-rate",
@@ -118,6 +135,23 @@ class EmpiricalEndToEndIntegrationTest {
         var detail = result.criterionResults().get(0).result().detail();
         assertThat(detail).containsEntry("testSampleCount", 1000);
         assertThat(detail).containsEntry("baselineSampleCount", 100);
+    }
+
+    @Test
+    @DisplayName("with a baseline whose recorded inputs identity differs, EmpiricalChecks rejects → INCONCLUSIVE")
+    void empiricalRejectsIdentityMismatch(@TempDir Path baselineDir) throws IOException {
+        writeBaselineWithMismatchedIdentity(baselineDir, 0.80, 1000);
+
+        var engine = new Engine(new YamlBaselineProvider(baselineDir));
+        var result = (ProbabilisticTestResult) engine.run(empiricalTest(sampling(20)));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsKey("testInputsIdentity");
+        assertThat(detail).containsEntry("baselineInputsIdentity", "sha256:other-input-population");
+        assertThat(result.criterionResults().get(0).result().explanation())
+                .contains("inputs identity")
+                .contains("re-run the baseline measure");
     }
 
     @Test

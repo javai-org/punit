@@ -36,4 +36,11 @@ public final class YamlBaselineProvider implements BaselineProvider {
         String fingerprint = FactorsFingerprint.of(factors);
         return resolver.resolve(useCaseId, fingerprint, criterionName, statisticsType);
     }
+
+    @Override
+    public Optional<String> baselineInputsIdentityFor(
+            String useCaseId, FactorBundle factors) {
+        String fingerprint = FactorsFingerprint.of(factors);
+        return resolver.resolveInputsIdentity(useCaseId, fingerprint);
+    }
 }

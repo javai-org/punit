@@ -150,11 +150,23 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
                                 + "see DG02 §'Baseline relationship' for the resolution mechanism",
                         detail);
             }
-            // Sample-size rule. See EmpiricalChecks#sampleSizeConstraint.
-            Optional<CriterionResult> violation = EmpiricalChecks.sampleSizeConstraint(
-                    NAME, total, stats.sampleCount(), Map.of());
-            if (violation.isPresent()) {
-                return violation.get();
+            Map<String, Object> empiricalDetail = Map.of("confidence", confidence);
+            // Inputs-identity rule precedes the sample-size rule: an identity
+            // mismatch is a more fundamental violation, so its diagnostic
+            // wins when both would fire.
+            String baselineIdentity = ctx.baselineInputsIdentity().orElseThrow(() ->
+                    new IllegalStateException(
+                            "baseline statistics were resolved but baselineInputsIdentity is empty — "
+                                    + "the BaselineProvider is producing inconsistent state"));
+            Optional<CriterionResult> identityViolation = EmpiricalChecks.inputsIdentityMatch(
+                    NAME, ctx.testInputsIdentity(), baselineIdentity, empiricalDetail);
+            if (identityViolation.isPresent()) {
+                return identityViolation.get();
+            }
+            Optional<CriterionResult> sizeViolation = EmpiricalChecks.sampleSizeConstraint(
+                    NAME, total, stats.sampleCount(), empiricalDetail);
+            if (sizeViolation.isPresent()) {
+                return sizeViolation.get();
             }
             resolvedThreshold = stats.observedPassRate();
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;

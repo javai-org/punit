@@ -29,4 +29,22 @@ public interface EvaluationContext<OT, S extends BaselineStatistics> {
 
     /** The bound factor bundle the spec was evaluated against. */
     FactorBundle factors();
+
+    /**
+     * The test's inputs identity — the
+     * {@code Sampling.inputsIdentity()} of the {@code Sampling} this
+     * spec was built from. Used by
+     * {@link EmpiricalChecks#inputsIdentityMatch(String, String, String, java.util.Map)}
+     * to verify cross-process that the test and its baseline drew
+     * from the same input population.
+     */
+    String testInputsIdentity();
+
+    /**
+     * The inputs identity recorded by the resolved baseline, when
+     * one was resolvable. Empty when the framework could not resolve
+     * a matching baseline (in which case {@link #baseline()} is also
+     * empty by construction).
+     */
+    Optional<String> baselineInputsIdentity();
 }
