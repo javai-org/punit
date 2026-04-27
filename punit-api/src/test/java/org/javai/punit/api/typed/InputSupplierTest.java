@@ -10,59 +10,105 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("InputSupplier.named — author-labelled supplier")
+@DisplayName("InputSupplier.from — content-hash identity")
 class InputSupplierTest {
 
     @Test
-    @DisplayName("identity equals the label")
-    void identityIsLabel() {
-        InputSupplier<String> s = InputSupplier.named(
-                "shopping-instructions-v3", () -> List.of("a", "b"));
+    @DisplayName("identity is a SHA-256 content hash of the materialised list")
+    void identityIsContentHash() {
+        InputSupplier<String> s = InputSupplier.from(() -> List.of("a", "b", "c"));
 
-        assertThat(s.identity()).isEqualTo("shopping-instructions-v3");
+        assertThat(s.identity()).startsWith("sha256:");
+    }
+
+    @Test
+    @DisplayName("identity is deterministic for the same content")
+    void identityDeterministic() {
+        InputSupplier<String> a = InputSupplier.from(() -> List.of("a", "b", "c"));
+        InputSupplier<String> b = InputSupplier.from(() -> List.of("a", "b", "c"));
+
+        assertThat(a.identity()).isEqualTo(b.identity());
+    }
+
+    @Test
+    @DisplayName("identity differs when content differs")
+    void identityContentSensitivity() {
+        InputSupplier<String> a = InputSupplier.from(() -> List.of("a", "b", "c"));
+        InputSupplier<String> b = InputSupplier.from(() -> List.of("a", "b", "d"));
+
+        assertThat(a.identity()).isNotEqualTo(b.identity());
+    }
+
+    @Test
+    @DisplayName("identity differs when ordering differs")
+    void identityOrderingSensitivity() {
+        InputSupplier<String> a = InputSupplier.from(() -> List.of("a", "b", "c"));
+        InputSupplier<String> b = InputSupplier.from(() -> List.of("c", "b", "a"));
+
+        assertThat(a.identity()).isNotEqualTo(b.identity());
     }
 
     @Test
     @DisplayName("materialises supplier lazily and memoises")
     void lazyAndMemoised() {
         AtomicInteger calls = new AtomicInteger();
-        InputSupplier<String> s = InputSupplier.named("x", () -> {
+        InputSupplier<String> s = InputSupplier.from(() -> {
             calls.incrementAndGet();
             return List.of("a", "b");
         });
 
-        assertThat(calls.get()).isZero();           // not yet materialised
-        assertThat(s.identity()).isEqualTo("x");    // identity does NOT trigger materialisation
-        assertThat(calls.get()).isZero();
-        assertThat(s.all()).containsExactly("a", "b");
-        assertThat(s.all()).containsExactly("a", "b");
-        assertThat(calls.get()).isEqualTo(1);       // memoised after first call
+        assertThat(calls.get()).isZero();   // not yet materialised
+        s.identity();
+        assertThat(calls.get()).isEqualTo(1);
+        s.all();
+        s.identity();
+        s.all();
+        assertThat(calls.get()).isEqualTo(1);   // memoised
     }
 
     @Test
-    @DisplayName("rejects blank label")
-    void rejectsBlankLabel() {
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> InputSupplier.<String>named("", () -> List.of("a")));
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> InputSupplier.<String>named("   ", () -> List.of("a")));
-    }
-
-    @Test
-    @DisplayName("rejects null label and null supplier")
-    void rejectsNulls() {
+    @DisplayName("rejects null supplier at construction")
+    void rejectsNullSupplier() {
         assertThatNullPointerException()
-                .isThrownBy(() -> InputSupplier.<String>named(null, () -> List.of("a")));
-        assertThatNullPointerException()
-                .isThrownBy(() -> InputSupplier.<String>named("x", null));
+                .isThrownBy(() -> InputSupplier.<String>from(null));
     }
 
     @Test
-    @DisplayName("supplier returning empty list throws on first all() call")
-    void emptySupplierThrows() {
-        InputSupplier<String> s = InputSupplier.named("x", List::of);
+    @DisplayName("supplier returning null fails with diagnostic on materialisation")
+    void supplierReturningNull() {
+        InputSupplier<String> s = InputSupplier.from(() -> null);
+
+        assertThatNullPointerException()
+                .isThrownBy(s::identity)
+                .withMessageContaining("returned null");
+    }
+
+    @Test
+    @DisplayName("supplier returning empty list throws on materialisation")
+    void supplierReturningEmpty() {
+        InputSupplier<String> s = InputSupplier.from(List::of);
+
         assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(s::all)
+                .isThrownBy(s::identity)
                 .withMessageContaining("empty");
+    }
+
+    @Test
+    @DisplayName("all() returns the supplied values in canonical order")
+    void allReturnsValues() {
+        InputSupplier<String> s = InputSupplier.from(() -> List.of("a", "b", "c"));
+
+        assertThat(s.all()).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("Java records produce stable identity (record toString is specified)")
+    void recordsHaveStableIdentity() {
+        record Item(String name, int value) {}
+
+        InputSupplier<Item> a = InputSupplier.from(() -> List.of(new Item("x", 1), new Item("y", 2)));
+        InputSupplier<Item> b = InputSupplier.from(() -> List.of(new Item("x", 1), new Item("y", 2)));
+
+        assertThat(a.identity()).isEqualTo(b.identity());
     }
 }

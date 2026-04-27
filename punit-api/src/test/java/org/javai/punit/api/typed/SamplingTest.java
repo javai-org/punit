@@ -253,22 +253,24 @@ class SamplingTest {
     }
 
     @Test
-    @DisplayName(".inputs(InputSupplier.named(...)) takes the label as identity")
-    void buildsFromNamedSupplier() {
-        Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
+    @DisplayName(".inputs(InputSupplier.from(...)) computes the same content-hash identity as inline values")
+    void buildsFromExternalSupplier() {
+        Sampling<Factors, String, String> inline =
+                Sampling.of(EchoUseCase::new, 50, "a", "b");
+        Sampling<Factors, String, String> external = Sampling.<Factors, String, String>builder()
                 .useCaseFactory(EchoUseCase::new)
-                .inputs(InputSupplier.named("fixture-v1", () -> java.util.List.of("a", "b")))
+                .inputs(InputSupplier.from(() -> java.util.List.of("a", "b")))
                 .samples(50)
                 .build();
 
-        assertThat(sampling.inputsIdentity()).isEqualTo("fixture-v1");
-        assertThat(sampling.inputs()).containsExactly("a", "b");
+        assertThat(external.inputsIdentity()).isEqualTo(inline.inputsIdentity());
+        assertThat(external.inputs()).containsExactly("a", "b");
     }
 
     @Test
     @DisplayName("Sampling.inputSupplier() returns the underlying supplier")
     void inputSupplierAccessor() {
-        InputSupplier<String> supplier = InputSupplier.named("fixture-v1", () -> java.util.List.of("a"));
+        InputSupplier<String> supplier = InputSupplier.from(() -> java.util.List.of("a"));
         Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
                 .useCaseFactory(EchoUseCase::new)
                 .inputs(supplier)

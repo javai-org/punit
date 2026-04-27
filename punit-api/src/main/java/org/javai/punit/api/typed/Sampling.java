@@ -1,10 +1,6 @@
 package org.javai.punit.api.typed;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -278,29 +274,33 @@ public final class Sampling<FT, IT, OT> {
         }
 
         /**
-         * Supply inputs as inline values. The framework synthesises
-         * an {@link InputSupplier} whose identity is a deterministic
-         * content hash of the values — stable for primitives,
-         * strings, enums, and Java records. For curated datasets or
-         * sources where canonical encoding doesn't apply, use
-         * {@link #inputs(InputSupplier)} with
-         * {@link InputSupplier#named(String, java.util.function.Supplier) InputSupplier.named(...)}.
+         * Supply inputs as inline values. The framework wraps the
+         * values in an {@link InputSupplier} whose identity is a
+         * deterministic content hash — same machinery as
+         * {@link #inputs(InputSupplier)} consuming an
+         * {@link InputSupplier#from(java.util.function.Supplier) InputSupplier.from(...)}
+         * value, just sugar at the call site.
          */
         public Builder<FT, IT, OT> inputs(List<IT> inputs) {
-            return inputs(contentHashedInputs(Objects.requireNonNull(inputs, "inputs")));
+            Objects.requireNonNull(inputs, "inputs");
+            if (inputs.isEmpty()) {
+                throw new IllegalArgumentException("inputs must be non-empty");
+            }
+            List<IT> snapshot = List.copyOf(inputs);
+            return inputs(InputSupplier.from(() -> snapshot));
         }
 
         @SafeVarargs
         public final Builder<FT, IT, OT> inputs(IT... inputs) {
-            return inputs(contentHashedInputs(
-                    List.of(Objects.requireNonNull(inputs, "inputs"))));
+            return inputs(List.of(Objects.requireNonNull(inputs, "inputs")));
         }
 
         /**
-         * Supply inputs from a named {@link InputSupplier}. Used for
-         * curated datasets, large input lists, fixture data managed
-         * outside the codebase, or any source where the author owns
-         * the identity contract. See
+         * Supply inputs from an {@link InputSupplier}. Used for
+         * file-backed fixtures, computed datasets, or any source
+         * that lives behind a {@code Supplier}. The framework
+         * computes a content hash of the materialised list — identity
+         * is always content-derived. See
          * {@code docs/DES-INPUTS-IDENTITY-SUPPLIER.md}.
          */
         public Builder<FT, IT, OT> inputs(InputSupplier<IT> supplier) {
@@ -371,58 +371,4 @@ public final class Sampling<FT, IT, OT> {
         }
     }
 
-    // ── Content-hashed input supplier (internal) ────────────────────
-    //
-    // Synthesised by the builder's .inputs(values) / .inputs(IT...)
-    // overloads. Identity is a deterministic SHA-256 of a canonical
-    // string encoding of the values. Stable for primitives, strings,
-    // enums, and Java records (whose toString is specified). Authors
-    // with sources where canonical encoding doesn't apply use
-    // InputSupplier.named(...) instead.
-    //
-    // Not exposed as a public InputSupplier factory: there is no
-    // authoring path that needs to construct a content-hashed
-    // supplier outside the builder. If demand emerges later — e.g.
-    // sharing a single InputSupplier value across multiple Samplings
-    // by reference — this can be promoted then.
-
-    private static <IT> InputSupplier<IT> contentHashedInputs(List<IT> values) {
-        if (values.isEmpty()) {
-            throw new IllegalArgumentException("inputs must be non-empty");
-        }
-        List<IT> snapshot = List.copyOf(values);
-        String id = "sha256:" + sha256(canonicalEncoding(snapshot));
-        return new InputSupplier<IT>() {
-            @Override public List<IT> all() { return snapshot; }
-            @Override public String identity() { return id; }
-            @Override public String toString() {
-                return "ContentHashedInputs(size=" + snapshot.size() + ", " + id + ")";
-            }
-        };
-    }
-
-    private static String canonicalEncoding(List<?> values) {
-        StringBuilder sb = new StringBuilder("[");
-        boolean first = true;
-        for (Object v : values) {
-            if (!first) {
-                sb.append(",");
-            }
-            sb.append(String.valueOf(v));
-            first = false;
-        }
-        sb.append("]");
-        return sb.toString();
-    }
-
-    private static String sha256(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            // SHA-256 is mandatory in every JDK 8+; this branch is unreachable.
-            throw new AssertionError("SHA-256 unavailable on this JVM", e);
-        }
-    }
 }
