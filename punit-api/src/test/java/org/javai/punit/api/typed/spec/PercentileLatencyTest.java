@@ -43,12 +43,25 @@ class PercentileLatencyTest {
                 n);
     }
 
+    private static final String DEFAULT_IDENTITY = "sha256:test-default-identity";
+
     private static <OT> EvaluationContext<OT, LatencyStatistics> ctx(
             SampleSummary<OT> summary, Optional<LatencyStatistics> baseline) {
+        return ctx(summary, baseline, DEFAULT_IDENTITY,
+                baseline.isPresent() ? Optional.of(DEFAULT_IDENTITY) : Optional.empty());
+    }
+
+    private static <OT> EvaluationContext<OT, LatencyStatistics> ctx(
+            SampleSummary<OT> summary,
+            Optional<LatencyStatistics> baseline,
+            String testIdentity,
+            Optional<String> baselineIdentity) {
         return new EvaluationContext<OT, LatencyStatistics>() {
             @Override public SampleSummary<OT> summary() { return summary; }
             @Override public Optional<LatencyStatistics> baseline() { return baseline; }
             @Override public FactorBundle factors() { return FactorBundle.of(new Factors("x")); }
+            @Override public String testInputsIdentity() { return testIdentity; }
+            @Override public Optional<String> baselineInputsIdentity() { return baselineIdentity; }
         };
     }
 
@@ -172,6 +185,39 @@ class PercentileLatencyTest {
 
         assertThat(equal.verdict()).isEqualTo(Verdict.PASS);
         assertThat(smaller.verdict()).isEqualTo(Verdict.PASS);
+    }
+
+    // ── inputs-identity check ───────────────────────────────────────
+
+    @Test
+    @DisplayName("empirical() with mismatched test/baseline inputs identity returns INCONCLUSIVE")
+    void empiricalRejectsIdentityMismatch() {
+        PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
+        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 1000), 1000);
+
+        CriterionResult result = criterion.evaluate(ctx(
+                summary(observed(80, 180, 480, 950, 200), 200, 0), Optional.of(baseline),
+                "sha256:test-id", Optional.of("sha256:baseline-id")));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(result.explanation()).contains("inputs identity");
+        assertThat(result.detail())
+                .containsEntry("testInputsIdentity", "sha256:test-id")
+                .containsEntry("baselineInputsIdentity", "sha256:baseline-id")
+                .containsEntry("assertedPercentiles", "p95");
+    }
+
+    @Test
+    @DisplayName("empirical() with matching test/baseline identity proceeds to verdict")
+    void empiricalAcceptsMatchingIdentity() {
+        PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
+        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 1000), 1000);
+
+        CriterionResult result = criterion.evaluate(ctx(
+                summary(observed(80, 180, 480, 950, 200), 200, 0), Optional.of(baseline),
+                "sha256:matching", Optional.of("sha256:matching")));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
     }
 
     @Test

@@ -71,4 +71,77 @@ class EmpiricalChecksTest {
         assertThatNullPointerException()
                 .isThrownBy(() -> EmpiricalChecks.sampleSizeConstraint("c", 1, 1, null));
     }
+
+    // ── inputsIdentityMatch ──────────────────────────────────────────
+
+    @Test
+    @DisplayName("inputsIdentityMatch returns empty when identities are equal")
+    void inputsIdentityMatching() {
+        assertThat(EmpiricalChecks.inputsIdentityMatch(
+                "c", "sha256:abc", "sha256:abc", Map.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("inputsIdentityMatch returns INCONCLUSIVE when identities differ")
+    void inputsIdentityMismatch() {
+        Optional<CriterionResult> result = EmpiricalChecks.inputsIdentityMatch(
+                "bernoulli-pass-rate", "sha256:test", "sha256:baseline", Map.of());
+
+        assertThat(result).isPresent();
+        CriterionResult r = result.get();
+        assertThat(r.criterionName()).isEqualTo("bernoulli-pass-rate");
+        assertThat(r.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(r.explanation())
+                .contains("inputs identity")
+                .contains("sha256:test")
+                .contains("sha256:baseline")
+                .contains("re-run the baseline measure");
+        assertThat(r.detail()).containsEntry("testInputsIdentity", "sha256:test");
+        assertThat(r.detail()).containsEntry("baselineInputsIdentity", "sha256:baseline");
+        assertThat(r.detail()).containsEntry("origin", "EMPIRICAL");
+    }
+
+    @Test
+    @DisplayName("inputsIdentityMatch truncates long sha256 identities in the explanation")
+    void inputsIdentityTruncatesLongHashes() {
+        String longTestIdentity = "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        String longBaselineIdentity = "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+
+        CriterionResult result = EmpiricalChecks.inputsIdentityMatch(
+                "c", longTestIdentity, longBaselineIdentity, Map.of()).orElseThrow();
+
+        // Explanation contains the truncated forms (12 hex chars), not the full hashes.
+        assertThat(result.explanation())
+                .contains("sha256:abcdef012345…")
+                .contains("sha256:fedcba987654…")
+                .doesNotContain(longTestIdentity)
+                .doesNotContain(longBaselineIdentity);
+        // Full identities still surface in the detail map for downstream reporting.
+        assertThat(result.detail()).containsEntry("testInputsIdentity", longTestIdentity);
+        assertThat(result.detail()).containsEntry("baselineInputsIdentity", longBaselineIdentity);
+    }
+
+    @Test
+    @DisplayName("inputsIdentityMatch additionalDetail entries are merged into the violation's detail map")
+    void inputsIdentityAdditionalDetailMerged() {
+        Optional<CriterionResult> result = EmpiricalChecks.inputsIdentityMatch(
+                "percentile-latency", "sha256:a", "sha256:b",
+                Map.of("assertedPercentiles", "p95,p99"));
+
+        Map<String, Object> detail = result.orElseThrow().detail();
+        assertThat(detail).containsEntry("assertedPercentiles", "p95,p99");
+    }
+
+    @Test
+    @DisplayName("inputsIdentityMatch rejects null arguments")
+    void inputsIdentityRejectsNulls() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> EmpiricalChecks.inputsIdentityMatch(null, "a", "b", Map.of()));
+        assertThatNullPointerException()
+                .isThrownBy(() -> EmpiricalChecks.inputsIdentityMatch("c", null, "b", Map.of()));
+        assertThatNullPointerException()
+                .isThrownBy(() -> EmpiricalChecks.inputsIdentityMatch("c", "a", null, Map.of()));
+        assertThatNullPointerException()
+                .isThrownBy(() -> EmpiricalChecks.inputsIdentityMatch("c", "a", "b", null));
+    }
 }

@@ -136,12 +136,23 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
                                 + "see DG02 §'Baseline relationship' for the resolution mechanism",
                         Map.of("assertedPercentiles", assertedCsv(), "origin", ThresholdOrigin.EMPIRICAL.name()));
             }
-            // Sample-size rule. See EmpiricalChecks#sampleSizeConstraint.
-            Optional<CriterionResult> violation = EmpiricalChecks.sampleSizeConstraint(
-                    NAME, summary.total(), stats.sampleCount(),
-                    Map.of("assertedPercentiles", assertedCsv()));
-            if (violation.isPresent()) {
-                return violation.get();
+            Map<String, Object> empiricalDetail = Map.of("assertedPercentiles", assertedCsv());
+            // Inputs-identity rule precedes the sample-size rule: an identity
+            // mismatch is a more fundamental violation, so its diagnostic
+            // wins when both would fire.
+            String baselineIdentity = ctx.baselineInputsIdentity().orElseThrow(() ->
+                    new IllegalStateException(
+                            "baseline statistics were resolved but baselineInputsIdentity is empty — "
+                                    + "the BaselineProvider is producing inconsistent state"));
+            Optional<CriterionResult> identityViolation = EmpiricalChecks.inputsIdentityMatch(
+                    NAME, ctx.testInputsIdentity(), baselineIdentity, empiricalDetail);
+            if (identityViolation.isPresent()) {
+                return identityViolation.get();
+            }
+            Optional<CriterionResult> sizeViolation = EmpiricalChecks.sampleSizeConstraint(
+                    NAME, summary.total(), stats.sampleCount(), empiricalDetail);
+            if (sizeViolation.isPresent()) {
+                return sizeViolation.get();
             }
             thresholds = thresholdsFromBaseline(stats.percentiles());
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;

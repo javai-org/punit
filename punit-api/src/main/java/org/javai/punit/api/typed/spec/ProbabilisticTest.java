@@ -166,11 +166,18 @@ public final class ProbabilisticTest implements Spec {
                     : SampleSummary.from(List.of(), Duration.ZERO);
             FactorBundle factorBundle = FactorBundle.of(factors);
             String useCaseId = sampling.useCaseFactory().apply(factors).id();
+            String testInputsIdentity = sampling.inputsIdentity();
+            // Looked up once and reused across criteria — the identity is a
+            // property of the baseline file, not of any individual criterion.
+            Optional<String> baselineInputsIdentity = anyEmpiricalCriterion()
+                    ? provider.baselineInputsIdentityFor(useCaseId, factorBundle)
+                    : Optional.empty();
 
             List<EvaluatedCriterion> evaluated = new ArrayList<>(registered.size());
             for (Registered<OT> entry : registered) {
                 CriterionResult result = evaluate(
-                        entry.criterion(), s, factorBundle, useCaseId, provider);
+                        entry.criterion(), s, factorBundle, useCaseId,
+                        testInputsIdentity, baselineInputsIdentity, provider);
                 evaluated.add(new EvaluatedCriterion(result, entry.role()));
             }
 
@@ -179,12 +186,23 @@ public final class ProbabilisticTest implements Spec {
                     composed, factorBundle, evaluated, intent, List.of());
         }
 
+        private boolean anyEmpiricalCriterion() {
+            for (Registered<OT> entry : registered) {
+                if (entry.criterion().isEmpirical()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         @SuppressWarnings({"unchecked", "rawtypes"})
         private CriterionResult evaluate(
                 Criterion<OT, ?> criterion,
                 SampleSummary<OT> s,
                 FactorBundle factorBundle,
                 String useCaseId,
+                String testInputsIdentity,
+                Optional<String> baselineInputsIdentity,
                 BaselineProvider provider) {
             Criterion raw = criterion;
             Optional<? extends BaselineStatistics> resolved = criterion.isEmpirical()
@@ -197,6 +215,10 @@ public final class ProbabilisticTest implements Spec {
                     return (Optional<BaselineStatistics>) resolved;
                 }
                 @Override public FactorBundle factors() { return factorBundle; }
+                @Override public String testInputsIdentity() { return testInputsIdentity; }
+                @Override public Optional<String> baselineInputsIdentity() {
+                    return baselineInputsIdentity;
+                }
             };
             return (CriterionResult) raw.evaluate(ctx);
         }

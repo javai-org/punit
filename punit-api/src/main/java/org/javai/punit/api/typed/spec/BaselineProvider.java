@@ -47,6 +47,19 @@ public interface BaselineProvider {
             Class<S> statisticsType);
 
     /**
+     * @return the inputs identity recorded by the resolved baseline
+     *         for the given (use case, factors) pair, or
+     *         {@link Optional#empty()} when no matching baseline file
+     *         exists. The value is the
+     *         {@code Sampling.inputsIdentity()} the writer captured
+     *         at MEASURE time. Used for the cross-process
+     *         {@link EmpiricalChecks#inputsIdentityMatch}
+     *         integrity check.
+     */
+    Optional<String> baselineInputsIdentityFor(
+            String useCaseId, FactorBundle factors);
+
+    /**
      * The empty provider — always returns {@link Optional#empty()}.
      * Used by the engine's no-arg / unconfigured paths and by tests
      * that don't exercise empirical resolution.
@@ -58,6 +71,12 @@ public interface BaselineProvider {
                 FactorBundle factors,
                 String criterionName,
                 Class<S> statisticsType) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<String> baselineInputsIdentityFor(
+                String useCaseId, FactorBundle factors) {
             return Optional.empty();
         }
     };

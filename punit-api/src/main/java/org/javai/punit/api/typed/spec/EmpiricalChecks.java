@@ -78,4 +78,76 @@ public final class EmpiricalChecks {
         return Optional.of(new CriterionResult(
                 criterionName, Verdict.INCONCLUSIVE, reason, detail));
     }
+
+    /**
+     * Inputs-identity rule: the test's inputs identity must equal the
+     * resolved baseline's recorded inputs identity. The two are the
+     * cross-process restatement of the same in-process integrity
+     * guarantee that the shared {@link org.javai.punit.api.typed.Sampling}
+     * value gives a measure / probabilistic-test pair.
+     *
+     * <p>An empirical comparison is statistically meaningful only when
+     * the test and the baseline draw from the same sampling population.
+     * Same use case + same factors is one half; same input list — by
+     * content, not by reference, since the two processes don't share
+     * memory — is the other. {@code Sampling.inputsIdentity()} is the
+     * SHA-256 content hash that captures the inputs half (per
+     * {@code docs/DES-INPUTS-IDENTITY-SUPPLIER.md}). The framework
+     * records it on every baseline at write time and compares here.
+     *
+     * <p>Returns {@link Verdict#INCONCLUSIVE} rather than
+     * {@link Verdict#FAIL}: a mismatch is configuration drift, not
+     * service degradation. The diagnostic names both identities
+     * (truncated for readability) and the corrective action.
+     *
+     * @param criterionName     the criterion's stable name
+     *                          ({@link Criterion#name()}) — used in the
+     *                          returned {@code CriterionResult}
+     * @param testIdentity      the test's
+     *                          {@code Sampling.inputsIdentity()}
+     * @param baselineIdentity  the inputs identity recorded by the
+     *                          resolved baseline
+     * @param additionalDetail  criterion-specific entries to include in
+     *                          the violation's detail map. May be empty.
+     * @return an INCONCLUSIVE {@code CriterionResult} when the two
+     *         identities differ; empty when they match
+     */
+    public static Optional<CriterionResult> inputsIdentityMatch(
+            String criterionName,
+            String testIdentity,
+            String baselineIdentity,
+            Map<String, Object> additionalDetail) {
+        Objects.requireNonNull(criterionName, "criterionName");
+        Objects.requireNonNull(testIdentity, "testIdentity");
+        Objects.requireNonNull(baselineIdentity, "baselineIdentity");
+        Objects.requireNonNull(additionalDetail, "additionalDetail");
+        if (testIdentity.equals(baselineIdentity)) {
+            return Optional.empty();
+        }
+        Map<String, Object> detail = new LinkedHashMap<>(additionalDetail);
+        detail.putIfAbsent("origin", ThresholdOrigin.EMPIRICAL.name());
+        detail.put("testInputsIdentity", testIdentity);
+        detail.put("baselineInputsIdentity", baselineIdentity);
+        String reason = "test inputs identity (" + truncate(testIdentity)
+                + ") differs from the resolved baseline's recorded inputs "
+                + "identity (" + truncate(baselineIdentity) + "). An empirical "
+                + "comparison requires both sides to draw from the same input "
+                + "population — re-run the baseline measure with the test's "
+                + "inputs, or pin the test to the baseline that was measured "
+                + "with these inputs.";
+        return Optional.of(new CriterionResult(
+                criterionName, Verdict.INCONCLUSIVE, reason, detail));
+    }
+
+    /**
+     * Truncates a {@code sha256:HEX...} identity string to a short
+     * prefix suitable for embedding in a diagnostic message. Other
+     * identity formats are returned as-is.
+     */
+    private static String truncate(String identity) {
+        if (identity.startsWith("sha256:") && identity.length() > 7 + 12) {
+            return identity.substring(0, 7 + 12) + "…";
+        }
+        return identity;
+    }
 }
