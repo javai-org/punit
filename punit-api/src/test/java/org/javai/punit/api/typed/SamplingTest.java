@@ -107,7 +107,7 @@ class SamplingTest {
                 .isThrownBy(() -> Sampling.<Factors, String, String>builder()
                         .useCaseFactory(EchoUseCase::new)
                         .inputs(java.util.List.of()))
-                .withMessageContaining("inputs");
+                .withMessageContaining("non-empty");
     }
 
     @Test
@@ -211,5 +211,60 @@ class SamplingTest {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> Sampling.<Factors, String, String>of(
                         EchoUseCase::new, 100, java.util.List.of()));
+    }
+
+    // ── InputSupplier integration ──────────────────────────────────
+
+    @Test
+    @DisplayName("Sampling.inputsIdentity() exposes the supplier's identity")
+    void inputsIdentityExposed() {
+        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> c = Sampling.of(EchoUseCase::new, 100, "x", "z");
+
+        assertThat(a.inputsIdentity()).isEqualTo(b.inputsIdentity());
+        assertThat(a.inputsIdentity()).isNotEqualTo(c.inputsIdentity());
+        assertThat(a.inputsIdentity()).startsWith("sha256:");
+    }
+
+    @Test
+    @DisplayName("Sampling.Builder.inputs(InputSupplier) accepts a Tier-2 named supplier")
+    void buildsFromNamedSupplier() {
+        Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
+                .useCaseFactory(EchoUseCase::new)
+                .inputs(InputSupplier.named("fixture-v1", () -> java.util.List.of("a", "b")))
+                .samples(50)
+                .build();
+
+        assertThat(sampling.inputsIdentity()).isEqualTo("fixture-v1");
+        assertThat(sampling.inputs()).containsExactly("a", "b");
+    }
+
+    @Test
+    @DisplayName("Sampling.Builder.inputs(InputSupplier) accepts a Tier-3 author-hashed supplier")
+    void buildsFromHashedSupplier() {
+        Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
+                .useCaseFactory(EchoUseCase::new)
+                .inputs(InputSupplier.hashed(
+                        () -> java.util.List.of("a", "b"),
+                        inputs -> "custom:" + inputs.size()))
+                .samples(50)
+                .build();
+
+        assertThat(sampling.inputsIdentity()).isEqualTo("custom:2");
+        assertThat(sampling.inputs()).containsExactly("a", "b");
+    }
+
+    @Test
+    @DisplayName("Sampling.inputSupplier() returns the underlying supplier")
+    void inputSupplierAccessor() {
+        InputSupplier<String> supplier = InputSupplier.named("fixture-v1", () -> java.util.List.of("a"));
+        Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
+                .useCaseFactory(EchoUseCase::new)
+                .inputs(supplier)
+                .samples(10)
+                .build();
+
+        assertThat(sampling.inputSupplier()).isSameAs(supplier);
     }
 }
