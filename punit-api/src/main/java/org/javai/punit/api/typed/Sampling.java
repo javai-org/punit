@@ -11,38 +11,37 @@ import org.javai.punit.api.typed.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
 
 /**
- * A factor-free description of <em>how</em> to produce samples.
+ * Describes <em>how</em> to produce samples — the use case factory,
+ * the input cycle, the sample count, and the sample-loop governors
+ * (budgets, exception policy, failure-retention cap).
  *
- * <p>A {@code Sampling} carries the use case factory, the input
- * cycle, the sample count, and the sample-loop governors (budgets,
- * exception policy, failure-retention cap) — everything needed to
- * drive the sampling loop, with one deliberate exception: the
- * factor bundle. Factors are supplied at the spec entry point that
- * consumes the sampling, never carried on the {@code Sampling}
- * itself.
- *
- * <p>The factor-free invariant is what lets one helper method be
- * reused across all four spec kinds:
+ * <p>A {@code Sampling} does <strong>not</strong> carry a factors
+ * instance. Factors are supplied at the spec entry point that
+ * consumes the sampling — {@code Experiment.measuring(sampling, factors)}
+ * for a measure, {@code ProbabilisticTest.testing(sampling, factors)}
+ * for the paired test, and so on. This deferred binding is what lets
+ * one helper feed a measure / probabilistic-test pair (same factors
+ * at both call sites) or an explore / optimize (varying factors).
  *
  * <pre>{@code
  * private Sampling<F, I, O> sampling(int samples) {
  *     return Sampling.of(f -> new MyUseCase(f), samples, input1, input2);
  * }
  *
- * @Experiment        Experiment baseline() {
+ * @PunitExperiment Experiment baseline() {
  *     return Experiment.measuring(sampling(1000), factors).build();
  * }
- * @ProbabilisticTest ProbabilisticTest meets() {
+ * @PunitTest ProbabilisticTest meets() {
  *     return ProbabilisticTest.testing(sampling(100), factors)
  *             .criterion(BernoulliPassRate.empirical())
  *             .build();
  * }
- * @Experiment        Experiment compare() {
- *     return Experiment.exploring(sampling(50)).factors(a, b, c).build();
+ * @PunitExperiment Experiment compare() {
+ *     return Experiment.exploring(sampling(50)).grid(a, b, c).build();
  * }
- * @Experiment        Experiment tune() {
+ * @PunitExperiment Experiment tune() {
  *     return Experiment.optimizing(sampling(20))
- *             .initialFactors(f0).mutator(...).maximize(...).build();
+ *             .initialFactors(f0).stepper(...).maximize(...).build();
  * }
  * }</pre>
  *
