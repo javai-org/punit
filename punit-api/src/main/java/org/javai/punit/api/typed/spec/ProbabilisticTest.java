@@ -41,8 +41,39 @@ public final class ProbabilisticTest implements Spec {
     }
 
     /**
-     * Entry point — compose a probabilistic test over a factor-free
-     * {@link Sampling} and the factor bundle it should run against.
+     * Entry point — compose a probabilistic test over a
+     * {@link Sampling} and the factors it should run against.
+     *
+     * <p>For an empirical test (criterion built via
+     * {@link BernoulliPassRate#empirical()} or {@code .empiricalFrom(...)}),
+     * the {@code Sampling} passed here must be the <em>same value</em>
+     * passed to the paired measure's
+     * {@link Experiment#measuring(Sampling, Object) Experiment.measuring(...)}.
+     * The shared reference is what guarantees the test and the
+     * baseline are drawn from the same sampling population — same
+     * use case, same input list, same governors. Without that
+     * sameness, the empirical comparison is statistically
+     * incoherent.
+     *
+     * <p>Authoring pattern: extract the {@code Sampling} into a
+     * helper method shared between the measure and the test:
+     *
+     * <pre>{@code
+     * private Sampling<F, I, O> sampling(int samples) { ... }
+     *
+     * @PunitExperiment Experiment baseline() {
+     *     return Experiment.measuring(sampling(1000), factors).build();
+     * }
+     * @PunitTest ProbabilisticTest meets() {
+     *     return ProbabilisticTest.testing(sampling(100), factors)
+     *             .criterion(BernoulliPassRate.empirical())
+     *             .build();
+     * }
+     * }</pre>
+     *
+     * <p>Same {@code factors} at both call sites; same helper
+     * supplying the {@code Sampling}; only the sample count and the
+     * criterion overlay differ.
      */
     public static <FT, IT, OT> Builder<FT, IT, OT> testing(
             Sampling<FT, IT, OT> sampling, FT factors) {

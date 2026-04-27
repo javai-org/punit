@@ -15,13 +15,36 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  * the input cycle, the sample count, and the sample-loop governors
  * (budgets, exception policy, failure-retention cap).
  *
- * <p>A {@code Sampling} does <strong>not</strong> carry a factors
- * instance. Factors are supplied at the spec entry point that
- * consumes the sampling — {@code Experiment.measuring(sampling, factors)}
- * for a measure, {@code ProbabilisticTest.testing(sampling, factors)}
- * for the paired test, and so on. This deferred binding is what lets
- * one helper feed a measure / probabilistic-test pair (same factors
- * at both call sites) or an explore / optimize (varying factors).
+ * <h2>Sampling is the integrity mechanism for the empirical pair
+ * pattern</h2>
+ *
+ * <p>The headline use of {@code Sampling} is to be authored once,
+ * in a helper method, and consumed by both a measure baseline and
+ * the probabilistic test paired against it. <strong>That sharing is
+ * not just a code-reuse convenience — it is the framework's
+ * structural guarantee that the empirical comparison is
+ * meaningful.</strong>
+ *
+ * <p>An empirical probabilistic test asks: <em>has the service's
+ * pass rate degraded from the rate the baseline measured?</em> For
+ * that question to be statistically coherent, the test and the
+ * baseline must be drawn from the same sampling population — same
+ * use case, same input list, same factors, same sample-loop
+ * governors. Anything that differs between them confounds the
+ * comparison. By passing the same {@code Sampling} value into both
+ * the measure and the test, Java's reference semantics enforce that
+ * sameness at compile time. The pairing is structural, not a
+ * brittle prose convention.
+ *
+ * <p>A {@code Sampling} does not carry a factors instance — factors
+ * are supplied at the spec entry point that consumes the sampling
+ * ({@code Experiment.measuring(sampling, factors)},
+ * {@code ProbabilisticTest.testing(sampling, factors)}, etc.). For
+ * the measure / test pair, both call sites pass the same factors;
+ * the framework's empirical-baseline resolver then matches the
+ * test's factors against the measure's stored baseline (CR02).
+ *
+ * <h2>The pair pattern at the call site</h2>
  *
  * <pre>{@code
  * private Sampling<F, I, O> sampling(int samples) {
@@ -36,6 +59,16 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  *             .criterion(BernoulliPassRate.empirical())
  *             .build();
  * }
+ * }</pre>
+ *
+ * <p>Same {@code sampling(...)} helper, same {@code factors},
+ * differing only in the sample count and the criterion overlay.
+ * The <em>same Sampling, same factors</em> shape is the contract
+ * the empirical baseline resolver depends on.
+ *
+ * <h2>Other consumers</h2>
+ *
+ * <pre>{@code
  * @PunitExperiment Experiment compare() {
  *     return Experiment.exploring(sampling(50)).grid(a, b, c).build();
  * }
@@ -45,7 +78,15 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  * }
  * }</pre>
  *
- * <p>Two construction paths:
+ * <p>Explore and optimize use the same Sampling-then-factors-vary
+ * shape, with factors generated either from a grid or by an
+ * iterative stepper. The "Sampling stays constant; factors vary"
+ * principle is what makes the per-configuration comparison
+ * meaningful — same as the measure ↔ test pairing, scaled out to
+ * many configurations.
+ *
+ * <h2>Two construction paths</h2>
+ *
  * <ul>
  *   <li>{@link #of(Function, int, List) Sampling.of(useCase, samples, inputs)}
  *       — compact form for the common case. Defaults applied for all
