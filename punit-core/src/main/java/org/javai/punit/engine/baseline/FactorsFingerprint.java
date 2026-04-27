@@ -4,21 +4,26 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Objects;
+
+import org.javai.punit.api.typed.FactorBundle;
 
 /**
  * Computes the {@code factorsFingerprint} field carried by every
- * {@link BaselineRecord} and used by the resolver as one of the
- * three exact-match lookup keys.
+ * {@link BaselineRecord} and used by the resolver as a lookup key.
  *
  * <p>The fingerprint is the first eight hex characters of
- * {@code SHA-256(String.valueOf(factors))}. Records'
- * {@code toString()} is deterministic per the JLS, so the
- * fingerprint is stable across runs and processes given a
- * record-typed factors value.
+ * {@code SHA-256(bundle.canonicalJson())}. {@link FactorBundle}'s
+ * canonical-JSON form is the framework's stable per-factors-instance
+ * representation — keys sorted, types lifted via {@code FactorValue},
+ * stable across runs and processes by construction. Both writer-side
+ * (during MEASURE) and reader-side (during PROBABILISTIC_TEST) hash
+ * the same canonical form, so the lookup key matches without the two
+ * sides having to coordinate beyond agreeing on this utility.
  *
- * <p>{@code null} factors produces the literal string {@code "null"}
- * — distinct from any hex fingerprint, so a measure with no factors
- * cannot collide with a measure under any actual factor value.
+ * <p>{@code FactorBundle.empty()} (no factors) hashes to a stable
+ * fingerprint of its own, distinct from any non-empty factors
+ * fingerprint.
  *
  * <p>See {@code docs/DES-BASELINE-YAML-SCHEMA.md} §"factorsFingerprint"
  * for the design rationale.
@@ -26,20 +31,16 @@ import java.util.HexFormat;
 public final class FactorsFingerprint {
 
     private static final int HEX_PREFIX_LENGTH = 8;
-    private static final String NULL_FINGERPRINT = "null";
 
     private FactorsFingerprint() { }
 
     /**
-     * @return the fingerprint of {@code factors} — the first eight
-     *         hex characters of {@code SHA-256(String.valueOf(factors))},
-     *         or the literal {@code "null"} when {@code factors} is null.
+     * @return the 8-hex-character fingerprint of {@code bundle}'s
+     *         canonical JSON form
      */
-    public static String of(Object factors) {
-        if (factors == null) {
-            return NULL_FINGERPRINT;
-        }
-        byte[] hash = sha256(String.valueOf(factors));
+    public static String of(FactorBundle bundle) {
+        Objects.requireNonNull(bundle, "bundle");
+        byte[] hash = sha256(bundle.canonicalJson());
         return HexFormat.of().formatHex(hash).substring(0, HEX_PREFIX_LENGTH);
     }
 
