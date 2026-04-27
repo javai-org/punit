@@ -66,8 +66,13 @@ public final class Experiment implements Spec {
     // ── Static factories ─────────────────────────────────────────────
 
     /**
-     * Compose a measure experiment over a factor-free
-     * {@link Sampling} and the factor bundle the measure runs against.
+     * Compose a measure experiment over a {@link Sampling} and the
+     * factors the measure runs against. The same {@link Sampling}
+     * value can be passed to {@link ProbabilisticTest#testing} to
+     * pair the measure with an empirical test — Java's reference
+     * semantics enforce that both operate on the same sampling
+     * population, the structural guarantee the empirical comparison
+     * depends on.
      */
     public static <FT, IT, OT> MeasureBuilder<FT, IT, OT> measuring(
             Sampling<FT, IT, OT> sampling, FT factors) {
@@ -78,7 +83,8 @@ public final class Experiment implements Spec {
 
     /**
      * Compose an explore experiment over a {@link Sampling}; the
-     * factor grid is supplied through the returned builder.
+     * grid of factors instances is supplied through the returned
+     * builder.
      */
     public static <FT, IT, OT> ExploreBuilder<FT, IT, OT> exploring(
             Sampling<FT, IT, OT> sampling) {
