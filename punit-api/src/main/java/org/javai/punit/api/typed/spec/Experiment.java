@@ -101,6 +101,45 @@ public final class Experiment implements Spec {
         return new OptimizeBuilder<>(Objects.requireNonNull(sampling, "sampling"));
     }
 
+    // ── Inline-sampling entry points (one-off authoring) ────────────
+    //
+    // Each inline form accepts a use-case factory in place of a Sampling.
+    // The returned builder accumulates sampling-level state (inputs,
+    // samples, governors) alongside the spec-overlay state, synthesising
+    // a Sampling at .build() time.
+    //
+    // Inline form is for one-off authoring (no reuse). The integrity
+    // guarantee that comes from sharing a Sampling value across a
+    // measure / probabilistic-test pair is unavailable in the inline
+    // form — measures, explores, and optimizes are unaffected (no
+    // pairing); empirical probabilistic tests are rejected at .build()
+    // with a diagnostic teaching the helper-extraction pattern.
+
+    /**
+     * Inline-sampling form of {@link #measuring(Sampling, Object)}.
+     * Sampling parameters are supplied through the returned builder.
+     */
+    public static <FT, IT, OT> InlineMeasureBuilder<FT, IT, OT> measuring(
+            Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
+        return new InlineMeasureBuilder<>(
+                Objects.requireNonNull(useCaseFactory, "useCaseFactory"),
+                Objects.requireNonNull(factors, "factors"));
+    }
+
+    /** Inline-sampling form of {@link #exploring(Sampling)}. */
+    public static <FT, IT, OT> InlineExploreBuilder<FT, IT, OT> exploring(
+            Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
+        return new InlineExploreBuilder<>(
+                Objects.requireNonNull(useCaseFactory, "useCaseFactory"));
+    }
+
+    /** Inline-sampling form of {@link #optimizing(Sampling)}. */
+    public static <FT, IT, OT> InlineOptimizeBuilder<FT, IT, OT> optimizing(
+            Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
+        return new InlineOptimizeBuilder<>(
+                Objects.requireNonNull(useCaseFactory, "useCaseFactory"));
+    }
+
     // ── Public scalar accessors ─────────────────────────────────────
 
     public Kind kind() { return kind; }
@@ -541,6 +580,401 @@ public final class Experiment implements Spec {
                         "scorer is required — call .maximize(...) or .minimize(...)");
             }
             return new Experiment(Kind.OPTIMIZE, new OptimizeInternal<>(this));
+        }
+    }
+
+    // ── Inline builders ─────────────────────────────────────────────
+
+    /**
+     * Carries the sampling-level state (use case factory, inputs,
+     * samples, governors) shared by all inline experiment builders.
+     * Subclasses add the kind-specific overlay state.
+     */
+    private static class InlineSamplingState<FT, IT, OT> {
+
+        final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+        List<IT> inputs;
+        int samples = 1000;
+        Optional<Duration> timeBudget = Optional.empty();
+        OptionalLong tokenBudget = OptionalLong.empty();
+        long tokenCharge = 0L;
+        BudgetExhaustionPolicy budgetPolicy = BudgetExhaustionPolicy.FAIL;
+        ExceptionPolicy exceptionPolicy = ExceptionPolicy.ABORT_TEST;
+        int maxExampleFailures = 10;
+
+        InlineSamplingState(Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
+            this.useCaseFactory = useCaseFactory;
+        }
+
+        Sampling<FT, IT, OT> toSampling() {
+            if (inputs == null) {
+                throw new IllegalStateException(
+                        "inputs is required — call .inputs(...) before .build()");
+            }
+            Sampling.Builder<FT, IT, OT> b = Sampling.<FT, IT, OT>builder()
+                    .useCaseFactory(useCaseFactory)
+                    .inputs(inputs)
+                    .samples(samples);
+            timeBudget.ifPresent(b::timeBudget);
+            tokenBudget.ifPresent(b::tokenBudget);
+            if (tokenCharge > 0L) {
+                b.tokenCharge(tokenCharge);
+            }
+            b.onBudgetExhausted(budgetPolicy);
+            b.onException(exceptionPolicy);
+            b.maxExampleFailures(maxExampleFailures);
+            return b.build();
+        }
+    }
+
+    public static final class InlineMeasureBuilder<FT, IT, OT> {
+
+        private final InlineSamplingState<FT, IT, OT> sampling;
+        private final FT factors;
+        private List<OT> expected = List.of();
+        private ValueMatcher<OT> matcher;
+        private String experimentId;
+        private Integer expiresInDays;
+
+        private InlineMeasureBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
+            this.sampling = new InlineSamplingState<>(useCaseFactory);
+            this.factors = factors;
+        }
+
+        // Sampling-level setters
+        public InlineMeasureBuilder<FT, IT, OT> inputs(List<IT> inputs) {
+            Objects.requireNonNull(inputs, "inputs");
+            if (inputs.isEmpty()) {
+                throw new IllegalArgumentException("inputs must be non-empty");
+            }
+            sampling.inputs = List.copyOf(inputs);
+            return this;
+        }
+
+        @SafeVarargs
+        public final InlineMeasureBuilder<FT, IT, OT> inputs(IT... inputs) {
+            return inputs(List.of(Objects.requireNonNull(inputs, "inputs")));
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> samples(int samples) {
+            if (samples < 1) {
+                throw new IllegalArgumentException("samples must be >= 1, got " + samples);
+            }
+            sampling.samples = samples;
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> timeBudget(Duration budget) {
+            Objects.requireNonNull(budget, "timeBudget");
+            sampling.timeBudget = Optional.of(budget);
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> tokenBudget(long tokens) {
+            sampling.tokenBudget = OptionalLong.of(tokens);
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> tokenCharge(long tokens) {
+            sampling.tokenCharge = tokens;
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
+            sampling.budgetPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> onException(ExceptionPolicy policy) {
+            sampling.exceptionPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> maxExampleFailures(int cap) {
+            sampling.maxExampleFailures = cap;
+            return this;
+        }
+
+        // Measure-overlay setters
+        public InlineMeasureBuilder<FT, IT, OT> experimentId(String id) {
+            this.experimentId = Objects.requireNonNull(id, "experimentId");
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
+            this.expected = List.copyOf(Objects.requireNonNull(outputs, "outputs"));
+            return this;
+        }
+
+        @SafeVarargs
+        public final InlineMeasureBuilder<FT, IT, OT> expectedOutputs(OT... outputs) {
+            return expectedOutputs(List.of(outputs));
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
+            this.matcher = Objects.requireNonNull(matcher, "matcher");
+            return this;
+        }
+
+        public InlineMeasureBuilder<FT, IT, OT> expiresInDays(int days) {
+            if (days < 0) {
+                throw new IllegalArgumentException("expiresInDays must be non-negative, got " + days);
+            }
+            this.expiresInDays = days;
+            return this;
+        }
+
+        public Experiment build() {
+            MeasureBuilder<FT, IT, OT> delegate = new MeasureBuilder<>(
+                    sampling.toSampling(), factors);
+            if (experimentId != null) {
+                delegate.experimentId(experimentId);
+            }
+            if (!expected.isEmpty()) {
+                delegate.expectedOutputs(expected);
+            }
+            if (matcher != null) {
+                delegate.matcher(matcher);
+            }
+            if (expiresInDays != null) {
+                delegate.expiresInDays(expiresInDays);
+            }
+            return delegate.build();
+        }
+    }
+
+    public static final class InlineExploreBuilder<FT, IT, OT> {
+
+        private final InlineSamplingState<FT, IT, OT> sampling;
+        private List<FT> grid;
+        private String experimentId;
+
+        private InlineExploreBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
+            this.sampling = new InlineSamplingState<>(useCaseFactory);
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> inputs(List<IT> inputs) {
+            Objects.requireNonNull(inputs, "inputs");
+            if (inputs.isEmpty()) {
+                throw new IllegalArgumentException("inputs must be non-empty");
+            }
+            sampling.inputs = List.copyOf(inputs);
+            return this;
+        }
+
+        @SafeVarargs
+        public final InlineExploreBuilder<FT, IT, OT> inputs(IT... inputs) {
+            return inputs(List.of(Objects.requireNonNull(inputs, "inputs")));
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> samples(int samples) {
+            if (samples < 1) {
+                throw new IllegalArgumentException("samples must be >= 1, got " + samples);
+            }
+            sampling.samples = samples;
+            return this;
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> timeBudget(Duration budget) {
+            sampling.timeBudget = Optional.of(Objects.requireNonNull(budget, "timeBudget"));
+            return this;
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> tokenBudget(long tokens) {
+            sampling.tokenBudget = OptionalLong.of(tokens);
+            return this;
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> tokenCharge(long tokens) {
+            sampling.tokenCharge = tokens;
+            return this;
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
+            sampling.budgetPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> onException(ExceptionPolicy policy) {
+            sampling.exceptionPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> maxExampleFailures(int cap) {
+            sampling.maxExampleFailures = cap;
+            return this;
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> grid(List<FT> grid) {
+            Objects.requireNonNull(grid, "grid");
+            if (grid.isEmpty()) {
+                throw new IllegalArgumentException("grid must be non-empty");
+            }
+            this.grid = List.copyOf(grid);
+            return this;
+        }
+
+        @SafeVarargs
+        public final InlineExploreBuilder<FT, IT, OT> grid(FT... grid) {
+            return grid(List.of(Objects.requireNonNull(grid, "grid")));
+        }
+
+        public InlineExploreBuilder<FT, IT, OT> experimentId(String id) {
+            this.experimentId = Objects.requireNonNull(id, "experimentId");
+            return this;
+        }
+
+        public Experiment build() {
+            if (grid == null) {
+                throw new IllegalStateException("grid is required — call .grid(...)");
+            }
+            ExploreBuilder<FT, IT, OT> delegate = new ExploreBuilder<>(sampling.toSampling())
+                    .grid(grid);
+            if (experimentId != null) {
+                delegate.experimentId(experimentId);
+            }
+            return delegate.build();
+        }
+    }
+
+    public static final class InlineOptimizeBuilder<FT, IT, OT> {
+
+        private final InlineSamplingState<FT, IT, OT> sampling;
+        private FT initialFactors;
+        private FactorsStepper<FT> stepper;
+        private Scorer scorer;
+        private boolean maximizing;
+        private boolean directionSet;
+        private int maxIterations = 20;
+        private int noImprovementWindow = 5;
+        private String experimentId;
+
+        private InlineOptimizeBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
+            this.sampling = new InlineSamplingState<>(useCaseFactory);
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> inputs(List<IT> inputs) {
+            Objects.requireNonNull(inputs, "inputs");
+            if (inputs.isEmpty()) {
+                throw new IllegalArgumentException("inputs must be non-empty");
+            }
+            sampling.inputs = List.copyOf(inputs);
+            return this;
+        }
+
+        @SafeVarargs
+        public final InlineOptimizeBuilder<FT, IT, OT> inputs(IT... inputs) {
+            return inputs(List.of(Objects.requireNonNull(inputs, "inputs")));
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> samples(int samples) {
+            if (samples < 1) {
+                throw new IllegalArgumentException("samples must be >= 1, got " + samples);
+            }
+            sampling.samples = samples;
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> timeBudget(Duration budget) {
+            sampling.timeBudget = Optional.of(Objects.requireNonNull(budget, "timeBudget"));
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> tokenBudget(long tokens) {
+            sampling.tokenBudget = OptionalLong.of(tokens);
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> tokenCharge(long tokens) {
+            sampling.tokenCharge = tokens;
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
+            sampling.budgetPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> onException(ExceptionPolicy policy) {
+            sampling.exceptionPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> maxExampleFailures(int cap) {
+            sampling.maxExampleFailures = cap;
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> initialFactors(FT factors) {
+            this.initialFactors = Objects.requireNonNull(factors, "initialFactors");
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> stepper(FactorsStepper<FT> s) {
+            this.stepper = Objects.requireNonNull(s, "stepper");
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> maximize(Scorer scorer) {
+            this.scorer = Objects.requireNonNull(scorer, "scorer");
+            this.maximizing = true;
+            this.directionSet = true;
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> minimize(Scorer scorer) {
+            this.scorer = Objects.requireNonNull(scorer, "scorer");
+            this.maximizing = false;
+            this.directionSet = true;
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> maxIterations(int n) {
+            if (n < 1) {
+                throw new IllegalArgumentException("maxIterations must be >= 1");
+            }
+            this.maxIterations = n;
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> noImprovementWindow(int n) {
+            if (n < 1) {
+                throw new IllegalArgumentException("noImprovementWindow must be >= 1");
+            }
+            this.noImprovementWindow = n;
+            return this;
+        }
+
+        public InlineOptimizeBuilder<FT, IT, OT> experimentId(String id) {
+            this.experimentId = Objects.requireNonNull(id, "experimentId");
+            return this;
+        }
+
+        public Experiment build() {
+            if (initialFactors == null) {
+                throw new IllegalStateException("initialFactors is required");
+            }
+            if (stepper == null) {
+                throw new IllegalStateException("stepper is required");
+            }
+            if (!directionSet) {
+                throw new IllegalStateException(
+                        "scorer is required — call .maximize(...) or .minimize(...)");
+            }
+            OptimizeBuilder<FT, IT, OT> delegate = new OptimizeBuilder<>(sampling.toSampling())
+                    .initialFactors(initialFactors)
+                    .stepper(stepper)
+                    .maxIterations(maxIterations)
+                    .noImprovementWindow(noImprovementWindow);
+            if (maximizing) {
+                delegate.maximize(scorer);
+            } else {
+                delegate.minimize(scorer);
+            }
+            if (experimentId != null) {
+                delegate.experimentId(experimentId);
+            }
+            return delegate.build();
         }
     }
 

@@ -119,6 +119,11 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
     }
 
     @Override
+    public boolean isEmpirical() {
+        return mode != Mode.CONTRACTUAL;
+    }
+
+    @Override
     public CriterionResult evaluate(EvaluationContext<OT, PassRateStatistics> ctx) {
         Objects.requireNonNull(ctx, "ctx");
         SampleSummary<OT> summary = ctx.summary();

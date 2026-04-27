@@ -82,6 +82,33 @@ public final class ProbabilisticTest implements Spec {
                 Objects.requireNonNull(factors, "factors"));
     }
 
+    /**
+     * Inline-sampling form of {@link #testing(Sampling, Object)}.
+     * Sampling parameters are supplied through the returned builder.
+     *
+     * <p>For a probabilistic test with a <strong>contractual</strong>
+     * criterion (e.g., {@link BernoulliPassRate#meeting(double, org.javai.punit.api.ThresholdOrigin)}),
+     * the inline form is equivalent to constructing a fresh
+     * {@link Sampling} per spec — there is no baseline pairing to
+     * preserve, so no integrity guarantee at risk.
+     *
+     * <p>For a probabilistic test with an <strong>empirical</strong>
+     * criterion ({@code BernoulliPassRate.empirical()} /
+     * {@code .empiricalFrom(...)}), the inline form is rejected at
+     * {@code .build()} time. An empirical comparison requires the
+     * test and the baseline measure to draw from the same sampling
+     * population; that integrity guarantee comes from sharing a
+     * {@link Sampling} value with the paired measure, which the
+     * inline form cannot provide. The diagnostic teaches the
+     * helper-extraction pattern.
+     */
+    public static <FT, IT, OT> InlineBuilder<FT, IT, OT> testing(
+            Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
+        return new InlineBuilder<>(
+                Objects.requireNonNull(useCaseFactory, "useCaseFactory"),
+                Objects.requireNonNull(factors, "factors"));
+    }
+
     /** Sample count for this test, taken from its sampling. */
     public int samples() { return internal.sampling.samples(); }
 
@@ -217,4 +244,160 @@ public final class ProbabilisticTest implements Spec {
     }
 
     private record Registered<OT>(Criterion<OT, ?> criterion, CriterionRole role) {}
+
+    // ── Inline-sampling builder ─────────────────────────────────────
+
+    /**
+     * Inline-form builder. Accumulates sampling-level state alongside
+     * the test-overlay state; synthesises a {@link Sampling} at
+     * {@link #build()} time. Rejects empirical criteria at build time
+     * with a diagnostic teaching the helper-extraction pattern.
+     */
+    public static final class InlineBuilder<FT, IT, OT> {
+
+        private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+        private final FT factors;
+        private List<IT> inputs;
+        private int samples = 1000;
+        private Optional<Duration> timeBudget = Optional.empty();
+        private OptionalLong tokenBudget = OptionalLong.empty();
+        private long tokenCharge = 0L;
+        private BudgetExhaustionPolicy budgetPolicy = BudgetExhaustionPolicy.FAIL;
+        private ExceptionPolicy exceptionPolicy = ExceptionPolicy.ABORT_TEST;
+        private int maxExampleFailures = 10;
+        private final List<Registered<OT>> registered = new ArrayList<>();
+        private TestIntent intent = TestIntent.VERIFICATION;
+
+        private InlineBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
+            this.useCaseFactory = useCaseFactory;
+            this.factors = factors;
+        }
+
+        public InlineBuilder<FT, IT, OT> inputs(List<IT> inputs) {
+            Objects.requireNonNull(inputs, "inputs");
+            if (inputs.isEmpty()) {
+                throw new IllegalArgumentException("inputs must be non-empty");
+            }
+            this.inputs = List.copyOf(inputs);
+            return this;
+        }
+
+        @SafeVarargs
+        public final InlineBuilder<FT, IT, OT> inputs(IT... inputs) {
+            return inputs(List.of(Objects.requireNonNull(inputs, "inputs")));
+        }
+
+        public InlineBuilder<FT, IT, OT> samples(int samples) {
+            if (samples < 1) {
+                throw new IllegalArgumentException("samples must be >= 1, got " + samples);
+            }
+            this.samples = samples;
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> timeBudget(Duration budget) {
+            this.timeBudget = Optional.of(Objects.requireNonNull(budget, "timeBudget"));
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> tokenBudget(long tokens) {
+            this.tokenBudget = OptionalLong.of(tokens);
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> tokenCharge(long tokens) {
+            this.tokenCharge = tokens;
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> onBudgetExhausted(BudgetExhaustionPolicy policy) {
+            this.budgetPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> onException(ExceptionPolicy policy) {
+            this.exceptionPolicy = Objects.requireNonNull(policy, "policy");
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> maxExampleFailures(int cap) {
+            this.maxExampleFailures = cap;
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> criterion(Criterion<OT, ?> criterion) {
+            Objects.requireNonNull(criterion, "criterion");
+            registered.add(new Registered<>(criterion, CriterionRole.REQUIRED));
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> reportOnly(Criterion<OT, ?> criterion) {
+            Objects.requireNonNull(criterion, "criterion");
+            registered.add(new Registered<>(criterion, CriterionRole.REPORT_ONLY));
+            return this;
+        }
+
+        public InlineBuilder<FT, IT, OT> intent(TestIntent intent) {
+            this.intent = Objects.requireNonNull(intent, "intent");
+            return this;
+        }
+
+        public ProbabilisticTest build() {
+            // Empirical-criterion guard. The integrity guarantee for an
+            // empirical comparison comes from sharing a Sampling value
+            // with the paired measure; the inline form constructs a
+            // fresh Sampling per spec and cannot provide that guarantee.
+            for (Registered<OT> r : registered) {
+                if (r.criterion().isEmpirical()) {
+                    throw new IllegalStateException(
+                            "An empirical criterion (" + r.criterion().name() + ") requires "
+                                    + "the probabilistic test to share a Sampling with its "
+                                    + "baseline measure. The inline ProbabilisticTest.testing("
+                                    + "useCaseFactory, factors) form cannot guarantee that "
+                                    + "structural pairing.\n\n"
+                                    + "Extract the sampling as a helper and use the "
+                                    + "Sampling-bound entry point at both call sites:\n"
+                                    + "    private Sampling<F, I, O> sampling(int samples) {\n"
+                                    + "        return Sampling.of(useCaseFactory, samples, inputs);\n"
+                                    + "    }\n"
+                                    + "    @PunitExperiment Experiment baseline() {\n"
+                                    + "        return Experiment.measuring(sampling(1000), factors).build();\n"
+                                    + "    }\n"
+                                    + "    @PunitTest ProbabilisticTest meets() {\n"
+                                    + "        return ProbabilisticTest.testing(sampling(100), factors)\n"
+                                    + "                .criterion(BernoulliPassRate.empirical())\n"
+                                    + "                .build();\n"
+                                    + "    }");
+                }
+            }
+            if (inputs == null) {
+                throw new IllegalStateException(
+                        "inputs is required — call .inputs(...) before .build()");
+            }
+            Sampling.Builder<FT, IT, OT> sb = Sampling.<FT, IT, OT>builder()
+                    .useCaseFactory(useCaseFactory)
+                    .inputs(inputs)
+                    .samples(samples);
+            timeBudget.ifPresent(sb::timeBudget);
+            tokenBudget.ifPresent(sb::tokenBudget);
+            if (tokenCharge > 0L) {
+                sb.tokenCharge(tokenCharge);
+            }
+            sb.onBudgetExhausted(budgetPolicy);
+            sb.onException(exceptionPolicy);
+            sb.maxExampleFailures(maxExampleFailures);
+            Sampling<FT, IT, OT> sampling = sb.build();
+
+            Builder<FT, IT, OT> delegate = new Builder<>(sampling, factors);
+            delegate.intent(intent);
+            for (Registered<OT> r : registered) {
+                if (r.role() == CriterionRole.REQUIRED) {
+                    delegate.criterion(r.criterion());
+                } else {
+                    delegate.reportOnly(r.criterion());
+                }
+            }
+            return delegate.build();
+        }
+    }
 }

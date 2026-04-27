@@ -39,4 +39,22 @@ public interface Criterion<OT, S extends BaselineStatistics> {
      * no side effects.
      */
     CriterionResult evaluate(EvaluationContext<OT, S> ctx);
+
+    /**
+     * @return {@code true} if the criterion's evaluation depends on a
+     *         resolved baseline (an empirical claim against measured
+     *         data); {@code false} for contractual claims with no
+     *         baseline dependency. Default: {@code false}.
+     *
+     * <p>The framework consults this at build time to gate the
+     * inline-sampling form on probabilistic tests: an empirical
+     * criterion requires a {@link Sampling} value shared with the
+     * paired measure (the structural integrity guarantee for the
+     * empirical comparison), so the inline form — which constructs
+     * a fresh {@link Sampling} per spec — is rejected with a
+     * diagnostic teaching the helper-extraction pattern.
+     */
+    default boolean isEmpirical() {
+        return false;
+    }
 }
