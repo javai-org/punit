@@ -109,6 +109,11 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
     }
 
     @Override
+    public boolean isEmpirical() {
+        return mode != Mode.CONTRACTUAL;
+    }
+
+    @Override
     public CriterionResult evaluate(EvaluationContext<OT, LatencyStatistics> ctx) {
         Objects.requireNonNull(ctx, "ctx");
         SampleSummary<OT> summary = ctx.summary();
