@@ -10,8 +10,8 @@ import org.javai.punit.api.typed.UseCaseOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ProbabilisticTestSpec intent")
-class ProbabilisticTestSpecIntentTest {
+@DisplayName("ProbabilisticTest intent")
+class ProbabilisticTestIntentTest {
 
     record Factors(String label) {}
 
@@ -30,7 +30,7 @@ class ProbabilisticTestSpecIntentTest {
     @Test
     @DisplayName("default intent is VERIFICATION")
     void defaultIntentIsVerification() {
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(), new Factors("m"))
                 .build();
 
@@ -40,7 +40,7 @@ class ProbabilisticTestSpecIntentTest {
     @Test
     @DisplayName(".intent(SMOKE) overrides the default")
     void intentSmokeOverridesDefault() {
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(), new Factors("m"))
                 .intent(TestIntent.SMOKE)
                 .build();
@@ -51,7 +51,7 @@ class ProbabilisticTestSpecIntentTest {
     @Test
     @DisplayName(".intent(VERIFICATION) is permitted (idempotent with default)")
     void intentVerificationIsPermitted() {
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(), new Factors("m"))
                 .intent(TestIntent.VERIFICATION)
                 .build();
@@ -62,7 +62,7 @@ class ProbabilisticTestSpecIntentTest {
     @Test
     @DisplayName(".intent(null) is rejected")
     void intentNullIsRejected() {
-        var builder = ProbabilisticTestSpec.testing(sampling(), new Factors("m"));
+        var builder = ProbabilisticTest.testing(sampling(), new Factors("m"));
         assertThatNullPointerException().isThrownBy(() -> builder.intent(null));
     }
 }

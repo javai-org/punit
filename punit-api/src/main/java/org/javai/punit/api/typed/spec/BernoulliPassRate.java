@@ -40,14 +40,14 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
     private final double threshold;
     private final ThresholdOrigin origin;
     private final double confidence;
-    private final Supplier<MeasureSpec> baselineSupplier;
+    private final Supplier<Experiment> baselineSupplier;
 
     private BernoulliPassRate(
             Mode mode,
             double threshold,
             ThresholdOrigin origin,
             double confidence,
-            Supplier<MeasureSpec> baselineSupplier) {
+            Supplier<Experiment> baselineSupplier) {
         this.mode = mode;
         this.threshold = threshold;
         this.origin = origin;
@@ -77,7 +77,7 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
     }
 
     public static <OT> BernoulliPassRate<OT> empiricalFrom(
-            Supplier<MeasureSpec> baseline) {
+            Supplier<Experiment> baseline) {
         Objects.requireNonNull(baseline, "baseline");
         return new BernoulliPassRate<>(
                 Mode.EMPIRICAL_PINNED, Double.NaN, ThresholdOrigin.EMPIRICAL,
@@ -104,7 +104,7 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
      * framework consults this at spec-conclude time to route a
      * pinned baseline into the evaluation context.
      */
-    public Optional<Supplier<MeasureSpec>> baselineSupplier() {
+    public Optional<Supplier<Experiment>> baselineSupplier() {
         return Optional.ofNullable(baselineSupplier);
     }
 

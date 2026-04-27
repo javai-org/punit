@@ -3,23 +3,28 @@ package org.javai.punit.api.typed.spec;
 /**
  * The user-facing strategy interface every spec kind implements.
  *
- * <p>Sealed over the four spec families — measure, explore, optimize,
- * probabilistic test. Carries <strong>no</strong> type parameters at
- * the user-facing level: the typed work happens inside each spec via
- * an internal {@link TypedSpec} delegate, reached through
+ * <p>Sealed over the two spec families — {@link Experiment} (which
+ * itself unifies measure, explore, and optimize) and
+ * {@link ProbabilisticTest}. The binary distinction maps the
+ * authoring intent: experiments observe and produce artefacts; tests
+ * assert and produce verdicts.
+ *
+ * <p>Carries <strong>no</strong> type parameters at the user-facing
+ * level: the typed work happens inside each spec via an internal
+ * {@link TypedSpec} delegate, reached through
  * {@link #dispatch(Dispatcher)}. The dispatch pattern lets the engine
  * recover the typed view without unchecked casts — Java captures the
  * wildcards on the internal delegate into the generic method on the
  * dispatcher.
  *
  * <p>The user touches this interface only as a return type from
- * {@code @ProbabilisticTest} / {@code @Experiment} methods; the
+ * {@code @PunitExperiment} / {@code @PunitTest} methods; the
  * dispatch mechanism is engine-internal.
  *
  * @see TypedSpec
  */
 public sealed interface Spec
-        permits MeasureSpec, ExploreSpec, OptimizeSpec, ProbabilisticTestSpec {
+        permits Experiment, ProbabilisticTest {
 
     /**
      * Engine entry point — dispatches to a typed view of this spec.

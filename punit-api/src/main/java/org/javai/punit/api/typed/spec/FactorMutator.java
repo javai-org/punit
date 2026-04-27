@@ -3,7 +3,7 @@ package org.javai.punit.api.typed.spec;
 import java.util.List;
 
 /**
- * Produces the next factor record for an {@link OptimizeSpec}
+ * Produces the next factor record for an {@link Experiment}
  * iteration given the current record and the history of scored
  * iterations so far.
  *

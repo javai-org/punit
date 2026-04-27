@@ -38,16 +38,16 @@ class TypedEngineArchitectureTest {
                 .that().resideInAPackage("org.javai.punit.engine..")
                 .should().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.MeasureSpec")
+                        "org.javai.punit.api.typed.spec.Experiment")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.ExploreSpec")
+                        "org.javai.punit.api.typed.spec.Experiment")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.OptimizeSpec")
+                        "org.javai.punit.api.typed.spec.Experiment")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.ProbabilisticTestSpec")
+                        "org.javai.punit.api.typed.spec.ProbabilisticTest")
                 .because("engine must dispatch through the Spec strategy interface, "
                         + "never instanceof / switch on subtype");
         rule.check(engineClasses);

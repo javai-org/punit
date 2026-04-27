@@ -18,10 +18,10 @@ import org.javai.punit.api.typed.spec.CriterionRole;
 import org.javai.punit.api.typed.spec.EvaluatedCriterion;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
-import org.javai.punit.api.typed.spec.MeasureSpec;
+import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.PercentileKey;
 import org.javai.punit.api.typed.spec.PercentileLatency;
-import org.javai.punit.api.typed.spec.ProbabilisticTestSpec;
+import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.SampleSummary;
 import org.javai.punit.api.typed.spec.TerminationReason;
@@ -88,7 +88,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(1000)
                 .timeBudget(Duration.ofMillis(500))
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -121,7 +121,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .tokenBudget(250)
                 .tokenCharge(100)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -148,7 +148,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .tokenCharge(50)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -171,7 +171,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .timeBudget(Duration.ofMillis(200))
                 .onBudgetExhausted(BudgetExhaustionPolicy.PASS_INCOMPLETE)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -200,7 +200,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         long t0 = System.nanoTime();
         new Engine().run(spec);
@@ -231,7 +231,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(3)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         long t0 = System.nanoTime();
         new Engine().run(spec);
@@ -263,7 +263,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(10)
                 .onException(ExceptionPolicy.FAIL_SAMPLE)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -287,7 +287,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         assertThatThrownBy(() -> new Engine().run(spec))
                 .isInstanceOf(IllegalStateException.class)
@@ -311,7 +311,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(50)
                 .maxExampleFailures(3)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -336,7 +336,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        MeasureSpec spec = MeasureSpec.measuring(sampling, new Factors("m")).build();
+        Experiment spec = Experiment.measuring(sampling, new Factors("m")).build();
 
         new Engine().run(spec);
         var summary = spec.lastSummary().orElseThrow();
@@ -366,7 +366,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(10L).build(),
@@ -399,7 +399,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .build();
 
-        ProbabilisticTestSpec both = ProbabilisticTestSpec
+        ProbabilisticTest both = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Boolean>meeting(
@@ -426,7 +426,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .reportOnly(PercentileLatency.<Boolean>meeting(
@@ -458,7 +458,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(100L).build(),

@@ -14,7 +14,7 @@ import org.javai.punit.api.typed.ValueMatcher;
  * engine programs against. Authors do not implement this interface;
  * it is reached only via {@link Spec#dispatch(Spec.Dispatcher)} and
  * exists so the engine can stay fully type-safe while the public
- * spec types ({@link ProbabilisticTestSpec} et al.) carry no
+ * spec types ({@link ProbabilisticTest} et al.) carry no
  * type parameters.
  *
  * <p>Each public spec class holds an internal instance of this

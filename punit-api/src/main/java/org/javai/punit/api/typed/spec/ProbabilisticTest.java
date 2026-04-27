@@ -32,11 +32,11 @@ import org.javai.punit.api.typed.UseCase;
  * type safety lives on the typed {@link Builder}, and the engine
  * recovers the typed view via {@link Spec#dispatch(Dispatcher)}.
  */
-public final class ProbabilisticTestSpec implements Spec {
+public final class ProbabilisticTest implements Spec {
 
     private final Internal<?, ?, ?> internal;
 
-    private ProbabilisticTestSpec(Internal<?, ?, ?> internal) {
+    private ProbabilisticTest(Internal<?, ?, ?> internal) {
         this.internal = internal;
     }
 
@@ -180,8 +180,8 @@ public final class ProbabilisticTestSpec implements Spec {
             return this;
         }
 
-        public ProbabilisticTestSpec build() {
-            return new ProbabilisticTestSpec(new Internal<>(this));
+        public ProbabilisticTest build() {
+            return new ProbabilisticTest(new Internal<>(this));
         }
     }
 

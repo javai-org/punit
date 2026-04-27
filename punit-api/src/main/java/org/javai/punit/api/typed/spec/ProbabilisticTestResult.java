@@ -7,7 +7,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.typed.FactorBundle;
 
 /**
- * The result of running a {@link ProbabilisticTestSpec} — the composed
+ * The result of running a {@link ProbabilisticTest} — the composed
  * verdict plus the ordered list of per-criterion results that produced
  * it.
  *
