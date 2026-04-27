@@ -165,4 +165,51 @@ class SamplingTest {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> sampling.samples(0));
     }
+
+    // ── Sampling.of(...) compact form ──────────────────────────────
+
+    @Test
+    @DisplayName("Sampling.of(factory, samples, List) builds with defaults for optional knobs")
+    void ofWithList() {
+        Sampling<Factors, String, String> sampling = Sampling.of(
+                EchoUseCase::new,
+                250,
+                java.util.List.of("alpha", "beta", "gamma"));
+
+        assertThat(sampling.samples()).isEqualTo(250);
+        assertThat(sampling.inputs()).containsExactly("alpha", "beta", "gamma");
+        assertThat(sampling.timeBudget()).isEmpty();
+        assertThat(sampling.tokenBudget()).isEmpty();
+        assertThat(sampling.tokenCharge()).isEqualTo(0L);
+        assertThat(sampling.budgetPolicy()).isEqualTo(BudgetExhaustionPolicy.FAIL);
+        assertThat(sampling.exceptionPolicy()).isEqualTo(ExceptionPolicy.ABORT_TEST);
+        assertThat(sampling.maxExampleFailures()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("Sampling.of(factory, samples, IT...) varargs form is equivalent to the List form")
+    void ofWithVarargs() {
+        Sampling<Factors, String, String> a = Sampling.of(
+                EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(
+                EchoUseCase::new, 100, java.util.List.of("x", "y"));
+
+        assertThat(a.inputs()).isEqualTo(b.inputs());
+        assertThat(a.samples()).isEqualTo(b.samples());
+    }
+
+    @Test
+    @DisplayName("Sampling.of(...) rejects non-positive samples — same contract as the builder")
+    void ofRejectsNonPositiveSamples() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> Sampling.of(EchoUseCase::new, 0, "x"));
+    }
+
+    @Test
+    @DisplayName("Sampling.of(...) rejects empty inputs — same contract as the builder")
+    void ofRejectsEmptyInputs() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> Sampling.<Factors, String, String>of(
+                        EchoUseCase::new, 100, java.util.List.of()));
+    }
 }
