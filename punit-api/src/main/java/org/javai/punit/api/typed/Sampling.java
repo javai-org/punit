@@ -99,7 +99,7 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
 public final class Sampling<FT, IT, OT> {
 
     private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
-    private final List<IT> inputs;
+    private final InputSupplier<IT> inputs;
     private final int samples;
     private final Optional<Duration> timeBudget;
     private final OptionalLong tokenBudget;
@@ -171,8 +171,30 @@ public final class Sampling<FT, IT, OT> {
         return useCaseFactory;
     }
 
+    /**
+     * The inputs themselves, materialised through the underlying
+     * supplier. Equivalent to {@code inputSupplier().all()}.
+     */
     public List<IT> inputs() {
+        return inputs.all();
+    }
+
+    /**
+     * The underlying {@link InputSupplier} — the unit of
+     * sampling-frame identity for empirical pairing.
+     *
+     * @see InputSupplier
+     */
+    public InputSupplier<IT> inputSupplier() {
         return inputs;
+    }
+
+    /**
+     * Convenience accessor: the supplier's {@link InputSupplier#identity()
+     * identity} string.
+     */
+    public String inputsIdentity() {
+        return inputs.identity();
     }
 
     public int samples() {
@@ -235,7 +257,7 @@ public final class Sampling<FT, IT, OT> {
     public static final class Builder<FT, IT, OT> {
 
         private Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
-        private List<IT> inputs;
+        private InputSupplier<IT> inputs;
         private int samples = 1000;
         private Optional<Duration> timeBudget = Optional.empty();
         private OptionalLong tokenBudget = OptionalLong.empty();
@@ -251,19 +273,39 @@ public final class Sampling<FT, IT, OT> {
             return this;
         }
 
+        /**
+         * Supply inputs as inline values. The framework wraps the
+         * values in an {@link InputSupplier} whose identity is a
+         * deterministic content hash — same machinery as
+         * {@link #inputs(InputSupplier)} consuming an
+         * {@link InputSupplier#from(java.util.function.Supplier) InputSupplier.from(...)}
+         * value, just sugar at the call site.
+         */
         public Builder<FT, IT, OT> inputs(List<IT> inputs) {
             Objects.requireNonNull(inputs, "inputs");
             if (inputs.isEmpty()) {
                 throw new IllegalArgumentException("inputs must be non-empty");
             }
-            this.inputs = List.copyOf(inputs);
-            return this;
+            List<IT> snapshot = List.copyOf(inputs);
+            return inputs(InputSupplier.from(() -> snapshot));
         }
 
         @SafeVarargs
         public final Builder<FT, IT, OT> inputs(IT... inputs) {
-            Objects.requireNonNull(inputs, "inputs");
-            return inputs(List.of(inputs));
+            return inputs(List.of(Objects.requireNonNull(inputs, "inputs")));
+        }
+
+        /**
+         * Supply inputs from an {@link InputSupplier}. Used for
+         * file-backed fixtures, computed datasets, or any source
+         * that lives behind a {@code Supplier}. The framework
+         * computes a content hash of the materialised list — identity
+         * is always content-derived. See
+         * {@code docs/DES-INPUTS-IDENTITY-SUPPLIER.md}.
+         */
+        public Builder<FT, IT, OT> inputs(InputSupplier<IT> supplier) {
+            this.inputs = Objects.requireNonNull(supplier, "inputs");
+            return this;
         }
 
         public Builder<FT, IT, OT> samples(int samples) {
@@ -328,4 +370,5 @@ public final class Sampling<FT, IT, OT> {
             return new Sampling<>(this);
         }
     }
+
 }

@@ -107,7 +107,7 @@ class SamplingTest {
                 .isThrownBy(() -> Sampling.<Factors, String, String>builder()
                         .useCaseFactory(EchoUseCase::new)
                         .inputs(java.util.List.of()))
-                .withMessageContaining("inputs");
+                .withMessageContaining("non-empty");
     }
 
     @Test
@@ -211,5 +211,72 @@ class SamplingTest {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> Sampling.<Factors, String, String>of(
                         EchoUseCase::new, 100, java.util.List.of()));
+    }
+
+    // ── InputSupplier integration ──────────────────────────────────
+
+    @Test
+    @DisplayName(".inputs(values) produces a deterministic content-hashed identity")
+    void contentHashIsDeterministic() {
+        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "x", "y");
+
+        assertThat(a.inputsIdentity()).isEqualTo(b.inputsIdentity());
+        assertThat(a.inputsIdentity()).startsWith("sha256:");
+    }
+
+    @Test
+    @DisplayName(".inputs(values) identity differs when content differs")
+    void contentHashContentSensitivity() {
+        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "x", "z");
+
+        assertThat(a.inputsIdentity()).isNotEqualTo(b.inputsIdentity());
+    }
+
+    @Test
+    @DisplayName(".inputs(values) identity differs when ordering differs")
+    void contentHashOrderingSensitivity() {
+        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "y", "x");
+
+        assertThat(a.inputsIdentity()).isNotEqualTo(b.inputsIdentity());
+    }
+
+    @Test
+    @DisplayName(".inputs(varargs) and .inputs(List) produce the same identity")
+    void varargsAndListEquivalent() {
+        Sampling<Factors, String, String> v = Sampling.of(EchoUseCase::new, 100, "a", "b");
+        Sampling<Factors, String, String> l = Sampling.of(EchoUseCase::new, 100, java.util.List.of("a", "b"));
+
+        assertThat(v.inputsIdentity()).isEqualTo(l.inputsIdentity());
+    }
+
+    @Test
+    @DisplayName(".inputs(InputSupplier.from(...)) computes the same content-hash identity as inline values")
+    void buildsFromExternalSupplier() {
+        Sampling<Factors, String, String> inline =
+                Sampling.of(EchoUseCase::new, 50, "a", "b");
+        Sampling<Factors, String, String> external = Sampling.<Factors, String, String>builder()
+                .useCaseFactory(EchoUseCase::new)
+                .inputs(InputSupplier.from(() -> java.util.List.of("a", "b")))
+                .samples(50)
+                .build();
+
+        assertThat(external.inputsIdentity()).isEqualTo(inline.inputsIdentity());
+        assertThat(external.inputs()).containsExactly("a", "b");
+    }
+
+    @Test
+    @DisplayName("Sampling.inputSupplier() returns the underlying supplier")
+    void inputSupplierAccessor() {
+        InputSupplier<String> supplier = InputSupplier.from(() -> java.util.List.of("a"));
+        Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
+                .useCaseFactory(EchoUseCase::new)
+                .inputs(supplier)
+                .samples(10)
+                .build();
+
+        assertThat(sampling.inputSupplier()).isSameAs(supplier);
     }
 }
