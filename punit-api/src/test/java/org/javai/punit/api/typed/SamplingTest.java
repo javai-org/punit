@@ -216,19 +216,44 @@ class SamplingTest {
     // ── InputSupplier integration ──────────────────────────────────
 
     @Test
-    @DisplayName("Sampling.inputsIdentity() exposes the supplier's identity")
-    void inputsIdentityExposed() {
+    @DisplayName(".inputs(values) produces a deterministic content-hashed identity")
+    void contentHashIsDeterministic() {
         Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
         Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "x", "y");
-        Sampling<Factors, String, String> c = Sampling.of(EchoUseCase::new, 100, "x", "z");
 
         assertThat(a.inputsIdentity()).isEqualTo(b.inputsIdentity());
-        assertThat(a.inputsIdentity()).isNotEqualTo(c.inputsIdentity());
         assertThat(a.inputsIdentity()).startsWith("sha256:");
     }
 
     @Test
-    @DisplayName("Sampling.Builder.inputs(InputSupplier) accepts a Tier-2 named supplier")
+    @DisplayName(".inputs(values) identity differs when content differs")
+    void contentHashContentSensitivity() {
+        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "x", "z");
+
+        assertThat(a.inputsIdentity()).isNotEqualTo(b.inputsIdentity());
+    }
+
+    @Test
+    @DisplayName(".inputs(values) identity differs when ordering differs")
+    void contentHashOrderingSensitivity() {
+        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "y", "x");
+
+        assertThat(a.inputsIdentity()).isNotEqualTo(b.inputsIdentity());
+    }
+
+    @Test
+    @DisplayName(".inputs(varargs) and .inputs(List) produce the same identity")
+    void varargsAndListEquivalent() {
+        Sampling<Factors, String, String> v = Sampling.of(EchoUseCase::new, 100, "a", "b");
+        Sampling<Factors, String, String> l = Sampling.of(EchoUseCase::new, 100, java.util.List.of("a", "b"));
+
+        assertThat(v.inputsIdentity()).isEqualTo(l.inputsIdentity());
+    }
+
+    @Test
+    @DisplayName(".inputs(InputSupplier.named(...)) takes the label as identity")
     void buildsFromNamedSupplier() {
         Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
                 .useCaseFactory(EchoUseCase::new)
@@ -237,21 +262,6 @@ class SamplingTest {
                 .build();
 
         assertThat(sampling.inputsIdentity()).isEqualTo("fixture-v1");
-        assertThat(sampling.inputs()).containsExactly("a", "b");
-    }
-
-    @Test
-    @DisplayName("Sampling.Builder.inputs(InputSupplier) accepts a Tier-3 author-hashed supplier")
-    void buildsFromHashedSupplier() {
-        Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
-                .useCaseFactory(EchoUseCase::new)
-                .inputs(InputSupplier.hashed(
-                        () -> java.util.List.of("a", "b"),
-                        inputs -> "custom:" + inputs.size()))
-                .samples(50)
-                .build();
-
-        assertThat(sampling.inputsIdentity()).isEqualTo("custom:2");
         assertThat(sampling.inputs()).containsExactly("a", "b");
     }
 
