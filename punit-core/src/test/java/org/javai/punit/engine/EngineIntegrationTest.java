@@ -19,7 +19,7 @@ import org.javai.punit.api.typed.spec.FactorMutator;
 import org.javai.punit.api.typed.spec.OptimizeSpec;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.MeasureSpec;
-import org.javai.punit.api.typed.spec.ProbabilisticTestSpec;
+import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.javai.punit.api.typed.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +65,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("ProbabilisticTestSpec with BernoulliPassRate.meeting() produces PASS when observed beats threshold")
+    @DisplayName("ProbabilisticTest with BernoulliPassRate.meeting() produces PASS when observed beats threshold")
     void contractualProducesPass() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
@@ -73,7 +73,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(30)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
@@ -91,7 +91,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("ProbabilisticTestSpec with BernoulliPassRate.meeting() produces FAIL when observed below threshold")
+    @DisplayName("ProbabilisticTest with BernoulliPassRate.meeting() produces FAIL when observed below threshold")
     void contractualProducesFail() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
@@ -99,7 +99,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(15)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
                 .build();
@@ -121,7 +121,7 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(20)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(BernoulliPassRate.<Boolean>empirical())
                 .build();
@@ -329,7 +329,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("ProbabilisticTestSpec threads its declared intent through to the result")
+    @DisplayName("ProbabilisticTest threads its declared intent through to the result")
     void intentThreadsThroughToResult() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
@@ -337,11 +337,11 @@ class EngineIntegrationTest {
                 .inputs(1, 2, 3)
                 .samples(10)
                 .build();
-        ProbabilisticTestSpec verification = ProbabilisticTestSpec
+        ProbabilisticTest verification = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
-        ProbabilisticTestSpec smoke = ProbabilisticTestSpec
+        ProbabilisticTest smoke = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .intent(TestIntent.SMOKE)

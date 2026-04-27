@@ -5,7 +5,7 @@ import java.util.Objects;
 
 /**
  * Three-state statistical verdict returned by a
- * {@link ProbabilisticTestSpec}'s {@link Spec#conclude() conclude()}
+ * {@link ProbabilisticTest}'s {@link Spec#conclude() conclude()}
  * call.
  *
  * <p>Kept distinct from the legacy

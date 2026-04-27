@@ -5,7 +5,7 @@
  * <p>Each concrete spec ({@link org.javai.punit.api.typed.spec.MeasureSpec},
  * {@link org.javai.punit.api.typed.spec.ExploreSpec},
  * {@link org.javai.punit.api.typed.spec.OptimizeSpec},
- * {@link org.javai.punit.api.typed.spec.ProbabilisticTestSpec}) implements
+ * {@link org.javai.punit.api.typed.spec.ProbabilisticTest}) implements
  * {@link org.javai.punit.api.typed.spec.Spec}. The engine iterates
  * {@link org.javai.punit.api.typed.spec.Spec#configurations()},
  * samples each configuration through a

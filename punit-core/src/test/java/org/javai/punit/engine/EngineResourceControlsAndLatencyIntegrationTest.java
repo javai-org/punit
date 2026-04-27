@@ -21,7 +21,7 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.javai.punit.api.typed.spec.MeasureSpec;
 import org.javai.punit.api.typed.spec.PercentileKey;
 import org.javai.punit.api.typed.spec.PercentileLatency;
-import org.javai.punit.api.typed.spec.ProbabilisticTestSpec;
+import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.SampleSummary;
 import org.javai.punit.api.typed.spec.TerminationReason;
@@ -366,7 +366,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(10L).build(),
@@ -399,7 +399,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .samples(5)
                 .build();
 
-        ProbabilisticTestSpec both = ProbabilisticTestSpec
+        ProbabilisticTest both = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Boolean>meeting(
@@ -426,7 +426,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .reportOnly(PercentileLatency.<Boolean>meeting(
@@ -458,7 +458,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .inputs(1)
                 .samples(5)
                 .build();
-        ProbabilisticTestSpec spec = ProbabilisticTestSpec
+        ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(100L).build(),

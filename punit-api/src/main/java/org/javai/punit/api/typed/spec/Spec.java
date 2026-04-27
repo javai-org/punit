@@ -19,7 +19,7 @@ package org.javai.punit.api.typed.spec;
  * @see TypedSpec
  */
 public sealed interface Spec
-        permits MeasureSpec, ExploreSpec, OptimizeSpec, ProbabilisticTestSpec {
+        permits MeasureSpec, ExploreSpec, OptimizeSpec, ProbabilisticTest {
 
     /**
      * Engine entry point — dispatches to a typed view of this spec.

@@ -47,7 +47,7 @@ class TypedEngineArchitectureTest {
                         "org.javai.punit.api.typed.spec.OptimizeSpec")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.ProbabilisticTestSpec")
+                        "org.javai.punit.api.typed.spec.ProbabilisticTest")
                 .because("engine must dispatch through the Spec strategy interface, "
                         + "never instanceof / switch on subtype");
         rule.check(engineClasses);

@@ -32,8 +32,8 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  * @Experiment        MeasureSpec baseline() {
  *     return MeasureSpec.measuring(sampling(1000), factors).build();
  * }
- * @ProbabilisticTest ProbabilisticTestSpec meets() {
- *     return ProbabilisticTestSpec.testing(sampling(100), factors)
+ * @ProbabilisticTest ProbabilisticTest meets() {
+ *     return ProbabilisticTest.testing(sampling(100), factors)
  *             .criterion(BernoulliPassRate.empirical())
  *             .build();
  * }

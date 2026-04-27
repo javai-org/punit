@@ -22,7 +22,7 @@ import org.javai.punit.api.typed.spec.MeasureSpec;
  * <pre>{@code
  * int n = PowerAnalysis.sampleSize(this::shoppingBaseline, 0.02, 0.80);
  * var sampling = samplingTemplate().samples(n);
- * return ProbabilisticTestSpec.testing(sampling, factors)
+ * return ProbabilisticTest.testing(sampling, factors)
  *         .criterion(BernoulliPassRate.empirical())
  *         .build();
  * }</pre>

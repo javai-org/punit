@@ -103,7 +103,7 @@ class PunitApiArchitectureTest {
                 .or().areDeclaredInClassesThat()
                 .haveFullyQualifiedName("org.javai.punit.api.typed.spec.OptimizeSpec")
                 .or().areDeclaredInClassesThat()
-                .haveFullyQualifiedName("org.javai.punit.api.typed.spec.ProbabilisticTestSpec")
+                .haveFullyQualifiedName("org.javai.punit.api.typed.spec.ProbabilisticTest")
                 .should().haveName("builder")
                 .because("the compositional refactor replaces .builder() with the verb-form factories "
                         + "measuring / exploring / optimizing / testing — re-introducing builder() "
@@ -117,7 +117,7 @@ class PunitApiArchitectureTest {
         verbFormFactory("MeasureSpec", "measuring");
         verbFormFactory("ExploreSpec", "exploring");
         verbFormFactory("OptimizeSpec", "optimizing");
-        verbFormFactory("ProbabilisticTestSpec", "testing");
+        verbFormFactory("ProbabilisticTest", "testing");
     }
 
     private static void verbFormFactory(String specSimpleName, String verb) {

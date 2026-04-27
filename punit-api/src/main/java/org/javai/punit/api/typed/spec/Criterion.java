@@ -10,7 +10,7 @@ package org.javai.punit.api.typed.spec;
  * implementations without touching existing types.
  *
  * <p>Criteria compose on a
- * {@link ProbabilisticTestSpec.Builder} via {@code .criterion(c)} (required,
+ * {@link ProbabilisticTest.Builder} via {@code .criterion(c)} (required,
  * contributes to the combined verdict) or {@code .reportOnly(c)}
  * (evaluated, attached to the result, excluded from composition).
  *
