@@ -150,6 +150,12 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
                                 + "see DG02 §'Baseline relationship' for the resolution mechanism",
                         detail);
             }
+            // Sample-size rule. See EmpiricalChecks#sampleSizeConstraint.
+            Optional<CriterionResult> violation = EmpiricalChecks.sampleSizeConstraint(
+                    NAME, total, stats.sampleCount(), Map.of());
+            if (violation.isPresent()) {
+                return violation.get();
+            }
             resolvedThreshold = stats.observedPassRate();
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;
             baselineSampleCount = stats.sampleCount();

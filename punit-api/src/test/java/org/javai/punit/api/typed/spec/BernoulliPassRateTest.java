@@ -118,6 +118,59 @@ class BernoulliPassRateTest {
         assertThat((double) pass.detail().get("threshold")).isEqualTo(0.88);
     }
 
+    // ── sample-size constraint (test_N ≤ baseline_N) ───────────────
+
+    @Test
+    @DisplayName("empirical() with test sample count > baseline returns INCONCLUSIVE")
+    void empiricalRejectsTestLargerThanBaseline() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 100);
+
+        // 200 test samples > 100 baseline samples
+        CriterionResult result = criterion.evaluate(ctx(summary(180, 20), Optional.of(baseline)));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(result.explanation())
+                .contains("test sample size (200)")
+                .contains("baseline sample size (100)")
+                .contains("at least as rigorous");
+        assertThat(result.detail()).containsEntry("testSampleCount", 200);
+        assertThat(result.detail()).containsEntry("baselineSampleCount", 100);
+    }
+
+    @Test
+    @DisplayName("empirical() with test sample count == baseline proceeds to verdict")
+    void empiricalAcceptsEqualSampleCount() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 100);
+
+        CriterionResult result = criterion.evaluate(ctx(summary(95, 5), Optional.of(baseline)));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+    }
+
+    @Test
+    @DisplayName("empirical() with test sample count < baseline proceeds to verdict")
+    void empiricalAcceptsSmallerTestSampleCount() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
+
+        CriterionResult result = criterion.evaluate(ctx(summary(45, 5), Optional.of(baseline)));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+    }
+
+    @Test
+    @DisplayName("contractual meeting() does not impose sample-size constraint — no baseline involved")
+    void contractualIgnoresSampleSize() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.meeting(0.9, ThresholdOrigin.SLA);
+
+        // Test has 10000 samples; no baseline, so the constraint doesn't apply.
+        CriterionResult result = criterion.evaluate(ctx(summary(9500, 500), Optional.empty()));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+    }
+
     // ── atConfidence() ───────────────────────────────────────────────
 
     @Test

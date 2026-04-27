@@ -136,6 +136,13 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
                                 + "see DG02 §'Baseline relationship' for the resolution mechanism",
                         Map.of("assertedPercentiles", assertedCsv(), "origin", ThresholdOrigin.EMPIRICAL.name()));
             }
+            // Sample-size rule. See EmpiricalChecks#sampleSizeConstraint.
+            Optional<CriterionResult> violation = EmpiricalChecks.sampleSizeConstraint(
+                    NAME, summary.total(), stats.sampleCount(),
+                    Map.of("assertedPercentiles", assertedCsv()));
+            if (violation.isPresent()) {
+                return violation.get();
+            }
             thresholds = thresholdsFromBaseline(stats.percentiles());
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;
             baselineSampleCount = stats.sampleCount();

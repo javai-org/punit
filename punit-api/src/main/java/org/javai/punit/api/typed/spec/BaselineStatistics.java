@@ -8,6 +8,17 @@ package org.javai.punit.api.typed.spec;
  * {@link BaselineStatistics} implementation without touching existing
  * types or any existing criterion. See
  * {@code docs/DES-CRITERION-EXTENSIBILITY.md} for the rationale.
+ *
+ * <p>The single contract is {@link #sampleCount()} — every baseline
+ * is, by definition, a measurement of N invocations and must report
+ * that count. The framework's empirical-integrity checks
+ * (see {@link EmpiricalChecks}) depend on it.
  */
 public interface BaselineStatistics {
+
+    /**
+     * @return the count of invocations the baseline was measured over.
+     *         Non-negative.
+     */
+    int sampleCount();
 }
