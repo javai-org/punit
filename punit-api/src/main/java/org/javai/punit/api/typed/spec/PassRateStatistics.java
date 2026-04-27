@@ -9,7 +9,7 @@ package org.javai.punit.api.typed.spec;
  */
 public record PassRateStatistics(
         double observedPassRate,
-        int sampleCount) implements BaselineStatistics {
+        @Override int sampleCount) implements BaselineStatistics {
 
     public PassRateStatistics {
         if (Double.isNaN(observedPassRate)

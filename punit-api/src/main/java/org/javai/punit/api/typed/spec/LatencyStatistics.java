@@ -13,7 +13,7 @@ import org.javai.punit.api.typed.LatencyResult;
  */
 public record LatencyStatistics(
         LatencyResult percentiles,
-        int sampleCount) implements BaselineStatistics {
+        @Override int sampleCount) implements BaselineStatistics {
 
     public LatencyStatistics {
         Objects.requireNonNull(percentiles, "percentiles");
