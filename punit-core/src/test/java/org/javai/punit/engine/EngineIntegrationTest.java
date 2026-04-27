@@ -15,7 +15,7 @@ import org.javai.punit.api.typed.spec.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExperimentResult;
 import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.FactorMutator;
+import org.javai.punit.api.typed.spec.FactorsStepper;
 import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.Experiment;
@@ -267,7 +267,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("Experiment.exploring(shape).factors(...) runs each bundle once with the shape's sample count")
+    @DisplayName("Experiment.exploring(shape).grid(...) runs each factors instance once with the shape's sample count")
     void exploreSpecRunsEachFactorBundle() {
         var observedByModel = new java.util.LinkedHashMap<String, Integer>();
         UseCase<LlmFactors, String, Integer> counting = new UseCase<>() {
@@ -285,7 +285,7 @@ class EngineIntegrationTest {
                 .samples(3)
                 .build();
         Experiment spec = Experiment.exploring(shape)
-                .factors(
+                .grid(
                         new LlmFactors("gpt-4o", 0.0),
                         new LlmFactors("gpt-4o", 0.5),
                         new LlmFactors("claude-3-sonnet", 0.0))
@@ -298,7 +298,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("Experiment.optimizing(shape) runs the mutator/scorer loop up to maxIterations")
+    @DisplayName("Experiment.optimizing(shape) runs the stepper/scorer loop up to maxIterations")
     void optimizeSpecRunsIterationLoop() {
         UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
             @Override public UseCaseOutcome<Integer> apply(String input) {
@@ -311,14 +311,14 @@ class EngineIntegrationTest {
                 .inputs("a")
                 .samples(1)
                 .build();
-        // Mutator that walks temperature up by 0.1 each iteration, capping at 1.0.
-        FactorMutator<LlmFactors> mutator = (current, history) ->
+        // Stepper that walks temperature up by 0.1 each iteration, capping at 1.0.
+        FactorsStepper<LlmFactors> stepper = (current, history) ->
                 current.temperature() >= 0.95
                         ? null
                         : new LlmFactors(current.model(), current.temperature() + 0.1);
         Experiment spec = Experiment.optimizing(shape)
                 .initialFactors(new LlmFactors("gpt-4o", 0.0))
-                .mutator(mutator)
+                .stepper(stepper)
                 .maximize(s -> 1.0 / (1.0 + s.failures()))
                 .maxIterations(5)
                 .noImprovementWindow(10)

@@ -20,7 +20,7 @@ import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.ValueMatcher;
-import org.javai.punit.api.typed.spec.FactorMutator.IterationResult;
+import org.javai.punit.api.typed.spec.FactorsStepper.IterationResult;
 
 /**
  * The unified spec for the three experiment kinds — measure, explore,
@@ -87,7 +87,7 @@ public final class Experiment implements Spec {
 
     /**
      * Compose an optimize experiment over a {@link Sampling}; the
-     * initial factors, mutator, and scorer/direction are supplied
+     * initial factors, stepper, and scorer/direction are supplied
      * through the returned builder.
      */
     public static <FT, IT, OT> OptimizeBuilder<FT, IT, OT> optimizing(
@@ -274,17 +274,17 @@ public final class Experiment implements Spec {
 
     private static final class ExploreInternal<FT, IT, OT> extends Internal<FT, IT, OT> {
 
-        private final List<FT> factors;
+        private final List<FT> grid;
         private final Map<FT, SampleSummary<OT>> perConfig = new LinkedHashMap<>();
 
         private ExploreInternal(ExploreBuilder<FT, IT, OT> b) {
             super(b.sampling, b.experimentId != null ? b.experimentId : defaultId("explore"));
-            this.factors = b.factors;
+            this.grid = b.grid;
         }
 
         @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
-            List<Configuration<FT, IT, OT>> configs = new ArrayList<>(factors.size());
-            for (FT ft : factors) {
+            List<Configuration<FT, IT, OT>> configs = new ArrayList<>(grid.size());
+            for (FT ft : grid) {
                 configs.add(Configuration.of(ft, sampling.inputs(), sampling.samples()));
             }
             return configs.iterator();
@@ -305,26 +305,30 @@ public final class Experiment implements Spec {
     public static final class ExploreBuilder<FT, IT, OT> {
 
         private final Sampling<FT, IT, OT> sampling;
-        private List<FT> factors;
+        private List<FT> grid;
         private String experimentId;
 
         private ExploreBuilder(Sampling<FT, IT, OT> sampling) {
             this.sampling = sampling;
         }
 
-        public ExploreBuilder<FT, IT, OT> factors(List<FT> grid) {
-            Objects.requireNonNull(grid, "factors");
+        /**
+         * The grid of factors instances to explore — one configuration
+         * per element. Required, non-empty.
+         */
+        public ExploreBuilder<FT, IT, OT> grid(List<FT> grid) {
+            Objects.requireNonNull(grid, "grid");
             if (grid.isEmpty()) {
-                throw new IllegalArgumentException("factors must be non-empty");
+                throw new IllegalArgumentException("grid must be non-empty");
             }
-            this.factors = List.copyOf(grid);
+            this.grid = List.copyOf(grid);
             return this;
         }
 
         @SafeVarargs
-        public final ExploreBuilder<FT, IT, OT> factors(FT... grid) {
-            Objects.requireNonNull(grid, "factors");
-            return factors(List.of(grid));
+        public final ExploreBuilder<FT, IT, OT> grid(FT... grid) {
+            Objects.requireNonNull(grid, "grid");
+            return grid(List.of(grid));
         }
 
         public ExploreBuilder<FT, IT, OT> experimentId(String id) {
@@ -333,8 +337,8 @@ public final class Experiment implements Spec {
         }
 
         public Experiment build() {
-            if (factors == null) {
-                throw new IllegalStateException("factors is required — call .factors(...)");
+            if (grid == null) {
+                throw new IllegalStateException("grid is required — call .grid(...)");
             }
             return new Experiment(Kind.EXPLORE, new ExploreInternal<>(this));
         }
@@ -345,7 +349,7 @@ public final class Experiment implements Spec {
     private static final class OptimizeInternal<FT, IT, OT> extends Internal<FT, IT, OT> {
 
         private final FT initialFactors;
-        private final FactorMutator<FT> mutator;
+        private final FactorsStepper<FT> stepper;
         private final Scorer scorer;
         private final boolean maximizing;
         private final int maxIterations;
@@ -356,7 +360,7 @@ public final class Experiment implements Spec {
         private OptimizeInternal(OptimizeBuilder<FT, IT, OT> b) {
             super(b.sampling, b.experimentId != null ? b.experimentId : defaultId("optimize"));
             this.initialFactors = b.initialFactors;
-            this.mutator = b.mutator;
+            this.stepper = b.stepper;
             this.scorer = b.scorer;
             this.maximizing = b.maximizing;
             this.maxIterations = b.maxIterations;
@@ -438,7 +442,7 @@ public final class Experiment implements Spec {
                         return;
                     }
                     FT current = last.factors();
-                    FT candidate = mutator.next(current,
+                    FT candidate = stepper.next(current,
                             Collections.unmodifiableList(history));
                     next = candidate;
                 }
@@ -450,7 +454,7 @@ public final class Experiment implements Spec {
 
         private final Sampling<FT, IT, OT> sampling;
         private FT initialFactors;
-        private FactorMutator<FT> mutator;
+        private FactorsStepper<FT> stepper;
         private Scorer scorer;
         private boolean maximizing;
         private boolean directionSet;
@@ -467,8 +471,8 @@ public final class Experiment implements Spec {
             return this;
         }
 
-        public OptimizeBuilder<FT, IT, OT> mutator(FactorMutator<FT> m) {
-            this.mutator = Objects.requireNonNull(m, "mutator");
+        public OptimizeBuilder<FT, IT, OT> stepper(FactorsStepper<FT> s) {
+            this.stepper = Objects.requireNonNull(s, "stepper");
             return this;
         }
 
@@ -523,8 +527,8 @@ public final class Experiment implements Spec {
             if (initialFactors == null) {
                 throw new IllegalStateException("initialFactors is required");
             }
-            if (mutator == null) {
-                throw new IllegalStateException("mutator is required");
+            if (stepper == null) {
+                throw new IllegalStateException("stepper is required");
             }
             if (!directionSet) {
                 throw new IllegalStateException(
