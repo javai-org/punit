@@ -150,6 +150,26 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
                                 + "see DG02 §'Baseline relationship' for the resolution mechanism",
                         detail);
             }
+            // Sample-size constraint: in punit's authoring model the
+            // baseline is the rigorous-truth measurement; the test is
+            // a sentinel against it. A test sample size that exceeds
+            // the baseline's inverts the precision relationship that
+            // model assumes, so we reject the comparison rather than
+            // emit a verdict against a baseline the test out-rigours.
+            if (total > stats.sampleCount()) {
+                Map<String, Object> detail = new LinkedHashMap<>();
+                detail.put("origin", ThresholdOrigin.EMPIRICAL.name());
+                detail.put("testSampleCount", total);
+                detail.put("baselineSampleCount", stats.sampleCount());
+                return inconclusive(
+                        "test sample size (" + total + ") exceeds baseline "
+                                + "sample size (" + stats.sampleCount() + "). The "
+                                + "baseline must be at least as rigorous as the "
+                                + "test it grounds. Re-run the baseline measure "
+                                + "with a larger sample size, or reduce the test's "
+                                + "samples to ≤ " + stats.sampleCount() + ".",
+                        detail);
+            }
             resolvedThreshold = stats.observedPassRate();
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;
             baselineSampleCount = stats.sampleCount();

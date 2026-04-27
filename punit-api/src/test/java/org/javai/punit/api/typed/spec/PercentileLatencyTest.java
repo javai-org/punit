@@ -138,6 +138,55 @@ class PercentileLatencyTest {
         assertThat(fail.detail()).containsEntry("breach.p99", 1100L);
     }
 
+    // ── sample-size constraint (test_N ≤ baseline_N) ───────────────
+
+    @Test
+    @DisplayName("empirical() with test sample count > baseline returns INCONCLUSIVE")
+    void empiricalRejectsTestLargerThanBaseline() {
+        PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
+        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 2000), 100);
+
+        // 1000 test samples > 100 baseline samples
+        CriterionResult result = criterion.evaluate(
+                ctx(summary(observed(80, 180, 480, 950, 1000), 1000, 0), Optional.of(baseline)));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(result.explanation())
+                .contains("test sample size (1000)")
+                .contains("baseline sample size (100)")
+                .contains("at least as rigorous");
+        assertThat(result.detail()).containsEntry("testSampleCount", 1000);
+        assertThat(result.detail()).containsEntry("baselineSampleCount", 100);
+    }
+
+    @Test
+    @DisplayName("empirical() with test sample count ≤ baseline proceeds to verdict")
+    void empiricalAcceptsSmallerOrEqualTestSampleCount() {
+        PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
+        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 2000), 1000);
+
+        CriterionResult equal = criterion.evaluate(
+                ctx(summary(observed(80, 180, 480, 950, 1000), 1000, 0), Optional.of(baseline)));
+        CriterionResult smaller = criterion.evaluate(
+                ctx(summary(observed(80, 180, 480, 950, 500), 500, 0), Optional.of(baseline)));
+
+        assertThat(equal.verdict()).isEqualTo(Verdict.PASS);
+        assertThat(smaller.verdict()).isEqualTo(Verdict.PASS);
+    }
+
+    @Test
+    @DisplayName("contractual meeting() does not impose sample-size constraint — no baseline involved")
+    void contractualLatencyIgnoresSampleSize() {
+        PercentileLatency<String> criterion = PercentileLatency.meeting(
+                LatencySpec.builder().p95Millis(500).build(), ThresholdOrigin.SLA);
+
+        // Test has 10000 samples; no baseline, so the constraint doesn't apply.
+        CriterionResult result = criterion.evaluate(
+                ctx(summary(observed(80, 180, 480, 950, 10000), 10000, 0), Optional.empty()));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+    }
+
     @Test
     @DisplayName("empirical() deduplicates repeated keys")
     void empiricalDeduplicates() {

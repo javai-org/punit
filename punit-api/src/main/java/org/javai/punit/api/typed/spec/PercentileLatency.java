@@ -136,6 +136,28 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
                                 + "see DG02 §'Baseline relationship' for the resolution mechanism",
                         Map.of("assertedPercentiles", assertedCsv(), "origin", ThresholdOrigin.EMPIRICAL.name()));
             }
+            // Sample-size constraint: in punit's authoring model the
+            // baseline is the rigorous-truth measurement; the test is
+            // a sentinel against it. A test sample size that exceeds
+            // the baseline's inverts the precision relationship that
+            // model assumes, so we reject the comparison rather than
+            // emit a verdict against a baseline the test out-rigours.
+            int total = summary.total();
+            if (total > stats.sampleCount()) {
+                Map<String, Object> detail = new LinkedHashMap<>();
+                detail.put("assertedPercentiles", assertedCsv());
+                detail.put("origin", ThresholdOrigin.EMPIRICAL.name());
+                detail.put("testSampleCount", total);
+                detail.put("baselineSampleCount", stats.sampleCount());
+                return inconclusive(
+                        "test sample size (" + total + ") exceeds baseline "
+                                + "sample size (" + stats.sampleCount() + "). The "
+                                + "baseline must be at least as rigorous as the "
+                                + "test it grounds. Re-run the baseline measure "
+                                + "with a larger sample size, or reduce the test's "
+                                + "samples to ≤ " + stats.sampleCount() + ".",
+                        detail);
+            }
             thresholds = thresholdsFromBaseline(stats.percentiles());
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;
             baselineSampleCount = stats.sampleCount();
