@@ -174,8 +174,20 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         }
 
         double observed = (double) summary.successes() / (double) total;
-        // Placeholder comparison — Stage 4 replaces with a Wilson-score-aware check.
-        Verdict verdict = observed >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
+        Verdict verdict;
+        Double wilsonLower = null;
+        Double wilsonUpper = null;
+        if (mode == Mode.CONTRACTUAL) {
+            verdict = observed >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
+        } else {
+            // Empirical: wrap the observed value in a Wilson-score interval at
+            // the criterion's confidence; PASS iff the lower bound respects the
+            // baseline-derived threshold. SC02 in the orchestrator catalog.
+            double[] interval = WilsonScore.interval(observed, total, confidence);
+            wilsonLower = interval[0];
+            wilsonUpper = interval[1];
+            verdict = wilsonLower >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
+        }
 
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("observed", observed);
@@ -186,12 +198,20 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         detail.put("total", total);
         if (mode != Mode.CONTRACTUAL) {
             detail.put("confidence", confidence);
+            detail.put("wilsonLowerBound", wilsonLower);
+            detail.put("wilsonUpperBound", wilsonUpper);
             detail.put("baselineSampleCount", baselineSampleCount);
         }
 
-        String explanation = String.format(
-                "observed=%.4f, threshold=%.4f (origin=%s) over %d samples",
-                observed, resolvedThreshold, resolvedOrigin, total);
+        String explanation = mode == Mode.CONTRACTUAL
+                ? String.format(
+                        "observed=%.4f, threshold=%.4f (origin=%s) over %d samples",
+                        observed, resolvedThreshold, resolvedOrigin, total)
+                : String.format(
+                        "observed=%.4f (Wilson-%.0f%% lower=%.4f) vs threshold=%.4f "
+                                + "(origin=%s) over %d samples",
+                        observed, confidence * 100.0, wilsonLower, resolvedThreshold,
+                        resolvedOrigin, total);
 
         return new CriterionResult(NAME, verdict, explanation, detail);
     }
