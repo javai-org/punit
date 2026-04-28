@@ -1,8 +1,13 @@
 package org.javai.punit.junit5;
 
+import java.nio.file.Path;
+
 import org.javai.punit.junit5.testsubjects.PunitSubjects;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Events;
@@ -13,6 +18,32 @@ import org.opentest4j.TestAbortedException;
 class PunitJunitIntegrationTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
+
+    /**
+     * Scope each test to a fresh, empty tempDir as the baseline
+     * directory. Without this, empirical-criterion subjects would
+     * accidentally find baselines emitted by earlier subjects (e.g.
+     * the {@code @Experiment} path now writes via {@link BaselineEmitter}
+     * to whatever directory the resolver returns).
+     */
+    @TempDir
+    Path baselineDir;
+    private String savedProperty;
+
+    @BeforeEach
+    void isolateBaselineDir() {
+        savedProperty = System.getProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
+        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
+    }
+
+    @AfterEach
+    void restoreBaselineDir() {
+        if (savedProperty == null) {
+            System.clearProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
+        } else {
+            System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, savedProperty);
+        }
+    }
 
     // ── @ProbabilisticTest path ────────────────────────────────────
 

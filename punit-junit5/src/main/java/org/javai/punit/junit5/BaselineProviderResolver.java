@@ -1,11 +1,11 @@
 package org.javai.punit.junit5;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
 import org.javai.punit.api.typed.spec.BaselineProvider;
+import org.javai.punit.engine.baseline.BaselineResolver;
 import org.javai.punit.engine.baseline.YamlBaselineProvider;
 
 /**
@@ -44,27 +44,30 @@ final class BaselineProviderResolver {
     private BaselineProviderResolver() { }
 
     /**
-     * @return the configured baseline directory, when one is
-     *         specified and exists; empty otherwise
+     * @return the configured baseline directory. Returns the
+     *         system-property path when set, otherwise the
+     *         convention-default {@value #CONVENTION_PATH} path.
+     *         The directory is not required to exist —
+     *         {@link BaselineEmitter} creates it on first write,
+     *         and the {@link BaselineResolver} downstream handles
+     *         missing directories (returns empty for any lookup).
+     *         Symmetric with the legacy convention.
      */
-    static Optional<Path> resolveDir() {
-        Optional<Path> fromProperty = systemProperty();
-        if (fromProperty.isPresent()) {
-            return fromProperty.filter(Files::isDirectory);
-        }
-        Path convention = Paths.get(CONVENTION_PATH);
-        return Files.isDirectory(convention) ? Optional.of(convention) : Optional.empty();
+    static Path resolveDir() {
+        return systemProperty().orElseGet(() -> Paths.get(CONVENTION_PATH));
     }
 
     /**
-     * @return a {@link YamlBaselineProvider} when a baseline
-     *         directory resolves; {@link BaselineProvider#EMPTY}
-     *         otherwise
+     * @return a {@link YamlBaselineProvider} backed by the resolved
+     *         baseline directory. When the directory is missing the
+     *         provider's lookups return empty for every query (the
+     *         underlying {@link BaselineResolver} treats a missing
+     *         directory as "no baselines available"), so the
+     *         empirical-criterion path produces {@code INCONCLUSIVE}
+     *         — the same outcome as a hard {@link BaselineProvider#EMPTY}.
      */
     static BaselineProvider resolve() {
-        return resolveDir()
-                .<BaselineProvider>map(YamlBaselineProvider::new)
-                .orElse(BaselineProvider.EMPTY);
+        return new YamlBaselineProvider(resolveDir());
     }
 
     private static Optional<Path> systemProperty() {
