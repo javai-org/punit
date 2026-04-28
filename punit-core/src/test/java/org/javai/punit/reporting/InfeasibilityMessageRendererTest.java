@@ -1,4 +1,4 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.reporting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;

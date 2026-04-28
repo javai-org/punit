@@ -132,6 +132,20 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         return Optional.ofNullable(baselineSupplier);
     }
 
+    /**
+     * The confidence level (1 − α) used by the empirical Wilson-score
+     * comparison. Defaults to {@code 0.95}; override via
+     * {@link #atConfidence(double)}. Surfaced for the framework's
+     * pre-flight feasibility check (see {@code Punit}'s wire-up of
+     * {@link org.javai.punit.statistics.VerificationFeasibilityEvaluator})
+     * — given a configured {@code samples} and a resolved baseline
+     * rate, the check needs the criterion's confidence to decide
+     * whether the configuration is verification-grade.
+     */
+    public double confidence() {
+        return confidence;
+    }
+
     @Override
     public String name() {
         return NAME;

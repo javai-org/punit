@@ -25,6 +25,7 @@ import org.javai.punit.ptest.bernoulli.BernoulliTrialsConfig;
 import org.javai.punit.ptest.bernoulli.BernoulliTrialsStrategy;
 import org.javai.punit.ptest.bernoulli.EarlyTerminationEvaluator;
 import org.javai.punit.ptest.bernoulli.SampleResultAggregator;
+import org.javai.punit.reporting.InfeasibilityMessageRenderer;
 import org.javai.punit.statistics.LatencyDistribution;
 import org.javai.punit.ptest.strategy.InterceptResult;
 import org.javai.punit.ptest.strategy.ProbabilisticTestStrategy;

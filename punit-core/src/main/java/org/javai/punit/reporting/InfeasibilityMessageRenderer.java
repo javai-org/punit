@@ -1,18 +1,19 @@
-package org.javai.punit.ptest.engine;
+package org.javai.punit.reporting;
 
-import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityResult;
 
 /**
  * Renders human-readable infeasibility messages when a VERIFICATION test's
  * sample size is too small for meaningful statistical evidence.
  *
- * <p>Extracted from {@link org.javai.punit.statistics.VerificationFeasibilityEvaluator}
- * to separate presentation from statistical evaluation. This class lives in
- * {@code ptest.engine} where it can depend on {@link PUnitReporter} for
- * consistent label alignment.
+ * <p>Separates presentation from statistical evaluation: the math lives in
+ * {@link org.javai.punit.statistics.VerificationFeasibilityEvaluator}, the
+ * prose lives here. Both the legacy {@code ProbabilisticTestExtension} and
+ * the typed-pipeline {@code engine.criteria.Feasibility} gate consume this
+ * single renderer so the user sees the same wording regardless of how the
+ * test was authored.
  */
-class InfeasibilityMessageRenderer {
+public final class InfeasibilityMessageRenderer {
 
     private InfeasibilityMessageRenderer() {}
 
@@ -23,12 +24,13 @@ class InfeasibilityMessageRenderer {
      * non-statisticians. When true, includes the full statistical context
      * (criterion, confidence, alpha, assumptions).
      *
-     * @param testName the name of the test method
+     * @param testName the test identity (method name in legacy use; use case id
+     *                 in typed-pipeline use) — appears verbatim in the output
      * @param result   the infeasible evaluation result
      * @param verbose  true for full statistical detail, false for summary
      * @return a formatted message explaining why verification is impossible
      */
-    static String render(String testName, FeasibilityResult result, boolean verbose) {
+    public static String render(String testName, FeasibilityResult result, boolean verbose) {
         return verbose
                 ? renderVerbose(testName, result)
                 : renderSummary(testName, result);
