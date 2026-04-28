@@ -2,11 +2,10 @@ package org.javai.punit.junit5;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.engine.baseline.YamlBaselineProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,36 +34,32 @@ class BaselineProviderResolverTest {
     }
 
     @Test
-    @DisplayName("system property pointing at an existing directory wins")
-    void systemPropertyWinsWhenDirectoryExists(@TempDir Path tempDir) throws IOException {
-        Files.createDirectories(tempDir);
+    @DisplayName("system property takes precedence over the convention default")
+    void systemPropertyTakesPrecedence(@TempDir Path tempDir) {
+        Files.exists(tempDir);
         System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, tempDir.toString());
 
-        assertThat(BaselineProviderResolver.resolveDir()).contains(tempDir);
+        assertThat(BaselineProviderResolver.resolveDir()).isEqualTo(tempDir);
         assertThat(BaselineProviderResolver.resolve()).isInstanceOf(YamlBaselineProvider.class);
     }
 
     @Test
-    @DisplayName("system property pointing at a missing directory falls back to EMPTY")
-    void missingPropertyTargetFallsBackToEmpty(@TempDir Path tempDir) {
-        System.setProperty(
-                BaselineProviderResolver.BASELINE_DIR_PROPERTY,
-                tempDir.resolve("does-not-exist").toString());
-
-        assertThat(BaselineProviderResolver.resolveDir()).isEmpty();
-        assertThat(BaselineProviderResolver.resolve()).isSameAs(BaselineProvider.EMPTY);
+    @DisplayName("with no property set, falls back to the convention path")
+    void noPropertyConvention() {
+        assertThat(BaselineProviderResolver.resolveDir())
+                .isEqualTo(Paths.get(BaselineProviderResolver.CONVENTION_PATH));
+        assertThat(BaselineProviderResolver.resolve()).isInstanceOf(YamlBaselineProvider.class);
     }
 
     @Test
-    @DisplayName("with no property set, falls back to convention or EMPTY")
-    void noPropertyConventionOrEmpty() {
-        // Convention dir resolution depends on the current working directory.
-        // We assert only the consistency between resolveDir and resolve.
-        var dir = BaselineProviderResolver.resolveDir();
-        if (dir.isPresent()) {
-            assertThat(BaselineProviderResolver.resolve()).isInstanceOf(YamlBaselineProvider.class);
-        } else {
-            assertThat(BaselineProviderResolver.resolve()).isSameAs(BaselineProvider.EMPTY);
-        }
+    @DisplayName("returns the configured directory regardless of whether it currently exists")
+    void returnsDirWhenMissing(@TempDir Path tempDir) {
+        Path missing = tempDir.resolve("does-not-exist-yet");
+        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, missing.toString());
+
+        assertThat(BaselineProviderResolver.resolveDir()).isEqualTo(missing);
+        // Provider is constructed unconditionally; underlying lookups
+        // return empty for any query against a non-existent directory.
+        assertThat(BaselineProviderResolver.resolve()).isInstanceOf(YamlBaselineProvider.class);
     }
 }

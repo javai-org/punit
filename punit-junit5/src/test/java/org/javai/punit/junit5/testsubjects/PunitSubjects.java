@@ -45,6 +45,9 @@ public final class PunitSubjects {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
                 return UseCaseOutcome.ok(true);
             }
+            // Anonymous-class getSimpleName() is "", which BaselineRecord
+            // rejects as a blank useCaseId. Override with a stable id.
+            @Override public String id() { return "always-passes-subject"; }
         };
     }
 
@@ -53,6 +56,7 @@ public final class PunitSubjects {
             @Override public UseCaseOutcome<Boolean> apply(Integer input) {
                 return UseCaseOutcome.fail("nope", "always fails");
             }
+            @Override public String id() { return "always-fails-subject"; }
         };
     }
 

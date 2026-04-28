@@ -10,19 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.javai.punit.api.Experiment;
-import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.InputSupplier;
-import org.javai.punit.api.typed.Sampling;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 import org.javai.punit.api.typed.spec.PassRateStatistics;
 import org.javai.punit.engine.baseline.BaselineRecord;
 import org.javai.punit.engine.baseline.BaselineWriter;
 import org.javai.punit.engine.baseline.FactorsFingerprint;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.junit5.testsubjects.RoundTripSubjects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,7 +56,7 @@ class MeasureToTestRoundTripTest {
     void measureWritesBaseline(@TempDir Path baselineDir) throws IOException {
         System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
 
-        Events events = run(MeasureSubjects.PassingMeasure.class);
+        Events events = run(RoundTripSubjects.PassingMeasure.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
 
         try (Stream<Path> files = Files.list(baselineDir)) {
@@ -72,10 +67,14 @@ class MeasureToTestRoundTripTest {
     }
 
     @Test
-    @DisplayName("with no baseline directory configured, .run() succeeds silently — no file emitted")
-    void measureSkipsEmissionWithoutDirectory() {
+    @DisplayName("with no baseline directory configured, .run() succeeds — falls back to the convention path")
+    void measureFallsBackToConvention() {
         System.clearProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
-        Events events = run(MeasureSubjects.PassingMeasure.class);
+        // The convention path may or may not exist in the test runner's
+        // working directory; either way the run completes cleanly. The
+        // BaselineWriter creates the directory on first write, so emission
+        // succeeds whenever the test process can create directories there.
+        Events events = run(RoundTripSubjects.PassingMeasure.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
     }
 
@@ -92,7 +91,7 @@ class MeasureToTestRoundTripTest {
         writeBaselineAt(baselineDir, 0.5, 50);
         System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
 
-        Events events = run(MeasureSubjects.EmpiricalAgainstBaseline.class);
+        Events events = run(RoundTripSubjects.EmpiricalAgainstBaseline.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
     }
 
@@ -104,7 +103,7 @@ class MeasureToTestRoundTripTest {
         // which is too tight a threshold for a Wilson-bound test to clear.
         // We overwrite with a hand-written 0.5 baseline so Phase 2 can pass.
         System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
-        Events emitEvents = run(MeasureSubjects.PassingMeasure.class);
+        Events emitEvents = run(RoundTripSubjects.PassingMeasure.class);
         emitEvents.assertStatistics(stats -> stats.started(1).succeeded(1));
         try (Stream<Path> files = Files.list(baselineDir)) {
             assertThat(files.anyMatch(p -> p.toString().endsWith(".yaml")))
@@ -119,7 +118,7 @@ class MeasureToTestRoundTripTest {
         writeBaselineAt(baselineDir, 0.5, 50);
 
         // Phase 2 — empirical test resolves the baseline and produces PASS.
-        Events testEvents = run(MeasureSubjects.EmpiricalAgainstBaseline.class);
+        Events testEvents = run(RoundTripSubjects.EmpiricalAgainstBaseline.class);
         testEvents.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
     }
 
@@ -130,7 +129,7 @@ class MeasureToTestRoundTripTest {
         BaselineRecord record = new BaselineRecord(
                 USE_CASE_ID,
                 "hand-written",
-                FactorsFingerprint.of(FactorBundle.of(new MeasureSubjects.NoFactors())),
+                FactorsFingerprint.of(FactorBundle.of(new RoundTripSubjects.NoFactors())),
                 InputSupplier.from(() -> List.of(1, 2, 3)).identity(),
                 sampleCount,
                 Instant.parse("2026-04-28T12:00:00Z"),
@@ -145,52 +144,5 @@ class MeasureToTestRoundTripTest {
                 .selectors(DiscoverySelectors.selectClass(testClass))
                 .execute()
                 .testEvents();
-    }
-
-    /**
-     * Subjects co-located with the test (rather than under
-     * {@code testsubjects/}) because they share state via the
-     * baseline directory configured per-test through a system
-     * property — keeping them next to their consumers makes the
-     * coupling visible.
-     */
-    static final class MeasureSubjects {
-
-        record NoFactors() { }
-
-        private static UseCase<NoFactors, Integer, Boolean> useCase() {
-            return new UseCase<>() {
-                @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-                    return UseCaseOutcome.ok(true);
-                }
-                @Override public String id() { return USE_CASE_ID; }
-            };
-        }
-
-        private static Sampling<NoFactors, Integer, Boolean> sampling(int samples) {
-            return Sampling.<NoFactors, Integer, Boolean>builder()
-                    .useCaseFactory(f -> useCase())
-                    .inputs(1, 2, 3)
-                    .samples(samples)
-                    .build();
-        }
-
-        public static final class PassingMeasure {
-            @Experiment
-            void measure() {
-                Punit.measuring(sampling(50), new NoFactors())
-                        .experimentId("baseline-v1")
-                        .run();
-            }
-        }
-
-        public static final class EmpiricalAgainstBaseline {
-            @ProbabilisticTest
-            void shouldPass() {
-                Punit.testing(sampling(20), new NoFactors())
-                        .criterion(BernoulliPassRate.<Boolean>empirical())
-                        .assertPasses();
-            }
-        }
     }
 }

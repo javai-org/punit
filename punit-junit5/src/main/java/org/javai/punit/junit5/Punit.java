@@ -111,7 +111,7 @@ public final class Punit {
 
     private static void driveAndEmit(Experiment experiment) {
         drive(experiment);
-        BaselineProviderResolver.resolveDir().ifPresent(dir -> BaselineEmitter.emit(experiment, dir));
+        BaselineEmitter.emit(experiment, BaselineProviderResolver.resolveDir());
     }
 
     private static void translate(ProbabilisticTestResult result) {
