@@ -22,7 +22,12 @@ import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.Scorer;
 import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.typed.covariate.Covariate;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.engine.Engine;
+import org.javai.punit.engine.baseline.ProfileBoundBaselineProvider;
+import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.engine.criteria.Feasibility;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
@@ -111,12 +116,49 @@ public final class Punit {
     // ── Internal: drive an experiment / test ────────────────────────
 
     private static EngineResult drive(org.javai.punit.api.typed.spec.Spec spec) {
-        return new Engine(BaselineProviderResolver.resolve()).run(spec);
+        BaselineProvider provider = profileBoundProvider(spec);
+        return new Engine(provider).run(spec);
     }
 
     private static void driveAndEmit(Experiment experiment) {
         drive(experiment);
         BaselineEmitter.emit(experiment, BaselineProviderResolver.resolveDir());
+    }
+
+    /**
+     * Resolves the use case's covariate profile from {@code spec}'s
+     * first configuration and wraps {@link BaselineProviderResolver}'s
+     * provider so the engine and pre-flight feasibility see a
+     * profile-bound view.
+     *
+     * <p>Per UC04 the profile is resolved once per run, before any
+     * samples execute. {@link ProfileBoundBaselineProvider#bind}
+     * returns the wrapped delegate unchanged when the use case
+     * declared no covariates, so non-covariate tests pay no cost
+     * here.
+     */
+    private static BaselineProvider profileBoundProvider(
+            org.javai.punit.api.typed.spec.Spec spec) {
+        BaselineProvider provider = BaselineProviderResolver.resolve();
+        return spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<>() {
+            @Override
+            public <FT, IT, OT> BaselineProvider apply(
+                    org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                var configs = typed.configurations();
+                if (!configs.hasNext()) {
+                    return provider;
+                }
+                FT factors = configs.next().factors();
+                UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
+                List<Covariate> declarations = useCase.covariates();
+                if (declarations.isEmpty()) {
+                    return provider;
+                }
+                CovariateProfile profile = CovariateResolver.defaults()
+                        .resolve(declarations, useCase.customCovariateResolvers());
+                return ProfileBoundBaselineProvider.bind(provider, profile, declarations);
+            }
+        });
     }
 
     private static void translate(ProbabilisticTestResult result) {
@@ -333,9 +375,20 @@ public final class Punit {
         }
 
         private List<String> preflightFeasibility() {
-            String useCaseId = sampling.useCaseFactory().apply(factors).id();
+            UseCase<FT, IT, OT> useCase = sampling.useCaseFactory().apply(factors);
+            String useCaseId = useCase.id();
             FactorBundle bundle = FactorBundle.of(factors);
-            BaselineProvider provider = BaselineProviderResolver.resolve();
+            BaselineProvider raw = BaselineProviderResolver.resolve();
+            // Bind the run's covariate profile so Feasibility sees the
+            // baseline that will actually drive evaluation, not a sibling
+            // covariate-tagged file that happens to share useCaseId+ff.
+            List<Covariate> declarations = useCase.covariates();
+            CovariateProfile profile = declarations.isEmpty()
+                    ? CovariateProfile.empty()
+                    : CovariateResolver.defaults()
+                            .resolve(declarations, useCase.customCovariateResolvers());
+            BaselineProvider provider = ProfileBoundBaselineProvider.bind(
+                    raw, profile, declarations);
             List<String> warnings = new ArrayList<>();
             for (Criterion<OT, ?> c : requiredCriteria) {
                 warnings.addAll(Feasibility.check(
@@ -416,7 +469,7 @@ public final class Punit {
 
         @SuppressWarnings("unchecked")
         private List<String> preflightFeasibility(ProbabilisticTest spec) {
-            BaselineProvider provider = BaselineProviderResolver.resolve();
+            BaselineProvider raw = BaselineProviderResolver.resolve();
             List<String> warnings = new ArrayList<>();
             spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<Void>() {
                 @Override
@@ -424,8 +477,16 @@ public final class Punit {
                         org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
                     var cfg = typed.configurations().next();
                     FT factors = cfg.factors();
-                    String useCaseId = typed.useCaseFactory().apply(factors).id();
+                    UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
+                    String useCaseId = useCase.id();
                     FactorBundle bundle = FactorBundle.of(factors);
+                    List<Covariate> declarations = useCase.covariates();
+                    CovariateProfile profile = declarations.isEmpty()
+                            ? CovariateProfile.empty()
+                            : CovariateResolver.defaults()
+                                    .resolve(declarations, useCase.customCovariateResolvers());
+                    BaselineProvider provider = ProfileBoundBaselineProvider.bind(
+                            raw, profile, declarations);
                     warnings.addAll(Feasibility.check(
                             cfg.samples(),
                             (Criterion<Object, ?>) criterion,

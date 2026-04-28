@@ -1,10 +1,13 @@
 package org.javai.punit.engine.baseline;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.covariate.Covariate;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 
@@ -32,15 +35,20 @@ public final class YamlBaselineProvider implements BaselineProvider {
             String useCaseId,
             FactorBundle factors,
             String criterionName,
-            Class<S> statisticsType) {
+            Class<S> statisticsType,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
         String fingerprint = FactorsFingerprint.of(factors);
-        return resolver.resolve(useCaseId, fingerprint, criterionName, statisticsType);
+        return resolver.resolve(useCaseId, fingerprint, criterionName, statisticsType,
+                currentProfile, declarations);
     }
 
     @Override
     public Optional<String> baselineInputsIdentityFor(
-            String useCaseId, FactorBundle factors) {
+            String useCaseId, FactorBundle factors,
+            CovariateProfile currentProfile, List<Covariate> declarations) {
         String fingerprint = FactorsFingerprint.of(factors);
-        return resolver.resolveInputsIdentity(useCaseId, fingerprint);
+        return resolver.resolveInputsIdentity(useCaseId, fingerprint,
+                currentProfile, declarations);
     }
 }

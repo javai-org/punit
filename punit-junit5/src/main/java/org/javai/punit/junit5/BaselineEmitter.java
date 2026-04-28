@@ -6,12 +6,15 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.InputSupplier;
 import org.javai.punit.api.typed.LatencyResult;
 import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.typed.covariate.Covariate;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 import org.javai.punit.api.typed.spec.Configuration;
 import org.javai.punit.api.typed.spec.Experiment;
@@ -23,6 +26,7 @@ import org.javai.punit.api.typed.spec.TypedSpec;
 import org.javai.punit.engine.baseline.BaselineRecord;
 import org.javai.punit.engine.baseline.BaselineWriter;
 import org.javai.punit.engine.baseline.FactorsFingerprint;
+import org.javai.punit.engine.covariate.CovariateResolver;
 
 /**
  * Translates a completed MEASURE {@link Experiment} into a
@@ -115,6 +119,18 @@ final class BaselineEmitter {
             stats.put("percentile-latency", new LatencyStatistics(latency, total));
         }
 
+        // Per UC04, the resolved covariate profile is part of the
+        // baseline's identity. The use case's declarations + custom
+        // resolvers feed the resolver; the resulting profile is
+        // stamped into the BaselineRecord and surfaces as an EX09
+        // covariate-hash tail in the filename, plus a covariates:
+        // block in the YAML body.
+        List<Covariate> declarations = useCase.covariates();
+        CovariateProfile profile = declarations.isEmpty()
+                ? CovariateProfile.empty()
+                : CovariateResolver.defaults()
+                        .resolve(declarations, useCase.customCovariateResolvers());
+
         return new BaselineRecord(
                 useCaseId,
                 experimentId,
@@ -122,7 +138,8 @@ final class BaselineEmitter {
                 inputsIdentity,
                 total,
                 Instant.now(),
-                stats);
+                stats,
+                profile);
     }
 
     private static void writeRecord(BaselineRecord record, Path baselineDir) {
