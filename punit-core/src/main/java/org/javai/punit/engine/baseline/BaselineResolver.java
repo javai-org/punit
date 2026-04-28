@@ -4,9 +4,13 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.javai.punit.api.typed.covariate.Covariate;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 
 /**
@@ -42,29 +46,61 @@ public final class BaselineResolver {
     }
 
     /**
-     * @return the {@link BaselineStatistics} of the requested kind for
-     *         the given criterion, or {@link Optional#empty()} when no
-     *         matching baseline file exists or the named criterion has
-     *         no entry in it
-     * @throws IllegalStateException when a baseline file matches but its
-     *         entry for {@code criterionName} is of a different
-     *         {@link BaselineStatistics} flavour than {@code statisticsType}
+     * Resolve a baseline statistics entry without covariate context.
+     *
+     * <p>Equivalent to the covariate-aware overload with an empty
+     * current profile and empty declarations. Selection limits to
+     * baselines whose own profile is empty, preserving pre-CV-3
+     * behaviour for use cases that don't declare covariates.
      */
     public <S extends BaselineStatistics> Optional<S> resolve(
             String useCaseId,
             String factorsFingerprint,
             String criterionName,
             Class<S> statisticsType) {
+        return resolve(useCaseId, factorsFingerprint, criterionName,
+                statisticsType, CovariateProfile.empty(), List.of());
+    }
+
+    /**
+     * Resolve a baseline statistics entry with covariate-aware
+     * best-match selection per UC05.
+     *
+     * @param currentProfile the resolved covariate profile for the
+     *                       current run; empty when the use case
+     *                       declared no covariates
+     * @param declarations   the use case's covariate declarations,
+     *                       in declaration order; empty when the use
+     *                       case declared no covariates
+     * @return the {@link BaselineStatistics} of the requested kind for
+     *         the selected baseline, or {@link Optional#empty()} when
+     *         no candidate is selectable (CONFIGURATION mismatch on
+     *         every covariate-tagged candidate <i>and</i> no
+     *         empty-profile fallback)
+     * @throws IllegalStateException when a baseline file matches but
+     *         its entry for {@code criterionName} is of a different
+     *         {@link BaselineStatistics} flavour than {@code statisticsType}
+     */
+    public <S extends BaselineStatistics> Optional<S> resolve(
+            String useCaseId,
+            String factorsFingerprint,
+            String criterionName,
+            Class<S> statisticsType,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
         Objects.requireNonNull(useCaseId, "useCaseId");
         Objects.requireNonNull(factorsFingerprint, "factorsFingerprint");
         Objects.requireNonNull(criterionName, "criterionName");
         Objects.requireNonNull(statisticsType, "statisticsType");
+        Objects.requireNonNull(currentProfile, "currentProfile");
+        Objects.requireNonNull(declarations, "declarations");
 
-        Optional<BaselineRecord> record = findRecord(useCaseId, factorsFingerprint);
-        if (record.isEmpty()) {
+        Optional<BaselineRecord> selected = findAndSelect(
+                useCaseId, factorsFingerprint, currentProfile, declarations);
+        if (selected.isEmpty()) {
             return Optional.empty();
         }
-        BaselineStatistics entry = record.get().statisticsByCriterionName().get(criterionName);
+        BaselineStatistics entry = selected.get().statisticsByCriterionName().get(criterionName);
         if (entry == null) {
             return Optional.empty();
         }
@@ -81,28 +117,58 @@ public final class BaselineResolver {
 
     /**
      * @return the recorded inputs identity from the matching baseline,
-     *         or {@link Optional#empty()} when no match exists
+     *         or {@link Optional#empty()} when no match exists.
+     *         Selects without covariate context — for callers
+     *         (typically the empirical-checks identity-match path)
+     *         that have not yet threaded covariate state through.
      */
     public Optional<String> resolveInputsIdentity(
             String useCaseId, String factorsFingerprint) {
-        Objects.requireNonNull(useCaseId, "useCaseId");
-        Objects.requireNonNull(factorsFingerprint, "factorsFingerprint");
-        return findRecord(useCaseId, factorsFingerprint).map(BaselineRecord::inputsIdentity);
+        return resolveInputsIdentity(useCaseId, factorsFingerprint,
+                CovariateProfile.empty(), List.of());
     }
 
-    private Optional<BaselineRecord> findRecord(String useCaseId, String factorsFingerprint) {
-        if (!Files.isDirectory(baselineDir)) {
+    /**
+     * Covariate-aware variant of {@link #resolveInputsIdentity(String, String)}.
+     */
+    public Optional<String> resolveInputsIdentity(
+            String useCaseId, String factorsFingerprint,
+            CovariateProfile currentProfile, List<Covariate> declarations) {
+        Objects.requireNonNull(useCaseId, "useCaseId");
+        Objects.requireNonNull(factorsFingerprint, "factorsFingerprint");
+        Objects.requireNonNull(currentProfile, "currentProfile");
+        Objects.requireNonNull(declarations, "declarations");
+        return findAndSelect(useCaseId, factorsFingerprint,
+                currentProfile, declarations)
+                .map(BaselineRecord::inputsIdentity);
+    }
+
+    private Optional<BaselineRecord> findAndSelect(
+            String useCaseId,
+            String factorsFingerprint,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
+        List<BaselineRecord> candidates = findRecords(useCaseId, factorsFingerprint);
+        if (candidates.isEmpty()) {
             return Optional.empty();
+        }
+        return BaselineSelector.select(candidates, currentProfile, declarations);
+    }
+
+    private List<BaselineRecord> findRecords(String useCaseId, String factorsFingerprint) {
+        if (!Files.isDirectory(baselineDir)) {
+            return List.of();
         }
         String prefix = useCaseId + ".";
         String factorsSegment = "-" + factorsFingerprint;
         String yamlExt = ".yaml";
         try (var stream = Files.list(baselineDir)) {
-            return stream
+            List<BaselineRecord> out = new ArrayList<>();
+            stream
                     .filter(p -> matchesFactorsFingerprint(
                             p.getFileName().toString(), prefix, factorsSegment, yamlExt))
-                    .findFirst()
-                    .map(this::readUnchecked);
+                    .forEach(p -> out.add(readUnchecked(p)));
+            return out;
         } catch (IOException e) {
             throw new UncheckedIOException(
                     "Failed to enumerate baselines in " + baselineDir, e);

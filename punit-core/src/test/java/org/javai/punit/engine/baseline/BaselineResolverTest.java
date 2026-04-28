@@ -135,8 +135,15 @@ class BaselineResolverTest {
     }
 
     @Test
-    @DisplayName("matches a covariate-bearing filename on the (useCaseId, fingerprint) pair")
-    void matchesCovariateBearingFilename(@TempDir Path dir) throws IOException {
+    @DisplayName("4-arg overload (legacy path) ignores covariate-tagged files when no declarations are supplied")
+    void legacyOverloadSkipsCovariateTaggedFiles(@TempDir Path dir) throws IOException {
+        // Pre-CV-3c, the 4-arg overload returned the first matching
+        // file regardless of covariate state. Post-CV-3c, the legacy
+        // overload restricts to empty-profile baselines, matching
+        // UC05's "use cases that don't declare covariates use the
+        // default baseline" rule. The covariate-aware overload (with
+        // declarations + profile) is exercised in
+        // covariateAwarePicksMatching below.
         java.util.LinkedHashMap<String, String> profile = new java.util.LinkedHashMap<>();
         profile.put("region", "DE_FR");
         BaselineRecord record = new BaselineRecord(
@@ -150,7 +157,7 @@ class BaselineResolverTest {
 
         assertThat(resolver.resolve(
                 "ShoppingBasket", "a1b2c3d4", "bernoulli-pass-rate",
-                PassRateStatistics.class)).isPresent();
+                PassRateStatistics.class)).isEmpty();
     }
 
     @Test
@@ -167,5 +174,73 @@ class BaselineResolverTest {
         assertThat(resolver.resolve(
                 "ShoppingBasket", "aabbccdd", "bernoulli-pass-rate",
                 PassRateStatistics.class)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("covariate-aware overload: picks the matching baseline among siblings")
+    void covariateAwarePicksMatching(@TempDir Path dir) throws IOException {
+        // Three baselines with the same useCaseId + fingerprint but
+        // distinct profiles. The covariate-aware resolver must pick
+        // the one whose profile matches the current run.
+        writeBaselineWithProfile(dir, "DE_FR",
+                new PassRateStatistics(0.94, 1000));
+        writeBaselineWithProfile(dir, "GB_IE",
+                new PassRateStatistics(0.5, 1000));
+        writeBaselineWithProfile(dir, null,  // empty profile (default)
+                new PassRateStatistics(0.7, 1000));
+
+        var resolver = new BaselineResolver(dir);
+
+        var declarations = java.util.List.of(
+                org.javai.punit.api.typed.covariate.Covariate.region(
+                        java.util.List.of(java.util.Set.of("FR", "DE"))));
+        var current = org.javai.punit.api.typed.covariate.CovariateProfile.of(
+                Map.of("region", "DE_FR"));
+
+        var resolved = resolver.resolve(
+                "ShoppingBasket", "a1b2c3d4", "bernoulli-pass-rate",
+                PassRateStatistics.class, current, declarations);
+
+        assertThat(resolved).isPresent();
+        // 0.94 is the rate we wrote into the DE_FR baseline.
+        assertThat(resolved.get().observedPassRate()).isEqualTo(0.94);
+    }
+
+    @Test
+    @DisplayName("covariate-aware overload: falls back to default baseline when no covariate match")
+    void covariateAwareFallsBackToDefault(@TempDir Path dir) throws IOException {
+        // Only an empty-profile baseline is on disk. With covariates
+        // declared, this should still resolve via the UC05 default-
+        // fallback rule.
+        writeBaselineWithProfile(dir, null, new PassRateStatistics(0.7, 1000));
+
+        var resolver = new BaselineResolver(dir);
+
+        var declarations = java.util.List.of(
+                org.javai.punit.api.typed.covariate.Covariate.region(
+                        java.util.List.of(java.util.Set.of("FR"))));
+        var current = org.javai.punit.api.typed.covariate.CovariateProfile.of(
+                Map.of("region", "FR"));
+
+        var resolved = resolver.resolve(
+                "ShoppingBasket", "a1b2c3d4", "bernoulli-pass-rate",
+                PassRateStatistics.class, current, declarations);
+
+        assertThat(resolved).isPresent();
+        assertThat(resolved.get().observedPassRate()).isEqualTo(0.7);
+    }
+
+    private void writeBaselineWithProfile(
+            Path dir, String regionLabel, PassRateStatistics stats) throws IOException {
+        var profile = regionLabel == null
+                ? org.javai.punit.api.typed.covariate.CovariateProfile.empty()
+                : org.javai.punit.api.typed.covariate.CovariateProfile.of(
+                        Map.of("region", regionLabel));
+        BaselineRecord record = new BaselineRecord(
+                "ShoppingBasket", "measureBaseline", "a1b2c3d4",
+                "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
+                Map.of("bernoulli-pass-rate", stats),
+                profile);
+        writer.write(record, dir);
     }
 }
