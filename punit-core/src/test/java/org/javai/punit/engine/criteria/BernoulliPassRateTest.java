@@ -1,4 +1,4 @@
-package org.javai.punit.api.typed.spec;
+package org.javai.punit.engine.criteria;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -11,6 +11,13 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.LatencyResult;
 import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.typed.spec.CriterionResult;
+import org.javai.punit.api.typed.spec.EvaluationContext;
+import org.javai.punit.api.typed.spec.Experiment;
+import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.typed.spec.SampleSummary;
+import org.javai.punit.api.typed.spec.TerminationReason;
+import org.javai.punit.api.typed.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -116,19 +123,96 @@ class BernoulliPassRateTest {
     }
 
     @Test
-    @DisplayName("empirical() with a resolved baseline produces PASS / FAIL per inequality")
-    void empiricalWithBaseline() {
+    @DisplayName("empirical() PASS when Wilson lower bound clears the baseline threshold")
+    void empiricalWithBaselinePass() {
         BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
-        CriterionResult pass = criterion.evaluate(ctx(summary(90, 10), Optional.of(baseline)));
-        CriterionResult fail = criterion.evaluate(ctx(summary(80, 20), Optional.of(baseline)));
+        // p=0.95, n=1000, c=0.95 → Wilson lower ≈ 0.934 ≥ 0.88 → PASS
+        CriterionResult pass = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
 
         assertThat(pass.verdict()).isEqualTo(Verdict.PASS);
-        assertThat(fail.verdict()).isEqualTo(Verdict.FAIL);
         assertThat(pass.detail()).containsEntry("origin", "EMPIRICAL");
         assertThat(pass.detail()).containsEntry("baselineSampleCount", 2000);
         assertThat((double) pass.detail().get("threshold")).isEqualTo(0.88);
+        assertThat((double) pass.detail().get("wilsonLowerBound"))
+                .isGreaterThanOrEqualTo(0.88);
+    }
+
+    @Test
+    @DisplayName("empirical() FAIL when Wilson lower bound dips below the baseline threshold")
+    void empiricalWithBaselineFail() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
+
+        // p=0.85, n=1000, c=0.95 → Wilson lower ≈ 0.827 < 0.88 → FAIL
+        CriterionResult fail = criterion.evaluate(ctx(summary(850, 150), Optional.of(baseline)));
+
+        assertThat(fail.verdict()).isEqualTo(Verdict.FAIL);
+        assertThat((double) fail.detail().get("wilsonLowerBound")).isLessThan(0.88);
+    }
+
+    @Test
+    @DisplayName("empirical() Wilson-score wrap: small n + observed-just-above-threshold → FAIL "
+            + "(this was an incorrect PASS under the Stage-3.5 placeholder)")
+    void empiricalWilsonRejectsSmallSampleNearThreshold() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
+
+        // p=0.90, n=50, c=0.95 → Wilson lower ≈ 0.788 — below the 0.88 threshold.
+        // Under the placeholder `observed >= threshold` this would PASS (0.90 > 0.88);
+        // under Wilson-score it correctly FAILs because 50 samples is not enough
+        // to confidently claim ≥ 0.88.
+        CriterionResult result = criterion.evaluate(ctx(summary(45, 5), Optional.of(baseline)));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.FAIL);
+        assertThat((double) result.detail().get("observed")).isEqualTo(0.9);
+        assertThat((double) result.detail().get("wilsonLowerBound")).isLessThan(0.88);
+    }
+
+    @Test
+    @DisplayName("empirical() detail map carries confidence and wilsonLowerBound")
+    void empiricalDetailMapCarriesWilsonFields() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
+
+        CriterionResult result = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
+
+        assertThat(result.detail()).containsKeys("confidence", "wilsonLowerBound");
+        assertThat(result.detail()).doesNotContainKey("wilsonUpperBound");
+        assertThat((double) result.detail().get("confidence")).isEqualTo(0.95);
+        double lower = (double) result.detail().get("wilsonLowerBound");
+        assertThat(lower).isLessThan(0.95);
+        assertThat(lower).isGreaterThan(0.88);
+    }
+
+    @Test
+    @DisplayName("empirical() explanation names the Wilson lower bound at the configured confidence")
+    void empiricalExplanationMentionsWilsonBound() {
+        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
+
+        CriterionResult result = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
+
+        assertThat(result.explanation())
+                .contains("Wilson-95% lower=")
+                .contains("threshold=");
+    }
+
+    @Test
+    @DisplayName("atConfidence(higher) widens the interval — more conservative PASS criterion")
+    void higherConfidenceWidensInterval() {
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
+        // p=0.92, n=1000 — passes at 95% (wilson lower ≈ 0.901), fails at 99.9%
+        BernoulliPassRate<String> at95 = BernoulliPassRate.<String>empirical().atConfidence(0.95);
+        BernoulliPassRate<String> at999 = BernoulliPassRate.<String>empirical().atConfidence(0.999);
+
+        CriterionResult r95 = at95.evaluate(ctx(summary(920, 80), Optional.of(baseline)));
+        CriterionResult r999 = at999.evaluate(ctx(summary(920, 80), Optional.of(baseline)));
+
+        double lower95 = (double) r95.detail().get("wilsonLowerBound");
+        double lower999 = (double) r999.detail().get("wilsonLowerBound");
+        assertThat(lower999).isLessThan(lower95);
     }
 
     // ── sample-size constraint (test_N ≤ baseline_N) ───────────────
@@ -155,9 +239,12 @@ class BernoulliPassRateTest {
     @DisplayName("empirical() with test sample count == baseline proceeds to verdict")
     void empiricalAcceptsEqualSampleCount() {
         BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
-        PassRateStatistics baseline = new PassRateStatistics(0.88, 100);
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
 
-        CriterionResult result = criterion.evaluate(ctx(summary(95, 5), Optional.of(baseline)));
+        // Equal sample counts (1000 each); observed 0.95 well above baseline 0.88
+        // → Wilson lower bound clears the threshold, sample-size rule allows
+        // through, so PASS.
+        CriterionResult result = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
 
         assertThat(result.verdict()).isEqualTo(Verdict.PASS);
     }
@@ -166,9 +253,10 @@ class BernoulliPassRateTest {
     @DisplayName("empirical() with test sample count < baseline proceeds to verdict")
     void empiricalAcceptsSmallerTestSampleCount() {
         BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
-        PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 5000);
 
-        CriterionResult result = criterion.evaluate(ctx(summary(45, 5), Optional.of(baseline)));
+        // Test 1000 ≪ baseline 5000; observed 0.95 → Wilson lower clears threshold.
+        CriterionResult result = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
 
         assertThat(result.verdict()).isEqualTo(Verdict.PASS);
     }
@@ -199,10 +287,11 @@ class BernoulliPassRateTest {
     @DisplayName("empirical() with matching test/baseline identity proceeds to verdict")
     void empiricalAcceptsMatchingIdentity() {
         BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
-        PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
+        PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
+        // Sample size large enough that Wilson lower bound clears 0.88 threshold.
         CriterionResult result = criterion.evaluate(ctx(
-                summary(90, 10), Optional.of(baseline),
+                summary(950, 50), Optional.of(baseline),
                 "sha256:matching-id",
                 Optional.of("sha256:matching-id")));
 

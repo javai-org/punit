@@ -21,7 +21,7 @@ import org.javai.punit.api.typed.LatencySpec;
  * A percentile-latency criterion. Reads {@link LatencyStatistics} from
  * the resolved baseline when in an empirical mode.
  *
- * <p>Three factory forms parallel {@link BernoulliPassRate}:
+ * <p>Three factory forms parallel {@code BernoulliPassRate}:
  * <ul>
  *   <li>{@link #meeting(LatencySpec, ThresholdOrigin)} — contractual;
  *       per-percentile ceilings come from the LatencySpec, origin is

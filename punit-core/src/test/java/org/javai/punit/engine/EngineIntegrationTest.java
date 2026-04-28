@@ -11,7 +11,7 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
-import org.javai.punit.api.typed.spec.BernoulliPassRate;
+import org.javai.punit.engine.criteria.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExperimentResult;
 import org.javai.punit.api.typed.spec.Experiment;

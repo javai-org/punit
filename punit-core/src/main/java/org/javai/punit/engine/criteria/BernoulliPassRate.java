@@ -1,4 +1,4 @@
-package org.javai.punit.api.typed.spec;
+package org.javai.punit.engine.criteria;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -7,6 +7,15 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.spec.Criterion;
+import org.javai.punit.api.typed.spec.CriterionResult;
+import org.javai.punit.api.typed.spec.EmpiricalChecks;
+import org.javai.punit.api.typed.spec.EvaluationContext;
+import org.javai.punit.api.typed.spec.Experiment;
+import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.typed.spec.SampleSummary;
+import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.statistics.BinomialProportionEstimator;
 
 /**
  * A Bernoulli pass-rate criterion. Reads {@link PassRateStatistics}
@@ -24,15 +33,31 @@ import org.javai.punit.api.ThresholdOrigin;
  *       derived from the explicitly supplied baseline.</li>
  * </ul>
  *
- * <p>Empirical variants accept an {@link #atConfidence(double)} modifier
- * that Stage 4's Wilson-score-aware comparison will consume. Stage
- * 3.5 ships a placeholder inequality — {@code observed >= threshold}
- * — so the criterion surface is stable ahead of the statistics wiring.
+ * <p>The empirical paths wrap the observed pass rate in a Wilson-score
+ * one-sided lower bound at the criterion's
+ * {@link #atConfidence(double) confidence} (default 0.95) and PASS
+ * iff that bound respects the baseline-derived threshold. The
+ * underlying statistical machinery is
+ * {@link BinomialProportionEstimator}; this criterion holds no
+ * statistical code of its own — that's the punit design rule
+ * (statistics live only in {@code org.javai.punit.statistics}). See
+ * {@code CLAUDE.md} §"Statistics isolation rule".
+ *
+ * <p>The contractual path keeps a deterministic
+ * {@code observed >= threshold} check: an SLA-style threshold is an
+ * external commitment, not a statistical claim against a baseline.
+ *
+ * <p>Lives in {@code punit-core} rather than {@code punit-api} because
+ * the empirical path needs {@code BinomialProportionEstimator} and
+ * {@code punit-api} is contractually free of statistics-library
+ * dependencies. The {@link Criterion} interface itself stays in
+ * {@code punit-api}; only this implementation moved.
  */
 public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatistics> {
 
     private static final String NAME = "bernoulli-pass-rate";
     private static final double DEFAULT_CONFIDENCE = 0.95;
+    private static final BinomialProportionEstimator ESTIMATOR = new BinomialProportionEstimator();
 
     private enum Mode { CONTRACTUAL, EMPIRICAL_DEFAULT, EMPIRICAL_PINNED }
 
@@ -85,9 +110,8 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
     }
 
     /**
-     * Returns a new criterion with the declared confidence. Stage 4's
-     * Wilson-score-aware comparison consumes this; Stage 3.5 carries
-     * it so the authoring surface is stable.
+     * Returns a new criterion with the declared confidence — used for
+     * the empirical path's Wilson-score lower-bound comparison.
      */
     public BernoulliPassRate<OT> atConfidence(double confidence) {
         if (Double.isNaN(confidence) || confidence <= 0.0 || confidence >= 1.0) {
@@ -174,8 +198,19 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         }
 
         double observed = (double) summary.successes() / (double) total;
-        // Placeholder comparison — Stage 4 replaces with a Wilson-score-aware check.
-        Verdict verdict = observed >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
+        Verdict verdict;
+        Double wilsonLower = null;
+        if (mode == Mode.CONTRACTUAL) {
+            verdict = observed >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
+        } else {
+            // Empirical: wrap the observed value in a Wilson-score one-sided
+            // lower bound at the criterion's confidence; PASS iff the bound
+            // respects the baseline-derived threshold. SC02 in the
+            // orchestrator catalog. Calculation lives in the dedicated
+            // statistics package — see CLAUDE.md §"Statistics isolation rule".
+            wilsonLower = ESTIMATOR.lowerBound(summary.successes(), total, confidence);
+            verdict = wilsonLower >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
+        }
 
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("observed", observed);
@@ -186,12 +221,19 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         detail.put("total", total);
         if (mode != Mode.CONTRACTUAL) {
             detail.put("confidence", confidence);
+            detail.put("wilsonLowerBound", wilsonLower);
             detail.put("baselineSampleCount", baselineSampleCount);
         }
 
-        String explanation = String.format(
-                "observed=%.4f, threshold=%.4f (origin=%s) over %d samples",
-                observed, resolvedThreshold, resolvedOrigin, total);
+        String explanation = mode == Mode.CONTRACTUAL
+                ? String.format(
+                        "observed=%.4f, threshold=%.4f (origin=%s) over %d samples",
+                        observed, resolvedThreshold, resolvedOrigin, total)
+                : String.format(
+                        "observed=%.4f (Wilson-%.0f%% lower=%.4f) vs threshold=%.4f "
+                                + "(origin=%s) over %d samples",
+                        observed, confidence * 100.0, wilsonLower, resolvedThreshold,
+                        resolvedOrigin, total);
 
         return new CriterionResult(NAME, verdict, explanation, detail);
     }

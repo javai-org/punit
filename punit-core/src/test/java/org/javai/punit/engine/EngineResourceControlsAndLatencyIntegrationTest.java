@@ -12,7 +12,7 @@ import org.javai.punit.api.typed.Pacing;
 import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
-import org.javai.punit.api.typed.spec.BernoulliPassRate;
+import org.javai.punit.engine.criteria.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.typed.spec.CriterionRole;
 import org.javai.punit.api.typed.spec.EvaluatedCriterion;

@@ -45,7 +45,7 @@ public final class ProbabilisticTest implements Spec {
      * {@link Sampling} and the factors it should run against.
      *
      * <p>For an empirical test (criterion built via
-     * {@link BernoulliPassRate#empirical()} or {@code .empiricalFrom(...)}),
+     * {@code BernoulliPassRate.empirical()} or {@code .empiricalFrom(...)}),
      * the {@code Sampling} passed here must be the <em>same value</em>
      * passed to the paired measure's
      * {@link Experiment#measuring(Sampling, Object) Experiment.measuring(...)}.
@@ -87,7 +87,7 @@ public final class ProbabilisticTest implements Spec {
      * Sampling parameters are supplied through the returned builder.
      *
      * <p>For a probabilistic test with a <strong>contractual</strong>
-     * criterion (e.g., {@link BernoulliPassRate#meeting(double, org.javai.punit.api.ThresholdOrigin)}),
+     * criterion (e.g., {@code BernoulliPassRate.meeting(threshold, origin)}),
      * the inline form is equivalent to constructing a fresh
      * {@link Sampling} per spec — there is no baseline pairing to
      * preserve, so no integrity guarantee at risk.
