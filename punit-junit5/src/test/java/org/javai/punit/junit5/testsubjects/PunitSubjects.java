@@ -15,42 +15,55 @@ import org.javai.punit.junit5.Punit;
  * <p>Lives under {@code testsubjects/} so the project's test-discovery
  * exclusion (per the existing punit convention) keeps these out of
  * normal test runs — they execute only via JUnit Platform TestKit.
+ *
+ * <p>Two factors-record stand-ins are used: {@link NoFactors} for
+ * subjects whose behaviour does not depend on factor values, and
+ * {@link GridPoint} for the explore subject, which needs distinct
+ * values to populate a grid.
  */
 public final class PunitSubjects {
 
     private PunitSubjects() { }
 
     /**
-     * Stand-in for the author's domain factors record. The {@code label}
-     * field carries no semantic meaning here — these subjects exercise
-     * JUnit-engine wiring, not any factors-dependent behaviour. Concrete
-     * values ({@code "subject-under-test"}, {@code "alt-1"}, etc.) are
-     * arbitrary placeholders chosen for readability.
+     * Empty factors record for subjects that don't exercise factors-
+     * dependent behaviour. There is one possible value
+     * ({@code new NoFactors()}); records' structural equality makes
+     * all instances equal, so the type itself documents the
+     * "factors irrelevant" intent.
      */
-    public record Factors(String label) { }
+    public record NoFactors() { }
 
-    private static final UseCase<Factors, Integer, Boolean> ALWAYS_PASSES = new UseCase<>() {
-        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            return UseCaseOutcome.ok(true);
-        }
-    };
+    /**
+     * Parameterised factors record for the explore subject — distinct
+     * grid points need distinct values.
+     */
+    public record GridPoint(String label) { }
 
-    private static final UseCase<Factors, Integer, Boolean> ALWAYS_FAILS = new UseCase<>() {
-        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            return UseCaseOutcome.fail("nope", "always fails");
-        }
-    };
+    private static <F> UseCase<F, Integer, Boolean> alwaysPasses() {
+        return new UseCase<>() {
+            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+                return UseCaseOutcome.ok(true);
+            }
+        };
+    }
 
-    private static Sampling<Factors, Integer, Boolean> sampling(
-            UseCase<Factors, Integer, Boolean> useCase, int samples) {
-        return Sampling.<Factors, Integer, Boolean>builder()
+    private static <F> UseCase<F, Integer, Boolean> alwaysFails() {
+        return new UseCase<>() {
+            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+                return UseCaseOutcome.fail("nope", "always fails");
+            }
+        };
+    }
+
+    private static <F> Sampling<F, Integer, Boolean> sampling(
+            UseCase<F, Integer, Boolean> useCase, int samples) {
+        return Sampling.<F, Integer, Boolean>builder()
                 .useCaseFactory(f -> useCase)
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();
     }
-
-    private static final Factors FACTORS = new Factors("subject-under-test");
 
     // ── @ProbabilisticTest subjects ────────────────────────────────
 
@@ -58,7 +71,7 @@ public final class PunitSubjects {
     public static final class PassingContractualTest {
         @ProbabilisticTest
         void passes() {
-            Punit.testing(sampling(ALWAYS_PASSES, 20), FACTORS)
+            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -68,7 +81,7 @@ public final class PunitSubjects {
     public static final class FailingContractualTest {
         @ProbabilisticTest
         void fails() {
-            Punit.testing(sampling(ALWAYS_FAILS, 20), FACTORS)
+            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -82,7 +95,7 @@ public final class PunitSubjects {
     public static final class InconclusiveEmpiricalTest {
         @ProbabilisticTest
         void inconclusive() {
-            Punit.testing(sampling(ALWAYS_PASSES, 20), FACTORS)
+            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -94,7 +107,7 @@ public final class PunitSubjects {
     public static final class PassingMeasureExperiment {
         @Experiment
         void measure() {
-            Punit.measuring(sampling(ALWAYS_PASSES, 100), FACTORS).run();
+            Punit.measuring(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).run();
         }
     }
 
@@ -102,8 +115,8 @@ public final class PunitSubjects {
     public static final class PassingExploreExperiment {
         @Experiment
         void explore() {
-            Punit.exploring(sampling(ALWAYS_PASSES, 5))
-                    .grid(new Factors("alt-1"), new Factors("alt-2"))
+            Punit.exploring(sampling(PunitSubjects.<GridPoint>alwaysPasses(), 5))
+                    .grid(new GridPoint("alt-1"), new GridPoint("alt-2"))
                     .run();
         }
     }
@@ -119,7 +132,7 @@ public final class PunitSubjects {
      */
     public static final class EmpiricalSupplierTest {
         private org.javai.punit.api.typed.spec.Experiment baseline() {
-            return Punit.measuring(sampling(ALWAYS_PASSES, 100), FACTORS).build();
+            return Punit.measuring(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).build();
         }
 
         @ProbabilisticTest
@@ -141,8 +154,8 @@ public final class PunitSubjects {
      */
     public static final class EmpiricalSupplierBadKindTest {
         private org.javai.punit.api.typed.spec.Experiment exploreBaseline() {
-            return Punit.exploring(sampling(ALWAYS_PASSES, 5))
-                    .grid(FACTORS)
+            return Punit.exploring(sampling(PunitSubjects.<GridPoint>alwaysPasses(), 5))
+                    .grid(new GridPoint("alt"))
                     .build();
         }
 
