@@ -59,14 +59,25 @@ final class BaselineEmitter {
 
     static void emit(Experiment experiment, Path baselineDir) {
         if (experiment.kind() != Experiment.Kind.MEASURE) {
-            // Only MEASURE produces a baseline. EXPLORE / OPTIMIZE write
-            // their own artefacts elsewhere — out of scope for Stage 5.
-            return;
+            // Only MEASURE produces a baseline. The only caller is
+            // Punit.MeasureBuilder.run(), which by construction passes a
+            // MEASURE experiment — reaching this branch is a programming
+            // error, not a runtime condition.
+            throw new IllegalArgumentException(
+                    "BaselineEmitter.emit only accepts MEASURE-flavour Experiments; got "
+                            + experiment.kind()
+                            + ". EXPLORE / OPTIMIZE produce their own artefacts and must not "
+                            + "be routed through the baseline emitter.");
         }
-        SampleSummary<?> summary = experiment.lastSummary().orElse(null);
-        if (summary == null || summary.total() == 0) {
-            // Nothing measured — nothing to record.
-            return;
+        SampleSummary<?> summary = experiment.lastSummary().orElseThrow(() ->
+                new IllegalStateException(
+                        "MEASURE experiment has no recorded summary — the engine did not "
+                                + "consume the spec before emission. This is a framework "
+                                + "invariant violation."));
+        if (summary.total() == 0) {
+            throw new IllegalStateException(
+                    "MEASURE experiment recorded zero samples — nothing to baseline. "
+                            + "Check the spec's sample count and budget configuration.");
         }
         BaselineRecord record = experiment.dispatch(new Spec.Dispatcher<>() {
             @Override
