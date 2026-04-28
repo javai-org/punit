@@ -1,4 +1,4 @@
-package org.javai.punit.api.typed.spec;
+package org.javai.punit.engine.criteria;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.typed.spec.Experiment;
+import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

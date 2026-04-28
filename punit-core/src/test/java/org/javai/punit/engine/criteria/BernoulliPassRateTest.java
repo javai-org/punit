@@ -1,4 +1,4 @@
-package org.javai.punit.api.typed.spec;
+package org.javai.punit.engine.criteria;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -11,6 +11,13 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.LatencyResult;
 import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.typed.spec.CriterionResult;
+import org.javai.punit.api.typed.spec.EvaluationContext;
+import org.javai.punit.api.typed.spec.Experiment;
+import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.typed.spec.SampleSummary;
+import org.javai.punit.api.typed.spec.TerminationReason;
+import org.javai.punit.api.typed.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

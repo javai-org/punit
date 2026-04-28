@@ -13,7 +13,7 @@ import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.BernoulliPassRate;
+import org.javai.punit.engine.criteria.BernoulliPassRate;
 import org.javai.punit.api.typed.spec.PassRateStatistics;
 import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
