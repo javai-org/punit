@@ -98,10 +98,31 @@ public record BaselineRecord(
     }
 
     /**
-     * @return the canonical filename for this baseline, in the form
-     *         {@code {useCaseId}.{methodName}-{factorsFingerprint}.yaml}.
+     * @return the canonical filename for this baseline.
+     *
+     * <p>Empty covariate profile (the default — covariate-insensitive
+     * baselines):
+     * <pre>{@code
+     * {useCaseId}.{methodName}-{factorsFingerprint}.yaml
+     * }</pre>
+     *
+     * <p>Non-empty covariate profile — one 4-char EX09 hash per
+     * covariate, in declaration order, separated by hyphens after the
+     * factors fingerprint:
+     * <pre>{@code
+     * {useCaseId}.{methodName}-{factorsFingerprint}-{cov1}-{cov2}...-{covN}.yaml
+     * }</pre>
+     *
+     * <p>The empty-profile form is byte-identical to pre-CV-3
+     * filenames; legacy baselines on disk continue to match.
      */
     public String filename() {
-        return useCaseId + "." + methodName + "-" + factorsFingerprint + ".yaml";
+        StringBuilder name = new StringBuilder()
+                .append(useCaseId).append('.').append(methodName)
+                .append('-').append(factorsFingerprint);
+        for (String hash : CovariateHashing.hashesFor(covariateProfile)) {
+            name.append('-').append(hash);
+        }
+        return name.append(".yaml").toString();
     }
 }
