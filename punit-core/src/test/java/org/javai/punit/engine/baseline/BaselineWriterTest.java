@@ -140,4 +140,46 @@ class BaselineWriterTest {
                 .withMessageContaining("custom-criterion")
                 .withMessageContaining("Unsupported baseline statistics kind");
     }
+
+    @Test
+    @DisplayName("omits the covariates section when the profile is empty (default constructor)")
+    void omitsCovariatesWhenEmpty() {
+        String yaml = writer.toYaml(recordWith(Map.of(
+                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))));
+
+        assertThat(yaml).doesNotContain("covariates:");
+    }
+
+    @Test
+    @DisplayName("emits a covariates block when the profile is non-empty, preserving order")
+    void emitsCovariatesBlock() {
+        Map<String, String> profile = new LinkedHashMap<>();
+        profile.put("day_of_week", "WEEKDAY");
+        profile.put("region", "DE_FR");
+        profile.put("model_version", "v1");
+
+        BaselineRecord record = new BaselineRecord(
+                "ShoppingBasketUseCase",
+                "measureBaseline",
+                "a1b2c3d4",
+                "sha256:7d3a8c1e9b2f",
+                1000,
+                Instant.parse("2026-04-26T15:30:00Z"),
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                org.javai.punit.api.typed.covariate.CovariateProfile.of(profile));
+
+        String yaml = writer.toYaml(record);
+        Map<String, Object> root = new Yaml().load(yaml);
+
+        assertThat(root).containsKey("covariates");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> covariates = (Map<String, Object>) root.get("covariates");
+        // SnakeYAML preserves declaration order on the way in.
+        assertThat(covariates.keySet())
+                .containsExactly("day_of_week", "region", "model_version");
+        assertThat(covariates)
+                .containsEntry("day_of_week", "WEEKDAY")
+                .containsEntry("region", "DE_FR")
+                .containsEntry("model_version", "v1");
+    }
 }

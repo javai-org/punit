@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 
 /**
@@ -31,6 +32,12 @@ import org.javai.punit.api.typed.spec.BaselineStatistics;
  * @param statisticsByCriterionName  one
  *        {@link BaselineStatistics} entry per criterion, keyed by
  *        {@code Criterion.name()}
+ * @param covariateProfile    the resolved covariate profile under
+ *        which this baseline was measured. Empty when the use case
+ *        declared no covariates (legacy / covariate-insensitive
+ *        baselines). Part of the baseline's identity per UC04 — a
+ *        baseline measured under one profile must not silently match
+ *        a test running under a different profile.
  */
 public record BaselineRecord(
         String useCaseId,
@@ -39,7 +46,8 @@ public record BaselineRecord(
         String inputsIdentity,
         int sampleCount,
         Instant generatedAt,
-        Map<String, BaselineStatistics> statisticsByCriterionName) {
+        Map<String, BaselineStatistics> statisticsByCriterionName,
+        CovariateProfile covariateProfile) {
 
     public BaselineRecord {
         Objects.requireNonNull(useCaseId, "useCaseId");
@@ -48,6 +56,7 @@ public record BaselineRecord(
         Objects.requireNonNull(inputsIdentity, "inputsIdentity");
         Objects.requireNonNull(generatedAt, "generatedAt");
         Objects.requireNonNull(statisticsByCriterionName, "statisticsByCriterionName");
+        Objects.requireNonNull(covariateProfile, "covariateProfile");
         if (useCaseId.isBlank()) {
             throw new IllegalArgumentException("useCaseId must not be blank");
         }
@@ -67,6 +76,25 @@ public record BaselineRecord(
                             + "criterion entries is not consumable by any empirical criterion");
         }
         statisticsByCriterionName = Map.copyOf(new LinkedHashMap<>(statisticsByCriterionName));
+    }
+
+    /**
+     * Convenience constructor for callers that don't carry a covariate
+     * profile (legacy baselines, tests that don't exercise covariate
+     * resolution). Equivalent to the canonical constructor with
+     * {@link CovariateProfile#empty()}.
+     */
+    public BaselineRecord(
+            String useCaseId,
+            String methodName,
+            String factorsFingerprint,
+            String inputsIdentity,
+            int sampleCount,
+            Instant generatedAt,
+            Map<String, BaselineStatistics> statisticsByCriterionName) {
+        this(useCaseId, methodName, factorsFingerprint, inputsIdentity,
+                sampleCount, generatedAt, statisticsByCriterionName,
+                CovariateProfile.empty());
     }
 
     /**
