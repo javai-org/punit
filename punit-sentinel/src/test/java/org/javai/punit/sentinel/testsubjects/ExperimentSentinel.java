@@ -2,7 +2,7 @@ package org.javai.punit.sentinel.testsubjects;
 
 import java.util.stream.Stream;
 import org.javai.punit.api.InputSource;
-import org.javai.punit.api.MeasureExperiment;
+import org.javai.punit.api.legacy.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.Sentinel;
 import org.javai.punit.usecase.UseCaseFactory;

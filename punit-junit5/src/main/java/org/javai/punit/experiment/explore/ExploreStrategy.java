@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.javai.punit.api.ConfigSource;
 import org.javai.punit.api.ExperimentMode;
-import org.javai.punit.api.ExploreExperiment;
+import org.javai.punit.api.legacy.ExploreExperiment;
 import org.javai.punit.api.FactorArguments;
 import org.javai.punit.api.FactorSource;
 import org.javai.punit.api.InputSource;

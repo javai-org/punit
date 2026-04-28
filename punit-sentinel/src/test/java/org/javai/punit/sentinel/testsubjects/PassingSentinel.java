@@ -2,7 +2,7 @@ package org.javai.punit.sentinel.testsubjects;
 
 import java.util.stream.Stream;
 import org.javai.punit.api.InputSource;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.api.Sentinel;
 import org.javai.punit.usecase.UseCaseFactory;
 

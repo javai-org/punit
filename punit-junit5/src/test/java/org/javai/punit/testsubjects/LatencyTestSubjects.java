@@ -3,7 +3,7 @@ package org.javai.punit.testsubjects;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.javai.punit.api.Latency;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 
 /**

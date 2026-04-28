@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.javai.punit.api.MeasureExperiment;
+import org.javai.punit.api.legacy.MeasureExperiment;
 import org.javai.punit.sentinel.testsubjects.ExperimentSentinel;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;

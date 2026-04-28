@@ -8,13 +8,13 @@ import java.util.stream.Stream;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ControlFactor;
-import org.javai.punit.api.ExploreExperiment;
+import org.javai.punit.api.legacy.ExploreExperiment;
 import org.javai.punit.api.InputSource;
 import org.javai.punit.api.Latency;
-import org.javai.punit.api.MeasureExperiment;
-import org.javai.punit.api.OptimizeExperiment;
+import org.javai.punit.api.legacy.MeasureExperiment;
+import org.javai.punit.api.legacy.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.contract.ServiceContract;
 import org.javai.punit.contract.UseCaseOutcome;

@@ -1,4 +1,10 @@
-package org.javai.punit.api;
+package org.javai.punit.api.legacy;
+
+import org.javai.punit.api.BudgetExhaustedBehavior;
+import org.javai.punit.api.ExceptionHandling;
+import org.javai.punit.api.Latency;
+import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.ThresholdOrigin;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
