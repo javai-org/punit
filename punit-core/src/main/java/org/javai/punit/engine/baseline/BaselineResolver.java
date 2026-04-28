@@ -95,19 +95,49 @@ public final class BaselineResolver {
             return Optional.empty();
         }
         String prefix = useCaseId + ".";
-        String suffix = "-" + factorsFingerprint + ".yaml";
+        String factorsSegment = "-" + factorsFingerprint;
+        String yamlExt = ".yaml";
         try (var stream = Files.list(baselineDir)) {
             return stream
-                    .filter(p -> {
-                        String name = p.getFileName().toString();
-                        return name.startsWith(prefix) && name.endsWith(suffix);
-                    })
+                    .filter(p -> matchesFactorsFingerprint(
+                            p.getFileName().toString(), prefix, factorsSegment, yamlExt))
                     .findFirst()
                     .map(this::readUnchecked);
         } catch (IOException e) {
             throw new UncheckedIOException(
                     "Failed to enumerate baselines in " + baselineDir, e);
         }
+    }
+
+    /**
+     * Match the legacy {@code -{ff}.yaml} suffix and the new
+     * {@code -{ff}-{cov1}...-{covN}.yaml} extension. Both forms
+     * share the {@code -{ff}} segment immediately followed by either
+     * the file extension or another hash component.
+     *
+     * <p>Stage 4 stays exact-match on {@code (useCaseId, fingerprint)};
+     * when multiple covariate-partitioned files share the same
+     * fingerprint, this method returns true for each and the caller
+     * picks the first one (file listing order). Covariate-aware
+     * selection lands in CV-3c.
+     */
+    private static boolean matchesFactorsFingerprint(
+            String name, String prefix, String factorsSegment, String yamlExt) {
+        if (!name.startsWith(prefix) || !name.endsWith(yamlExt)) {
+            return false;
+        }
+        int idx = name.indexOf(factorsSegment);
+        if (idx < 0) {
+            return false;
+        }
+        int afterSegment = idx + factorsSegment.length();
+        // The factors-fingerprint segment must be terminated by either
+        // ".yaml" (legacy / empty-profile case) or "-" (the start of
+        // a covariate hash). A bare longer-fingerprint match like
+        // -aabbccdd matching a file with fingerprint -aabbccddee would
+        // pass startsWith here but fail this terminator check.
+        return afterSegment == name.length() - yamlExt.length()
+                || name.charAt(afterSegment) == '-';
     }
 
     private BaselineRecord readUnchecked(Path file) {

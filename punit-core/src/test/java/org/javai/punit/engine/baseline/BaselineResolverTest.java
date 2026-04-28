@@ -133,4 +133,39 @@ class BaselineResolverTest {
                 "ShoppingBasket", "a1b2c3d4", "percentile-latency",
                 LatencyStatistics.class)).isPresent();
     }
+
+    @Test
+    @DisplayName("matches a covariate-bearing filename on the (useCaseId, fingerprint) pair")
+    void matchesCovariateBearingFilename(@TempDir Path dir) throws IOException {
+        java.util.LinkedHashMap<String, String> profile = new java.util.LinkedHashMap<>();
+        profile.put("region", "DE_FR");
+        BaselineRecord record = new BaselineRecord(
+                "ShoppingBasket", "measureBaseline", "a1b2c3d4",
+                "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                org.javai.punit.api.typed.covariate.CovariateProfile.of(profile));
+        writer.write(record, dir);
+
+        var resolver = new BaselineResolver(dir);
+
+        assertThat(resolver.resolve(
+                "ShoppingBasket", "a1b2c3d4", "bernoulli-pass-rate",
+                PassRateStatistics.class)).isPresent();
+    }
+
+    @Test
+    @DisplayName("does not confuse a longer fingerprint that has the requested one as a prefix")
+    void doesNotConfusePrefixFingerprint(@TempDir Path dir) throws IOException {
+        // -aabbccdd would match a file whose fingerprint is aabbccddee
+        // if the resolver only checked startsWith — which it doesn't,
+        // because the segment must be terminated by '-' or '.yaml'.
+        writeBaseline(dir, "ShoppingBasket", "aabbccddee", Map.of(
+                "bernoulli-pass-rate", new PassRateStatistics(0.5, 100)));
+
+        var resolver = new BaselineResolver(dir);
+
+        assertThat(resolver.resolve(
+                "ShoppingBasket", "aabbccdd", "bernoulli-pass-rate",
+                PassRateStatistics.class)).isEmpty();
+    }
 }

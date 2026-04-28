@@ -90,4 +90,39 @@ class BaselineRecordTest {
 
         assertThat(record.statisticsByCriterionName()).hasSize(1);
     }
+
+    @Test
+    @DisplayName("filename appends one 4-char EX09 hash per covariate, in declaration order")
+    void filenameWithCovariates() {
+        java.util.LinkedHashMap<String, String> profile =
+                new java.util.LinkedHashMap<>();
+        profile.put("day_of_week", "WEEKDAY");
+        profile.put("region", "DE_FR");
+
+        BaselineRecord record = new BaselineRecord(
+                "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",
+                "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
+                ONE_ENTRY,
+                org.javai.punit.api.typed.covariate.CovariateProfile.of(profile));
+
+        String dowHash = CovariateHashing.hashOne("day_of_week", "WEEKDAY");
+        String regionHash = CovariateHashing.hashOne("region", "DE_FR");
+
+        assertThat(record.filename())
+                .isEqualTo("ShoppingBasketUseCase.measureBaseline-a1b2c3d4-"
+                        + dowHash + "-" + regionHash + ".yaml");
+    }
+
+    @Test
+    @DisplayName("filename for empty covariate profile is unchanged from pre-CV-3")
+    void filenameUnchangedWhenProfileEmpty() {
+        BaselineRecord record = new BaselineRecord(
+                "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",
+                "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
+                ONE_ENTRY,
+                org.javai.punit.api.typed.covariate.CovariateProfile.empty());
+
+        assertThat(record.filename())
+                .isEqualTo("ShoppingBasketUseCase.measureBaseline-a1b2c3d4.yaml");
+    }
 }
