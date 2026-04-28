@@ -109,6 +109,11 @@ public final class Punit {
         return new Engine(BaselineProviderResolver.resolve()).run(spec);
     }
 
+    private static void driveAndEmit(Experiment experiment) {
+        drive(experiment);
+        BaselineProviderResolver.resolveDir().ifPresent(dir -> BaselineEmitter.emit(experiment, dir));
+    }
+
     private static void translate(ProbabilisticTestResult result) {
         Verdict verdict = result.verdict();
         if (verdict == Verdict.PASS) {
@@ -179,7 +184,11 @@ public final class Punit {
         }
 
         public void run() {
-            drive(build());
+            // Measure runs and emits a baseline file when a baseline directory
+            // is configured (system property or project convention). The
+            // emission is silent when no directory resolves — the run itself
+            // succeeded; the artefact just has nowhere to land.
+            driveAndEmit(build());
         }
     }
 
