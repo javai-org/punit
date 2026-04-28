@@ -1,4 +1,4 @@
-package org.javai.punit.junit5;
+package org.javai.punit.engine.criteria;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,12 +9,13 @@ import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.Criterion;
 import org.javai.punit.api.typed.spec.PassRateStatistics;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.reporting.InfeasibilityMessageRenderer;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityResult;
 
 /**
- * Pre-flight feasibility gate for probabilistic tests under JUnit.
+ * Pre-flight feasibility gate for probabilistic tests authored against
+ * the typed-compositional surface.
  *
  * <p>Per {@link TestIntent}'s contract:
  *
@@ -23,11 +24,9 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  *       sample size cannot support a confidence-backed claim against
  *       the resolved baseline rate, the test fails fast as misconfigured
  *       (an {@link IllegalStateException}) <em>before</em> the engine
- *       runs any samples. The minimum required N is reported in the
- *       diagnostic.</li>
+ *       runs any samples.</li>
  *   <li>{@link TestIntent#SMOKE} — undersized configurations are
- *       allowed; the framework records a {@link Warning} and surfaces
- *       it on the result so reports can label the verdict appropriately.</li>
+ *       allowed; a warning is returned for the caller to surface.</li>
  * </ul>
  *
  * <p>The check applies only to <em>empirical</em> {@link BernoulliPassRate}
@@ -42,8 +41,14 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  * checked. When no baseline file matches, feasibility is silently
  * deferred — the criterion will produce {@code INCONCLUSIVE} at evaluate
  * time, which is the correct outcome for "no baseline available."
+ *
+ * <p>Statistics-isolation rule: the math lives in
+ * {@link VerificationFeasibilityEvaluator}; this gate only orchestrates.
+ * The diagnostic prose comes from {@link InfeasibilityMessageRenderer}, the
+ * same renderer the legacy {@code ProbabilisticTestExtension} consumes —
+ * one source of wording for both authoring surfaces.
  */
-final class Feasibility {
+public final class Feasibility {
 
     private Feasibility() { }
 
@@ -56,7 +61,7 @@ final class Feasibility {
      *         instead when intent is {@link TestIntent#VERIFICATION}
      *         and the criterion is infeasible.
      */
-    static List<String> check(
+    public static List<String> check(
             int samples,
             Criterion<?, ?> criterion,
             String useCaseId,
@@ -64,21 +69,18 @@ final class Feasibility {
             TestIntent intent,
             BaselineProvider provider) {
         if (!(criterion instanceof BernoulliPassRate<?> bernoulli) || !criterion.isEmpirical()) {
-            // Non-Bernoulli or contractual: feasibility doesn't apply here.
             return List.of();
         }
         Optional<PassRateStatistics> baseline = provider.baselineFor(
                 useCaseId, factors, criterion.name(), PassRateStatistics.class);
         if (baseline.isEmpty()) {
-            // No baseline resolvable. The criterion will produce INCONCLUSIVE
-            // at evaluate time — correct outcome; nothing to check here.
             return List.of();
         }
         double rate = baseline.get().observedPassRate();
         if (rate <= 0.0 || rate >= 1.0) {
-            // Edge case: the evaluator requires the target in (0, 1) exclusive.
-            // Rates of exactly 0 or 1 are degenerate baselines; let the engine
-            // handle them downstream rather than reject upstream.
+            // The evaluator requires the target in (0, 1) exclusive. A
+            // rate of exactly 0 or 1 is a degenerate baseline; the engine
+            // will surface that downstream as an INCONCLUSIVE verdict.
             return List.of();
         }
         FeasibilityResult result = VerificationFeasibilityEvaluator.evaluate(
@@ -86,31 +88,12 @@ final class Feasibility {
         if (result.feasible()) {
             return List.of();
         }
-        String diagnostic = formatInfeasibilityDiagnostic(
-                criterion.name(), result, useCaseId);
+        String diagnostic = InfeasibilityMessageRenderer.render(useCaseId, result, false);
         if (intent == TestIntent.VERIFICATION) {
             throw new IllegalStateException(diagnostic);
         }
-        // SMOKE intent — allow but warn.
         List<String> warnings = new ArrayList<>(1);
-        warnings.add("[" + intent + "] " + diagnostic);
+        warnings.add("[" + intent + "]" + diagnostic);
         return warnings;
-    }
-
-    private static String formatInfeasibilityDiagnostic(
-            String criterionName, FeasibilityResult r, String useCaseId) {
-        return String.format(
-                "%s for use case '%s' is configured with samples=%d but the resolved "
-                        + "baseline rate %.4f at confidence %.4f requires at least %d "
-                        + "samples to support a verification-grade claim. "
-                        + "Either raise the test's sample count to ≥ %d, or declare "
-                        + "the test as TestIntent.SMOKE if a lightweight check is intentional.",
-                criterionName,
-                useCaseId,
-                r.configuredSamples(),
-                r.target(),
-                1.0 - r.configuredAlpha(),
-                r.minimumSamples(),
-                r.minimumSamples());
     }
 }

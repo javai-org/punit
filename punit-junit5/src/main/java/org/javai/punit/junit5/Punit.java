@@ -23,6 +23,7 @@ import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.Scorer;
 import org.javai.punit.api.typed.spec.Verdict;
 import org.javai.punit.engine.Engine;
+import org.javai.punit.engine.criteria.Feasibility;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
 

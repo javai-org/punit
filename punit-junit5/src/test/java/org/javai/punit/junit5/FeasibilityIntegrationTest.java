@@ -74,10 +74,12 @@ class FeasibilityIntegrationTest {
                             .getThrowable().orElseThrow();
                     assertThat(throwable).isInstanceOf(IllegalStateException.class);
                     assertThat(throwable.getMessage())
-                            .contains("samples=10")
-                            .contains("at least")
-                            .contains("samples to support a verification-grade claim")
-                            .contains("TestIntent.SMOKE");
+                            .contains("INFEASIBLE VERIFICATION")
+                            .contains(FeasibilitySubjects.USE_CASE_ID)
+                            .contains("(10)")
+                            .contains("At least")
+                            .contains("Increase samples")
+                            .contains("intent = SMOKE");
                 });
     }
 
