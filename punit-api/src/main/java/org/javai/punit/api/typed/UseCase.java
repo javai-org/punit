@@ -1,6 +1,9 @@
 package org.javai.punit.api.typed;
 
+import java.util.List;
+
 import org.javai.outcome.Outcome;
+import org.javai.punit.api.typed.covariate.Covariate;
 
 /**
  * A stochastic service invocation expressed as a typed, three-parameter
@@ -116,6 +119,33 @@ public interface UseCase<FT, IT, OT> {
      */
     default Pacing pacing() {
         return Pacing.unlimited();
+    }
+
+    /**
+     * The covariates this use case is sensitive to — environmental
+     * variables that the developer does not control but that
+     * influence outcomes (day of week, region, model version, …).
+     *
+     * <p>Declarations are pure metadata: they describe what
+     * <i>can</i> vary, not what <i>is</i> varying right now.
+     * Resolution to concrete values happens at sample time and is
+     * the framework's responsibility.
+     *
+     * <p>Covariate values resolved at measurement time become part of
+     * the baseline's identity — a baseline measured on a Sunday in
+     * the EU region cannot be matched to a test running on a Tuesday
+     * in the US region without surfacing the misalignment. This
+     * preserves the statistical guarantees of the empirical pair.
+     *
+     * <p>The default is an empty list — a use case with no declared
+     * covariates is treated as covariate-insensitive and matches any
+     * baseline regardless of capture context.
+     *
+     * @return the covariate declarations; never null. The default is
+     *         empty.
+     */
+    default List<Covariate> covariates() {
+        return List.of();
     }
 
     /**

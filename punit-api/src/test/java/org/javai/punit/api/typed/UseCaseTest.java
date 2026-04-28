@@ -75,6 +75,12 @@ class UseCaseTest {
     }
 
     @Test
+    @DisplayName("covariates defaults to an empty list")
+    void covariatesDefaultsEmpty() {
+        assertThat(new SimpleUseCase().covariates()).isEmpty();
+    }
+
+    @Test
     @DisplayName("apply wraps the output value as an Ok outcome")
     void applyWrapsOutputValue() {
         var outcome = new SimpleUseCase().apply("hello");
