@@ -60,7 +60,7 @@ subprojects {
     // JUnit 5 Jupiter API - needed at compile time for the extension
     // Using 'api' so consumers get transitive access to JUnit types
     // Version 5.13.3 includes failureThreshold for @RepeatedTest
-    api(platform("org.junit:junit-bom:5.14.3"))
+    api(platform("org.junit:junit-bom:5.14.4"))
     api("org.junit.jupiter:junit-jupiter-api")
 
     // Apache Commons Statistics - for statistical calculations (confidence intervals, distributions)
