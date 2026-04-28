@@ -1,10 +1,20 @@
 package org.javai.punit.power;
 
+import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 import org.apache.commons.statistics.distribution.NormalDistribution;
+import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.typed.spec.Configuration;
 import org.javai.punit.api.typed.spec.Experiment;
+import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.typed.spec.Spec;
+import org.javai.punit.api.typed.spec.TypedSpec;
+import org.javai.punit.engine.baseline.BaselineResolver;
+import org.javai.punit.engine.baseline.FactorsFingerprint;
 
 /**
  * Authoring-time sample-size utility for the confidence-first
@@ -20,7 +30,7 @@ import org.javai.punit.api.typed.spec.Experiment;
  * at the spec entry point:
  *
  * <pre>{@code
- * int n = PowerAnalysis.sampleSize(this::shoppingBaseline, 0.02, 0.80);
+ * int n = PowerAnalysis.sampleSize(BASELINES, this::shoppingBaseline, 0.02, 0.80);
  * var sampling = samplingTemplate().samples(n);
  * return ProbabilisticTest.testing(sampling, factors)
  *         .criterion(BernoulliPassRate.empirical())
@@ -28,71 +38,87 @@ import org.javai.punit.api.typed.spec.Experiment;
  * }</pre>
  *
  * <p>The default confidence level is {@value #DEFAULT_CONFIDENCE} —
- * matching the empirical-criterion default. Stage 4 lifts that to a
- * configurable parameter when the full resolver wires in.
+ * matching the empirical-criterion default.
  */
 public final class PowerAnalysis {
 
     /** The default confidence (1 - α) used when none is specified. */
     public static final double DEFAULT_CONFIDENCE = 0.95;
 
-    private static final NormalDistribution STANDARD_NORMAL = NormalDistribution.of(0, 1);
+    /** Criterion-name key the resolver looks under for the pass-rate baseline. */
+    private static final String PASS_RATE_CRITERION = "bernoulli-pass-rate";
 
-    /**
-     * Stage-3.5 placeholder for the resolver-resolved observed rate.
-     * The most conservative choice (maximum variance under the null)
-     * — the formula's required sample size is largest when p = 0.5,
-     * so this is a safe upper bound until Stage 4 plugs in the real
-     * baseline-resolution machinery.
-     */
-    private static final double STAGE_3_5_PLACEHOLDER_BASELINE_RATE = 0.5;
+    private static final NormalDistribution STANDARD_NORMAL = NormalDistribution.of(0, 1);
 
     private PowerAnalysis() { }
 
     /**
      * Computes the sample size required to detect a difference of at
-     * least {@code mde} from the resolved baseline rate at the given
-     * statistical power, using the default confidence
+     * least {@code mde} from the baseline's recorded pass rate at the
+     * given statistical power, using the default confidence
      * ({@value #DEFAULT_CONFIDENCE}).
      *
-     * <p>Stage 3.5 invokes the supplier once (so a misconfigured
-     * baseline supplier surfaces immediately) but uses a placeholder
-     * observed rate of 0.5 for the variance term. Stage 4 replaces
-     * the placeholder with the real resolver that reads the
-     * persisted baseline matching the Experiment's use-case
-     * identity + factor / covariate profile.
+     * <p>The supplier yields a {@code MEASURE}-flavour {@link Experiment};
+     * the utility resolves the baseline file matching that experiment's
+     * use-case identity and factors fingerprint under {@code baselineDir},
+     * reads the recorded {@link PassRateStatistics}, and feeds the
+     * recorded {@code observedPassRate} into the z-test sample-size
+     * formula.
      *
-     * @param baseline a supplier that yields the baseline Experiment
-     *                 — typically a method reference to an
-     *                 {@code @Experiment} method
-     * @param mde      the minimum detectable effect, in (0, 1)
-     * @param power    the required statistical power, in (0, 1)
-     * @return the required sample count
-     * @throws NullPointerException     if {@code baseline} is null
+     * @param baselineDir directory containing the baseline YAML files
+     *                    the resolver searches
+     * @param baseline    a supplier yielding the {@code MEASURE}
+     *                    {@link Experiment} the sample size is being
+     *                    planned against — typically a method
+     *                    reference to an {@code @PunitExperiment} method
+     * @param mde         the minimum detectable effect, in (0, 1)
+     * @param power       the required statistical power, in (0, 1)
+     * @return the required sample count, ceiling-rounded
+     * @throws NullPointerException     if any argument is null, or the
+     *                                  supplier returns null
      * @throws IllegalArgumentException if {@code mde} ∉ (0, 1) or
      *                                  {@code power} ∉ (0, 1) or the
-     *                                  resolved baseline rate is
-     *                                  incompatible with the
-     *                                  requested MDE (i.e.
-     *                                  {@code rate - mde ≤ 0} or
-     *                                  {@code rate + mde ≥ 1})
+     *                                  supplier yields a non-MEASURE
+     *                                  experiment, or the resolved
+     *                                  baseline rate is incompatible
+     *                                  with the requested MDE
+     *                                  ({@code rate ± mde} outside (0, 1))
+     * @throws IllegalStateException    if no matching baseline file is
+     *                                  resolvable under {@code baselineDir}
      */
     public static int sampleSize(
+            Path baselineDir,
             Supplier<Experiment> baseline,
             double mde,
             double power) {
+        Objects.requireNonNull(baselineDir, "baselineDir");
         Objects.requireNonNull(baseline, "baseline");
         validate(mde, power);
 
-        // Invoke the supplier once — validates that the author wired up a
-        // real baseline-producing method and not a thunk that will blow up
-        // at evaluate-time. The returned Experiment is unused under the
-        // Stage-3.5 placeholder; Stage 4 reads its observed rate.
-        Experiment resolved = Objects.requireNonNull(
-                baseline.get(),
-                "baseline supplier returned null");
+        Experiment experiment = Objects.requireNonNull(
+                baseline.get(), "baseline supplier returned null");
+        if (experiment.kind() != Experiment.Kind.MEASURE) {
+            throw new IllegalArgumentException(
+                    "PowerAnalysis.sampleSize requires a MEASURE-flavour Experiment "
+                            + "(one that produces a baseline); got " + experiment.kind()
+                            + ". Pass a method reference to an @PunitExperiment method "
+                            + "whose body returns Experiment.measuring(...).build().");
+        }
 
-        double observedRate = STAGE_3_5_PLACEHOLDER_BASELINE_RATE;
+        BaselineLookup lookup = experiment.dispatch(LOOKUP_DISPATCHER);
+        BaselineResolver resolver = new BaselineResolver(baselineDir);
+        PassRateStatistics stats = resolver.resolve(
+                lookup.useCaseId(),
+                lookup.factorsFingerprint(),
+                PASS_RATE_CRITERION,
+                PassRateStatistics.class)
+                .orElseThrow(() -> new IllegalStateException(
+                        "no baseline found for use case '" + lookup.useCaseId()
+                                + "' (factors fingerprint " + lookup.factorsFingerprint()
+                                + ") under " + baselineDir
+                                + " — run the baseline measure before planning a test against it."));
+
+        double observedRate = stats.observedPassRate();
         if (observedRate - mde <= 0.0 || observedRate + mde >= 1.0) {
             throw new IllegalArgumentException(
                     "baseline observed rate " + observedRate
@@ -107,13 +133,7 @@ public final class PowerAnalysis {
         double numerator = (zAlpha + zBeta) * (zAlpha + zBeta)
                 * observedRate * (1.0 - observedRate);
         double denominator = mde * mde;
-        double n = numerator / denominator;
-
-        // Reference resolved so any future verification of supplier identity
-        // doesn't need to re-invoke it; documented absence of further use.
-        Objects.requireNonNull(resolved);
-
-        return (int) Math.ceil(n);
+        return (int) Math.ceil(numerator / denominator);
     }
 
     private static void validate(double mde, double power) {
@@ -126,4 +146,33 @@ public final class PowerAnalysis {
                     "power must be in (0, 1), got " + power);
         }
     }
+
+    /** Carrier for the two identity values the resolver needs. */
+    private record BaselineLookup(String useCaseId, String factorsFingerprint) { }
+
+    /**
+     * Dispatcher that captures the {@code <FT>} type parameter from the
+     * spec's typed view long enough to call
+     * {@code useCaseFactory.apply(factors).id()} and compute the
+     * factors fingerprint, then collapses the result back to a
+     * non-generic carrier.
+     */
+    private static final Spec.Dispatcher<BaselineLookup> LOOKUP_DISPATCHER =
+            new Spec.Dispatcher<>() {
+                @Override
+                public <FT, IT, OT> BaselineLookup apply(TypedSpec<FT, IT, OT> typed) {
+                    Iterator<Configuration<FT, IT, OT>> iterator = typed.configurations();
+                    if (!iterator.hasNext()) {
+                        throw new IllegalStateException(
+                                "MEASURE experiment produced no configurations — "
+                                        + "the typed spec is malformed");
+                    }
+                    Configuration<FT, IT, OT> cfg = iterator.next();
+                    FT factors = cfg.factors();
+                    UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
+                    String useCaseId = useCase.id();
+                    String fingerprint = FactorsFingerprint.of(FactorBundle.of(factors));
+                    return new BaselineLookup(useCaseId, fingerprint);
+                }
+            };
 }
