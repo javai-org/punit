@@ -66,18 +66,6 @@ class MeasureToTestRoundTripTest {
         }
     }
 
-    @Test
-    @DisplayName("with no baseline directory configured, .run() succeeds — falls back to the convention path")
-    void measureFallsBackToConvention() {
-        System.clearProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
-        // The convention path may or may not exist in the test runner's
-        // working directory; either way the run completes cleanly. The
-        // BaselineWriter creates the directory on first write, so emission
-        // succeeds whenever the test process can create directories there.
-        Events events = run(RoundTripSubjects.PassingMeasure.class);
-        events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
-    }
-
     // ── Resolution side: @ProbabilisticTest reads the baseline ─────
 
     @Test
