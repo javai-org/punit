@@ -20,6 +20,13 @@ public final class PunitSubjects {
 
     private PunitSubjects() { }
 
+    /**
+     * Stand-in for the author's domain factors record. The {@code label}
+     * field carries no semantic meaning here — these subjects exercise
+     * JUnit-engine wiring, not any factors-dependent behaviour. Concrete
+     * values ({@code "subject-under-test"}, {@code "alt-1"}, etc.) are
+     * arbitrary placeholders chosen for readability.
+     */
     public record Factors(String label) { }
 
     private static final UseCase<Factors, Integer, Boolean> ALWAYS_PASSES = new UseCase<>() {
@@ -43,7 +50,7 @@ public final class PunitSubjects {
                 .build();
     }
 
-    private static final Factors FACTORS = new Factors("m");
+    private static final Factors FACTORS = new Factors("subject-under-test");
 
     // ── @ProbabilisticTest subjects ────────────────────────────────
 
@@ -96,7 +103,7 @@ public final class PunitSubjects {
         @Experiment
         void explore() {
             Punit.exploring(sampling(ALWAYS_PASSES, 5))
-                    .grid(new Factors("a"), new Factors("b"))
+                    .grid(new Factors("alt-1"), new Factors("alt-2"))
                     .run();
         }
     }
