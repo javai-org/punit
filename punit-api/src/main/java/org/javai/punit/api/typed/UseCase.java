@@ -1,6 +1,8 @@
 package org.javai.punit.api.typed;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.typed.covariate.Covariate;
@@ -146,6 +148,33 @@ public interface UseCase<FT, IT, OT> {
      */
     default List<Covariate> covariates() {
         return List.of();
+    }
+
+    /**
+     * Resolvers for any {@code CustomCovariate} entries declared by
+     * {@link #covariates()}.
+     *
+     * <p>The framework owns the four built-in resolvers (day-of-week,
+     * time-of-day, region, timezone). For each {@code CustomCovariate}
+     * the use case declares, the framework consults this map (keyed
+     * by the covariate's {@link Covariate#name() name}) and invokes
+     * the supplier exactly once at the start of an experiment or
+     * test execution.
+     *
+     * <p>The supplier must be deterministic within a single
+     * execution: calling it twice in the same run must yield the
+     * same value, since all samples in that run share one resolved
+     * profile.
+     *
+     * <p>If the use case declares a {@code CustomCovariate} whose
+     * name has no entry in this map, the framework fails fast before
+     * any samples run — silent fallbacks would corrupt baseline
+     * identity.
+     *
+     * @return the resolver map; never null. The default is empty.
+     */
+    default Map<String, Supplier<String>> customCovariateResolvers() {
+        return Map.of();
     }
 
     /**
