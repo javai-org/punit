@@ -164,19 +164,19 @@ class BernoulliPassRateTest {
     }
 
     @Test
-    @DisplayName("empirical() detail map carries confidenceLevel, wilsonLowerBound, wilsonUpperBound")
+    @DisplayName("empirical() detail map carries confidence and wilsonLowerBound")
     void empiricalDetailMapCarriesWilsonFields() {
         BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
         CriterionResult result = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
 
-        assertThat(result.detail()).containsKeys(
-                "confidence", "wilsonLowerBound", "wilsonUpperBound");
+        assertThat(result.detail()).containsKeys("confidence", "wilsonLowerBound");
+        assertThat(result.detail()).doesNotContainKey("wilsonUpperBound");
         assertThat((double) result.detail().get("confidence")).isEqualTo(0.95);
         double lower = (double) result.detail().get("wilsonLowerBound");
-        double upper = (double) result.detail().get("wilsonUpperBound");
-        assertThat(lower).isLessThan(upper);
+        assertThat(lower).isLessThan(0.95);
+        assertThat(lower).isGreaterThan(0.88);
     }
 
     @Test

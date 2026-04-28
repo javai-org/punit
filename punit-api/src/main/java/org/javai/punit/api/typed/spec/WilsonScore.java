@@ -1,23 +1,28 @@
 package org.javai.punit.api.typed.spec;
 
 /**
- * Wilson-score confidence interval for a binomial proportion.
+ * Wilson-score confidence-interval lower bound for a binomial
+ * proportion.
  *
  * <p>Used by {@link BernoulliPassRate}'s empirical path to wrap the
- * observed pass rate in a two-sided interval at a configured
- * confidence level. The criterion's verdict is {@link Verdict#PASS}
- * when the lower bound respects the baseline-derived threshold,
- * {@link Verdict#FAIL} when it does not. See SC01 / SC02 in the
- * orchestrator catalog for the design rationale.
+ * observed pass rate at a configured confidence level. The criterion's
+ * verdict is {@link Verdict#PASS} when the lower bound respects the
+ * baseline-derived threshold, {@link Verdict#FAIL} when it does not.
+ * See SC01 / SC02 in the orchestrator catalog for the design rationale.
  *
  * <p>This utility is self-contained — no statistics library dependency
- * — so {@code punit-api} can compute the interval without pulling in
+ * — so {@code punit-api} can compute the bound without pulling in
  * {@code commons-statistics-distribution}. The standard-normal
  * inverse-CDF is approximated via Acklam's algorithm
  * (<a href="https://web.archive.org/web/20151030215612/http://home.online.no/~pjacklam/notes/invnorm/">
  * Beasley-Springer-Moro family</a>) which is accurate to better than
  * {@code 1.15e-9} across the full {@code (0, 1)} range — well within
  * the precision needed for verdict thresholds.
+ *
+ * <p>Only the lower bound is exposed: it is the value the verdict
+ * comparison consumes. The upper bound is computable from the same
+ * arithmetic and lands here when a downstream consumer (a reporter,
+ * a richer diagnostic surface) actually needs it.
  */
 public final class WilsonScore {
 
@@ -31,24 +36,6 @@ public final class WilsonScore {
      *                     {@code (0, 1)} — typically {@code 0.95}
      */
     public static double lowerBound(double observed, int sampleCount, double confidence) {
-        return interval(observed, sampleCount, confidence)[0];
-    }
-
-    /**
-     * @return the Wilson-score upper bound on a binomial proportion
-     * @see #lowerBound(double, int, double)
-     */
-    public static double upperBound(double observed, int sampleCount, double confidence) {
-        return interval(observed, sampleCount, confidence)[1];
-    }
-
-    /**
-     * @return a two-element array {@code [lower, upper]} carrying the
-     *         Wilson-score interval bounds; spares callers a second
-     *         pass through the same arithmetic when both bounds are
-     *         needed (e.g. for emission to the verdict's detail map)
-     */
-    public static double[] interval(double observed, int sampleCount, double confidence) {
         validate(observed, sampleCount, confidence);
         double z = standardNormalCriticalValue(confidence);
         double n = sampleCount;
@@ -57,7 +44,7 @@ public final class WilsonScore {
         double centre = (observed + zSq / (2.0 * n)) / denom;
         double margin = z * Math.sqrt(observed * (1.0 - observed) / n
                 + zSq / (4.0 * n * n)) / denom;
-        return new double[] { centre - margin, centre + margin };
+        return centre - margin;
     }
 
     /**

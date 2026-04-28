@@ -176,16 +176,13 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         double observed = (double) summary.successes() / (double) total;
         Verdict verdict;
         Double wilsonLower = null;
-        Double wilsonUpper = null;
         if (mode == Mode.CONTRACTUAL) {
             verdict = observed >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
         } else {
-            // Empirical: wrap the observed value in a Wilson-score interval at
-            // the criterion's confidence; PASS iff the lower bound respects the
+            // Empirical: wrap the observed value in a Wilson-score lower bound
+            // at the criterion's confidence; PASS iff the bound respects the
             // baseline-derived threshold. SC02 in the orchestrator catalog.
-            double[] interval = WilsonScore.interval(observed, total, confidence);
-            wilsonLower = interval[0];
-            wilsonUpper = interval[1];
+            wilsonLower = WilsonScore.lowerBound(observed, total, confidence);
             verdict = wilsonLower >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
         }
 
@@ -199,7 +196,6 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         if (mode != Mode.CONTRACTUAL) {
             detail.put("confidence", confidence);
             detail.put("wilsonLowerBound", wilsonLower);
-            detail.put("wilsonUpperBound", wilsonUpper);
             detail.put("baselineSampleCount", baselineSampleCount);
         }
 
