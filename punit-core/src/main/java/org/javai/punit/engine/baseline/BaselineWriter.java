@@ -2,6 +2,7 @@ package org.javai.punit.engine.baseline;
 
 import static org.javai.punit.engine.baseline.BaselineSchema.CRITERION_BERNOULLI_PASS_RATE;
 import static org.javai.punit.engine.baseline.BaselineSchema.CRITERION_PERCENTILE_LATENCY;
+import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_COVARIATES;
 import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_FACTORS_FINGERPRINT;
 import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_GENERATED_AT;
 import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_INPUTS_IDENTITY;
@@ -85,6 +86,14 @@ public final class BaselineWriter {
         record.statisticsByCriterionName().forEach((name, value) ->
                 stats.put(name, serialiseStatisticsEntry(name, value)));
         root.put(FIELD_STATISTICS, stats);
+
+        if (!record.covariateProfile().isEmpty()) {
+            // Insertion order of the profile is the use case's
+            // covariate-declaration order — preserved on the way out
+            // so EX09's filename hashes appear in the same order.
+            root.put(FIELD_COVARIATES,
+                    new LinkedHashMap<>(record.covariateProfile().values()));
+        }
         return root;
     }
 

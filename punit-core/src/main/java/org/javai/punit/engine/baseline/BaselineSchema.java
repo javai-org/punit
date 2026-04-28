@@ -23,6 +23,7 @@ final class BaselineSchema {
     static final String FIELD_SAMPLE_COUNT = "sampleCount";
     static final String FIELD_GENERATED_AT = "generatedAt";
     static final String FIELD_STATISTICS = "statistics";
+    static final String FIELD_COVARIATES = "covariates";
 
     // BernoulliPassRate / PassRateStatistics
     static final String FIELD_OBSERVED_PASS_RATE = "observedPassRate";

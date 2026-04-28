@@ -162,4 +162,73 @@ class BaselineReaderTest {
                 .withMessageContaining("weird-criterion")
                 .withMessageContaining("Unrecognised statistics entry shape");
     }
+
+    @Test
+    @DisplayName("round-trips a baseline with a covariate profile, preserving order")
+    void roundTripCovariates() {
+        Map<String, String> profile = new LinkedHashMap<>();
+        profile.put("day_of_week", "WEEKDAY");
+        profile.put("region", "DE_FR");
+        profile.put("model_version", "v1");
+
+        BaselineRecord original = new BaselineRecord(
+                "ShoppingBasket", "measureBaseline", "a1b2c3d4",
+                "sha256:abc123", 1000,
+                Instant.parse("2026-04-26T15:30:00Z"),
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                org.javai.punit.api.typed.covariate.CovariateProfile.of(profile));
+
+        BaselineRecord parsed = reader.parse(writer.toYaml(original));
+
+        assertThat(parsed.covariateProfile().values())
+                .containsExactly(
+                        Map.entry("day_of_week", "WEEKDAY"),
+                        Map.entry("region", "DE_FR"),
+                        Map.entry("model_version", "v1"));
+    }
+
+    @Test
+    @DisplayName("legacy baselines without a covariates block parse to an empty profile")
+    void legacyMissingCovariates() {
+        // A YAML emitted before CV-3a has no covariates: block. The
+        // reader must accept it and assign the empty profile, so old
+        // baselines on disk continue to work after the upgrade.
+        String yaml = "schemaVersion: punit-baseline-2\n"
+                + "useCaseId: x\n"
+                + "methodName: m\n"
+                + "factorsFingerprint: f\n"
+                + "inputsIdentity: sha256:x\n"
+                + "sampleCount: 1\n"
+                + "generatedAt: 2026-04-26T15:30:00Z\n"
+                + "statistics:\n"
+                + "  bernoulli-pass-rate:\n"
+                + "    observedPassRate: 0.5\n"
+                + "    sampleCount: 1\n";
+
+        BaselineRecord parsed = reader.parse(yaml);
+        assertThat(parsed.covariateProfile().isEmpty()).isTrue();
+    }
+
+    @Test
+    @DisplayName("rejects a non-string covariate value")
+    void rejectsNonStringCovariate() {
+        String yaml = "schemaVersion: punit-baseline-2\n"
+                + "useCaseId: x\n"
+                + "methodName: m\n"
+                + "factorsFingerprint: f\n"
+                + "inputsIdentity: sha256:x\n"
+                + "sampleCount: 1\n"
+                + "generatedAt: 2026-04-26T15:30:00Z\n"
+                + "statistics:\n"
+                + "  bernoulli-pass-rate:\n"
+                + "    observedPassRate: 0.5\n"
+                + "    sampleCount: 1\n"
+                + "covariates:\n"
+                + "  region: 42\n";
+
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> reader.parse(yaml))
+                .withMessageContaining("region")
+                .withMessageContaining("must be a string");
+    }
 }

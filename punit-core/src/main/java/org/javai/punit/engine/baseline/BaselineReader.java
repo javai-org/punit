@@ -1,5 +1,6 @@
 package org.javai.punit.engine.baseline;
 
+import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_COVARIATES;
 import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_FACTORS_FINGERPRINT;
 import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_GENERATED_AT;
 import static org.javai.punit.engine.baseline.BaselineSchema.FIELD_INPUTS_IDENTITY;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.javai.punit.api.typed.LatencyResult;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 import org.javai.punit.api.typed.spec.LatencyStatistics;
 import org.javai.punit.api.typed.spec.PassRateStatistics;
@@ -79,9 +81,41 @@ public final class BaselineReader {
             entries.put(e.getKey(), parseStatisticsEntry(e.getKey(), e.getValue()));
         }
 
+        CovariateProfile profile = parseCovariates(root);
+
         return new BaselineRecord(
                 useCaseId, methodName, factorsFingerprint,
-                inputsIdentity, sampleCount, generatedAt, entries);
+                inputsIdentity, sampleCount, generatedAt, entries, profile);
+    }
+
+    private CovariateProfile parseCovariates(Map<String, Object> root) {
+        if (!root.containsKey(FIELD_COVARIATES)) {
+            return CovariateProfile.empty();
+        }
+        Object raw = root.get(FIELD_COVARIATES);
+        if (raw == null) {
+            return CovariateProfile.empty();
+        }
+        if (!(raw instanceof Map<?, ?> nested)) {
+            throw new IllegalArgumentException(
+                    "Field '" + FIELD_COVARIATES + "' must be a mapping, got "
+                            + raw.getClass().getSimpleName());
+        }
+        Map<String, Object> typed = asStringKeyedMap(nested, FIELD_COVARIATES);
+        if (typed.isEmpty()) {
+            return CovariateProfile.empty();
+        }
+        Map<String, String> values = new LinkedHashMap<>(typed.size());
+        for (Map.Entry<String, Object> e : typed.entrySet()) {
+            Object v = e.getValue();
+            if (!(v instanceof String s)) {
+                throw new IllegalArgumentException(
+                        "Covariate '" + e.getKey() + "' must be a string, got "
+                                + (v == null ? "null" : v.getClass().getSimpleName()));
+            }
+            values.put(e.getKey(), s);
+        }
+        return CovariateProfile.of(values);
     }
 
     private BaselineStatistics parseStatisticsEntry(String criterionName, Object raw) {
