@@ -1,0 +1,18 @@
+schemaVersion: punit-baseline-2
+useCaseId: round-trip-use-case
+methodName: baseline-v1
+factorsFingerprint: 44136fa3
+inputsIdentity: sha256:a615eeaee21de5179de080de8c3052c8da901138406ba71c38c032845f7d54f4
+sampleCount: 50
+generatedAt: '2026-04-28T12:45:37.901445Z'
+statistics:
+  percentile-latency:
+    sampleCount: 50
+    percentiles:
+      p50: PT0.000000333S
+      p90: PT0.000000375S
+      p95: PT0.000000417S
+      p99: PT0.00000175S
+  bernoulli-pass-rate:
+    observedPassRate: 1.0
+    sampleCount: 50

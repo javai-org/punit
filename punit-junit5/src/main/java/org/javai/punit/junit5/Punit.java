@@ -1,11 +1,13 @@
 package org.javai.punit.junit5;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.ValueMatcher;
@@ -68,7 +70,9 @@ public final class Punit {
     /** Compose a contractual probabilistic test against a shared sampling. */
     public static <FT, IT, OT> TestBuilder<FT, IT, OT> testing(
             Sampling<FT, IT, OT> sampling, FT factors) {
-        return new TestBuilder<>(ProbabilisticTest.testing(sampling, factors));
+        return new TestBuilder<>(
+                ProbabilisticTest.testing(sampling, factors),
+                sampling, factors);
     }
 
     /**
@@ -280,22 +284,33 @@ public final class Punit {
     /** Wrapper around {@link ProbabilisticTest.Builder} adding {@link #assertPasses}. */
     public static final class TestBuilder<FT, IT, OT> {
         private final ProbabilisticTest.Builder<FT, IT, OT> delegate;
+        private final Sampling<FT, IT, OT> sampling;
+        private final FT factors;
+        private final List<Criterion<OT, ?>> requiredCriteria = new ArrayList<>();
+        private TestIntent intent = TestIntent.VERIFICATION;
 
-        TestBuilder(ProbabilisticTest.Builder<FT, IT, OT> delegate) {
+        TestBuilder(ProbabilisticTest.Builder<FT, IT, OT> delegate,
+                    Sampling<FT, IT, OT> sampling, FT factors) {
             this.delegate = delegate;
+            this.sampling = sampling;
+            this.factors = factors;
         }
 
         public TestBuilder<FT, IT, OT> criterion(Criterion<OT, ?> criterion) {
             delegate.criterion(criterion);
+            requiredCriteria.add(criterion);
             return this;
         }
 
         public TestBuilder<FT, IT, OT> reportOnly(Criterion<OT, ?> criterion) {
             delegate.reportOnly(criterion);
+            // REPORT_ONLY criteria don't gate the verdict — feasibility doesn't
+            // apply, so we don't capture them here.
             return this;
         }
 
         public TestBuilder<FT, IT, OT> intent(TestIntent intent) {
+            this.intent = Objects.requireNonNull(intent, "intent");
             delegate.intent(intent);
             return this;
         }
@@ -305,12 +320,27 @@ public final class Punit {
         }
 
         public void assertPasses() {
-            EngineResult result = drive(build());
+            ProbabilisticTest spec = build();
+            List<String> warnings = preflightFeasibility();
+            EngineResult result = drive(spec);
             if (!(result instanceof ProbabilisticTestResult typed)) {
                 throw new IllegalStateException(
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
+            warnings.forEach(System.err::println);
             translate(typed);
+        }
+
+        private List<String> preflightFeasibility() {
+            String useCaseId = sampling.useCaseFactory().apply(factors).id();
+            FactorBundle bundle = FactorBundle.of(factors);
+            BaselineProvider provider = BaselineProviderResolver.resolve();
+            List<String> warnings = new ArrayList<>();
+            for (Criterion<OT, ?> c : requiredCriteria) {
+                warnings.addAll(Feasibility.check(
+                        sampling.samples(), c, useCaseId, bundle, intent, provider));
+            }
+            return warnings;
         }
     }
 
@@ -372,12 +402,37 @@ public final class Punit {
         }
 
         public void assertPasses() {
-            EngineResult result = drive(build());
+            ProbabilisticTest spec = build();
+            List<String> warnings = preflightFeasibility(spec);
+            EngineResult result = drive(spec);
             if (!(result instanceof ProbabilisticTestResult typed)) {
                 throw new IllegalStateException(
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
+            warnings.forEach(System.err::println);
             translate(typed);
+        }
+
+        @SuppressWarnings("unchecked")
+        private List<String> preflightFeasibility(ProbabilisticTest spec) {
+            BaselineProvider provider = BaselineProviderResolver.resolve();
+            List<String> warnings = new ArrayList<>();
+            spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<Void>() {
+                @Override
+                public <FT, IT, OT> Void apply(
+                        org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                    var cfg = typed.configurations().next();
+                    FT factors = cfg.factors();
+                    String useCaseId = typed.useCaseFactory().apply(factors).id();
+                    FactorBundle bundle = FactorBundle.of(factors);
+                    warnings.addAll(Feasibility.check(
+                            cfg.samples(),
+                            (Criterion<Object, ?>) criterion,
+                            useCaseId, bundle, intent, provider));
+                    return null;
+                }
+            });
+            return warnings;
         }
     }
 }
