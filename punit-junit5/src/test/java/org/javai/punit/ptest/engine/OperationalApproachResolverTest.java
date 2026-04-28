@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.lang.annotation.Annotation;
 import org.javai.punit.api.Latency;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.statistics.OperationalApproach;
 import org.junit.jupiter.api.BeforeEach;

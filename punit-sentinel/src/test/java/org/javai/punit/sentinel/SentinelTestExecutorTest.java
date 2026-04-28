@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.reflect.Method;
 import java.util.Optional;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.ptest.bernoulli.FinalVerdictDecider;
 import org.javai.punit.ptest.engine.ConfigurationResolver;
 import org.javai.punit.sentinel.testsubjects.FailingSentinel;

@@ -3,7 +3,7 @@ package org.javai.punit.testsubjects;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.api.ProbabilisticTestBudget;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;

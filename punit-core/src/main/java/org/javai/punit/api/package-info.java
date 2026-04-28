@@ -8,13 +8,13 @@
  * 
  * <h2>Core Annotations</h2>
  * <ul>
- *   <li>{@link org.javai.punit.api.ProbabilisticTest} - Marks a method as a probabilistic test</li>
+ *   <li>{@link org.javai.punit.api.legacy.ProbabilisticTest} - Marks a method as a probabilistic test</li>
  *   <li>{@link org.javai.punit.api.ProbabilisticTestBudget} - Defines shared budgets at class level</li>
  * </ul>
  * 
  * <h2>Quick Start</h2>
  * <pre>{@code
- * import org.javai.punit.api.ProbabilisticTest;
+ * import org.javai.punit.api.legacy.ProbabilisticTest;
  * import static org.assertj.core.api.Assertions.assertThat;
  * 
  * class MyServiceTest {
@@ -54,7 +54,7 @@
  *   <li>{@link org.javai.punit.api.ExceptionHandling} - How to handle non-assertion exceptions</li>
  * </ul>
  * 
- * @see org.javai.punit.api.ProbabilisticTest
+ * @see org.javai.punit.api.legacy.ProbabilisticTest
  * @see org.javai.punit.api.TokenChargeRecorder
  */
 package org.javai.punit.api;

@@ -5,7 +5,7 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.model.CovariateDeclaration;
 import org.javai.punit.model.CovariateProfile;

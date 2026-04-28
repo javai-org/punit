@@ -2,7 +2,7 @@ package org.javai.punit.ptest.engine;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 
 /**
  * Factory for developer-friendly error messages when {@code @ProbabilisticTest} configuration

@@ -2,7 +2,7 @@ package org.javai.punit.ptest.engine;
 
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.api.ExceptionHandling;
-import org.javai.punit.api.ProbabilisticTest;
+import org.javai.punit.api.legacy.ProbabilisticTest;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.model.SuccessCriteria;
 import org.javai.punit.statistics.BinomialProportionEstimator;

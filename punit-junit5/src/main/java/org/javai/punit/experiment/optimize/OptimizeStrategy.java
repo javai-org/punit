@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.javai.punit.api.ExperimentMode;
 import org.javai.punit.api.InputSource;
-import org.javai.punit.api.OptimizeExperiment;
+import org.javai.punit.api.legacy.OptimizeExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.contract.PostconditionResult;
 import org.javai.punit.contract.UseCaseOutcome;
