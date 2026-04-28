@@ -5,7 +5,6 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import org.apache.commons.statistics.distribution.NormalDistribution;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.spec.Configuration;
@@ -15,6 +14,7 @@ import org.javai.punit.api.typed.spec.Spec;
 import org.javai.punit.api.typed.spec.TypedSpec;
 import org.javai.punit.engine.baseline.BaselineResolver;
 import org.javai.punit.engine.baseline.FactorsFingerprint;
+import org.javai.punit.statistics.SampleSizeCalculator;
 
 /**
  * Authoring-time sample-size utility for the confidence-first
@@ -48,7 +48,13 @@ public final class PowerAnalysis {
     /** Criterion-name key the resolver looks under for the pass-rate baseline. */
     private static final String PASS_RATE_CRITERION = "bernoulli-pass-rate";
 
-    private static final NormalDistribution STANDARD_NORMAL = NormalDistribution.of(0, 1);
+    /**
+     * The actual sample-size formula lives in
+     * {@link SampleSizeCalculator}, the dedicated home for statistical
+     * calculations. This class is the bridge that resolves the
+     * baseline rate; it does not duplicate the math.
+     */
+    private static final SampleSizeCalculator SAMPLE_SIZE_CALCULATOR = new SampleSizeCalculator();
 
     private PowerAnalysis() { }
 
@@ -126,14 +132,12 @@ public final class PowerAnalysis {
                             + " — the [rate-mde, rate+mde] interval must lie in (0, 1)");
         }
 
-        // One-proportion z-test sample-size formula (SC06):
-        //   n = ((z_α + z_β)² × p(1-p)) / mde²
-        double zAlpha = STANDARD_NORMAL.inverseCumulativeProbability(DEFAULT_CONFIDENCE);
-        double zBeta = STANDARD_NORMAL.inverseCumulativeProbability(power);
-        double numerator = (zAlpha + zBeta) * (zAlpha + zBeta)
-                * observedRate * (1.0 - observedRate);
-        double denominator = mde * mde;
-        return (int) Math.ceil(numerator / denominator);
+        // Sample-size formula (SC06) lives in SampleSizeCalculator — the
+        // dedicated statistics-package home. This bridge resolves the
+        // baseline rate and delegates the math.
+        return SAMPLE_SIZE_CALCULATOR
+                .calculateForPower(observedRate, mde, DEFAULT_CONFIDENCE, power)
+                .requiredSamples();
     }
 
     private static void validate(double mde, double power) {
