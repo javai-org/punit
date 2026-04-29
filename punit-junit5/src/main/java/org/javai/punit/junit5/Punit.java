@@ -197,9 +197,41 @@ public final class Punit {
         }
         String message = formatMessage(result);
         if (verdict == Verdict.INCONCLUSIVE) {
+            // The covariate-alignment contract has three INCONCLUSIVE
+            // sub-cases that we resolve here — see the project's
+            // covariate-misalignment trichotomy:
+            //
+            //   1. No candidates considered (no baseline files yet)
+            //      — legitimate skip; the workflow is measure first,
+            //      then test. JUnit-aborted (TestAbortedException).
+            //   2. Candidates considered but all rejected (CONFIGURATION
+            //      mismatch on every one, or zero-overlap)
+            //      — misconfiguration: the user is asking for a
+            //      reference that doesn't exist for this configuration.
+            //      JUnit-failed (AssertionFailedError).
+            //   3. Candidate matched (possibly partial fallback)
+            //      — verdict is whatever the criterion produced; not
+            //      this branch.
+            //
+            // Detection: rejection notes on the result distinguish (2)
+            // from (1). BaselineSelector emits "rejected {filename} — …"
+            // for each candidate it couldn't select; their presence
+            // means candidates existed.
+            if (candidatesWereRejected(result)) {
+                throw new AssertionFailedError(message);
+            }
             throw new TestAbortedException(message);
         }
         throw new AssertionFailedError(message);
+    }
+
+    private static boolean candidatesWereRejected(ProbabilisticTestResult result) {
+        for (String warning : result.warnings()) {
+            if (warning.startsWith("rejected ")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String formatMessage(ProbabilisticTestResult result) {

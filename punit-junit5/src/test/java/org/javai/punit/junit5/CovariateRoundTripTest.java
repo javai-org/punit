@@ -93,22 +93,26 @@ class CovariateRoundTripTest {
     }
 
     @Test
-    @DisplayName("test under non-matching covariate produces INCONCLUSIVE (no matching baseline)")
-    void testUnderDifferentCovariateInconclusive() throws IOException {
+    @DisplayName("test under non-matching covariate fails (misconfiguration: candidates exist but every one rejected)")
+    void testUnderDifferentCovariateFailsAsMisconfiguration() throws IOException {
         // Phase 1: write baseline under region=EU.
         run(CovariateSubjects.MeasureWithCovariate.class)
                 .assertStatistics(stats -> stats.started(1).succeeded(1));
 
-        // Phase 2: switch region to APAC; no baseline under that
-        // partition exists, the empty-profile fallback isn't there
-        // either → INCONCLUSIVE → JUnit aborted (skipped) test.
+        // Phase 2: switch region to APAC. The EU baseline exists but
+        // the framework rejects it on the CONFIGURATION-category
+        // hard gate (region mismatch). Every candidate is rejected
+        // and there is no empty-profile fallback baseline. The
+        // typed pipeline reads this as misconfiguration — the user
+        // is asking for a reference that doesn't exist for this
+        // configuration — and the test FAILS, not skips.
         System.setProperty(CovariateSubjects.REGION_PROPERTY, "APAC");
         Events testEvents = run(CovariateSubjects.TestWithMatchingCovariate.class);
-        testEvents.assertStatistics(stats -> stats.started(1).aborted(1));
+        testEvents.assertStatistics(stats -> stats.started(1).failed(1));
     }
 
     @Test
-    @DisplayName("misalignment surfaces in the JUnit abort message — author sees why")
+    @DisplayName("misalignment surfaces in the JUnit failure message — author sees why")
     void misalignmentExplainedInVerdict() throws IOException {
         run(CovariateSubjects.MeasureWithCovariate.class)
                 .assertStatistics(stats -> stats.started(1).succeeded(1));
@@ -116,10 +120,10 @@ class CovariateRoundTripTest {
         System.setProperty(CovariateSubjects.REGION_PROPERTY, "APAC");
         Events testEvents = run(CovariateSubjects.TestWithMatchingCovariate.class);
 
-        // The aborted-event payload carries the diagnostic that the
+        // The failed-event payload carries the diagnostic that the
         // empirical Punit.testing(...) translates from the test result.
         // It should mention the rejection reason for the EU baseline.
-        testEvents.aborted()
+        testEvents.failed()
                 .assertThatEvents()
                 .anySatisfy(event -> {
                     var throwable = event.getRequiredPayload(
