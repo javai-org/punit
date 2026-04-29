@@ -296,9 +296,8 @@ public final class Punit {
         // internal policy reference. Emitted on every verdict so
         // anyone reading the output can trace the threshold back to
         // its source.
-        if (result.contractRef() != null && !result.contractRef().isEmpty()) {
-            sb.append('\n').append("  Contract: ").append(result.contractRef()).append('\n');
-        }
+        result.contractRef().ifPresent(ref ->
+                sb.append('\n').append("  Contract: ").append(ref).append('\n'));
         return sb.toString().trim();
     }
 

@@ -2,6 +2,7 @@ package org.javai.punit.api.typed.spec;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.typed.FactorBundle;
@@ -37,7 +38,10 @@ import org.javai.punit.api.typed.covariate.CovariateAlignment;
  * pointer to the external document the test's threshold derives from
  * — an SLA paragraph, an SLO contract, an internal policy reference.
  * The value is opaque to the framework and surfaces in the verdict
- * text and the verdict XML as audit-grade traceability.
+ * text and the verdict XML as audit-grade traceability. Truly
+ * optional fields like this one travel as {@link Optional} on the
+ * result so consumers don't have to discriminate {@code null} from
+ * value at every read site.
  *
  * @param verdict          the composed PASS / FAIL / INCONCLUSIVE
  * @param factors          the factor bundle observed
@@ -47,7 +51,8 @@ import org.javai.punit.api.typed.covariate.CovariateAlignment;
  * @param covariates       observed-vs-baseline covariate alignment
  * @param contractRef      author-supplied audit pointer to the
  *                         contract or policy document the threshold
- *                         derives from; {@code null} when not declared
+ *                         derives from; {@link Optional#empty()} when
+ *                         not declared
  */
 public record ProbabilisticTestResult(
         Verdict verdict,
@@ -56,7 +61,7 @@ public record ProbabilisticTestResult(
         TestIntent intent,
         List<String> warnings,
         CovariateAlignment covariates,
-        String contractRef) implements EngineResult {
+        Optional<String> contractRef) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
@@ -65,6 +70,7 @@ public record ProbabilisticTestResult(
         Objects.requireNonNull(intent, "intent");
         Objects.requireNonNull(warnings, "warnings");
         Objects.requireNonNull(covariates, "covariates");
+        Objects.requireNonNull(contractRef, "contractRef");
         criterionResults = List.copyOf(criterionResults);
         warnings = List.copyOf(warnings);
     }
@@ -72,7 +78,7 @@ public record ProbabilisticTestResult(
     /**
      * Convenience constructor for callers that don't carry covariate
      * alignment or a contract reference. Equivalent to the canonical
-     * constructor with {@link CovariateAlignment#none()} and a null
+     * constructor with {@link CovariateAlignment#none()} and an empty
      * contract reference.
      */
     public ProbabilisticTestResult(
@@ -82,13 +88,13 @@ public record ProbabilisticTestResult(
             TestIntent intent,
             List<String> warnings) {
         this(verdict, factors, criterionResults, intent, warnings,
-                CovariateAlignment.none(), null);
+                CovariateAlignment.none(), Optional.empty());
     }
 
     /**
      * Convenience constructor preserving the pre-contractRef shape:
      * canonical fields plus an explicit covariate alignment, with the
-     * contract reference defaulting to {@code null}.
+     * contract reference defaulting to {@link Optional#empty()}.
      */
     public ProbabilisticTestResult(
             Verdict verdict,
@@ -98,7 +104,7 @@ public record ProbabilisticTestResult(
             List<String> warnings,
             CovariateAlignment covariates) {
         this(verdict, factors, criterionResults, intent, warnings,
-                covariates, null);
+                covariates, Optional.empty());
     }
 
     /**
@@ -115,15 +121,22 @@ public record ProbabilisticTestResult(
     }
 
     /**
+     * @param contractRef the author-supplied audit pointer; {@code null}
+     *                    or blank values map to {@link Optional#empty()}
+     *                    so a test author calling {@code .contractRef(null)}
+     *                    or never calling it at all yield identical
+     *                    results.
      * @return a copy of this result with the given contract reference
      *         substituted. Used by the JUnit pipeline to post-stamp
-     *         the author-supplied reference (declared on the typed
-     *         test builder) onto the result coming back from
-     *         {@code Spec.conclude}.
+     *         the reference declared on the typed test builder onto
+     *         the result coming back from {@code Spec.conclude}.
      */
     public ProbabilisticTestResult withContractRef(String contractRef) {
+        Optional<String> wrapped = (contractRef == null || contractRef.isBlank())
+                ? Optional.empty()
+                : Optional.of(contractRef);
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
-                covariates, contractRef);
+                covariates, wrapped);
     }
 }
