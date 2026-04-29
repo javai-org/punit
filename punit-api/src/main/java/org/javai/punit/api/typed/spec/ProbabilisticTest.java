@@ -61,10 +61,10 @@ public final class ProbabilisticTest implements Spec {
      * <pre>{@code
      * private Sampling<F, I, O> sampling(int samples) { ... }
      *
-     * @PunitExperiment Experiment baseline() {
+     * @PUnitExperiment Experiment baseline() {
      *     return Experiment.measuring(sampling(1000), factors).build();
      * }
-     * @PunitTest ProbabilisticTest meets() {
+     * @PUnitTest ProbabilisticTest meets() {
      *     return ProbabilisticTest.testing(sampling(100), factors)
      *             .criterion(BernoulliPassRate.empirical())
      *             .build();
@@ -439,10 +439,10 @@ public final class ProbabilisticTest implements Spec {
                                     + "    private Sampling<F, I, O> sampling(int samples) {\n"
                                     + "        return Sampling.of(useCaseFactory, samples, inputs);\n"
                                     + "    }\n"
-                                    + "    @PunitExperiment Experiment baseline() {\n"
+                                    + "    @PUnitExperiment Experiment baseline() {\n"
                                     + "        return Experiment.measuring(sampling(1000), factors).build();\n"
                                     + "    }\n"
-                                    + "    @PunitTest ProbabilisticTest meets() {\n"
+                                    + "    @PUnitTest ProbabilisticTest meets() {\n"
                                     + "        return ProbabilisticTest.testing(sampling(100), factors)\n"
                                     + "                .criterion(BernoulliPassRate.empirical())\n"
                                     + "                .build();\n"

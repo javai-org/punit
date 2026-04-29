@@ -21,12 +21,12 @@ import org.junit.jupiter.api.Test;
  * <pre>{@code
  * @Experiment
  * void shoppingBaseline() {
- *     Punit.measuring(shoppingSampling(1000), shoppingFactors()).run();
+ *     PUnit.measuring(shoppingSampling(1000), shoppingFactors()).run();
  * }
  *
  * @Experiment
  * void shoppingAcrossModels() {
- *     Punit.exploring(shoppingSampling(100))
+ *     PUnit.exploring(shoppingSampling(100))
  *             .grid(new Factors("gpt-4o", 0.0),
  *                   new Factors("gpt-4o", 0.5),
  *                   new Factors("claude-3-sonnet", 0.0))
@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
  *
  * @Experiment
  * void shoppingOptimize() {
- *     Punit.optimizing(shoppingSampling(50))
+ *     PUnit.optimizing(shoppingSampling(50))
  *             .initialFactors(new Factors("gpt-4o", 0.0))
  *             .stepper(stepper)
  *             .maximize(scorer)

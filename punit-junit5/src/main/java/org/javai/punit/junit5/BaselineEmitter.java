@@ -33,7 +33,7 @@ import org.javai.punit.engine.covariate.CovariateResolver;
  * {@link BaselineRecord} on disk, by way of the engine's
  * {@link BaselineWriter}.
  *
- * <p>Called from {@link Punit.MeasureBuilder#run} after the engine
+ * <p>Called from {@link PUnit.MeasureBuilder#run} after the engine
  * finishes its sampling loop. The record carries both
  * {@link PassRateStatistics} and {@link LatencyStatistics} so any
  * future empirical criterion (CR02 or CR03 today, future kinds
@@ -64,7 +64,7 @@ final class BaselineEmitter {
     static void emit(Experiment experiment, Path baselineDir) {
         if (experiment.kind() != Experiment.Kind.MEASURE) {
             // Only MEASURE produces a baseline. The only caller is
-            // Punit.MeasureBuilder.run(), which by construction passes a
+            // PUnit.MeasureBuilder.run(), which by construction passes a
             // MEASURE experiment — reaching this branch is a programming
             // error, not a runtime condition.
             throw new IllegalArgumentException(

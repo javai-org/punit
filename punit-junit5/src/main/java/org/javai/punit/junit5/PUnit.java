@@ -69,9 +69,9 @@ import org.opentest4j.TestAbortedException;
  * {@link Experiment} value supplies the baseline a probabilistic
  * test compares against.
  */
-public final class Punit {
+public final class PUnit {
 
-    private Punit() { }
+    private PUnit() { }
 
     // ── Sampling-bound factories ────────────────────────────────────
 
@@ -592,7 +592,7 @@ public final class Punit {
 
     /**
      * Builder for the empirical probabilistic-test entry point —
-     * {@link Punit#testing(Supplier)}. Pulls sampling and factors
+     * {@link PUnit#testing(Supplier)}. Pulls sampling and factors
      * from the baseline supplier; the author specifies only the
      * sample count and criterion.
      */
@@ -620,9 +620,9 @@ public final class Punit {
             Objects.requireNonNull(criterion, "criterion");
             if (!criterion.isEmpirical()) {
                 throw new IllegalArgumentException(
-                        "Punit.testing(supplier) only accepts empirical criteria; "
+                        "PUnit.testing(supplier) only accepts empirical criteria; "
                                 + "got contractual " + criterion.name()
-                                + ". Use Punit.testing(sampling, factors) for contractual tests.");
+                                + ". Use PUnit.testing(sampling, factors) for contractual tests.");
             }
             this.criterion = criterion;
             return this;

@@ -17,7 +17,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -139,7 +139,7 @@ class ReportGeneratorTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), true, PunitVerdict.PASS,
+                Map.of(), true, PUnitVerdict.PASS,
                 "0.9500 >= 0.9000"
         );
     }
@@ -159,7 +159,7 @@ class ReportGeneratorTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), false, PunitVerdict.FAIL,
+                Map.of(), false, PUnitVerdict.FAIL,
                 "0.8000 < 0.9000"
         );
     }

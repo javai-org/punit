@@ -6,7 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-import org.javai.punit.junit5.testsubjects.PunitSubjects;
+import org.javai.punit.junit5.testsubjects.PUnitSubjects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +16,7 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Events;
 
 /**
- * Integration test for {@code Punit.TestBuilder.transparentStats()}:
+ * Integration test for {@code PUnit.TestBuilder.transparentStats()}:
  * verifies that opting in produces the verbose statistical analysis
  * on stderr and that off-by-default tests do not.
  */
@@ -43,7 +43,7 @@ class TransparentStatsIntegrationTest {
     @Test
     @DisplayName("transparentStats() builder method renders the verbose breakdown to stderr")
     void rendersVerboseBreakdown() {
-        Events events = run(PunitSubjects.TransparentStatsTest.class);
+        Events events = run(PUnitSubjects.TransparentStatsTest.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
 
         String stderr = capturedErr.toString(StandardCharsets.UTF_8);
@@ -60,7 +60,7 @@ class TransparentStatsIntegrationTest {
     @Test
     @DisplayName("default (transparentStats off) emits no verbose breakdown")
     void noOutputWhenDisabled() {
-        Events events = run(PunitSubjects.PassingContractualTest.class);
+        Events events = run(PUnitSubjects.PassingContractualTest.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
 
         String stderr = capturedErr.toString(StandardCharsets.UTF_8);

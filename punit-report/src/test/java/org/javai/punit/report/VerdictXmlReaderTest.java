@@ -19,7 +19,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,7 +37,7 @@ class VerdictXmlReaderTest {
         @Test
         @DisplayName("preserves timestamp")
         void preservesTimestamp() throws Exception {
-            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -47,7 +47,7 @@ class VerdictXmlReaderTest {
         @Test
         @DisplayName("preserves identity via RP07 mapping")
         void preservesIdentity() throws Exception {
-            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -59,7 +59,7 @@ class VerdictXmlReaderTest {
         @Test
         @DisplayName("preserves execution summary")
         void preservesExecution() throws Exception {
-            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -76,18 +76,18 @@ class VerdictXmlReaderTest {
         @Test
         @DisplayName("preserves verdict")
         void preservesVerdict() throws Exception {
-            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.punitVerdict()).isEqualTo(PunitVerdict.PASS);
+            assertThat(result.punitVerdict()).isEqualTo(PUnitVerdict.PASS);
             assertThat(result.verdictReason()).isEqualTo("0.9500 >= 0.9000");
         }
 
         @Test
         @DisplayName("preserves statistics")
         void preservesStatistics() throws Exception {
-            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -101,7 +101,7 @@ class VerdictXmlReaderTest {
         @Test
         @DisplayName("preserves correlation ID")
         void preservesCorrelationId() throws Exception {
-            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -111,7 +111,7 @@ class VerdictXmlReaderTest {
         @Test
         @DisplayName("optional fields absent when not provided")
         void optionalFieldsAbsent() throws Exception {
-            ProbabilisticTestVerdict original = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -326,7 +326,7 @@ class VerdictXmlReaderTest {
             assertThat(result.latency()).isPresent();
             assertThat(result.provenance()).isPresent();
             assertThat(result.statistics().baseline()).isPresent();
-            assertThat(result.punitVerdict()).isEqualTo(PunitVerdict.PASS);
+            assertThat(result.punitVerdict()).isEqualTo(PUnitVerdict.PASS);
         }
     }
 
@@ -338,7 +338,7 @@ class VerdictXmlReaderTest {
         return reader.read(new ByteArrayInputStream(baos.toByteArray()));
     }
 
-    private ProbabilisticTestVerdict minimalVerdict(boolean passed, PunitVerdict punitVerdict) {
+    private ProbabilisticTestVerdict minimalVerdict(boolean passed, PUnitVerdict punitVerdict) {
         return new ProbabilisticTestVerdict(
                 "v:test01",
                 Instant.parse("2026-03-11T14:30:00Z"),
@@ -358,14 +358,14 @@ class VerdictXmlReaderTest {
                 Map.of(),
                 passed,
                 punitVerdict,
-                punitVerdict == PunitVerdict.PASS ? "0.9500 >= 0.9000"
-                        : punitVerdict == PunitVerdict.INCONCLUSIVE ? "covariate misalignment"
+                punitVerdict == PUnitVerdict.PASS ? "0.9500 >= 0.9000"
+                        : punitVerdict == PUnitVerdict.INCONCLUSIVE ? "covariate misalignment"
                         : "0.8000 < 0.9000"
         );
     }
 
     private ProbabilisticTestVerdict verdictWithFunctional() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 Optional.of(new FunctionalDimension(95, 5, 0.95)),
@@ -377,7 +377,7 @@ class VerdictXmlReaderTest {
     }
 
     private ProbabilisticTestVerdict verdictWithLatency() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         LatencyDimension latency = new LatencyDimension(
                 90, 100, false, Optional.empty(),
                 120, 340, 420, 810, 1250,
@@ -396,7 +396,7 @@ class VerdictXmlReaderTest {
     }
 
     private ProbabilisticTestVerdict verdictWithSkippedLatency() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         LatencyDimension latency = new LatencyDimension(
                 0, 100, true, Optional.of("No successes"),
                 0, 0, 0, 0, 0,
@@ -413,7 +413,7 @@ class VerdictXmlReaderTest {
     }
 
     private ProbabilisticTestVerdict verdictWithBaseline() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         StatisticalAnalysis stats = new StatisticalAnalysis(
                 0.95, 0.0218, 0.8948, 0.9798,
                 Optional.of(2.29), Optional.of(0.011),
@@ -434,7 +434,7 @@ class VerdictXmlReaderTest {
     }
 
     private ProbabilisticTestVerdict verdictWithMisalignment() {
-        ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.INCONCLUSIVE);
+        ProbabilisticTestVerdict base = minimalVerdict(false, PUnitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
                 List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
                 Map.of(), Map.of());
@@ -449,7 +449,7 @@ class VerdictXmlReaderTest {
     }
 
     private ProbabilisticTestVerdict verdictWithProvenance() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         ExpirationStatus expiringStatus = ExpirationStatus.expiringSoon(
                 java.time.Duration.ofDays(7), 0.20);
         SpecProvenance prov = new SpecProvenance("SLA", "SLA-PAY-001", "payment-gateway.yaml",
@@ -466,7 +466,7 @@ class VerdictXmlReaderTest {
     }
 
     private ProbabilisticTestVerdict verdictWithBudgetExhaustion() {
-        ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.FAIL);
+        ProbabilisticTestVerdict base = minimalVerdict(false, PUnitVerdict.FAIL);
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), base.latency(),
@@ -474,13 +474,13 @@ class VerdictXmlReaderTest {
                 base.pacing(), base.provenance(),
                 new Termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED,
                         Optional.of("Time budget exceeded")),
-                base.environmentMetadata(), false, PunitVerdict.FAIL,
+                base.environmentMetadata(), false, PUnitVerdict.FAIL,
                 "budget exhausted"
         );
     }
 
     private ProbabilisticTestVerdict verdictWithUseCaseId() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         TestIdentity identity = new TestIdentity(
                 "com.example.MyTest", "shouldPass", Optional.of("payment-gateway"));
         return new ProbabilisticTestVerdict(
@@ -522,7 +522,7 @@ class VerdictXmlReaderTest {
                 Optional.of(pacing), Optional.of(prov),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of("environment", "staging"),
-                true, PunitVerdict.PASS,
+                true, PUnitVerdict.PASS,
                 "0.9500 >= 0.9000"
         );
     }

@@ -15,7 +15,7 @@ import org.junit.platform.testkit.engine.Events;
 
 /**
  * Pins the covariate-misalignment trichotomy that
- * {@link Punit#translate} encodes:
+ * {@link PUnit#translate} encodes:
  *
  * <ul>
  *   <li><b>Case 1: legitimate INCONCLUSIVE.</b> No candidate

@@ -43,7 +43,7 @@ public final class RegionResolver implements CovariateResolver {
     public CovariateValue resolve(CovariateResolutionContext context) {
         var rawRegion = context.getSystemProperty(SYSTEM_PROPERTY_KEY)
                 .or(() -> context.getEnvironmentVariable(ENV_VAR_KEY))
-                .or(() -> context.getPunitEnvironment(PUNIT_ENV_KEY))
+                .or(() -> context.getPUnitEnvironment(PUNIT_ENV_KEY))
                 .orElse(null);
 
         if (rawRegion == null) {

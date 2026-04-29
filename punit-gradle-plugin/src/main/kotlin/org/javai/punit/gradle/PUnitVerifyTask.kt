@@ -18,7 +18,7 @@ import java.net.URLClassLoader
  * Wired into the `check` lifecycle so `./gradlew check` catches
  * verdict failures even when individual sample failures are suppressed.
  */
-abstract class PunitVerifyTask : DefaultTask() {
+abstract class PUnitVerifyTask : DefaultTask() {
 
     @get:Internal
     abstract val xmlDir: DirectoryProperty

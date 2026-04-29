@@ -51,10 +51,10 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  *     return Sampling.of(f -> new MyUseCase(f), samples, input1, input2);
  * }
  *
- * @PunitExperiment Experiment baseline() {
+ * @PUnitExperiment Experiment baseline() {
  *     return Experiment.measuring(sampling(1000), factors).build();
  * }
- * @PunitTest ProbabilisticTest meets() {
+ * @PUnitTest ProbabilisticTest meets() {
  *     return ProbabilisticTest.testing(sampling(100), factors)
  *             .criterion(BernoulliPassRate.empirical())
  *             .build();
@@ -69,10 +69,10 @@ import org.javai.punit.api.typed.spec.ExceptionPolicy;
  * <h2>Other consumers</h2>
  *
  * <pre>{@code
- * @PunitExperiment Experiment compare() {
+ * @PUnitExperiment Experiment compare() {
  *     return Experiment.exploring(sampling(50)).grid(a, b, c).build();
  * }
- * @PunitExperiment Experiment tune() {
+ * @PUnitExperiment Experiment tune() {
  *     return Experiment.optimizing(sampling(20))
  *             .initialFactors(f0).stepper(...).maximize(...).build();
  * }

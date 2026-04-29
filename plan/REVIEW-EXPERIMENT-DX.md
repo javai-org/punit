@@ -2,7 +2,7 @@
 
 ## Goal of this review
 
-Punit's experiment-side developer experience has evolved across several
+PUnit's experiment-side developer experience has evolved across several
 iterations, and the addition of the **immutable use case principle**
 forced a rethink of how factors are expressed. The result is a surface
 that works but carries legacy from earlier thinking — two partially
@@ -98,7 +98,7 @@ documentation under `punit/docs/`.
 
 ## The history to respect
 
-Punit's current DX is **not** the result of naive design. It
+PUnit's current DX is **not** the result of naive design. It
 accumulated through several earlier iterations, and the **immutable
 use case** principle arrived after the factor-arguments machinery was
 already in place. That arrival triggered `@ConfigSource` as a second
@@ -203,7 +203,7 @@ proposed direction:
     lifecycle, reporters that CI systems already understand. Which
     of these make a Rust-style builder pattern **inappropriate** for
     punit, and which are orthogonal?
-16. Punit's proc-macro / annotation style makes it easy to express
+16. PUnit's proc-macro / annotation style makes it easy to express
     *metadata* about an experiment (time budget, expiration days,
     skip warmup). Feotest has to spell those as setter calls.
     When is metadata-as-annotation the right choice, and when does
@@ -221,7 +221,7 @@ proposed direction:
   alignment on *principles* — identity is explicit, instance
   lifecycle is framework-owned, factors are first-class — not on
   mechanical API shapes.
-- **Leave a migration path.** Punit has real users (`punitexamples`
+- **Leave a migration path.** PUnit has real users (`punitexamples`
   at minimum). A proposal should note what each change breaks and
   what a deprecation / migration sequence would look like. "Big
   bang rewrite" is a legitimate answer but it has to be argued for.

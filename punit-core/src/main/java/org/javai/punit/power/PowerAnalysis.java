@@ -96,7 +96,7 @@ public final class PowerAnalysis {
      * @param baseline    a supplier yielding the {@code MEASURE}
      *                    {@link Experiment} the sample size is being
      *                    planned against — typically a method
-     *                    reference to an {@code @PunitExperiment} method
+     *                    reference to an {@code @PUnitExperiment} method
      * @param mde         the minimum detectable effect, in (0, 1)
      * @param power       the required statistical power, in (0, 1)
      * @return the required sample count, ceiling-rounded
@@ -127,7 +127,7 @@ public final class PowerAnalysis {
             throw new IllegalArgumentException(
                     "PowerAnalysis.sampleSize requires a MEASURE-flavour Experiment "
                             + "(one that produces a baseline); got " + experiment.kind()
-                            + ". Pass a method reference to an @PunitExperiment method "
+                            + ". Pass a method reference to an @PUnitExperiment method "
                             + "whose body returns Experiment.measuring(...).build().");
         }
 

@@ -6,7 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-import org.javai.punit.junit5.testsubjects.PunitSubjects;
+import org.javai.punit.junit5.testsubjects.PUnitSubjects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +49,7 @@ class ContractRefIntegrationTest {
     @Test
     @DisplayName("transparentStats output includes the contract reference")
     void renderedInTransparentStats() {
-        Events events = run(PunitSubjects.ContractRefPassingTest.class);
+        Events events = run(PUnitSubjects.ContractRefPassingTest.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
 
         String stderr = capturedErr.toString(StandardCharsets.UTF_8);
@@ -59,7 +59,7 @@ class ContractRefIntegrationTest {
     @Test
     @DisplayName("failure message includes the contract reference")
     void renderedInFailureMessage() {
-        Events events = run(PunitSubjects.ContractRefFailingTest.class);
+        Events events = run(PUnitSubjects.ContractRefFailingTest.class);
         events.assertStatistics(stats -> stats.started(1).failed(1));
 
         String failureMessage = events.failed().stream()

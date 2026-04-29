@@ -9,7 +9,7 @@ import java.util.Objects;
  * call.
  *
  * <p>Kept distinct from the legacy
- * {@code org.javai.punit.verdict.PunitVerdict} used by the existing
+ * {@code org.javai.punit.verdict.PUnitVerdict} used by the existing
  * reporting pipeline; Stage 8 reconciles the two.
  */
 public enum Verdict {

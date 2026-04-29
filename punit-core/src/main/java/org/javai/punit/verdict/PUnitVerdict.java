@@ -15,7 +15,7 @@ package org.javai.punit.verdict;
  * <p>This is independent of the JUnit pass/fail state. JUnit red + PUnit PASS is a legitimate
  * combination meaning "samples failed, but within the expected statistical range — no breach."
  */
-public enum PunitVerdict {
+public enum PUnitVerdict {
     PASS,
     FAIL,
     INCONCLUSIVE

@@ -18,7 +18,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -27,7 +27,7 @@ import org.w3c.dom.NodeList;
  * Deserialises a {@link ProbabilisticTestVerdict} from RP07 verdict XML.
  *
  * <p>Reads the {@code http://javai.org/verdict/1.0} format and maps it back
- * to the punit verdict model. Punit-specific fields not present in RP07
+ * to the punit verdict model. PUnit-specific fields not present in RP07
  * (pacing, environment, expiration, correlation ID) receive default values.
  *
  * <p>Uses DOM parsing since individual verdict files are small.
@@ -75,9 +75,9 @@ public final class VerdictXmlReader {
         Map<String, String> environment = readEnvironment(root);
 
         Element verdictEl = firstElement(root, "verdict");
-        PunitVerdict punitVerdict = PunitVerdict.valueOf(verdictEl.getAttribute("value"));
+        PUnitVerdict punitVerdict = PUnitVerdict.valueOf(verdictEl.getAttribute("value"));
         String verdictReason = optionalAttribute(verdictEl, "reason").orElse("");
-        boolean junitPassed = punitVerdict != PunitVerdict.FAIL;
+        boolean junitPassed = punitVerdict != PUnitVerdict.FAIL;
 
         return new ProbabilisticTestVerdict(
                 correlationId, timestamp, identity, execution,

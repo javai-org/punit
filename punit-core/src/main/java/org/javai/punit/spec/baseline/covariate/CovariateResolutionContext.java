@@ -72,7 +72,7 @@ public interface CovariateResolutionContext {
      * @param key the environment key
      * @return the value, or empty if not set
      */
-    Optional<String> getPunitEnvironment(String key);
+    Optional<String> getPUnitEnvironment(String key);
 
     /**
      * Returns the use case instance for @CovariateSource method invocation.

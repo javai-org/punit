@@ -21,7 +21,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.StatisticalAnalysis;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.TestIdentity;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -105,7 +105,7 @@ class HtmlReportWriterTest {
 
         @Test
         @DisplayName("JUnit FAIL with PUnit PASS renders divergent CSS classes")
-        void junitFailWithPunitPassRendersDivergentClasses() {
+        void junitFailWithPUnitPassRendersDivergentClasses() {
             ProbabilisticTestVerdict verdict = divergentVerdict();
 
             String html = HtmlReportWriter.generate(List.of(verdict));
@@ -467,15 +467,15 @@ class HtmlReportWriterTest {
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private ProbabilisticTestVerdict passingVerdict() {
-        return minimalVerdict("shouldPass", true, PunitVerdict.PASS);
+        return minimalVerdict("shouldPass", true, PUnitVerdict.PASS);
     }
 
     private ProbabilisticTestVerdict failingVerdict() {
-        return minimalVerdict("shouldFail", false, PunitVerdict.FAIL);
+        return minimalVerdict("shouldFail", false, PUnitVerdict.FAIL);
     }
 
     private ProbabilisticTestVerdict inconclusiveVerdict() {
-        return minimalVerdict("shouldBeInconclusive", false, PunitVerdict.INCONCLUSIVE);
+        return minimalVerdict("shouldBeInconclusive", false, PUnitVerdict.INCONCLUSIVE);
     }
 
     private ProbabilisticTestVerdict divergentVerdict() {
@@ -493,12 +493,12 @@ class HtmlReportWriterTest {
                 new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), false, PunitVerdict.PASS,
+                Map.of(), false, PUnitVerdict.PASS,
                 "0.8000 >= 0.7000"
         );
     }
 
-    private ProbabilisticTestVerdict minimalVerdict(String methodName, boolean passed, PunitVerdict punitVerdict) {
+    private ProbabilisticTestVerdict minimalVerdict(String methodName, boolean passed, PUnitVerdict punitVerdict) {
         return new ProbabilisticTestVerdict(
                 "v:test01",
                 Instant.parse("2026-03-11T14:30:00Z"),
@@ -514,9 +514,9 @@ class HtmlReportWriterTest {
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(), passed, punitVerdict,
-                punitVerdict == PunitVerdict.PASS
+                punitVerdict == PUnitVerdict.PASS
                         ? "0.9500 >= 0.9000"
-                        : punitVerdict == PunitVerdict.INCONCLUSIVE
+                        : punitVerdict == PUnitVerdict.INCONCLUSIVE
                                 ? "covariate misalignment"
                                 : "0.9500 < 0.9000"
         );
@@ -583,7 +583,7 @@ class HtmlReportWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithMethodName(String methodName) {
-        return minimalVerdict(methodName, true, PunitVerdict.PASS);
+        return minimalVerdict(methodName, true, PUnitVerdict.PASS);
     }
 
     private ProbabilisticTestVerdict verdictWithProvenance() {
@@ -601,7 +601,7 @@ class HtmlReportWriterTest {
     }
 
     private ProbabilisticTestVerdict inconclusiveVerdictWithMisalignment() {
-        ProbabilisticTestVerdict base = minimalVerdict("shouldBeInconclusive", false, PunitVerdict.INCONCLUSIVE);
+        ProbabilisticTestVerdict base = minimalVerdict("shouldBeInconclusive", false, PUnitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
                 List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
                 Map.of(), Map.of());

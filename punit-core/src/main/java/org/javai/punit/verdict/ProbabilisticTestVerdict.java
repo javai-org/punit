@@ -37,7 +37,7 @@ public record ProbabilisticTestVerdict(
         Termination termination,
         Map<String, String> environmentMetadata,
         boolean junitPassed,
-        PunitVerdict punitVerdict,
+        PUnitVerdict punitVerdict,
         String verdictReason
 ) {
 

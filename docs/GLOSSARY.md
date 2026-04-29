@@ -12,5 +12,5 @@
 > **Source**: https://github.com/javai-org/javai-R/blob/main/docs/GLOSSARY.md
 >
 > The glossary has been generalised to use framework-agnostic terminology.
-> Punit-specific annotations and class names are documented in punit's own
+> PUnit-specific annotations and class names are documented in punit's own
 > user guide and API documentation.

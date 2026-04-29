@@ -466,19 +466,19 @@ class VerdictTextRendererTest {
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private ProbabilisticTestVerdict passingVerdict() {
-        return minimalVerdict("shouldPass", true, PunitVerdict.PASS, 100, 95);
+        return minimalVerdict("shouldPass", true, PUnitVerdict.PASS, 100, 95);
     }
 
     private ProbabilisticTestVerdict failingVerdict() {
-        return minimalVerdict("shouldFail", false, PunitVerdict.FAIL, 100, 80);
+        return minimalVerdict("shouldFail", false, PUnitVerdict.FAIL, 100, 80);
     }
 
     private ProbabilisticTestVerdict verdictWithSamples(int samples, int successes) {
-        return minimalVerdict("smallTest", true, PunitVerdict.PASS, samples, successes);
+        return minimalVerdict("smallTest", true, PUnitVerdict.PASS, samples, successes);
     }
 
     private ProbabilisticTestVerdict minimalVerdict(String methodName, boolean passed,
-            PunitVerdict punitVerdict, int samples, int successes) {
+            PUnitVerdict punitVerdict, int samples, int successes) {
         double observedRate = samples > 0 ? (double) successes / samples : 0.0;
         return new ProbabilisticTestVerdict(
                 "v:test01",
@@ -496,7 +496,7 @@ class VerdictTextRendererTest {
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(), passed, punitVerdict,
-                punitVerdict == PunitVerdict.PASS
+                punitVerdict == PUnitVerdict.PASS
                         ? String.format("%.4f >= 0.9000", (double) successes / samples)
                         : String.format("%.4f < 0.9000", (double) successes / samples)
         );

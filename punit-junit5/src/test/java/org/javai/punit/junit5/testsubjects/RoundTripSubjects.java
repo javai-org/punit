@@ -6,7 +6,7 @@ import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
-import org.javai.punit.junit5.Punit;
+import org.javai.punit.junit5.PUnit;
 
 /**
  * Subjects for {@code MeasureToTestRoundTripTest}.
@@ -45,7 +45,7 @@ public final class RoundTripSubjects {
     public static final class PassingMeasure {
         @Experiment
         void measure() {
-            Punit.measuring(sampling(50), new NoFactors())
+            PUnit.measuring(sampling(50), new NoFactors())
                     .experimentId("baseline-v1")
                     .run();
         }
@@ -54,7 +54,7 @@ public final class RoundTripSubjects {
     public static final class EmpiricalAgainstBaseline {
         @ProbabilisticTest
         void shouldPass() {
-            Punit.testing(sampling(20), new NoFactors())
+            PUnit.testing(sampling(20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .assertPasses();
         }

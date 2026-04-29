@@ -13,7 +13,7 @@ import org.javai.punit.spec.registry.LayeredSpecRepository;
 import org.javai.punit.statistics.ThresholdDeriver;
 import org.javai.punit.usecase.UseCaseFactory;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -148,7 +148,7 @@ class SentinelTestExecutorTest {
                     method, annotation, sentinel, factory,
                     PassingSentinel.class, Optional.of("stub-use-case"));
 
-            assertThat(verdict.punitVerdict()).isEqualTo(PunitVerdict.PASS);
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.PASS);
         }
 
         @Test
@@ -163,7 +163,7 @@ class SentinelTestExecutorTest {
                     method, annotation, sentinel, factory,
                     FailingSentinel.class, Optional.of("failing-use-case"));
 
-            assertThat(verdict.punitVerdict()).isEqualTo(PunitVerdict.FAIL);
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.FAIL);
         }
 
         @Test

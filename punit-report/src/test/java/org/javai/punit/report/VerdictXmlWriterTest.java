@@ -26,7 +26,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("serialises to RP07 verdict-record root element")
         void rp07RootElement() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element root = doc.getDocumentElement();
@@ -60,7 +60,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("includes identity with use-case-id and test-name")
         void includesIdentity() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element identity = firstElement(doc, "identity");
@@ -72,7 +72,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("includes execution summary attributes")
         void includesExecution() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element exec = firstElement(doc, "execution");
@@ -87,7 +87,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("includes verdict element with value and reason")
         void includesVerdictElement() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element v = firstElement(doc, "verdict");
@@ -100,7 +100,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("omits functional element when absent")
         void omitsFunctionalWhenAbsent() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             NodeList nodes = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "functional");
@@ -111,7 +111,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("omits latency element when absent")
         void omitsLatencyWhenAbsent() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             NodeList nodes = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "latency");
@@ -122,7 +122,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("omits pacing and environment when absent")
         void omitsPacingAndEnvironmentWhenAbsent() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
 
@@ -133,7 +133,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("includes correlation-id attribute")
         void includesCorrelationId() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element root = doc.getDocumentElement();
@@ -207,7 +207,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("serialises statistical analysis with threshold and origin")
         void serialisesStatistics() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element stats = firstElement(doc, "statistics");
@@ -243,7 +243,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("serialises aligned covariates")
         void serialisesAligned() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element cov = firstElement(doc, "covariates");
@@ -327,7 +327,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("omits environment element when metadata is empty")
         void omitsWhenEmpty() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             NodeList nodes = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "environment");
@@ -343,7 +343,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("serialises completed termination")
         void serialisesCompleted() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element term = firstElement(doc, "termination");
@@ -372,7 +372,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("serialises cost in RP07 format")
         void serialisesCost() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element cost = firstElement(doc, "cost");
@@ -381,7 +381,7 @@ class VerdictXmlWriterTest {
             assertThat(cost.hasAttribute("total-tokens")).isTrue();
             assertThat(cost.hasAttribute("avg-time-per-sample-ms")).isTrue();
             assertThat(cost.hasAttribute("avg-tokens-per-sample")).isTrue();
-            // Punit-specific budget attributes should be absent
+            // PUnit-specific budget attributes should be absent
             assertThat(cost.hasAttribute("method-tokens")).isFalse();
             assertThat(cost.hasAttribute("token-mode")).isFalse();
         }
@@ -413,7 +413,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("minimal verdict validates against RP07 XSD")
         void minimalVerdictValidatesAgainstXsd() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             String xml = writeToString(verdict);
 
@@ -449,7 +449,7 @@ class VerdictXmlWriterTest {
         @Test
         @DisplayName("falls back to class-name when use-case-id absent")
         void fallsBackToClassName() throws Exception {
-            ProbabilisticTestVerdict verdict = minimalVerdict(true, PunitVerdict.PASS);
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
             Document doc = writeAndParse(verdict);
             Element identity = firstElement(doc, "identity");
@@ -460,7 +460,7 @@ class VerdictXmlWriterTest {
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private ProbabilisticTestVerdict minimalVerdict(boolean passed, PunitVerdict punitVerdict) {
+    private ProbabilisticTestVerdict minimalVerdict(boolean passed, PUnitVerdict punitVerdict) {
         String verdictReason = switch (punitVerdict) {
             case PASS -> "0.9500 >= 0.9000";
             case FAIL -> "0.9500 < 0.9000";
@@ -490,7 +490,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithFunctional() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 Optional.of(new FunctionalDimension(95, 5, 0.95)),
@@ -502,7 +502,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithLatency() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         LatencyDimension latency = new LatencyDimension(
                 90, 100, false, Optional.empty(),
                 120, 340, 420, 810, 1250,
@@ -521,7 +521,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithSkippedLatency() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         LatencyDimension latency = new LatencyDimension(
                 0, 100, true, Optional.of("No successes"),
                 0, 0, 0, 0, 0,
@@ -538,7 +538,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithBaseline() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         StatisticalAnalysis stats = new StatisticalAnalysis(
                 0.95, 0.0218, 0.8948, 0.9798,
                 Optional.of(2.29), Optional.of(0.011),
@@ -559,7 +559,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithMisalignment() {
-        ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.INCONCLUSIVE);
+        ProbabilisticTestVerdict base = minimalVerdict(false, PUnitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
                 List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
                 Map.of(), Map.of());
@@ -574,7 +574,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithProvenance() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         ExpirationStatus expiringStatus = ExpirationStatus.expiringSoon(
                 java.time.Duration.ofDays(7), 0.20);
         SpecProvenance prov = new SpecProvenance("SLA", "SLA-PAY-001", "payment-gateway.yaml",
@@ -591,7 +591,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithBudgetExhaustion() {
-        ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.FAIL);
+        ProbabilisticTestVerdict base = minimalVerdict(false, PUnitVerdict.FAIL);
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), base.latency(),
@@ -599,13 +599,13 @@ class VerdictXmlWriterTest {
                 base.pacing(), base.provenance(),
                 new Termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED,
                         Optional.of("Time budget exceeded")),
-                base.environmentMetadata(), false, PunitVerdict.FAIL,
+                base.environmentMetadata(), false, PUnitVerdict.FAIL,
                 "budget exhausted"
         );
     }
 
     private ProbabilisticTestVerdict verdictWithUseCaseId() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         TestIdentity identity = new TestIdentity(
                 "com.example.MyTest", "shouldPass", Optional.of("payment-gateway"));
         return new ProbabilisticTestVerdict(
@@ -619,7 +619,7 @@ class VerdictXmlWriterTest {
     }
 
     private ProbabilisticTestVerdict verdictWithCaveats() {
-        ProbabilisticTestVerdict base = minimalVerdict(true, PunitVerdict.PASS);
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         StatisticalAnalysis stats = new StatisticalAnalysis(
                 0.95, 0.0218, 0.8948, 0.9798,
                 Optional.of(2.29), Optional.of(0.011),
@@ -665,7 +665,7 @@ class VerdictXmlWriterTest {
                 Optional.of(pacing), Optional.of(prov),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of("environment", "staging"),
-                true, PunitVerdict.PASS,
+                true, PUnitVerdict.PASS,
                 "0.9500 >= 0.9000"
         );
     }

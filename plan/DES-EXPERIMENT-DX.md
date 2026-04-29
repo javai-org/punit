@@ -60,7 +60,7 @@ preceded it.
 Feotest's post-refactor shape is a useful source of principles
 (explicit identity, framework-owned instance lifecycle, first-class
 factor types, cross-experiment consistency), but it is not the target.
-Punit is Java inside JUnit 5 and should land on its own idiomatic shape.
+PUnit is Java inside JUnit 5 and should land on its own idiomatic shape.
 
 The immutable use case principle is stated informally across the
 codebase (deprecation notices on `@FactorSetter` / `@FactorGetter`,

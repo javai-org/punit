@@ -9,14 +9,14 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 
 /**
  * Reads verdict XML files and determines whether all probabilistic tests passed.
  *
  * <p>This is the enforcement point for CI pipelines. It reads the structured
  * verdict XMLs produced during test execution and fails if any verdict is
- * {@link PunitVerdict#FAIL}.
+ * {@link PUnitVerdict#FAIL}.
  *
  * <p>Designed to be invoked by the {@code punitVerify} Gradle task, mirroring
  * the JaCoCo pattern: test execution produces data, a separate verification
@@ -53,7 +53,7 @@ public final class VerdictVerifier {
      * @param verdict          the PUnit verdict
      */
     public record FailedVerdict(String testName, double observedPassRate,
-                                double minPassRate, PunitVerdict verdict) {}
+                                double minPassRate, PUnitVerdict verdict) {}
 
     /**
      * Verifies all verdict XMLs in the given directory.
@@ -70,7 +70,7 @@ public final class VerdictVerifier {
 
         List<FailedVerdict> failures = new ArrayList<>();
         for (ProbabilisticTestVerdict verdict : verdicts) {
-            if (verdict.punitVerdict() == PunitVerdict.FAIL) {
+            if (verdict.punitVerdict() == PUnitVerdict.FAIL) {
                 String testName = verdict.identity().className() + "."
                         + verdict.identity().methodName();
                 failures.add(new FailedVerdict(

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  * without JUnit on the classpath.
  */
 @DisplayName("punit-api Architecture Rules")
-class PunitApiArchitectureTest {
+class PUnitApiArchitectureTest {
 
     private static JavaClasses classes;
 
@@ -46,7 +46,7 @@ class PunitApiArchitectureTest {
 
     @Test
     @DisplayName("punit-api classes must not depend on any other punit package")
-    void mustNotDependOnInternalPunit() {
+    void mustNotDependOnInternalPUnit() {
         ArchRule rule = noClasses()
                 .that().resideInAPackage("org.javai.punit.api.typed..")
                 .should().dependOnClassesThat()

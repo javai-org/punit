@@ -2,8 +2,8 @@
  * JUnit 5 extensions for the typed-compositional authoring model.
  *
  * <p>The extensions in this package drive the new
- * {@link org.javai.punit.api.PunitTest @PunitTest} and
- * {@link org.javai.punit.api.PunitExperiment @PunitExperiment}
+ * {@link org.javai.punit.api.PUnitTest @PUnitTest} and
+ * {@link org.javai.punit.api.PUnitExperiment @PUnitExperiment}
  * annotations through the typed
  * {@link org.javai.punit.engine.Engine}, translating the engine's
  * results back to JUnit's pass / fail / aborted semantics.

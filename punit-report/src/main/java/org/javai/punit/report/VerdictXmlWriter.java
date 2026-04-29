@@ -9,7 +9,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 
 /**
  * Serialises a {@link ProbabilisticTestVerdict} to verdict XML using the
@@ -19,7 +19,7 @@ import org.javai.punit.verdict.PunitVerdict;
  * and {@code verdict-1.0.xsd} schema defined in the orchestrator at
  * {@code javai-orchestrator/inventory/catalog/reporting/RP07-verdict-xml-interchange/}.
  *
- * <p>Punit-specific extensions not in RP07 (pacing, environment, expiration,
+ * <p>PUnit-specific extensions not in RP07 (pacing, environment, expiration,
  * correlation ID, JUnit pass status) are not serialised. The verdict model in
  * punit-core remains unchanged — this class maps from the punit record to the
  * cross-project XML format.

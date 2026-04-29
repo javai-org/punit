@@ -20,7 +20,7 @@ import org.javai.punit.api.typed.spec.TypedSpec;
  * sample count.
  *
  * <p>This is the bridge that lets
- * {@link Punit#testing(java.util.function.Supplier)} accept just a
+ * {@link PUnit#testing(java.util.function.Supplier)} accept just a
  * baseline supplier — every other parameter is implicit, derived
  * from the baseline by reference at compose time. The integrity
  * guarantee follows by construction: the test's {@link Sampling}
@@ -44,7 +44,7 @@ final class EmpiricalTestComposer {
                     "empirical probabilistic test must be paired with a MEASURE-flavour "
                             + "Experiment, got " + baseline.kind()
                             + ". Pass a method reference to a method whose body returns "
-                            + "Punit.measuring(...).build().");
+                            + "PUnit.measuring(...).build().");
         }
         return baseline.dispatch(new Spec.Dispatcher<>() {
             @Override

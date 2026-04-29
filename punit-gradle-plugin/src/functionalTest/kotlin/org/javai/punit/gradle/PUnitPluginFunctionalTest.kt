@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 
 @DisplayName("PUnit Gradle Plugin")
-class PunitPluginFunctionalTest {
+class PUnitPluginFunctionalTest {
 
     @TempDir
     lateinit var projectDir: File
@@ -236,7 +236,7 @@ class PunitPluginFunctionalTest {
 
     @Nested
     @DisplayName("PUnit Report Task")
-    inner class PunitReportTaskTests {
+    inner class PUnitReportTaskTests {
 
         @Test
         @DisplayName("punitReport task is registered with correct description")
