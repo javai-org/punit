@@ -33,12 +33,21 @@ import org.javai.punit.api.typed.covariate.CovariateAlignment;
  * {@code CovariateStatus} so downstream tooling sees the same shape
  * from both pipelines.
  *
+ * <p>{@link #contractRef()} carries an author-supplied human-readable
+ * pointer to the external document the test's threshold derives from
+ * — an SLA paragraph, an SLO contract, an internal policy reference.
+ * The value is opaque to the framework and surfaces in the verdict
+ * text and the verdict XML as audit-grade traceability.
+ *
  * @param verdict          the composed PASS / FAIL / INCONCLUSIVE
  * @param factors          the factor bundle observed
  * @param criterionResults the full ordered list of evaluated criteria
  * @param intent           the test's declared intent (VERIFICATION / SMOKE)
  * @param warnings         free-form warnings (e.g. "statistics wiring pending")
  * @param covariates       observed-vs-baseline covariate alignment
+ * @param contractRef      author-supplied audit pointer to the
+ *                         contract or policy document the threshold
+ *                         derives from; {@code null} when not declared
  */
 public record ProbabilisticTestResult(
         Verdict verdict,
@@ -46,7 +55,8 @@ public record ProbabilisticTestResult(
         List<EvaluatedCriterion> criterionResults,
         TestIntent intent,
         List<String> warnings,
-        CovariateAlignment covariates) implements EngineResult {
+        CovariateAlignment covariates,
+        String contractRef) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
@@ -61,8 +71,9 @@ public record ProbabilisticTestResult(
 
     /**
      * Convenience constructor for callers that don't carry covariate
-     * alignment. Equivalent to the canonical constructor with
-     * {@link CovariateAlignment#none()}.
+     * alignment or a contract reference. Equivalent to the canonical
+     * constructor with {@link CovariateAlignment#none()} and a null
+     * contract reference.
      */
     public ProbabilisticTestResult(
             Verdict verdict,
@@ -71,7 +82,23 @@ public record ProbabilisticTestResult(
             TestIntent intent,
             List<String> warnings) {
         this(verdict, factors, criterionResults, intent, warnings,
-                CovariateAlignment.none());
+                CovariateAlignment.none(), null);
+    }
+
+    /**
+     * Convenience constructor preserving the pre-contractRef shape:
+     * canonical fields plus an explicit covariate alignment, with the
+     * contract reference defaulting to {@code null}.
+     */
+    public ProbabilisticTestResult(
+            Verdict verdict,
+            FactorBundle factors,
+            List<EvaluatedCriterion> criterionResults,
+            TestIntent intent,
+            List<String> warnings,
+            CovariateAlignment covariates) {
+        this(verdict, factors, criterionResults, intent, warnings,
+                covariates, null);
     }
 
     /**
@@ -83,6 +110,20 @@ public record ProbabilisticTestResult(
      */
     public ProbabilisticTestResult withCovariates(CovariateAlignment covariates) {
         return new ProbabilisticTestResult(
-                verdict, factors, criterionResults, intent, warnings, covariates);
+                verdict, factors, criterionResults, intent, warnings,
+                covariates, contractRef);
+    }
+
+    /**
+     * @return a copy of this result with the given contract reference
+     *         substituted. Used by the JUnit pipeline to post-stamp
+     *         the author-supplied reference (declared on the typed
+     *         test builder) onto the result coming back from
+     *         {@code Spec.conclude}.
+     */
+    public ProbabilisticTestResult withContractRef(String contractRef) {
+        return new ProbabilisticTestResult(
+                verdict, factors, criterionResults, intent, warnings,
+                covariates, contractRef);
     }
 }

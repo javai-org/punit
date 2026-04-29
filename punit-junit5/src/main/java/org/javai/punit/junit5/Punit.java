@@ -291,6 +291,14 @@ public final class Punit {
                 sb.append('\n');
             }
         }
+        // Author-supplied audit pointer to the document the threshold
+        // derives from — an SLA paragraph, an SLO contract, an
+        // internal policy reference. Emitted on every verdict so
+        // anyone reading the output can trace the threshold back to
+        // its source.
+        if (result.contractRef() != null && !result.contractRef().isEmpty()) {
+            sb.append('\n').append("  Contract: ").append(result.contractRef()).append('\n');
+        }
         return sb.toString().trim();
     }
 
@@ -449,6 +457,7 @@ public final class Punit {
         private final List<Criterion<OT, ?>> requiredCriteria = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
         private Boolean transparentStatsOverride;
+        private String contractRef;
 
         TestBuilder(ProbabilisticTest.Builder<FT, IT, OT> delegate,
                     Sampling<FT, IT, OT> sampling, FT factors) {
@@ -507,6 +516,20 @@ public final class Punit {
             return this;
         }
 
+        /**
+         * Records a human-readable pointer to the external document
+         * the test's threshold derives from — an SLA paragraph, an
+         * SLO contract, an internal policy reference. The value is
+         * opaque to the framework; it surfaces in the verdict text
+         * and the verdict XML as audit-grade traceability.
+         *
+         * <p>Example: {@code .contractRef("Acme API SLA v3.2 §2.1")}.
+         */
+        public TestBuilder<FT, IT, OT> contractRef(String contractRef) {
+            this.contractRef = contractRef;
+            return this;
+        }
+
         public ProbabilisticTest build() {
             return delegate.build();
         }
@@ -529,8 +552,9 @@ public final class Punit {
             // CovariateStatus shape.
             CovariateProfile observed = resolveCovariateProfile(spec);
             ProbabilisticTestResult stamped = typed.withCovariates(
-                    org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
-                            observed, typed.covariates().baseline()));
+                            org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                                    observed, typed.covariates().baseline()))
+                    .withContractRef(contractRef);
             maybeRenderTransparentStats(stamped);
             translate(stamped);
         }
@@ -579,6 +603,7 @@ public final class Punit {
         private Criterion<?, ?> criterion;
         private TestIntent intent = TestIntent.VERIFICATION;
         private Boolean transparentStatsOverride;
+        private String contractRef;
 
         EmpiricalTestBuilder(Supplier<Experiment> baselineSupplier) {
             this.baselineSupplier = baselineSupplier;
@@ -621,6 +646,12 @@ public final class Punit {
             return this;
         }
 
+        /** See {@link TestBuilder#contractRef(String)}. */
+        public EmpiricalTestBuilder contractRef(String contractRef) {
+            this.contractRef = contractRef;
+            return this;
+        }
+
         public ProbabilisticTest build() {
             if (samples == null) {
                 throw new IllegalStateException(
@@ -648,8 +679,9 @@ public final class Punit {
             warnings.forEach(System.err::println);
             CovariateProfile observed = resolveCovariateProfile(spec);
             ProbabilisticTestResult stamped = typed.withCovariates(
-                    org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
-                            observed, typed.covariates().baseline()));
+                            org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                                    observed, typed.covariates().baseline()))
+                    .withContractRef(contractRef);
             maybeRenderTransparentStats(spec, stamped);
             translate(stamped);
         }

@@ -96,6 +96,9 @@ public final class TypedTransparentStatsRenderer {
         }
 
         sb.append("  Test intent: ").append(result.intent()).append('\n');
+        if (result.contractRef() != null && !result.contractRef().isEmpty()) {
+            sb.append("  Contract: ").append(result.contractRef()).append('\n');
+        }
         return sb.toString();
     }
 
