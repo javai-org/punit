@@ -1,0 +1,212 @@
+package org.javai.punit.reporting;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.javai.punit.api.typed.spec.CriterionResult;
+import org.javai.punit.api.typed.spec.EvaluatedCriterion;
+import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
+import org.javai.punit.api.typed.spec.Verdict;
+
+/**
+ * Verbose statistical breakdown of a typed
+ * {@link ProbabilisticTestResult} for the audit / compliance use
+ * case where the reasoning behind a verdict — including a passing
+ * one — has to be visible.
+ *
+ * <p>The legacy framework expressed this through
+ * {@code @ProbabilisticTest(transparentStats = true)}. The typed
+ * pipeline exposes the same feature through
+ * {@code Punit.testing(...).transparentStats()}; this class is the
+ * renderer that produces the actual output.
+ *
+ * <h2>What gets rendered</h2>
+ *
+ * <p>For every evaluated criterion, the renderer pulls the
+ * structured detail map and formats it into a labelled block:
+ *
+ * <pre>
+ * STATISTICAL ANALYSIS — verdict: PASS
+ *
+ *   testInstructionTranslation
+ *
+ *   [REQUIRED] bernoulli-pass-rate → PASS
+ *     Hypothesis test
+ *       H₀ (null):           True pass rate π ≥ 0.85
+ *       H₁ (alternative):    True pass rate π < 0.85
+ *       Test type:           One-sided Wilson-score lower bound
+ *     Observed data
+ *       Sample size (n):     100
+ *       Successes (k):       94
+ *       Observed rate (p̂):  0.9400
+ *     Inference
+ *       Wilson 95% lower:    0.8730
+ *       Threshold:           0.8500 (origin: SLA)
+ *       Reasoning:           0.8730 ≥ 0.8500  ✓
+ * </pre>
+ *
+ * <p>Empirical {@code BernoulliPassRate} runs get the full
+ * hypothesis + Wilson-bound rendering; contractual runs get the
+ * simpler {@code observed ≥ threshold} comparison; criteria the
+ * renderer doesn't yet know about (latency, future kinds) fall
+ * back to the criterion's explanation string plus its raw detail
+ * map.
+ *
+ * <p>Output is plain text — readable in IDE test consoles,
+ * surefire reports, and CI logs without further processing.
+ */
+public final class TypedTransparentStatsRenderer {
+
+    private static final String LABEL_INDENT = "      ";
+    private static final int LABEL_WIDTH = 22;
+
+    private TypedTransparentStatsRenderer() { }
+
+    /**
+     * @param testIdentity the className.methodName the verdict
+     *                     belongs to, for the report header
+     * @param result       the typed result to render
+     * @return a formatted plain-text report
+     */
+    public static String render(String testIdentity, ProbabilisticTestResult result) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("STATISTICAL ANALYSIS — verdict: ")
+                .append(result.verdict()).append("\n\n");
+        sb.append("  ").append(testIdentity).append("\n\n");
+
+        for (EvaluatedCriterion entry : result.criterionResults()) {
+            renderCriterion(sb, entry);
+        }
+
+        if (!result.warnings().isEmpty()) {
+            sb.append("  Notes\n");
+            for (String warning : result.warnings()) {
+                sb.append("    ! ").append(warning).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("  Test intent: ").append(result.intent()).append('\n');
+        return sb.toString();
+    }
+
+    private static void renderCriterion(StringBuilder sb, EvaluatedCriterion entry) {
+        CriterionResult cr = entry.result();
+        sb.append("  [").append(entry.role()).append("] ")
+                .append(cr.criterionName()).append(" → ")
+                .append(cr.verdict()).append('\n');
+
+        Map<String, Object> detail = cr.detail();
+        switch (cr.criterionName()) {
+            case "bernoulli-pass-rate" -> renderBernoulli(sb, cr, detail);
+            default -> renderGeneric(sb, cr, detail);
+        }
+        sb.append('\n');
+    }
+
+    private static void renderBernoulli(StringBuilder sb, CriterionResult cr, Map<String, Object> detail) {
+        Object origin = detail.get("origin");
+        Object threshold = detail.get("threshold");
+        Object observed = detail.get("observed");
+        Object successes = detail.get("successes");
+        Object failures = detail.get("failures");
+        Object total = detail.get("total");
+        Object confidence = detail.get("confidence");
+        Object wilsonLower = detail.get("wilsonLowerBound");
+        Object baselineSampleCount = detail.get("baselineSampleCount");
+
+        boolean isEmpirical = "EMPIRICAL".equals(String.valueOf(origin));
+
+        sb.append("    Hypothesis test\n");
+        sb.append(label("H₀ (null):",
+                "True pass rate π ≥ " + formatRate(threshold)));
+        sb.append(label("H₁ (alternative):",
+                "True pass rate π < " + formatRate(threshold)));
+        sb.append(label("Test type:",
+                isEmpirical
+                        ? "One-sided Wilson-score lower bound"
+                        : "Deterministic comparison (observed ≥ threshold)"));
+
+        sb.append("    Observed data\n");
+        sb.append(label("Sample size (n):", String.valueOf(total)));
+        sb.append(label("Successes (k):", String.valueOf(successes)));
+        sb.append(label("Failures:", String.valueOf(failures)));
+        sb.append(label("Observed rate (p̂):", formatRate(observed)));
+
+        sb.append("    Inference\n");
+        if (isEmpirical) {
+            String confidencePct = confidence == null
+                    ? "?"
+                    : String.format(Locale.ROOT, "%.0f%%",
+                            ((Number) confidence).doubleValue() * 100.0);
+            sb.append(label("Wilson " + confidencePct + " lower:", formatRate(wilsonLower)));
+            sb.append(label("Threshold:",
+                    formatRate(threshold) + " (origin: " + origin + ")"));
+            if (baselineSampleCount != null) {
+                sb.append(label("Baseline samples:", String.valueOf(baselineSampleCount)));
+            }
+            sb.append(label("Reasoning:", formatBernoulliReasoning(
+                    wilsonLower, threshold, cr.verdict())));
+        } else {
+            sb.append(label("Threshold:",
+                    formatRate(threshold) + " (origin: " + origin + ")"));
+            sb.append(label("Reasoning:", formatBernoulliReasoning(
+                    observed, threshold, cr.verdict())));
+        }
+    }
+
+    private static void renderGeneric(StringBuilder sb, CriterionResult cr, Map<String, Object> detail) {
+        sb.append("    Explanation: ").append(cr.explanation()).append('\n');
+        if (!detail.isEmpty()) {
+            sb.append("    Detail\n");
+            for (Map.Entry<String, Object> e : detail.entrySet()) {
+                sb.append(label(e.getKey() + ":", String.valueOf(e.getValue())));
+            }
+        }
+    }
+
+    private static String label(String text, String value) {
+        StringBuilder sb = new StringBuilder(LABEL_INDENT);
+        sb.append(text);
+        int padding = LABEL_WIDTH - text.length();
+        if (padding < 1) padding = 1;
+        sb.append(" ".repeat(padding));
+        sb.append(value).append('\n');
+        return sb.toString();
+    }
+
+    private static String formatRate(Object value) {
+        if (value == null) return "?";
+        if (value instanceof Number n) {
+            return String.format(Locale.ROOT, "%.4f", n.doubleValue());
+        }
+        return String.valueOf(value);
+    }
+
+    private static String formatBernoulliReasoning(Object lhs, Object threshold, Verdict verdict) {
+        String comparator = verdict == Verdict.PASS ? "≥" : "<";
+        String mark = verdict == Verdict.PASS ? " ✓"
+                : verdict == Verdict.FAIL ? " ✗"
+                : "";
+        return formatRate(lhs) + " " + comparator + " " + formatRate(threshold) + mark;
+    }
+
+    /**
+     * Snapshot the result's evaluated-criteria details as an
+     * ordered name → detail map. Useful for tests and tooling that
+     * want the structured numbers without re-parsing the rendered
+     * text.
+     */
+    public static Map<String, Map<String, Object>> snapshotCriteria(
+            ProbabilisticTestResult result) {
+        Map<String, Map<String, Object>> out = new LinkedHashMap<>();
+        List<EvaluatedCriterion> evaluated = result.criterionResults();
+        for (EvaluatedCriterion entry : evaluated) {
+            CriterionResult cr = entry.result();
+            out.put(cr.criterionName(), cr.detail());
+        }
+        return out;
+    }
+}

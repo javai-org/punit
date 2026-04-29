@@ -29,6 +29,8 @@ import org.javai.punit.engine.Engine;
 import org.javai.punit.engine.baseline.ProfileBoundBaselineProvider;
 import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.engine.criteria.Feasibility;
+import org.javai.punit.reporting.TypedTransparentStatsRenderer;
+import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
 
@@ -340,6 +342,7 @@ public final class Punit {
         private final FT factors;
         private final List<Criterion<OT, ?>> requiredCriteria = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
+        private Boolean transparentStatsOverride;
 
         TestBuilder(ProbabilisticTest.Builder<FT, IT, OT> delegate,
                     Sampling<FT, IT, OT> sampling, FT factors) {
@@ -367,6 +370,37 @@ public final class Punit {
             return this;
         }
 
+        /**
+         * Enables verbose statistical reporting on every verdict —
+         * including PASS — with the framework's hypothesis-test
+         * framing, observed-data section, threshold provenance, and
+         * inference reasoning. Output goes to stderr alongside the
+         * JUnit assertion message; visible in IDE test consoles,
+         * surefire reports, and CI logs.
+         *
+         * <p>Resolution precedence (highest first):
+         * <ol>
+         *   <li>This builder method.</li>
+         *   <li>System property {@code punit.stats.transparent}.</li>
+         *   <li>Environment variable {@code PUNIT_STATS_TRANSPARENT}.</li>
+         *   <li>Default: off.</li>
+         * </ol>
+         *
+         * <p>Use case: audit / compliance documentation where the
+         * statistical reasoning behind a passing verdict has to be
+         * shown, not just inferred from the absence of a failure.
+         */
+        public TestBuilder<FT, IT, OT> transparentStats() {
+            this.transparentStatsOverride = Boolean.TRUE;
+            return this;
+        }
+
+        /** Explicit-boolean variant of {@link #transparentStats()}. */
+        public TestBuilder<FT, IT, OT> transparentStats(boolean enabled) {
+            this.transparentStatsOverride = enabled;
+            return this;
+        }
+
         public ProbabilisticTest build() {
             return delegate.build();
         }
@@ -380,7 +414,16 @@ public final class Punit {
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
+            maybeRenderTransparentStats(typed);
             translate(typed);
+        }
+
+        private void maybeRenderTransparentStats(ProbabilisticTestResult result) {
+            if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
+                return;
+            }
+            String testIdentity = sampling.useCaseFactory().apply(factors).id();
+            System.err.println(TypedTransparentStatsRenderer.render(testIdentity, result));
         }
 
         private List<String> preflightFeasibility() {
@@ -418,6 +461,7 @@ public final class Punit {
         private Integer samples;
         private Criterion<?, ?> criterion;
         private TestIntent intent = TestIntent.VERIFICATION;
+        private Boolean transparentStatsOverride;
 
         EmpiricalTestBuilder(Supplier<Experiment> baselineSupplier) {
             this.baselineSupplier = baselineSupplier;
@@ -448,6 +492,18 @@ public final class Punit {
             return this;
         }
 
+        /** See {@link TestBuilder#transparentStats()}. */
+        public EmpiricalTestBuilder transparentStats() {
+            this.transparentStatsOverride = Boolean.TRUE;
+            return this;
+        }
+
+        /** See {@link TestBuilder#transparentStats(boolean)}. */
+        public EmpiricalTestBuilder transparentStats(boolean enabled) {
+            this.transparentStatsOverride = enabled;
+            return this;
+        }
+
         public ProbabilisticTest build() {
             if (samples == null) {
                 throw new IllegalStateException(
@@ -473,6 +529,7 @@ public final class Punit {
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
+            maybeRenderTransparentStats(spec, typed);
             translate(typed);
         }
 
@@ -504,6 +561,23 @@ public final class Punit {
                 }
             });
             return warnings;
+        }
+
+        private void maybeRenderTransparentStats(
+                ProbabilisticTest spec, ProbabilisticTestResult result) {
+            if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
+                return;
+            }
+            String testIdentity = spec.dispatch(
+                    new org.javai.punit.api.typed.spec.Spec.Dispatcher<String>() {
+                        @Override
+                        public <FT, IT, OT> String apply(
+                                org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                            FT factors = typed.configurations().next().factors();
+                            return typed.useCaseFactory().apply(factors).id();
+                        }
+                    });
+            System.err.println(TypedTransparentStatsRenderer.render(testIdentity, result));
         }
     }
 }
