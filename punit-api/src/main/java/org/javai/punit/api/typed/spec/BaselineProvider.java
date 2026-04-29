@@ -99,6 +99,47 @@ public interface BaselineProvider {
     }
 
     /**
+     * Lookup that returns both the selected statistics and a list of
+     * human-readable notes describing rejected candidates and
+     * fallback decisions — for surfacing through
+     * {@link ProbabilisticTestResult#warnings()} so an INCONCLUSIVE
+     * verdict can explain <em>why</em> the baseline didn't match.
+     *
+     * <p>Default implementation delegates to {@link #baselineFor}
+     * and produces no notes. Concrete providers override to populate
+     * the notes from the selection algorithm.
+     */
+    default <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
+            String useCaseId,
+            FactorBundle factors,
+            String criterionName,
+            Class<S> statisticsType,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
+        return BaselineLookup.of(baselineFor(
+                useCaseId, factors, criterionName, statisticsType,
+                currentProfile, declarations));
+    }
+
+    /**
+     * Convenience overload of {@link #baselineLookup} for callers
+     * (typically the typed-spec dispatch path) that don't carry
+     * covariate state directly. Delegates with empty profile + empty
+     * declarations; the framework's profile-bound decorator
+     * overrides this to substitute the run's captured covariate
+     * state, so a bare call from {@code conclude()} still exercises
+     * covariate-aware lookup.
+     */
+    default <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
+            String useCaseId,
+            FactorBundle factors,
+            String criterionName,
+            Class<S> statisticsType) {
+        return baselineLookup(useCaseId, factors, criterionName, statisticsType,
+                CovariateProfile.empty(), List.of());
+    }
+
+    /**
      * The empty provider — always returns {@link Optional#empty()}.
      * Used by the engine's no-arg / unconfigured paths and by tests
      * that don't exercise empirical resolution.
