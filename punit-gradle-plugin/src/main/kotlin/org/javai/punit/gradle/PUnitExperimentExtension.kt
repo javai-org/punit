@@ -20,7 +20,7 @@ import org.gradle.api.provider.Property
  * while EXPLORE and OPTIMIZE outputs are human-review artefacts (kept under
  * `build/`, not committed). Override any default as shown above.
  */
-abstract class PunitExperimentExtension {
+abstract class PUnitExperimentExtension {
 
     /** Output directory for MEASURE specs. Default: `src/test/resources/punit/specs` (tracked in source). */
     abstract val specsDir: Property<String>

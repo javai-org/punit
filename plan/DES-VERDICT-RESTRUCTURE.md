@@ -64,7 +64,7 @@ public record ProbabilisticTestVerdict(
         Termination termination,
         Map<String, String> environmentMetadata,
         boolean junitPassed,
-        PunitVerdict punitVerdict,
+        PUnitVerdict punitVerdict,
         String verdictReason               // NEW
 ) { ... }
 ```
@@ -142,7 +142,7 @@ String title = "VERDICT: " + verdictLabel + " (" + verdict.verdictReason() + ")"
 ### 3.2 Covariate comparison block (R2)
 
 Add a new private method `appendCovariateComparison` called when
-`verdict.punitVerdict() == PunitVerdict.INCONCLUSIVE` and
+`verdict.punitVerdict() == PUnitVerdict.INCONCLUSIVE` and
 `!verdict.covariates().aligned()`:
 
 ```java
@@ -180,7 +180,7 @@ Insert the call in `printConsoleSummary` immediately after the existing
 
 ```java
 // REMOVE
-if (verdict.punitVerdict() == PunitVerdict.INCONCLUSIVE) {
+if (verdict.punitVerdict() == PUnitVerdict.INCONCLUSIVE) {
     sb.append(PUnitReporter.labelValueLn("Verdict:", "Inconclusive — covariate misalignment"));
 }
 
@@ -238,7 +238,7 @@ For (1), add a private method:
 
 ```java
 private String deriveVerdictReason() {
-    if (punitVerdict == PunitVerdict.INCONCLUSIVE) {
+    if (punitVerdict == PUnitVerdict.INCONCLUSIVE) {
         if (!covariateStatus.aligned()) {
             return "covariate misalignment";
         }
@@ -342,7 +342,7 @@ private ProbabilisticTestVerdict buildVerdictFromInputs(JsonNode inputs) {
     return ProbabilisticTestVerdict.builder()
             .className(inputs.at("/identity/className").asText())
             .methodName(inputs.at("/identity/methodName").asText())
-            .verdict(PunitVerdict.valueOf(inputs.get("verdict").asText()))
+            .verdict(PUnitVerdict.valueOf(inputs.get("verdict").asText()))
             .successes(inputs.at("/execution/successes").asInt())
             .failures(inputs.at("/execution/failures").asInt())
             // ... remaining fields mapped from JSON paths

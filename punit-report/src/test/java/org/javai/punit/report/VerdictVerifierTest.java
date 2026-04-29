@@ -15,7 +15,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,8 +34,8 @@ class VerdictVerifierTest {
         @Test
         @DisplayName("passes when all verdicts pass")
         void allPass(@TempDir Path dir) throws Exception {
-            writeVerdict(dir, "test1.xml", createVerdict("Test1", "method1", true, PunitVerdict.PASS, 0.95, 0.90));
-            writeVerdict(dir, "test2.xml", createVerdict("Test2", "method2", true, PunitVerdict.PASS, 1.0, 0.80));
+            writeVerdict(dir, "test1.xml", createVerdict("Test1", "method1", true, PUnitVerdict.PASS, 0.95, 0.90));
+            writeVerdict(dir, "test2.xml", createVerdict("Test2", "method2", true, PUnitVerdict.PASS, 1.0, 0.80));
 
             VerdictVerifier.VerificationResult result = verifier.verify(dir);
 
@@ -47,8 +47,8 @@ class VerdictVerifierTest {
         @Test
         @DisplayName("fails when any verdict fails")
         void anyFail(@TempDir Path dir) throws Exception {
-            writeVerdict(dir, "test1.xml", createVerdict("Test1", "method1", true, PunitVerdict.PASS, 0.95, 0.90));
-            writeVerdict(dir, "test2.xml", createVerdict("Test2", "method2", false, PunitVerdict.FAIL, 0.70, 0.90));
+            writeVerdict(dir, "test1.xml", createVerdict("Test1", "method1", true, PUnitVerdict.PASS, 0.95, 0.90));
+            writeVerdict(dir, "test2.xml", createVerdict("Test2", "method2", false, PUnitVerdict.FAIL, 0.70, 0.90));
 
             VerdictVerifier.VerificationResult result = verifier.verify(dir);
 
@@ -84,8 +84,8 @@ class VerdictVerifierTest {
         @Test
         @DisplayName("includes all failed tests")
         void includesAllFailures(@TempDir Path dir) throws Exception {
-            writeVerdict(dir, "test1.xml", createVerdict("Cls1", "m1", false, PunitVerdict.FAIL, 0.70, 0.90));
-            writeVerdict(dir, "test2.xml", createVerdict("Cls2", "m2", false, PunitVerdict.FAIL, 0.50, 0.80));
+            writeVerdict(dir, "test1.xml", createVerdict("Cls1", "m1", false, PUnitVerdict.FAIL, 0.70, 0.90));
+            writeVerdict(dir, "test2.xml", createVerdict("Cls2", "m2", false, PUnitVerdict.FAIL, 0.50, 0.80));
 
             VerdictVerifier.VerificationResult result = verifier.verify(dir);
             String message = verifier.formatFailureMessage(result);
@@ -105,7 +105,7 @@ class VerdictVerifierTest {
 
     private ProbabilisticTestVerdict createVerdict(
             String className, String methodName,
-            boolean passed, PunitVerdict punitVerdict,
+            boolean passed, PUnitVerdict punitVerdict,
             double observedPassRate, double minPassRate) {
 
         int successes = (int) (observedPassRate * 100);
@@ -130,7 +130,7 @@ class VerdictVerifierTest {
                 Map.of(),
                 passed,
                 punitVerdict,
-                punitVerdict == PunitVerdict.PASS
+                punitVerdict == PUnitVerdict.PASS
                         ? String.format("%.4f >= %.4f", observedPassRate, minPassRate)
                         : String.format("%.4f < %.4f", observedPassRate, minPassRate)
         );

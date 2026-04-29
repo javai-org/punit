@@ -43,7 +43,7 @@ public final class CustomCovariateResolver implements CovariateResolver {
         // Try sources in order: system property, env var, punit env
         var value = context.getSystemProperty(key)
             .or(() -> context.getEnvironmentVariable(toEnvVarName(key)))
-            .or(() -> context.getPunitEnvironment(key))
+            .or(() -> context.getPUnitEnvironment(key))
             .orElse(CovariateProfile.UNDEFINED);
 
         return new CovariateValue.StringValue(value);

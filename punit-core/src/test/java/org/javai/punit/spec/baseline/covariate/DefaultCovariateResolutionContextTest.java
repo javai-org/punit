@@ -115,8 +115,8 @@ class DefaultCovariateResolutionContextTest {
     }
 
     @Nested
-    @DisplayName("getPunitEnvironment()")
-    class GetPunitEnvironmentTests {
+    @DisplayName("getPUnitEnvironment()")
+    class GetPUnitEnvironmentTests {
 
         @Test
         @DisplayName("should return value for existing key")
@@ -125,8 +125,8 @@ class DefaultCovariateResolutionContextTest {
                 .punitEnvironment(Map.of("region", "EU", "env", "prod"))
                 .build();
             
-            assertThat(context.getPunitEnvironment("region")).contains("EU");
-            assertThat(context.getPunitEnvironment("env")).contains("prod");
+            assertThat(context.getPUnitEnvironment("region")).contains("EU");
+            assertThat(context.getPUnitEnvironment("env")).contains("prod");
         }
 
         @Test
@@ -136,7 +136,7 @@ class DefaultCovariateResolutionContextTest {
                 .punitEnvironment(Map.of("region", "EU"))
                 .build();
             
-            assertThat(context.getPunitEnvironment("nonexistent")).isEmpty();
+            assertThat(context.getPUnitEnvironment("nonexistent")).isEmpty();
         }
 
         @Test
@@ -144,7 +144,7 @@ class DefaultCovariateResolutionContextTest {
         void shouldReturnEmptyWhenNoEnvironmentSet() {
             var context = DefaultCovariateResolutionContext.forNow();
             
-            assertThat(context.getPunitEnvironment("anything")).isEmpty();
+            assertThat(context.getPUnitEnvironment("anything")).isEmpty();
         }
     }
 }

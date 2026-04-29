@@ -40,7 +40,7 @@ class CustomCovariateResolverTest {
 
         @Test
         @DisplayName("should use punit environment as fallback")
-        void shouldUsePunitEnvironmentAsFallback() {
+        void shouldUsePUnitEnvironmentAsFallback() {
             var key = "punit.test.custom.covariate";
             
             var context = DefaultCovariateResolutionContext.builder()

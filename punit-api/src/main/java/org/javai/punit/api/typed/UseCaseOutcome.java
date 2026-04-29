@@ -8,7 +8,7 @@ import java.util.Optional;
 import org.javai.outcome.Outcome;
 
 /**
- * Punit's per-sample outcome record. Wraps the raw result of a use
+ * PUnit's per-sample outcome record. Wraps the raw result of a use
  * case invocation together with the {@link PostconditionEvaluator}
  * that classifies it against the service contract, the optional
  * {@link MatchResult} from an instance-conformance check, and a

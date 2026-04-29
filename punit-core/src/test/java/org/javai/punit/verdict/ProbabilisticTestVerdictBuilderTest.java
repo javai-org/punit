@@ -277,7 +277,7 @@ class ProbabilisticTestVerdictBuilderTest {
 
             assertThat(verdict.covariates().aligned()).isTrue();
             assertThat(verdict.covariates().misalignments()).isEmpty();
-            assertThat(verdict.punitVerdict()).isEqualTo(PunitVerdict.PASS);
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.PASS);
         }
 
         @Test
@@ -286,7 +286,7 @@ class ProbabilisticTestVerdictBuilderTest {
                     .passedStatistically(false)
                     .build();
 
-            assertThat(verdict.punitVerdict()).isEqualTo(PunitVerdict.FAIL);
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.FAIL);
         }
 
         @Test
@@ -300,7 +300,7 @@ class ProbabilisticTestVerdictBuilderTest {
             assertThat(verdict.covariates().aligned()).isFalse();
             assertThat(verdict.covariates().misalignments()).hasSize(1);
             assertThat(verdict.covariates().misalignments().getFirst().covariateKey()).isEqualTo("model");
-            assertThat(verdict.punitVerdict()).isEqualTo(PunitVerdict.INCONCLUSIVE);
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.INCONCLUSIVE);
         }
 
         @Test
@@ -311,7 +311,7 @@ class ProbabilisticTestVerdictBuilderTest {
                     .passedStatistically(false)
                     .build();
 
-            assertThat(verdict.punitVerdict()).isEqualTo(PunitVerdict.INCONCLUSIVE);
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.INCONCLUSIVE);
         }
     }
 
@@ -329,14 +329,14 @@ class ProbabilisticTestVerdictBuilderTest {
         }
 
         @Test
-        void junitFailWithPunitPassIsLegitimate() {
+        void junitFailWithPUnitPassIsLegitimate() {
             ProbabilisticTestVerdict verdict = minimalBuilder()
                     .junitPassed(false)
                     .passedStatistically(true)
                     .build();
 
             assertThat(verdict.junitPassed()).isFalse();
-            assertThat(verdict.punitVerdict()).isEqualTo(PunitVerdict.PASS);
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.PASS);
         }
     }
 

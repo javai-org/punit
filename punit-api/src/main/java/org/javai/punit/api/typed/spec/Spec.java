@@ -18,7 +18,7 @@ package org.javai.punit.api.typed.spec;
  * dispatcher.
  *
  * <p>The user touches this interface only as a return type from
- * {@code @PunitExperiment} / {@code @PunitTest} methods; the
+ * {@code @PUnitExperiment} / {@code @PUnitTest} methods; the
  * dispatch mechanism is engine-internal.
  *
  * @see TypedSpec

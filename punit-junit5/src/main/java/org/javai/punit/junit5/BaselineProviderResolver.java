@@ -8,8 +8,8 @@ import org.javai.punit.engine.baseline.YamlBaselineProvider;
 
 /**
  * Resolves the {@link BaselineProvider} consumed by
- * {@link Punit#testing}-style empirical criteria and emitted to by
- * {@link Punit#measuring}-style experiments. Directory resolution
+ * {@link PUnit#testing}-style empirical criteria and emitted to by
+ * {@link PUnit#measuring}-style experiments. Directory resolution
  * delegates to {@link BaselineResolver#defaultDir()} — the same
  * implementation any other consumer (e.g.
  * {@link org.javai.punit.power.PowerAnalysis}) calls — so framework
@@ -26,14 +26,14 @@ import org.javai.punit.engine.baseline.YamlBaselineProvider;
  * </ol>
  *
  * <p>A future revision can layer a JUnit configuration-parameter
- * lookup in between when {@link Punit} gains an
+ * lookup in between when {@link PUnit} gains an
  * {@code ExtensionContext}-aware overload. Not needed for 1.0.
  *
  * <p>When no candidate resolves to an existing directory, the
  * provider's lookups return empty and empirical criteria yield
  * {@code INCONCLUSIVE} per the resolver contract. Measure
  * experiments still run; their baseline write is silently skipped
- * (see {@link Punit.MeasureBuilder#run}).
+ * (see {@link PUnit.MeasureBuilder#run}).
  */
 final class BaselineProviderResolver {
 

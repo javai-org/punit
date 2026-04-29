@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  * <pre>{@code
  * @ProbabilisticTest
  * void shoppingMeetsBaseline() {
- *     Punit.testing(this::shoppingBaseline)
+ *     PUnit.testing(this::shoppingBaseline)
  *             .samples(100)
  *             .criterion(BernoulliPassRate.empirical())
  *             .assertPasses();

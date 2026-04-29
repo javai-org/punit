@@ -22,7 +22,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.StatisticalAnalysis;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.TestIdentity;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.javai.punit.verdict.VerdictTextRenderer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -185,14 +185,14 @@ class VerdictTextRendererTest {
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private ProbabilisticTestVerdict passingVerdict() {
-        return minimalVerdict(true, PunitVerdict.PASS);
+        return minimalVerdict(true, PUnitVerdict.PASS);
     }
 
     private ProbabilisticTestVerdict failingVerdict() {
-        return minimalVerdict(false, PunitVerdict.FAIL);
+        return minimalVerdict(false, PUnitVerdict.FAIL);
     }
 
-    private ProbabilisticTestVerdict minimalVerdict(boolean passed, PunitVerdict punitVerdict) {
+    private ProbabilisticTestVerdict minimalVerdict(boolean passed, PUnitVerdict punitVerdict) {
         int successes = passed ? 95 : 80;
         int failures = passed ? 5 : 20;
         double observedRate = passed ? 0.95 : 0.80;
@@ -211,14 +211,14 @@ class VerdictTextRendererTest {
                 Optional.empty(), Optional.empty(),
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(), passed, punitVerdict,
-                punitVerdict == PunitVerdict.PASS
+                punitVerdict == PUnitVerdict.PASS
                         ? String.format("%.4f >= %.4f", observedRate, 0.9)
                         : String.format("%.4f < %.4f", observedRate, 0.9)
         );
     }
 
     private ProbabilisticTestVerdict budgetExhaustedVerdict() {
-        ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.FAIL);
+        ProbabilisticTestVerdict base = minimalVerdict(false, PUnitVerdict.FAIL);
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(),
                 new ExecutionSummary(100, 50, 40, 10, 0.9, 0.8, 5000,
@@ -228,7 +228,7 @@ class VerdictTextRendererTest {
                 base.pacing(), base.provenance(),
                 new Termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED,
                         Optional.of("Time budget exceeded")),
-                base.environmentMetadata(), false, PunitVerdict.FAIL,
+                base.environmentMetadata(), false, PUnitVerdict.FAIL,
                 "budget exhausted"
         );
     }
@@ -337,7 +337,7 @@ class VerdictTextRendererTest {
     }
 
     private ProbabilisticTestVerdict verdictWithMisalignment() {
-        ProbabilisticTestVerdict base = minimalVerdict(false, PunitVerdict.INCONCLUSIVE);
+        ProbabilisticTestVerdict base = minimalVerdict(false, PUnitVerdict.INCONCLUSIVE);
         CovariateStatus cov = new CovariateStatus(false,
                 List.of(new Misalignment("model", "gpt-4", "gpt-4o")),
                 Map.of(), Map.of());

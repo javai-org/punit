@@ -121,7 +121,7 @@ class CovariateRoundTripTest {
         Events testEvents = run(CovariateSubjects.TestWithMatchingCovariate.class);
 
         // The failed-event payload carries the diagnostic that the
-        // empirical Punit.testing(...) translates from the test result.
+        // empirical PUnit.testing(...) translates from the test result.
         // It should mention the rejection reason for the EU baseline.
         testEvents.failed()
                 .assertThatEvents()

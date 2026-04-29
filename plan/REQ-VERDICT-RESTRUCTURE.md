@@ -205,7 +205,7 @@ layer.
   detection
 - `ProbabilisticTestVerdict.CovariateStatus` — misalignment data model
 - `TestIntent` — VERIFICATION / SMOKE enum
-- `PunitVerdict` — PASS / FAIL / INCONCLUSIVE enum
+- `PUnitVerdict` — PASS / FAIL / INCONCLUSIVE enum
 - Observed in: `punitexamples` →
   `ShoppingBasketCovariateTest$HighTemperatureConfiguration.testWithHighTemperature`
   (baseline at `temperature=0.3`, test at `temperature=0.7`)

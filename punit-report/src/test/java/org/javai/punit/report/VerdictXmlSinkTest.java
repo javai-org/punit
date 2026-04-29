@@ -16,7 +16,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -107,7 +107,7 @@ class VerdictXmlSinkTest {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 true,
-                PunitVerdict.PASS,
+                PUnitVerdict.PASS,
                 "0.9500 >= 0.9000"
         );
     }

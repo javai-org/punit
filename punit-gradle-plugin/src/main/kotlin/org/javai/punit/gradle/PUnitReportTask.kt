@@ -12,7 +12,7 @@ import java.net.URLClassLoader
  * Uses classpath isolation via [URLClassLoader] to invoke [ReportGenerator]
  * from the punit-report module without a compile-time dependency.
  */
-abstract class PunitReportTask : DefaultTask() {
+abstract class PUnitReportTask : DefaultTask() {
 
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)

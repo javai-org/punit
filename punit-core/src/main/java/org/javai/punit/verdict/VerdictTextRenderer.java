@@ -106,7 +106,7 @@ public final class VerdictTextRenderer {
 
         appendDimensionBreakdown(sb, verdict);
 
-        if (verdict.punitVerdict() == PunitVerdict.INCONCLUSIVE) {
+        if (verdict.punitVerdict() == PUnitVerdict.INCONCLUSIVE) {
             sb.append(PUnitReporter.labelValueLn("Verdict:",
                     "Inconclusive \u2014 " + verdict.verdictReason()));
         }

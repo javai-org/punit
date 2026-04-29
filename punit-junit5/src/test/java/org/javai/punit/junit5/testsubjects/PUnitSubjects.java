@@ -7,10 +7,10 @@ import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
-import org.javai.punit.junit5.Punit;
+import org.javai.punit.junit5.PUnit;
 
 /**
- * Test subjects for {@link org.javai.punit.junit5.PunitJunitIntegrationTest}.
+ * Test subjects for {@link org.javai.punit.junit5.PUnitJunitIntegrationTest}.
  *
  * <p>Lives under {@code testsubjects/} so the project's test-discovery
  * exclusion (per the existing punit convention) keeps these out of
@@ -21,9 +21,9 @@ import org.javai.punit.junit5.Punit;
  * {@link GridPoint} for the explore subject, which needs distinct
  * values to populate a grid.
  */
-public final class PunitSubjects {
+public final class PUnitSubjects {
 
-    private PunitSubjects() { }
+    private PUnitSubjects() { }
 
     /**
      * Empty factors record for subjects that don't exercise factors-
@@ -75,7 +75,7 @@ public final class PunitSubjects {
     public static final class PassingContractualTest {
         @ProbabilisticTest
         void passes() {
-            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -85,7 +85,7 @@ public final class PunitSubjects {
     public static final class TransparentStatsTest {
         @ProbabilisticTest
         void passesWithTransparentStats() {
-            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .transparentStats()
                     .assertPasses();
@@ -101,7 +101,7 @@ public final class PunitSubjects {
     public static final class ContractRefPassingTest {
         @ProbabilisticTest
         void passesWithContractRef() {
-            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .contractRef("Acme API SLA v3.2 §2.1")
                     .transparentStats()
@@ -118,7 +118,7 @@ public final class PunitSubjects {
     public static final class ContractRefFailingTest {
         @ProbabilisticTest
         void failsWithContractRef() {
-            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .contractRef("Acme API SLA v3.2 §2.1")
                     .assertPasses();
@@ -129,7 +129,7 @@ public final class PunitSubjects {
     public static final class FailingContractualTest {
         @ProbabilisticTest
         void fails() {
-            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -143,7 +143,7 @@ public final class PunitSubjects {
     public static final class InconclusiveEmpiricalTest {
         @ProbabilisticTest
         void inconclusive() {
-            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -155,7 +155,7 @@ public final class PunitSubjects {
     public static final class PassingMeasureExperiment {
         @Experiment
         void measure() {
-            Punit.measuring(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).run();
+            PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).run();
         }
     }
 
@@ -163,24 +163,24 @@ public final class PunitSubjects {
     public static final class PassingExploreExperiment {
         @Experiment
         void explore() {
-            Punit.exploring(sampling(PunitSubjects.<GridPoint>alwaysPasses(), 5))
+            PUnit.exploring(sampling(PUnitSubjects.<GridPoint>alwaysPasses(), 5))
                     .grid(new GridPoint("alt-1"), new GridPoint("alt-2"))
                     .run();
         }
     }
 
-    // ── Empirical-supplier subjects (Punit.testing(Supplier)) ──────
+    // ── Empirical-supplier subjects (PUnit.testing(Supplier)) ──────
 
     /**
      * The baseline supplier — a non-test method returning a built
      * {@link org.javai.punit.api.typed.spec.Experiment} for the
-     * {@link Punit#testing(java.util.function.Supplier)} entry point.
+     * {@link PUnit#testing(java.util.function.Supplier)} entry point.
      * The same builder produces both a baseline-running
      * {@code @Experiment} method and the supplier the test consumes.
      */
     public static final class EmpiricalSupplierTest {
         private org.javai.punit.api.typed.spec.Experiment baseline() {
-            return Punit.measuring(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).build();
+            return PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).build();
         }
 
         @ProbabilisticTest
@@ -189,7 +189,7 @@ public final class PunitSubjects {
             // The point of this subject is to exercise the supplier-derivation
             // path: factors and sampling come from baseline(), only samples is
             // specified at the test side.
-            Punit.testing(this::baseline)
+            PUnit.testing(this::baseline)
                     .samples(20)
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .assertPasses();
@@ -202,14 +202,14 @@ public final class PunitSubjects {
      */
     public static final class EmpiricalSupplierBadKindTest {
         private org.javai.punit.api.typed.spec.Experiment exploreBaseline() {
-            return Punit.exploring(sampling(PunitSubjects.<GridPoint>alwaysPasses(), 5))
+            return PUnit.exploring(sampling(PUnitSubjects.<GridPoint>alwaysPasses(), 5))
                     .grid(new GridPoint("alt"))
                     .build();
         }
 
         @ProbabilisticTest
         void rejectsNonMeasureSupplier() {
-            Punit.testing(this::exploreBaseline)
+            PUnit.testing(this::exploreBaseline)
                     .samples(20)
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .assertPasses();

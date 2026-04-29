@@ -28,7 +28,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.javai.punit.verdict.VerdictTextRenderer;
 
 /**

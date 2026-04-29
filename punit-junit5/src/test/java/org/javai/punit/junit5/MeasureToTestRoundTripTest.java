@@ -52,7 +52,7 @@ class MeasureToTestRoundTripTest {
     // ── Emission side: @Experiment writes the baseline file ────────
 
     @Test
-    @DisplayName("Punit.measuring(...).run() writes a baseline YAML when a baseline directory is configured")
+    @DisplayName("PUnit.measuring(...).run() writes a baseline YAML when a baseline directory is configured")
     void measureWritesBaseline(@TempDir Path baselineDir) throws IOException {
         System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
 
@@ -86,7 +86,7 @@ class MeasureToTestRoundTripTest {
     @Test
     @DisplayName("full pipeline: emission → resolution → assertion in two JUnit invocations")
     void fullRoundTrip(@TempDir Path baselineDir) throws IOException {
-        // Phase 1 — emit a baseline via Punit.measuring(...).run().
+        // Phase 1 — emit a baseline via PUnit.measuring(...).run().
         // The use case here passes always; the recorded rate will be 1.0,
         // which is too tight a threshold for a Wilson-bound test to clear.
         // We overwrite with a hand-written 0.5 baseline so Phase 2 can pass.

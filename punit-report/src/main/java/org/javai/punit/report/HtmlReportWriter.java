@@ -13,7 +13,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
-import org.javai.punit.verdict.PunitVerdict;
+import org.javai.punit.verdict.PUnitVerdict;
 import org.javai.punit.verdict.VerdictTextRenderer;
 
 /**
@@ -41,9 +41,9 @@ final class HtmlReportWriter {
     static String generate(List<ProbabilisticTestVerdict> verdicts) {
         Instant now = Instant.now();
         long totalTests = verdicts.size();
-        long passed = verdicts.stream().filter(v -> v.punitVerdict() == PunitVerdict.PASS).count();
-        long failed = verdicts.stream().filter(v -> v.punitVerdict() == PunitVerdict.FAIL).count();
-        long inconclusive = verdicts.stream().filter(v -> v.punitVerdict() == PunitVerdict.INCONCLUSIVE).count();
+        long passed = verdicts.stream().filter(v -> v.punitVerdict() == PUnitVerdict.PASS).count();
+        long failed = verdicts.stream().filter(v -> v.punitVerdict() == PUnitVerdict.FAIL).count();
+        long inconclusive = verdicts.stream().filter(v -> v.punitVerdict() == PUnitVerdict.INCONCLUSIVE).count();
 
         Map<String, List<ProbabilisticTestVerdict>> grouped = groupVerdicts(verdicts);
 
@@ -159,7 +159,7 @@ final class HtmlReportWriter {
         html.append("<pre class=\"level2\">").append(escape(VerdictTextRenderer.renderSummary(verdict))).append("</pre>\n");
 
         // Operator guidance for inconclusive verdicts
-        if (verdict.punitVerdict() == PunitVerdict.INCONCLUSIVE && !verdict.covariates().aligned()) {
+        if (verdict.punitVerdict() == PUnitVerdict.INCONCLUSIVE && !verdict.covariates().aligned()) {
             appendMisalignmentGuidance(html, verdict);
         }
 
@@ -251,7 +251,7 @@ final class HtmlReportWriter {
         return grouped;
     }
 
-    private static String punitCssClass(PunitVerdict verdict) {
+    private static String punitCssClass(PUnitVerdict verdict) {
         return switch (verdict) {
             case PASS -> "punit-pass";
             case FAIL -> "punit-fail";

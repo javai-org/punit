@@ -70,7 +70,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 true,
-                PunitVerdict.PASS,
+                PUnitVerdict.PASS,
                 "0.9600 >= 0.9374"
         );
     }
@@ -108,7 +108,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 false,
-                PunitVerdict.FAIL,
+                PUnitVerdict.FAIL,
                 "0.8500 < 0.9374"
         );
     }
@@ -142,7 +142,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED, Optional.empty()),
                 Map.of(),
                 false,
-                PunitVerdict.FAIL,
+                PUnitVerdict.FAIL,
                 "budget exhausted"
         );
     }
@@ -176,7 +176,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 true,
-                PunitVerdict.PASS,
+                PUnitVerdict.PASS,
                 "0.9000 >= 0.8500"
         );
     }
@@ -221,7 +221,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 true,
-                PunitVerdict.PASS,
+                PUnitVerdict.PASS,
                 "0.9500 >= 0.9000"
         );
     }
@@ -257,7 +257,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.COMPLETED, Optional.empty()),
                 Map.of(),
                 false,
-                PunitVerdict.INCONCLUSIVE,
+                PUnitVerdict.INCONCLUSIVE,
                 "covariate misalignment"
         );
     }
@@ -296,7 +296,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.IMPOSSIBILITY, Optional.empty()),
                 Map.of(),
                 false,
-                PunitVerdict.FAIL,
+                PUnitVerdict.FAIL,
                 "0.6667 < 0.9000"
         );
     }
@@ -335,7 +335,7 @@ final class ScenarioFixtures {
                 new Termination(TerminationReason.METHOD_TOKEN_BUDGET_EXHAUSTED, Optional.empty()),
                 Map.of(),
                 false,
-                PunitVerdict.FAIL,
+                PUnitVerdict.FAIL,
                 "budget exhausted"
         );
     }

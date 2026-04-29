@@ -21,7 +21,7 @@ import org.javai.punit.api.typed.spec.Verdict;
  * <p>The legacy framework expressed this through
  * {@code @ProbabilisticTest(transparentStats = true)}. The typed
  * pipeline exposes the same feature through
- * {@code Punit.testing(...).transparentStats()}; this class is the
+ * {@code PUnit.testing(...).transparentStats()}; this class is the
  * renderer that produces the actual output.
  *
  * <h2>What gets rendered</h2>

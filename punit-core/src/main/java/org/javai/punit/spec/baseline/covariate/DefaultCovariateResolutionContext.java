@@ -80,7 +80,7 @@ public final class DefaultCovariateResolutionContext implements CovariateResolut
     }
 
     @Override
-    public Optional<String> getPunitEnvironment(String key) {
+    public Optional<String> getPUnitEnvironment(String key) {
         Objects.requireNonNull(key, "key must not be null");
         return Optional.ofNullable(punitEnvironment.get(key));
     }

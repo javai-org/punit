@@ -12,7 +12,7 @@ import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.covariate.Covariate;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
-import org.javai.punit.junit5.Punit;
+import org.javai.punit.junit5.PUnit;
 
 /**
  * Test subjects for {@link org.javai.punit.junit5.CovariateRoundTripTest}.
@@ -71,7 +71,7 @@ public final class CovariateSubjects {
     public static final class MeasureWithCovariate {
         @Experiment
         void measureBaseline() {
-            Punit.measuring(sampling(100), new NoFactors())
+            PUnit.measuring(sampling(100), new NoFactors())
                     .experimentId("measureBaseline")
                     .run();
         }
@@ -92,7 +92,7 @@ public final class CovariateSubjects {
             // assert resolution-time correctness: when the baseline
             // matches we get a real verdict (not INCONCLUSIVE), and
             // when it doesn't we get INCONCLUSIVE.
-            Punit.testing(sampling(20), new NoFactors())
+            PUnit.testing(sampling(20), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>empirical()
                             .atConfidence(0.50))
                     .assertPasses();

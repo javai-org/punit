@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
  * would otherwise only be noticed when a downstream consumer compiles.
  */
 @DisplayName("punit-api visibility from punit-core")
-class PunitApiVisibilityTest {
+class PUnitApiVisibilityTest {
 
     record SampleFactors(int n) {}
 

@@ -262,7 +262,7 @@ public class ProbabilisticTestVerdictBuilder {
         Optional<PacingSummary> pacing = buildPacingSummary();
         Optional<SpecProvenance> provenance = buildSpecProvenance();
         Termination termination = buildTermination();
-        PunitVerdict punitVerdict = derivePunitVerdict(covariates);
+        PUnitVerdict punitVerdict = derivePUnitVerdict(covariates);
         String verdictReason = deriveVerdictReason(punitVerdict, covariates);
 
         return new ProbabilisticTestVerdict(
@@ -498,15 +498,15 @@ public class ProbabilisticTestVerdictBuilder {
         return new Termination(terminationReason, Optional.ofNullable(terminationDetails));
     }
 
-    private PunitVerdict derivePunitVerdict(CovariateStatus covariates) {
+    private PUnitVerdict derivePUnitVerdict(CovariateStatus covariates) {
         if (!covariates.aligned()) {
-            return PunitVerdict.INCONCLUSIVE;
+            return PUnitVerdict.INCONCLUSIVE;
         }
-        return passedStatistically ? PunitVerdict.PASS : PunitVerdict.FAIL;
+        return passedStatistically ? PUnitVerdict.PASS : PUnitVerdict.FAIL;
     }
 
-    private String deriveVerdictReason(PunitVerdict punitVerdict, CovariateStatus covariates) {
-        if (punitVerdict == PunitVerdict.INCONCLUSIVE) {
+    private String deriveVerdictReason(PUnitVerdict punitVerdict, CovariateStatus covariates) {
+        if (punitVerdict == PUnitVerdict.INCONCLUSIVE) {
             if (!covariates.aligned()) {
                 return "covariate misalignment";
             }

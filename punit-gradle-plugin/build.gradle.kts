@@ -14,7 +14,7 @@ gradlePlugin {
     plugins {
         create("punit") {
             id = "org.javai.punit"
-            implementationClass = "org.javai.punit.gradle.PunitPlugin"
+            implementationClass = "org.javai.punit.gradle.PUnitPlugin"
             displayName = "PUnit Gradle Plugin"
             description = "Configures test and experiment tasks for PUnit probabilistic testing"
         }
@@ -49,11 +49,11 @@ val generateVersionFile = tasks.register("generateVersionFile") {
     doLast {
         val dir = outputDir.get().asFile.resolve("org/javai/punit/gradle")
         dir.mkdirs()
-        dir.resolve("PunitVersion.kt").writeText(
+        dir.resolve("PUnitVersion.kt").writeText(
             """
             package org.javai.punit.gradle
 
-            internal object PunitVersion {
+            internal object PUnitVersion {
                 const val VERSION = "$punitVersion"
             }
             """.trimIndent() + "\n"

@@ -2,7 +2,7 @@ package org.javai.punit.junit5;
 
 import java.nio.file.Path;
 
-import org.javai.punit.junit5.testsubjects.PunitSubjects;
+import org.javai.punit.junit5.testsubjects.PUnitSubjects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,8 +14,8 @@ import org.junit.platform.testkit.engine.Events;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
 
-@DisplayName("@ProbabilisticTest / @Experiment + Punit factories — JUnit-driven typed-engine outcomes")
-class PunitJunitIntegrationTest {
+@DisplayName("@ProbabilisticTest / @Experiment + PUnit factories — JUnit-driven typed-engine outcomes")
+class PUnitJunitIntegrationTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
 
@@ -50,14 +50,14 @@ class PunitJunitIntegrationTest {
     @Test
     @DisplayName("contractual PASS surfaces as a JUnit pass")
     void contractualPass() {
-        Events events = run(PunitSubjects.PassingContractualTest.class);
+        Events events = run(PUnitSubjects.PassingContractualTest.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
     }
 
     @Test
     @DisplayName("contractual FAIL surfaces as AssertionFailedError")
     void contractualFail() {
-        Events events = run(PunitSubjects.FailingContractualTest.class);
+        Events events = run(PUnitSubjects.FailingContractualTest.class);
         events.assertStatistics(stats -> stats.started(1).failed(1));
         events.failed()
                 .assertThatEvents()
@@ -76,7 +76,7 @@ class PunitJunitIntegrationTest {
     @Test
     @DisplayName("empirical INCONCLUSIVE (no baseline resolved) surfaces as TestAbortedException")
     void empiricalInconclusive() {
-        Events events = run(PunitSubjects.InconclusiveEmpiricalTest.class);
+        Events events = run(PUnitSubjects.InconclusiveEmpiricalTest.class);
         events.assertStatistics(stats -> stats.started(1).aborted(1));
         events.aborted()
                 .assertThatEvents()
@@ -92,36 +92,36 @@ class PunitJunitIntegrationTest {
     // ── @Experiment path ───────────────────────────────────────────
 
     @Test
-    @DisplayName("@Experiment Punit.measuring(...).run() returns normally")
+    @DisplayName("@Experiment PUnit.measuring(...).run() returns normally")
     void measureExperimentRuns() {
-        Events events = run(PunitSubjects.PassingMeasureExperiment.class);
+        Events events = run(PUnitSubjects.PassingMeasureExperiment.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
     }
 
     @Test
-    @DisplayName("@Experiment Punit.exploring(...).grid(...).run() returns normally")
+    @DisplayName("@Experiment PUnit.exploring(...).grid(...).run() returns normally")
     void exploreExperimentRuns() {
-        Events events = run(PunitSubjects.PassingExploreExperiment.class);
+        Events events = run(PUnitSubjects.PassingExploreExperiment.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
     }
 
     // ── Empirical-supplier path ────────────────────────────────────
 
     @Test
-    @DisplayName("Punit.testing(supplier).samples(N).criterion(...).assertPasses() derives from baseline")
+    @DisplayName("PUnit.testing(supplier).samples(N).criterion(...).assertPasses() derives from baseline")
     void empiricalSupplierDerivesFromBaseline() {
         // Without an on-disk baseline the resolver returns EMPTY, so the
         // criterion yields INCONCLUSIVE → aborted. The path itself works
         // (factors and sampling derived from supplier; only sample count
         // specified at test side).
-        Events events = run(PunitSubjects.EmpiricalSupplierTest.class);
+        Events events = run(PUnitSubjects.EmpiricalSupplierTest.class);
         events.assertStatistics(stats -> stats.started(1).aborted(1));
     }
 
     @Test
-    @DisplayName("Punit.testing(supplier) rejects a non-MEASURE supplier with IllegalArgumentException")
+    @DisplayName("PUnit.testing(supplier) rejects a non-MEASURE supplier with IllegalArgumentException")
     void empiricalSupplierRejectsNonMeasure() {
-        Events events = run(PunitSubjects.EmpiricalSupplierBadKindTest.class);
+        Events events = run(PUnitSubjects.EmpiricalSupplierBadKindTest.class);
         events.assertStatistics(stats -> stats.started(1).failed(1));
         events.failed()
                 .assertThatEvents()

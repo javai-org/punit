@@ -6,7 +6,7 @@ import org.javai.punit.api.typed.Sampling;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
-import org.javai.punit.junit5.Punit;
+import org.javai.punit.junit5.PUnit;
 
 /**
  * Subjects for {@code FeasibilityIntegrationTest}. The hosting test
@@ -50,7 +50,7 @@ public final class FeasibilitySubjects {
         void shouldPass() {
             // Baseline rate 0.50; n=50 against rate 0.50 has min Wilson
             // lower bound at observed=1.0 ≈ 0.949 — well above 0.50 → feasible.
-            Punit.testing(sampling(50), new NoFactors())
+            PUnit.testing(sampling(50), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -66,7 +66,7 @@ public final class FeasibilitySubjects {
             // Baseline rate 0.95; n=10 against rate 0.95 has max Wilson
             // lower bound at observed=1.0 ≈ 0.787 — below 0.95 → infeasible.
             // Default intent is VERIFICATION → throw IllegalStateException.
-            Punit.testing(sampling(10), new NoFactors())
+            PUnit.testing(sampling(10), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -82,7 +82,7 @@ public final class FeasibilitySubjects {
             // Same configuration as VerificationInfeasible — n=10 against
             // baseline 0.95 — but explicitly SMOKE intent. Run proceeds;
             // a warning is printed to stderr.
-            Punit.testing(sampling(10), new NoFactors())
+            PUnit.testing(sampling(10), new NoFactors())
                     .criterion(BernoulliPassRate.<Boolean>empirical())
                     .intent(TestIntent.SMOKE)
                     .assertPasses();

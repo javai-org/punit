@@ -21,10 +21,10 @@ import java.net.URLClassLoader
  * - Registers `createSentinel` task to build an executable sentinel JAR
  * - Forwards `punit.*` system properties and supports `-Prun=` filter syntax
  */
-class PunitPlugin : Plugin<Project> {
+class PUnitPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        val extension = project.extensions.create("punit", PunitExperimentExtension::class.java).apply {
+        val extension = project.extensions.create("punit", PUnitExperimentExtension::class.java).apply {
             // Measure specs are inputs to subsequent @ProbabilisticTest runs
             // (including in CI), so they live alongside source and are intended
             // to be committed. Explore and Optimize outputs are human-review
@@ -47,7 +47,7 @@ class PunitPlugin : Plugin<Project> {
             isCanBeConsumed = false
             isCanBeResolved = true
         }
-        val punitVersion = loadPunitVersion()
+        val punitVersion = loadPUnitVersion()
         project.dependencies.add("punitSentinel",
             "org.javai:punit-sentinel:$punitVersion")
 
@@ -70,12 +70,12 @@ class PunitPlugin : Plugin<Project> {
                 "Shorthand for 'experiment' task")
 
             registerCreateSentinelTask(project, extension, sentinelConfig)
-            registerPunitReportTask(project, reportConfig)
-            registerPunitVerifyTask(project, reportConfig)
+            registerPUnitReportTask(project, reportConfig)
+            registerPUnitVerifyTask(project, reportConfig)
         }
     }
 
-    private fun configureTestTask(project: Project, extension: PunitExperimentExtension) {
+    private fun configureTestTask(project: Project, extension: PUnitExperimentExtension) {
         project.tasks.withType(Test::class.java).named("test").configure {
             useJUnitPlatform {
                 excludeTags("punit-experiment")
@@ -93,14 +93,14 @@ class PunitPlugin : Plugin<Project> {
                     project.layout.buildDirectory.dir("reports/punit/xml").get().asFile.absolutePath)
             }
 
-            forwardPunitSystemProperties(this)
+            forwardPUnitSystemProperties(this)
             applyRunFilter(project, this)
         }
     }
 
     private fun registerExperimentTask(
         project: Project,
-        extension: PunitExperimentExtension,
+        extension: PUnitExperimentExtension,
         taskName: String,
         taskDescription: String
     ) {
@@ -156,7 +156,7 @@ class PunitPlugin : Plugin<Project> {
 
             dependsOn("compileTestJava", "processTestResources")
 
-            forwardPunitSystemProperties(this)
+            forwardPUnitSystemProperties(this)
             applyRunFilter(project, this)
 
             // Track start time to detect which directories received output
@@ -200,7 +200,7 @@ class PunitPlugin : Plugin<Project> {
 
     private fun registerCreateSentinelTask(
         project: Project,
-        extension: PunitExperimentExtension,
+        extension: PUnitExperimentExtension,
         sentinelConfig: org.gradle.api.artifacts.Configuration
     ) {
         project.tasks.register("createSentinel", Jar::class.java).configure {
@@ -408,11 +408,11 @@ class PunitPlugin : Plugin<Project> {
         }
     }
 
-    private fun registerPunitReportTask(
+    private fun registerPUnitReportTask(
         project: Project,
         reportConfig: org.gradle.api.artifacts.Configuration
     ) {
-        project.tasks.register("punitReport", PunitReportTask::class.java).configure {
+        project.tasks.register("punitReport", PUnitReportTask::class.java).configure {
             description = "Generates an HTML report from PUnit test verdict XML files"
             group = "verification"
             xmlDir.set(project.layout.buildDirectory.dir("reports/punit/xml"))
@@ -421,11 +421,11 @@ class PunitPlugin : Plugin<Project> {
         }
     }
 
-    private fun registerPunitVerifyTask(
+    private fun registerPUnitVerifyTask(
         project: Project,
         reportConfig: org.gradle.api.artifacts.Configuration
     ) {
-        val verifyTask = project.tasks.register("punitVerify", PunitVerifyTask::class.java) {
+        val verifyTask = project.tasks.register("punitVerify", PUnitVerifyTask::class.java) {
             description = "Verifies that all probabilistic test verdicts passed"
             group = "verification"
             xmlDir.set(project.layout.buildDirectory.dir("reports/punit/xml"))
@@ -441,9 +441,9 @@ class PunitPlugin : Plugin<Project> {
         }
     }
 
-    private fun loadPunitVersion(): String = PunitVersion.VERSION
+    private fun loadPUnitVersion(): String = PUnitVersion.VERSION
 
-    private fun forwardPunitSystemProperties(task: Test) {
+    private fun forwardPUnitSystemProperties(task: Test) {
         System.getProperties()
             .filter { (k, _) -> k.toString().startsWith("punit.") }
             .forEach { (k, v) -> task.systemProperty(k.toString(), v.toString()) }
