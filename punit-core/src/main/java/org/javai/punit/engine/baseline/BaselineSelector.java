@@ -86,46 +86,96 @@ final class BaselineSelector {
             List<BaselineRecord> candidates,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
+        return selectWithReport(candidates, currentProfile, declarations).selected;
+    }
+
+    /**
+     * Selects the best-matching baseline (UC05) and returns the
+     * decision <em>plus</em> a list of human-readable notes capturing
+     * each candidate that was rejected and why. The notes are surfaced
+     * upstream through {@link BaselineLookup#notes()} so that an
+     * INCONCLUSIVE verdict explains the misalignment.
+     *
+     * <p>Notes are only emitted on the covariate-aware path
+     * ({@code declarations} non-empty); the legacy "no declarations"
+     * path returns an empty notes list.
+     */
+    static SelectionReport selectWithReport(
+            List<BaselineRecord> candidates,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
         Objects.requireNonNull(candidates, "candidates");
         Objects.requireNonNull(currentProfile, "currentProfile");
         Objects.requireNonNull(declarations, "declarations");
 
         if (candidates.isEmpty()) {
-            return Optional.empty();
+            return SelectionReport.NONE;
         }
         // No covariate declarations → only match unstamped baselines.
         // Preserves pre-CV-3 behaviour for use cases that don't opt in.
         if (declarations.isEmpty()) {
-            return candidates.stream()
-                    .filter(c -> c.covariateProfile().isEmpty())
-                    .findFirst();
+            return new SelectionReport(
+                    candidates.stream()
+                            .filter(c -> c.covariateProfile().isEmpty())
+                            .findFirst(),
+                    List.of());
         }
 
         Map<String, CovariateCategory> categoriesByName = categoryIndex(declarations);
 
         List<Scored> scored = new ArrayList<>(candidates.size());
+        List<String> notes = new ArrayList<>();
         for (BaselineRecord c : candidates) {
-            Scored s = score(c, currentProfile, categoriesByName);
-            if (s == null) {
-                continue;
+            ScoreResult result = scoreWithReason(c, currentProfile, categoriesByName);
+            if (result.scored != null) {
+                Scored s = result.scored;
+                // A covariate-tagged candidate that matches zero
+                // declared covariates is the "wrong" baseline by
+                // identity — it was measured under environmental
+                // conditions disjoint from the current run. Reject it;
+                // the empty-profile baseline (UC05's default fallback)
+                // is the only candidate allowed at score 0.
+                if (s.matches == 0 && !c.covariateProfile().isEmpty()) {
+                    notes.add(rejectedNote(c.filename(),
+                            "no overlap with the current covariate profile"));
+                    continue;
+                }
+                scored.add(s);
+            } else {
+                notes.add(rejectedNote(c.filename(), result.rejectionReason));
             }
-            // A covariate-tagged candidate that matches zero declared
-            // covariates is the "wrong" baseline by identity — it was
-            // measured under environmental conditions disjoint from
-            // the current run. Reject it; the empty-profile baseline
-            // (UC05's default fallback) is the only candidate allowed
-            // at score 0.
-            if (s.matches == 0 && !c.covariateProfile().isEmpty()) {
-                continue;
-            }
-            scored.add(s);
         }
 
         if (scored.isEmpty()) {
-            return Optional.empty();
+            return new SelectionReport(Optional.empty(), List.copyOf(notes));
         }
         scored.sort(BEST_FIRST);
-        return Optional.of(scored.get(0).record);
+        Scored chosen = scored.get(0);
+        // Note partial matches and default-fallback selections so the
+        // verdict report can flag them — full-match selections are
+        // expected and not noisy enough to warrant a note.
+        if (chosen.matches < declarations.size()) {
+            if (chosen.record.covariateProfile().isEmpty()) {
+                notes.add("falling back to default (covariate-insensitive) baseline "
+                        + chosen.record.filename()
+                        + " — no covariate-tagged candidate matched");
+            } else {
+                notes.add("partial match: " + chosen.record.filename()
+                        + " — matched " + chosen.matches + " of "
+                        + declarations.size() + " declared covariates");
+            }
+        }
+        return new SelectionReport(Optional.of(chosen.record), List.copyOf(notes));
+    }
+
+    private static String rejectedNote(String filename, String reason) {
+        return "rejected " + filename + " — " + reason;
+    }
+
+    /** Selection result with notes for verdict-level surfacing. */
+    record SelectionReport(Optional<BaselineRecord> selected, List<String> notes) {
+        static final SelectionReport NONE =
+                new SelectionReport(Optional.empty(), List.of());
     }
 
     private static Map<String, CovariateCategory> categoryIndex(
@@ -139,14 +189,16 @@ final class BaselineSelector {
     }
 
     /**
-     * @return the candidate's score, or {@code null} when it must be
-     *         rejected (a CONFIGURATION-category covariate disagrees).
+     * @return either a populated {@link ScoreResult#scored} (the
+     *         candidate is a viable match) or a populated
+     *         {@link ScoreResult#rejectionReason} explaining the
+     *         CONFIGURATION-category mismatch that rejected it.
      *         The empty-profile candidate scores 0 with no matched
      *         categories — it loses any tie-breaker to a candidate
      *         that matched something, but wins as a fallback when no
      *         scoring candidate beats it.
      */
-    private static Scored score(
+    private static ScoreResult scoreWithReason(
             BaselineRecord candidate,
             CovariateProfile current,
             Map<String, CovariateCategory> categoriesByName) {
@@ -170,20 +222,37 @@ final class BaselineSelector {
             // was measured before that covariate was declared, and
             // we cannot prove it was equivalent.
             if (category.isHardGate() && !valuesAgree && baselineDeclares) {
-                return null;
+                return ScoreResult.rejected(String.format(
+                        "%s mismatch on %s (current=%s, baseline=%s)",
+                        category.name(), name,
+                        currentValue == null ? "<unset>" : currentValue,
+                        baselineValue));
             }
             if (valuesAgree) {
                 matches++;
                 matchedCategories.add(category);
             }
         }
-        return new Scored(candidate, matches, matchedCategories);
+        return ScoreResult.matched(new Scored(candidate, matches, matchedCategories));
     }
 
     private record Scored(
             BaselineRecord record,
             int matches,
             List<CovariateCategory> matchedCategories) { }
+
+    /**
+     * Outcome of evaluating one candidate: either a viable match
+     * (with score) or an outright rejection (with reason text).
+     */
+    private record ScoreResult(Scored scored, String rejectionReason) {
+        static ScoreResult matched(Scored scored) {
+            return new ScoreResult(scored, null);
+        }
+        static ScoreResult rejected(String reason) {
+            return new ScoreResult(null, reason);
+        }
+    }
 
     /**
      * Higher score first; on tie, candidate whose best matched

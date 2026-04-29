@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.covariate.Covariate;
 import org.javai.punit.api.typed.covariate.CovariateProfile;
+import org.javai.punit.api.typed.spec.BaselineLookup;
 import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 
@@ -50,5 +51,18 @@ public final class YamlBaselineProvider implements BaselineProvider {
         String fingerprint = FactorsFingerprint.of(factors);
         return resolver.resolveInputsIdentity(useCaseId, fingerprint,
                 currentProfile, declarations);
+    }
+
+    @Override
+    public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
+            String useCaseId,
+            FactorBundle factors,
+            String criterionName,
+            Class<S> statisticsType,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
+        String fingerprint = FactorsFingerprint.of(factors);
+        return resolver.lookup(useCaseId, fingerprint, criterionName,
+                statisticsType, currentProfile, declarations);
     }
 }

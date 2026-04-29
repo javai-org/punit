@@ -187,6 +187,15 @@ public final class Punit {
                         .append(cr.explanation()).append('\n');
             }
         }
+        // Misalignment / fallback notes from baseline selection — appear
+        // here so an INCONCLUSIVE verdict explains *why* the baseline
+        // didn't match (CONFIGURATION mismatch, partial match, fallback).
+        if (!result.warnings().isEmpty()) {
+            sb.append('\n');
+            for (String warning : result.warnings()) {
+                sb.append("  ! ").append(warning).append('\n');
+            }
+        }
         return sb.toString().trim();
     }
 

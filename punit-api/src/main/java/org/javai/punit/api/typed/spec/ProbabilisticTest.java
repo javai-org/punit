@@ -174,16 +174,24 @@ public final class ProbabilisticTest implements Spec {
                     : Optional.empty();
 
             List<EvaluatedCriterion> evaluated = new ArrayList<>(registered.size());
+            // De-duplicated misalignment notes — selection runs once per
+            // empirical criterion against the same file, so each criterion
+            // accumulates the same notes; recording per-criterion would
+            // produce N copies of every reason. The notes describe the
+            // baseline file's misalignment, not any one criterion's.
+            java.util.LinkedHashSet<String> warnings = new java.util.LinkedHashSet<>();
             for (Registered<OT> entry : registered) {
                 CriterionResult result = evaluate(
                         entry.criterion(), s, factorBundle, useCaseId,
-                        testInputsIdentity, baselineInputsIdentity, provider);
+                        testInputsIdentity, baselineInputsIdentity,
+                        provider, warnings);
                 evaluated.add(new EvaluatedCriterion(result, entry.role()));
             }
 
             Verdict composed = Verdict.compose(evaluated);
             return new ProbabilisticTestResult(
-                    composed, factorBundle, evaluated, intent, List.of());
+                    composed, factorBundle, evaluated, intent,
+                    List.copyOf(warnings));
         }
 
         private boolean anyEmpiricalCriterion() {
@@ -203,12 +211,18 @@ public final class ProbabilisticTest implements Spec {
                 String useCaseId,
                 String testInputsIdentity,
                 Optional<String> baselineInputsIdentity,
-                BaselineProvider provider) {
+                BaselineProvider provider,
+                java.util.Set<String> warnings) {
             Criterion raw = criterion;
-            Optional<? extends BaselineStatistics> resolved = criterion.isEmpirical()
-                    ? provider.baselineFor(
-                            useCaseId, factorBundle, criterion.name(), criterion.statisticsType())
-                    : Optional.empty();
+            Optional<? extends BaselineStatistics> resolved;
+            if (criterion.isEmpirical()) {
+                BaselineLookup<? extends BaselineStatistics> lookup = provider.baselineLookup(
+                        useCaseId, factorBundle, criterion.name(), criterion.statisticsType());
+                resolved = lookup.selected();
+                warnings.addAll(lookup.notes());
+            } else {
+                resolved = Optional.empty();
+            }
             EvaluationContext ctx = new EvaluationContext<OT, BaselineStatistics>() {
                 @Override public SampleSummary<OT> summary() { return s; }
                 @Override public Optional<BaselineStatistics> baseline() {

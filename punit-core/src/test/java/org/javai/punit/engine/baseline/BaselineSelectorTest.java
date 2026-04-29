@@ -245,6 +245,95 @@ class BaselineSelectorTest {
         }
 
         @Test
+        @DisplayName("selectWithReport: CONFIGURATION rejection surfaces a structured note")
+        void reportConfigurationRejection() {
+            BaselineRecord wrongModel = baseline("ff", profile(Map.of(
+                    "day_of_week", "WEEKDAY",
+                    "region", "DE_FR",
+                    "model_version", "v2")));
+
+            BaselineSelector.SelectionReport report = BaselineSelector.selectWithReport(
+                    List.of(wrongModel), current, declarations);
+
+            assertThat(report.selected()).isEmpty();
+            assertThat(report.notes()).hasSize(1);
+            assertThat(report.notes().get(0))
+                    .contains("rejected " + wrongModel.filename())
+                    .contains("CONFIGURATION mismatch on model_version")
+                    .contains("current=v1")
+                    .contains("baseline=v2");
+        }
+
+        @Test
+        @DisplayName("selectWithReport: zero-overlap rejection surfaces its own note")
+        void reportZeroOverlapRejection() {
+            List<Covariate> softOnly = List.of(
+                    Covariate.dayOfWeek(List.of(java.util.Set.of(java.time.DayOfWeek.MONDAY))),
+                    Covariate.region(List.of(java.util.Set.of("FR"))));
+            CovariateProfile softCurrent = profile(Map.of(
+                    "day_of_week", "WEEKDAY",
+                    "region", "FR"));
+            BaselineRecord allDisagree = baseline("ff", profile(Map.of(
+                    "day_of_week", "WEEKEND",
+                    "region", "OTHER")));
+
+            BaselineSelector.SelectionReport report = BaselineSelector.selectWithReport(
+                    List.of(allDisagree), softCurrent, softOnly);
+
+            assertThat(report.selected()).isEmpty();
+            assertThat(report.notes()).hasSize(1);
+            assertThat(report.notes().get(0))
+                    .contains("rejected " + allDisagree.filename())
+                    .contains("no overlap");
+        }
+
+        @Test
+        @DisplayName("selectWithReport: partial match emits a note alongside the selection")
+        void reportPartialMatch() {
+            BaselineRecord partial = baseline("ff", profile(Map.of(
+                    "day_of_week", "WEEKDAY",
+                    "region", "GB_IE",
+                    "model_version", "v1")));
+
+            BaselineSelector.SelectionReport report = BaselineSelector.selectWithReport(
+                    List.of(partial), current, declarations);
+
+            assertThat(report.selected()).contains(partial);
+            assertThat(report.notes()).hasSize(1);
+            assertThat(report.notes().get(0))
+                    .contains("partial match")
+                    .contains(partial.filename())
+                    .contains("matched 2 of 3 declared covariates");
+        }
+
+        @Test
+        @DisplayName("selectWithReport: default-fallback selection emits a note")
+        void reportDefaultFallback() {
+            BaselineRecord empty = baseline("ff", CovariateProfile.empty());
+
+            BaselineSelector.SelectionReport report = BaselineSelector.selectWithReport(
+                    List.of(empty), current, declarations);
+
+            assertThat(report.selected()).contains(empty);
+            assertThat(report.notes()).hasSize(1);
+            assertThat(report.notes().get(0))
+                    .contains("falling back to default")
+                    .contains(empty.filename());
+        }
+
+        @Test
+        @DisplayName("selectWithReport: exact match emits no notes (silence on success)")
+        void reportExactMatchSilent() {
+            BaselineRecord exact = baseline("ff", current);
+
+            BaselineSelector.SelectionReport report = BaselineSelector.selectWithReport(
+                    List.of(exact), current, declarations);
+
+            assertThat(report.selected()).contains(exact);
+            assertThat(report.notes()).isEmpty();
+        }
+
+        @Test
         @DisplayName("a CONFIGURATION covariate omitted from the baseline is treated as a mismatch")
         void omittedConfigIsMismatch() {
             // The empty-profile candidate fields no model_version.

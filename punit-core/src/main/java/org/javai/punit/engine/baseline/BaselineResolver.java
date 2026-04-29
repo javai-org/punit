@@ -11,6 +11,7 @@ import java.util.Optional;
 
 import org.javai.punit.api.typed.covariate.Covariate;
 import org.javai.punit.api.typed.covariate.CovariateProfile;
+import org.javai.punit.api.typed.spec.BaselineLookup;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 
 /**
@@ -88,6 +89,23 @@ public final class BaselineResolver {
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
+        return lookup(useCaseId, factorsFingerprint, criterionName,
+                statisticsType, currentProfile, declarations).selected();
+    }
+
+    /**
+     * Like {@link #resolve} but additionally returns selection notes
+     * (one per rejected candidate, plus partial-match / fallback
+     * announcements) for surfacing through
+     * {@link org.javai.punit.api.typed.spec.ProbabilisticTestResult#warnings()}.
+     */
+    public <S extends BaselineStatistics> BaselineLookup<S> lookup(
+            String useCaseId,
+            String factorsFingerprint,
+            String criterionName,
+            Class<S> statisticsType,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
         Objects.requireNonNull(useCaseId, "useCaseId");
         Objects.requireNonNull(factorsFingerprint, "factorsFingerprint");
         Objects.requireNonNull(criterionName, "criterionName");
@@ -95,14 +113,15 @@ public final class BaselineResolver {
         Objects.requireNonNull(currentProfile, "currentProfile");
         Objects.requireNonNull(declarations, "declarations");
 
-        Optional<BaselineRecord> selected = findAndSelect(
+        BaselineSelector.SelectionReport report = findAndSelectWithReport(
                 useCaseId, factorsFingerprint, currentProfile, declarations);
+        Optional<BaselineRecord> selected = report.selected();
         if (selected.isEmpty()) {
-            return Optional.empty();
+            return new BaselineLookup<>(Optional.empty(), report.notes());
         }
         BaselineStatistics entry = selected.get().statisticsByCriterionName().get(criterionName);
         if (entry == null) {
-            return Optional.empty();
+            return new BaselineLookup<>(Optional.empty(), report.notes());
         }
         if (!statisticsType.isInstance(entry)) {
             throw new IllegalStateException(
@@ -112,7 +131,7 @@ public final class BaselineResolver {
                             + statisticsType.getSimpleName()
                             + " — write-side and read-side criterion kinds disagree");
         }
-        return Optional.of(statisticsType.cast(entry));
+        return new BaselineLookup<>(Optional.of(statisticsType.cast(entry)), report.notes());
     }
 
     /**
@@ -148,11 +167,21 @@ public final class BaselineResolver {
             String factorsFingerprint,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
+        return findAndSelectWithReport(useCaseId, factorsFingerprint,
+                currentProfile, declarations).selected();
+    }
+
+    private BaselineSelector.SelectionReport findAndSelectWithReport(
+            String useCaseId,
+            String factorsFingerprint,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
         List<BaselineRecord> candidates = findRecords(useCaseId, factorsFingerprint);
         if (candidates.isEmpty()) {
-            return Optional.empty();
+            return BaselineSelector.SelectionReport.NONE;
         }
-        return BaselineSelector.select(candidates, currentProfile, declarations);
+        return BaselineSelector.selectWithReport(
+                candidates, currentProfile, declarations);
     }
 
     private List<BaselineRecord> findRecords(String useCaseId, String factorsFingerprint) {

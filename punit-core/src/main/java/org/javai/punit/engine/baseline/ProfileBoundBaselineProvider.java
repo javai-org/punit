@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.covariate.Covariate;
 import org.javai.punit.api.typed.covariate.CovariateProfile;
+import org.javai.punit.api.typed.spec.BaselineLookup;
 import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 
@@ -100,5 +101,27 @@ public final class ProfileBoundBaselineProvider implements BaselineProvider {
             String useCaseId, FactorBundle factors) {
         return delegate.baselineInputsIdentityFor(useCaseId, factors,
                 profile, declarations);
+    }
+
+    @Override
+    public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
+            String useCaseId,
+            FactorBundle factors,
+            String criterionName,
+            Class<S> statisticsType,
+            CovariateProfile currentProfile,
+            List<Covariate> declarations) {
+        return delegate.baselineLookup(useCaseId, factors, criterionName,
+                statisticsType, currentProfile, declarations);
+    }
+
+    @Override
+    public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
+            String useCaseId,
+            FactorBundle factors,
+            String criterionName,
+            Class<S> statisticsType) {
+        return delegate.baselineLookup(useCaseId, factors, criterionName,
+                statisticsType, profile, declarations);
     }
 }

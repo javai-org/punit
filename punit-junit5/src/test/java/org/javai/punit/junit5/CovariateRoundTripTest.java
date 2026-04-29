@@ -107,6 +107,31 @@ class CovariateRoundTripTest {
         testEvents.assertStatistics(stats -> stats.started(1).aborted(1));
     }
 
+    @Test
+    @DisplayName("misalignment surfaces in the JUnit abort message — author sees why")
+    void misalignmentExplainedInVerdict() throws IOException {
+        run(CovariateSubjects.MeasureWithCovariate.class)
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        System.setProperty(CovariateSubjects.REGION_PROPERTY, "APAC");
+        Events testEvents = run(CovariateSubjects.TestWithMatchingCovariate.class);
+
+        // The aborted-event payload carries the diagnostic that the
+        // empirical Punit.testing(...) translates from the test result.
+        // It should mention the rejection reason for the EU baseline.
+        testEvents.aborted()
+                .assertThatEvents()
+                .anySatisfy(event -> {
+                    var throwable = event.getRequiredPayload(
+                            org.junit.platform.engine.TestExecutionResult.class)
+                            .getThrowable().orElseThrow();
+                    org.assertj.core.api.Assertions.assertThat(throwable.getMessage())
+                            .contains("CONFIGURATION mismatch on region")
+                            .contains("current=APAC")
+                            .contains("baseline=EU");
+                });
+    }
+
     private static Events run(Class<?> testClass) {
         return EngineTestKit.engine(JUNIT_ENGINE_ID)
                 .selectors(DiscoverySelectors.selectClass(testClass))
