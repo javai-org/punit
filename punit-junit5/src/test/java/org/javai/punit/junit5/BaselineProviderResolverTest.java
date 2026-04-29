@@ -47,7 +47,7 @@ class BaselineProviderResolverTest {
     @DisplayName("with no property set, falls back to the convention path")
     void noPropertyConvention() {
         assertThat(BaselineProviderResolver.resolveDir())
-                .isEqualTo(Paths.get(BaselineProviderResolver.CONVENTION_PATH));
+                .isEqualTo(Paths.get(org.javai.punit.engine.baseline.BaselineResolver.CONVENTION_PATH));
         assertThat(BaselineProviderResolver.resolve()).isInstanceOf(YamlBaselineProvider.class);
     }
 

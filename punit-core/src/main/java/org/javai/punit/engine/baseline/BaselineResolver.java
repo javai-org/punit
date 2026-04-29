@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +34,34 @@ import org.javai.punit.api.typed.spec.BaselineStatistics;
  * closest-match is strictly more permissive.
  */
 public final class BaselineResolver {
+
+    /** System property used to override the baseline directory. */
+    public static final String BASELINE_DIR_PROPERTY = "punit.baseline.dir";
+
+    /** Convention-default directory under the project root. */
+    public static final String CONVENTION_PATH = "src/test/resources/punit/baselines";
+
+    /**
+     * Resolves the baseline directory from {@value #BASELINE_DIR_PROPERTY}
+     * if set, otherwise from the convention path
+     * {@value #CONVENTION_PATH}. The returned path is not required to
+     * exist — callers that read or list it must handle a missing
+     * directory.
+     *
+     * <p>Exposed for utilities that consume the same baseline directory
+     * the test pipeline does (e.g.
+     * {@link org.javai.punit.power.PowerAnalysis}). The JUnit
+     * extension's {@code BaselineProviderResolver} delegates here too
+     * so framework and user code resolve the same path through one
+     * implementation.
+     */
+    public static Path defaultDir() {
+        String prop = System.getProperty(BASELINE_DIR_PROPERTY);
+        if (prop != null && !prop.isBlank()) {
+            return Paths.get(prop.trim());
+        }
+        return Paths.get(CONVENTION_PATH);
+    }
 
     private final Path baselineDir;
     private final BaselineReader reader;

@@ -59,6 +59,26 @@ public final class PowerAnalysis {
     private PowerAnalysis() { }
 
     /**
+     * Convenience overload that resolves the baseline directory the
+     * same way the test pipeline does — via
+     * {@link BaselineResolver#defaultDir()}, which honours the
+     * {@code punit.baseline.dir} system property and falls back to
+     * the project convention path.
+     *
+     * <p>This is the right call for tests using {@code PowerAnalysis}
+     * inside an {@code @ProbabilisticTest} method body — the test
+     * doesn't need to know where baselines live; the framework does.
+     *
+     * @see #sampleSize(Path, Supplier, double, double)
+     */
+    public static int sampleSize(
+            Supplier<Experiment> baseline,
+            double mde,
+            double power) {
+        return sampleSize(BaselineResolver.defaultDir(), baseline, mde, power);
+    }
+
+    /**
      * Computes the sample size required to detect a difference of at
      * least {@code mde} from the baseline's recorded pass rate at the
      * given statistical power, using the default confidence
