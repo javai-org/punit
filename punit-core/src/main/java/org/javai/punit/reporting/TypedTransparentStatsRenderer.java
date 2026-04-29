@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.javai.punit.api.typed.covariate.CovariateAlignment;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.CriterionResult;
 import org.javai.punit.api.typed.spec.EvaluatedCriterion;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
@@ -67,7 +69,10 @@ public final class TypedTransparentStatsRenderer {
     /**
      * @param testIdentity the className.methodName the verdict
      *                     belongs to, for the report header
-     * @param result       the typed result to render
+     * @param result       the typed result to render — the renderer
+     *                     reads {@link ProbabilisticTestResult#covariates()
+     *                     covariates()} for observed-vs-baseline
+     *                     alignment, criterion details, and warnings
      * @return a formatted plain-text report
      */
     public static String render(String testIdentity, ProbabilisticTestResult result) {
@@ -75,6 +80,8 @@ public final class TypedTransparentStatsRenderer {
         sb.append("STATISTICAL ANALYSIS — verdict: ")
                 .append(result.verdict()).append("\n\n");
         sb.append("  ").append(testIdentity).append("\n\n");
+
+        renderCovariates(sb, result.covariates());
 
         for (EvaluatedCriterion entry : result.criterionResults()) {
             renderCriterion(sb, entry);
@@ -89,6 +96,47 @@ public final class TypedTransparentStatsRenderer {
         }
 
         sb.append("  Test intent: ").append(result.intent()).append('\n');
+        return sb.toString();
+    }
+
+    private static void renderCovariates(StringBuilder sb, CovariateAlignment alignment) {
+        CovariateProfile observed = alignment.observed();
+        CovariateProfile baseline = alignment.baseline();
+        if (observed.isEmpty() && baseline.isEmpty()) {
+            // Nothing to say — the use case declared no covariates
+            // and no baseline was matched. Skip the section.
+            return;
+        }
+        sb.append("  Covariates\n");
+        if (!observed.isEmpty()) {
+            sb.append(label("Observed:", formatProfile(observed)));
+        }
+        if (!baseline.isEmpty()) {
+            sb.append(label("Baseline:", formatProfile(baseline)));
+        }
+        sb.append(label("Aligned:", alignment.aligned() ? "yes" : "no"));
+        if (!alignment.mismatches().isEmpty()) {
+            for (CovariateAlignment.Mismatch m : alignment.mismatches()) {
+                String value = String.format(Locale.ROOT,
+                        "observed=%s, baseline=%s",
+                        m.observed() == null ? "<absent>" : m.observed(),
+                        m.baseline() == null ? "<absent>" : m.baseline());
+                sb.append(label("  " + m.covariateKey() + ":", value));
+            }
+        }
+        sb.append('\n');
+    }
+
+    private static String formatProfile(CovariateProfile profile) {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, String> e : profile.values().entrySet()) {
+            if (!first) {
+                sb.append(", ");
+            }
+            sb.append(e.getKey()).append('=').append(e.getValue());
+            first = false;
+        }
         return sb.toString();
     }
 

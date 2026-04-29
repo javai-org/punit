@@ -129,12 +129,39 @@ public final class Punit {
 
     /**
      * Resolves the use case's covariate profile from {@code spec}'s
-     * first configuration and wraps {@link BaselineProviderResolver}'s
-     * provider so the engine and pre-flight feasibility see a
-     * profile-bound view.
+     * first configuration. Returns {@link CovariateProfile#empty()}
+     * when the use case declared no covariates.
      *
      * <p>Per UC04 the profile is resolved once per run, before any
-     * samples execute. {@link ProfileBoundBaselineProvider#bind}
+     * samples execute.
+     */
+    private static CovariateProfile resolveCovariateProfile(
+            org.javai.punit.api.typed.spec.Spec spec) {
+        return spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<CovariateProfile>() {
+            @Override
+            public <FT, IT, OT> CovariateProfile apply(
+                    org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                var configs = typed.configurations();
+                if (!configs.hasNext()) {
+                    return CovariateProfile.empty();
+                }
+                FT factors = configs.next().factors();
+                UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
+                List<Covariate> declarations = useCase.covariates();
+                if (declarations.isEmpty()) {
+                    return CovariateProfile.empty();
+                }
+                return CovariateResolver.defaults()
+                        .resolve(declarations, useCase.customCovariateResolvers());
+            }
+        });
+    }
+
+    /**
+     * Wraps {@link BaselineProviderResolver}'s provider in a
+     * profile-bound decorator carrying the run's covariate profile,
+     * so the engine and pre-flight feasibility see covariate-aware
+     * baseline lookups. {@link ProfileBoundBaselineProvider#bind}
      * returns the wrapped delegate unchanged when the use case
      * declared no covariates, so non-covariate tests pay no cost
      * here.
@@ -198,7 +225,54 @@ public final class Punit {
                 sb.append("  ! ").append(warning).append('\n');
             }
         }
+        // Covariate alignment — the conditions under which the test
+        // ran, paired with the matched baseline's covariates. Useful
+        // diagnostic context on FAIL / INCONCLUSIVE: the author
+        // should immediately see which environment was being tested
+        // and how it differed from the baseline (when at all). Same
+        // structured shape the legacy CovariateStatus emits, so HTML
+        // and XML report consumers see parity from both pipelines.
+        var alignment = result.covariates();
+        if (!alignment.observed().isEmpty() || !alignment.baseline().isEmpty()) {
+            sb.append('\n');
+            if (!alignment.observed().isEmpty()) {
+                sb.append("  Observed covariates: ")
+                        .append(formatProfile(alignment.observed())).append('\n');
+            }
+            if (!alignment.baseline().isEmpty()) {
+                sb.append("  Baseline covariates: ")
+                        .append(formatProfile(alignment.baseline())).append('\n');
+            }
+            if (!alignment.mismatches().isEmpty()) {
+                sb.append("  Misaligned: ");
+                boolean first = true;
+                for (var m : alignment.mismatches()) {
+                    if (!first) sb.append(", ");
+                    sb.append(m.covariateKey())
+                            .append(" (observed=")
+                            .append(m.observed() == null ? "<absent>" : m.observed())
+                            .append(", baseline=")
+                            .append(m.baseline() == null ? "<absent>" : m.baseline())
+                            .append(')');
+                    first = false;
+                }
+                sb.append('\n');
+            }
+        }
         return sb.toString().trim();
+    }
+
+    private static String formatProfile(CovariateProfile profile) {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (var e : profile.values().entrySet()) {
+            if (!first) {
+                sb.append(", ");
+            }
+            sb.append(e.getKey()).append('=').append(e.getValue());
+            first = false;
+        }
+        return sb.toString();
     }
 
     // ── Wrapper builders ────────────────────────────────────────────
@@ -414,8 +488,19 @@ public final class Punit {
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
-            maybeRenderTransparentStats(typed);
-            translate(typed);
+            // Resolve the run's observed covariate profile and stamp
+            // it onto the result alongside the baseline profile that
+            // conclude collected. The structured CovariateAlignment
+            // flows downstream — to the verbose renderer here, and
+            // to HTML / XML / JSON sinks when the typed pipeline
+            // grows them — preserving parity with the legacy
+            // CovariateStatus shape.
+            CovariateProfile observed = resolveCovariateProfile(spec);
+            ProbabilisticTestResult stamped = typed.withCovariates(
+                    org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                            observed, typed.covariates().baseline()));
+            maybeRenderTransparentStats(stamped);
+            translate(stamped);
         }
 
         private void maybeRenderTransparentStats(ProbabilisticTestResult result) {
@@ -529,8 +614,12 @@ public final class Punit {
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
-            maybeRenderTransparentStats(spec, typed);
-            translate(typed);
+            CovariateProfile observed = resolveCovariateProfile(spec);
+            ProbabilisticTestResult stamped = typed.withCovariates(
+                    org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                            observed, typed.covariates().baseline()));
+            maybeRenderTransparentStats(spec, stamped);
+            translate(stamped);
         }
 
         @SuppressWarnings("unchecked")

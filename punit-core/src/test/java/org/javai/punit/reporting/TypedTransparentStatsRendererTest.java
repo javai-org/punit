@@ -9,6 +9,8 @@ import java.util.Map;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.covariate.CovariateAlignment;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.CriterionResult;
 import org.javai.punit.api.typed.spec.CriterionRole;
 import org.javai.punit.api.typed.spec.EvaluatedCriterion;
@@ -188,6 +190,95 @@ class TypedTransparentStatsRendererTest {
                 .contains("Notes")
                 .contains("! rejected file-A — CONFIGURATION mismatch on region")
                 .contains("Test intent: VERIFICATION");
+    }
+
+    @Nested
+    @DisplayName("Covariate alignment rendering")
+    class Covariates {
+
+        private ProbabilisticTestResult resultWithAlignment(CovariateAlignment alignment) {
+            return new ProbabilisticTestResult(
+                    Verdict.PASS, FactorBundle.empty(),
+                    List.of(criterion("bernoulli-pass-rate", Verdict.PASS, "...",
+                            Map.of("observed", 0.95, "threshold", 0.85, "origin", "EMPIRICAL",
+                                    "successes", 95, "failures", 5, "total", 100,
+                                    "confidence", 0.95, "wilsonLowerBound", 0.90))),
+                    TestIntent.VERIFICATION,
+                    List.of(),
+                    alignment);
+        }
+
+        @Test
+        @DisplayName("aligned baseline + observed renders both profiles plus Aligned: yes")
+        void alignedRenders() {
+            CovariateProfile profile = CovariateProfile.of(new LinkedHashMap<>(Map.of(
+                    "region", "EU",
+                    "model_version", "v1")));
+            CovariateAlignment alignment = CovariateAlignment.compute(profile, profile);
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(alignment));
+
+            assertThat(rendered)
+                    .contains("Covariates")
+                    .contains("Observed:")
+                    .contains("region=EU")
+                    .contains("Baseline:")
+                    .contains("Aligned:")
+                    .contains("yes")
+                    .doesNotContain("Aligned:              no");
+        }
+
+        @Test
+        @DisplayName("misaligned profiles list per-key differences")
+        void misalignmentRenders() {
+            CovariateProfile observed = CovariateProfile.of(new LinkedHashMap<>(Map.of(
+                    "region", "APAC",
+                    "model_version", "v1")));
+            CovariateProfile baseline = CovariateProfile.of(new LinkedHashMap<>(Map.of(
+                    "region", "EU",
+                    "model_version", "v1")));
+            CovariateAlignment alignment = CovariateAlignment.compute(observed, baseline);
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(alignment));
+
+            assertThat(rendered)
+                    .contains("Observed:")
+                    .contains("region=APAC")
+                    .contains("Baseline:")
+                    .contains("region=EU")
+                    .contains("Aligned:")
+                    .contains("no")
+                    .contains("region:")
+                    .contains("observed=APAC, baseline=EU");
+        }
+
+        @Test
+        @DisplayName("empty alignment (no covariates declared, no baseline) renders no Covariates section")
+        void emptyAlignmentRendersNothing() {
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(CovariateAlignment.none()));
+
+            assertThat(rendered).doesNotContain("Covariates");
+        }
+
+        @Test
+        @DisplayName("observed-only (baseline empty) renders observed but no alignment line")
+        void observedOnly() {
+            CovariateProfile observed = CovariateProfile.of(Map.of("region", "EU"));
+            CovariateAlignment alignment = CovariateAlignment.compute(
+                    observed, CovariateProfile.empty());
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(alignment));
+
+            assertThat(rendered)
+                    .contains("Covariates")
+                    .contains("Observed:")
+                    .contains("region=EU")
+                    .doesNotContain("Baseline:");
+        }
     }
 
     @Test
