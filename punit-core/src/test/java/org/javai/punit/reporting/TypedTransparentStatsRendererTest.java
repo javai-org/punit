@@ -1,0 +1,304 @@
+package org.javai.punit.reporting;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.covariate.CovariateAlignment;
+import org.javai.punit.api.typed.covariate.CovariateProfile;
+import org.javai.punit.api.typed.spec.CriterionResult;
+import org.javai.punit.api.typed.spec.CriterionRole;
+import org.javai.punit.api.typed.spec.EvaluatedCriterion;
+import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
+import org.javai.punit.api.typed.spec.Verdict;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("TypedTransparentStatsRenderer — verbose statistical breakdown")
+class TypedTransparentStatsRendererTest {
+
+    private static ProbabilisticTestResult result(Verdict verdict, EvaluatedCriterion... evaluated) {
+        return new ProbabilisticTestResult(
+                verdict,
+                FactorBundle.empty(),
+                List.of(evaluated),
+                TestIntent.VERIFICATION,
+                List.of());
+    }
+
+    private static EvaluatedCriterion criterion(
+            String name, Verdict verdict, String explanation, Map<String, Object> detail) {
+        return new EvaluatedCriterion(
+                new CriterionResult(name, verdict, explanation, detail),
+                CriterionRole.REQUIRED);
+    }
+
+    @Nested
+    @DisplayName("BernoulliPassRate empirical path")
+    class BernoulliEmpirical {
+
+        @Test
+        @DisplayName("renders the hypothesis, observed, and inference sections with Wilson lower bound")
+        void rendersFullEmpiricalReport() {
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("observed", 1.0);
+            detail.put("threshold", 0.94);
+            detail.put("origin", "EMPIRICAL");
+            detail.put("successes", 50);
+            detail.put("failures", 0);
+            detail.put("total", 50);
+            detail.put("confidence", 0.95);
+            detail.put("wilsonLowerBound", 0.929);
+            detail.put("baselineSampleCount", 1000);
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "shopping-basket.testInstructionTranslation",
+                    result(Verdict.FAIL, criterion(
+                            "bernoulli-pass-rate", Verdict.FAIL,
+                            "observed=1.0000 (Wilson-95% lower=0.9290) vs threshold=0.9400 (origin=EMPIRICAL) over 50 samples",
+                            detail)));
+
+            assertThat(rendered)
+                    .contains("STATISTICAL ANALYSIS — verdict: FAIL")
+                    .contains("shopping-basket.testInstructionTranslation")
+                    .contains("[REQUIRED] bernoulli-pass-rate → FAIL")
+                    .contains("Hypothesis test")
+                    .contains("H₀ (null):")
+                    .contains("True pass rate π ≥ 0.9400")
+                    .contains("H₁ (alternative):")
+                    .contains("True pass rate π < 0.9400")
+                    .contains("Test type:")
+                    .contains("One-sided Wilson-score lower bound")
+                    .contains("Observed data")
+                    .contains("Sample size (n):")
+                    .contains("50")
+                    .contains("Successes (k):")
+                    .contains("Observed rate (p̂):")
+                    .contains("1.0000")
+                    .contains("Inference")
+                    .contains("Wilson 95% lower:")
+                    .contains("0.9290")
+                    .contains("Threshold:")
+                    .contains("0.9400 (origin: EMPIRICAL)")
+                    .contains("Baseline samples:")
+                    .contains("1000")
+                    .contains("Reasoning:")
+                    .contains("0.9290 < 0.9400 ✗");
+        }
+
+        @Test
+        @DisplayName("PASS verdict shows ✓ in the reasoning line")
+        void passShowsCheckMark() {
+            Map<String, Object> detail = Map.of(
+                    "observed", 0.94,
+                    "threshold", 0.85,
+                    "origin", "EMPIRICAL",
+                    "successes", 94,
+                    "failures", 6,
+                    "total", 100,
+                    "confidence", 0.95,
+                    "wilsonLowerBound", 0.873);
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", result(Verdict.PASS, criterion(
+                            "bernoulli-pass-rate", Verdict.PASS, "...", detail)));
+
+            assertThat(rendered)
+                    .contains("STATISTICAL ANALYSIS — verdict: PASS")
+                    .contains("0.8730 ≥ 0.8500 ✓");
+        }
+    }
+
+    @Nested
+    @DisplayName("BernoulliPassRate contractual path")
+    class BernoulliContractual {
+
+        @Test
+        @DisplayName("renders deterministic-comparison test type, no Wilson section")
+        void rendersContractual() {
+            Map<String, Object> detail = Map.of(
+                    "observed", 0.94,
+                    "threshold", 0.90,
+                    "origin", ThresholdOrigin.SLA.name(),
+                    "successes", 94,
+                    "failures", 6,
+                    "total", 100);
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", result(Verdict.PASS, criterion(
+                            "bernoulli-pass-rate", Verdict.PASS, "...", detail)));
+
+            assertThat(rendered)
+                    .contains("Test type:")
+                    .contains("Deterministic comparison (observed ≥ threshold)")
+                    .contains("Threshold:")
+                    .contains("0.9000 (origin: SLA)")
+                    .contains("0.9400 ≥ 0.9000 ✓")
+                    .doesNotContain("Wilson")
+                    .doesNotContain("Baseline samples");
+        }
+    }
+
+    @Nested
+    @DisplayName("Unknown criterion fallback")
+    class UnknownCriterion {
+
+        @Test
+        @DisplayName("falls back to explanation + raw detail map")
+        void fallback() {
+            Map<String, Object> detail = Map.of(
+                    "p50", "PT0.001S",
+                    "p99", "PT0.020S");
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", result(Verdict.PASS, criterion(
+                            "percentile-latency", Verdict.PASS,
+                            "p50=1ms, p99=20ms within limits", detail)));
+
+            assertThat(rendered)
+                    .contains("[REQUIRED] percentile-latency → PASS")
+                    .contains("Explanation:")
+                    .contains("p50=1ms, p99=20ms within limits")
+                    .contains("Detail")
+                    .contains("p50:")
+                    .contains("PT0.001S")
+                    .contains("p99:")
+                    .contains("PT0.020S");
+        }
+    }
+
+    @Test
+    @DisplayName("warnings render under a Notes section")
+    void warningsRender() {
+        ProbabilisticTestResult resultWithWarnings = new ProbabilisticTestResult(
+                Verdict.INCONCLUSIVE,
+                FactorBundle.empty(),
+                List.of(criterion("bernoulli-pass-rate", Verdict.INCONCLUSIVE, "no baseline", Map.of())),
+                TestIntent.VERIFICATION,
+                List.of("rejected file-A — CONFIGURATION mismatch on region (current=APAC, baseline=EU)"));
+
+        String rendered = TypedTransparentStatsRenderer.render(
+                "test", resultWithWarnings);
+
+        assertThat(rendered)
+                .contains("Notes")
+                .contains("! rejected file-A — CONFIGURATION mismatch on region")
+                .contains("Test intent: VERIFICATION");
+    }
+
+    @Nested
+    @DisplayName("Covariate alignment rendering")
+    class Covariates {
+
+        private ProbabilisticTestResult resultWithAlignment(CovariateAlignment alignment) {
+            return new ProbabilisticTestResult(
+                    Verdict.PASS, FactorBundle.empty(),
+                    List.of(criterion("bernoulli-pass-rate", Verdict.PASS, "...",
+                            Map.of("observed", 0.95, "threshold", 0.85, "origin", "EMPIRICAL",
+                                    "successes", 95, "failures", 5, "total", 100,
+                                    "confidence", 0.95, "wilsonLowerBound", 0.90))),
+                    TestIntent.VERIFICATION,
+                    List.of(),
+                    alignment);
+        }
+
+        @Test
+        @DisplayName("aligned baseline + observed renders both profiles plus Aligned: yes")
+        void alignedRenders() {
+            CovariateProfile profile = CovariateProfile.of(new LinkedHashMap<>(Map.of(
+                    "region", "EU",
+                    "model_version", "v1")));
+            CovariateAlignment alignment = CovariateAlignment.compute(profile, profile);
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(alignment));
+
+            assertThat(rendered)
+                    .contains("Covariates")
+                    .contains("Observed:")
+                    .contains("region=EU")
+                    .contains("Baseline:")
+                    .contains("Aligned:")
+                    .contains("yes")
+                    .doesNotContain("Aligned:              no");
+        }
+
+        @Test
+        @DisplayName("misaligned profiles list per-key differences")
+        void misalignmentRenders() {
+            CovariateProfile observed = CovariateProfile.of(new LinkedHashMap<>(Map.of(
+                    "region", "APAC",
+                    "model_version", "v1")));
+            CovariateProfile baseline = CovariateProfile.of(new LinkedHashMap<>(Map.of(
+                    "region", "EU",
+                    "model_version", "v1")));
+            CovariateAlignment alignment = CovariateAlignment.compute(observed, baseline);
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(alignment));
+
+            assertThat(rendered)
+                    .contains("Observed:")
+                    .contains("region=APAC")
+                    .contains("Baseline:")
+                    .contains("region=EU")
+                    .contains("Aligned:")
+                    .contains("no")
+                    .contains("region:")
+                    .contains("observed=APAC, baseline=EU");
+        }
+
+        @Test
+        @DisplayName("empty alignment (no covariates declared, no baseline) renders no Covariates section")
+        void emptyAlignmentRendersNothing() {
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(CovariateAlignment.none()));
+
+            assertThat(rendered).doesNotContain("Covariates");
+        }
+
+        @Test
+        @DisplayName("observed-only (baseline empty) renders observed but no alignment line")
+        void observedOnly() {
+            CovariateProfile observed = CovariateProfile.of(Map.of("region", "EU"));
+            CovariateAlignment alignment = CovariateAlignment.compute(
+                    observed, CovariateProfile.empty());
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithAlignment(alignment));
+
+            assertThat(rendered)
+                    .contains("Covariates")
+                    .contains("Observed:")
+                    .contains("region=EU")
+                    .doesNotContain("Baseline:");
+        }
+    }
+
+    @Test
+    @DisplayName("snapshotCriteria returns a name → detail map preserving order")
+    void snapshotCriteria() {
+        Map<String, Object> bernoulliDetail = Map.of("observed", 0.95, "total", 100);
+        Map<String, Object> latencyDetail = Map.of("p99", "PT0.010S");
+
+        ProbabilisticTestResult r = result(Verdict.PASS,
+                criterion("bernoulli-pass-rate", Verdict.PASS, "ok", bernoulliDetail),
+                criterion("percentile-latency", Verdict.PASS, "ok", latencyDetail));
+
+        var snapshot = TypedTransparentStatsRenderer.snapshotCriteria(r);
+
+        assertThat(snapshot.keySet())
+                .containsExactly("bernoulli-pass-rate", "percentile-latency");
+        assertThat(snapshot.get("bernoulli-pass-rate"))
+                .containsEntry("observed", 0.95)
+                .containsEntry("total", 100);
+        assertThat(snapshot.get("percentile-latency"))
+                .containsEntry("p99", "PT0.010S");
+    }
+}

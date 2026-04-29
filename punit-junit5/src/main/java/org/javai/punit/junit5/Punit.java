@@ -29,6 +29,8 @@ import org.javai.punit.engine.Engine;
 import org.javai.punit.engine.baseline.ProfileBoundBaselineProvider;
 import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.engine.criteria.Feasibility;
+import org.javai.punit.reporting.TypedTransparentStatsRenderer;
+import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
 
@@ -127,12 +129,39 @@ public final class Punit {
 
     /**
      * Resolves the use case's covariate profile from {@code spec}'s
-     * first configuration and wraps {@link BaselineProviderResolver}'s
-     * provider so the engine and pre-flight feasibility see a
-     * profile-bound view.
+     * first configuration. Returns {@link CovariateProfile#empty()}
+     * when the use case declared no covariates.
      *
      * <p>Per UC04 the profile is resolved once per run, before any
-     * samples execute. {@link ProfileBoundBaselineProvider#bind}
+     * samples execute.
+     */
+    private static CovariateProfile resolveCovariateProfile(
+            org.javai.punit.api.typed.spec.Spec spec) {
+        return spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<CovariateProfile>() {
+            @Override
+            public <FT, IT, OT> CovariateProfile apply(
+                    org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                var configs = typed.configurations();
+                if (!configs.hasNext()) {
+                    return CovariateProfile.empty();
+                }
+                FT factors = configs.next().factors();
+                UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
+                List<Covariate> declarations = useCase.covariates();
+                if (declarations.isEmpty()) {
+                    return CovariateProfile.empty();
+                }
+                return CovariateResolver.defaults()
+                        .resolve(declarations, useCase.customCovariateResolvers());
+            }
+        });
+    }
+
+    /**
+     * Wraps {@link BaselineProviderResolver}'s provider in a
+     * profile-bound decorator carrying the run's covariate profile,
+     * so the engine and pre-flight feasibility see covariate-aware
+     * baseline lookups. {@link ProfileBoundBaselineProvider#bind}
      * returns the wrapped delegate unchanged when the use case
      * declared no covariates, so non-covariate tests pay no cost
      * here.
@@ -168,9 +197,41 @@ public final class Punit {
         }
         String message = formatMessage(result);
         if (verdict == Verdict.INCONCLUSIVE) {
+            // The covariate-alignment contract has three INCONCLUSIVE
+            // sub-cases that we resolve here — see the project's
+            // covariate-misalignment trichotomy:
+            //
+            //   1. No candidates considered (no baseline files yet)
+            //      — legitimate skip; the workflow is measure first,
+            //      then test. JUnit-aborted (TestAbortedException).
+            //   2. Candidates considered but all rejected (CONFIGURATION
+            //      mismatch on every one, or zero-overlap)
+            //      — misconfiguration: the user is asking for a
+            //      reference that doesn't exist for this configuration.
+            //      JUnit-failed (AssertionFailedError).
+            //   3. Candidate matched (possibly partial fallback)
+            //      — verdict is whatever the criterion produced; not
+            //      this branch.
+            //
+            // Detection: rejection notes on the result distinguish (2)
+            // from (1). BaselineSelector emits "rejected {filename} — …"
+            // for each candidate it couldn't select; their presence
+            // means candidates existed.
+            if (candidatesWereRejected(result)) {
+                throw new AssertionFailedError(message);
+            }
             throw new TestAbortedException(message);
         }
         throw new AssertionFailedError(message);
+    }
+
+    private static boolean candidatesWereRejected(ProbabilisticTestResult result) {
+        for (String warning : result.warnings()) {
+            if (warning.startsWith("rejected ")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String formatMessage(ProbabilisticTestResult result) {
@@ -196,7 +257,54 @@ public final class Punit {
                 sb.append("  ! ").append(warning).append('\n');
             }
         }
+        // Covariate alignment — the conditions under which the test
+        // ran, paired with the matched baseline's covariates. Useful
+        // diagnostic context on FAIL / INCONCLUSIVE: the author
+        // should immediately see which environment was being tested
+        // and how it differed from the baseline (when at all). Same
+        // structured shape the legacy CovariateStatus emits, so HTML
+        // and XML report consumers see parity from both pipelines.
+        var alignment = result.covariates();
+        if (!alignment.observed().isEmpty() || !alignment.baseline().isEmpty()) {
+            sb.append('\n');
+            if (!alignment.observed().isEmpty()) {
+                sb.append("  Observed covariates: ")
+                        .append(formatProfile(alignment.observed())).append('\n');
+            }
+            if (!alignment.baseline().isEmpty()) {
+                sb.append("  Baseline covariates: ")
+                        .append(formatProfile(alignment.baseline())).append('\n');
+            }
+            if (!alignment.mismatches().isEmpty()) {
+                sb.append("  Misaligned: ");
+                boolean first = true;
+                for (var m : alignment.mismatches()) {
+                    if (!first) sb.append(", ");
+                    sb.append(m.covariateKey())
+                            .append(" (observed=")
+                            .append(m.observed() == null ? "<absent>" : m.observed())
+                            .append(", baseline=")
+                            .append(m.baseline() == null ? "<absent>" : m.baseline())
+                            .append(')');
+                    first = false;
+                }
+                sb.append('\n');
+            }
+        }
         return sb.toString().trim();
+    }
+
+    private static String formatProfile(CovariateProfile profile) {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (var e : profile.values().entrySet()) {
+            if (!first) {
+                sb.append(", ");
+            }
+            sb.append(e.getKey()).append('=').append(e.getValue());
+            first = false;
+        }
+        return sb.toString();
     }
 
     // ── Wrapper builders ────────────────────────────────────────────
@@ -340,6 +448,7 @@ public final class Punit {
         private final FT factors;
         private final List<Criterion<OT, ?>> requiredCriteria = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
+        private Boolean transparentStatsOverride;
 
         TestBuilder(ProbabilisticTest.Builder<FT, IT, OT> delegate,
                     Sampling<FT, IT, OT> sampling, FT factors) {
@@ -367,6 +476,37 @@ public final class Punit {
             return this;
         }
 
+        /**
+         * Enables verbose statistical reporting on every verdict —
+         * including PASS — with the framework's hypothesis-test
+         * framing, observed-data section, threshold provenance, and
+         * inference reasoning. Output goes to stderr alongside the
+         * JUnit assertion message; visible in IDE test consoles,
+         * surefire reports, and CI logs.
+         *
+         * <p>Resolution precedence (highest first):
+         * <ol>
+         *   <li>This builder method.</li>
+         *   <li>System property {@code punit.stats.transparent}.</li>
+         *   <li>Environment variable {@code PUNIT_STATS_TRANSPARENT}.</li>
+         *   <li>Default: off.</li>
+         * </ol>
+         *
+         * <p>Use case: audit / compliance documentation where the
+         * statistical reasoning behind a passing verdict has to be
+         * shown, not just inferred from the absence of a failure.
+         */
+        public TestBuilder<FT, IT, OT> transparentStats() {
+            this.transparentStatsOverride = Boolean.TRUE;
+            return this;
+        }
+
+        /** Explicit-boolean variant of {@link #transparentStats()}. */
+        public TestBuilder<FT, IT, OT> transparentStats(boolean enabled) {
+            this.transparentStatsOverride = enabled;
+            return this;
+        }
+
         public ProbabilisticTest build() {
             return delegate.build();
         }
@@ -380,7 +520,27 @@ public final class Punit {
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
-            translate(typed);
+            // Resolve the run's observed covariate profile and stamp
+            // it onto the result alongside the baseline profile that
+            // conclude collected. The structured CovariateAlignment
+            // flows downstream — to the verbose renderer here, and
+            // to HTML / XML / JSON sinks when the typed pipeline
+            // grows them — preserving parity with the legacy
+            // CovariateStatus shape.
+            CovariateProfile observed = resolveCovariateProfile(spec);
+            ProbabilisticTestResult stamped = typed.withCovariates(
+                    org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                            observed, typed.covariates().baseline()));
+            maybeRenderTransparentStats(stamped);
+            translate(stamped);
+        }
+
+        private void maybeRenderTransparentStats(ProbabilisticTestResult result) {
+            if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
+                return;
+            }
+            String testIdentity = sampling.useCaseFactory().apply(factors).id();
+            System.err.println(TypedTransparentStatsRenderer.render(testIdentity, result));
         }
 
         private List<String> preflightFeasibility() {
@@ -418,6 +578,7 @@ public final class Punit {
         private Integer samples;
         private Criterion<?, ?> criterion;
         private TestIntent intent = TestIntent.VERIFICATION;
+        private Boolean transparentStatsOverride;
 
         EmpiricalTestBuilder(Supplier<Experiment> baselineSupplier) {
             this.baselineSupplier = baselineSupplier;
@@ -448,6 +609,18 @@ public final class Punit {
             return this;
         }
 
+        /** See {@link TestBuilder#transparentStats()}. */
+        public EmpiricalTestBuilder transparentStats() {
+            this.transparentStatsOverride = Boolean.TRUE;
+            return this;
+        }
+
+        /** See {@link TestBuilder#transparentStats(boolean)}. */
+        public EmpiricalTestBuilder transparentStats(boolean enabled) {
+            this.transparentStatsOverride = enabled;
+            return this;
+        }
+
         public ProbabilisticTest build() {
             if (samples == null) {
                 throw new IllegalStateException(
@@ -473,7 +646,12 @@ public final class Punit {
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
-            translate(typed);
+            CovariateProfile observed = resolveCovariateProfile(spec);
+            ProbabilisticTestResult stamped = typed.withCovariates(
+                    org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                            observed, typed.covariates().baseline()));
+            maybeRenderTransparentStats(spec, stamped);
+            translate(stamped);
         }
 
         @SuppressWarnings("unchecked")
@@ -504,6 +682,23 @@ public final class Punit {
                 }
             });
             return warnings;
+        }
+
+        private void maybeRenderTransparentStats(
+                ProbabilisticTest spec, ProbabilisticTestResult result) {
+            if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
+                return;
+            }
+            String testIdentity = spec.dispatch(
+                    new org.javai.punit.api.typed.spec.Spec.Dispatcher<String>() {
+                        @Override
+                        public <FT, IT, OT> String apply(
+                                org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                            FT factors = typed.configurations().next().factors();
+                            return typed.useCaseFactory().apply(factors).id();
+                        }
+                    });
+            System.err.println(TypedTransparentStatsRenderer.render(testIdentity, result));
         }
     }
 }

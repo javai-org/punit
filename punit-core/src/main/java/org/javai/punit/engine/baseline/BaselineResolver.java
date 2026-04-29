@@ -146,11 +146,14 @@ public final class BaselineResolver {
                 useCaseId, factorsFingerprint, currentProfile, declarations);
         Optional<BaselineRecord> selected = report.selected();
         if (selected.isEmpty()) {
-            return new BaselineLookup<>(Optional.empty(), report.notes());
+            return new BaselineLookup<>(
+                    Optional.empty(), CovariateProfile.empty(), report.notes());
         }
+        CovariateProfile baselineProfile = selected.get().covariateProfile();
         BaselineStatistics entry = selected.get().statisticsByCriterionName().get(criterionName);
         if (entry == null) {
-            return new BaselineLookup<>(Optional.empty(), report.notes());
+            return new BaselineLookup<>(
+                    Optional.empty(), baselineProfile, report.notes());
         }
         if (!statisticsType.isInstance(entry)) {
             throw new IllegalStateException(
@@ -160,7 +163,8 @@ public final class BaselineResolver {
                             + statisticsType.getSimpleName()
                             + " — write-side and read-side criterion kinds disagree");
         }
-        return new BaselineLookup<>(Optional.of(statisticsType.cast(entry)), report.notes());
+        return new BaselineLookup<>(
+                Optional.of(statisticsType.cast(entry)), baselineProfile, report.notes());
     }
 
     /**

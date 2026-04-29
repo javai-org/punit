@@ -81,6 +81,17 @@ public final class PunitSubjects {
         }
     }
 
+    /** Test that opts in to transparentStats — passes; renderer should emit. */
+    public static final class TransparentStatsTest {
+        @ProbabilisticTest
+        void passesWithTransparentStats() {
+            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .transparentStats()
+                    .assertPasses();
+        }
+    }
+
     /** Contractual test that should fail: 0% observed < 50% threshold. */
     public static final class FailingContractualTest {
         @ProbabilisticTest

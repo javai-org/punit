@@ -180,18 +180,49 @@ public final class ProbabilisticTest implements Spec {
             // produce N copies of every reason. The notes describe the
             // baseline file's misalignment, not any one criterion's.
             java.util.LinkedHashSet<String> warnings = new java.util.LinkedHashSet<>();
+            // The matched baseline's covariate profile. All empirical
+            // criteria that resolve a baseline for the same
+            // (useCaseId, factorsFingerprint) tuple resolve the same
+            // file, so the first non-empty profile we see is the one
+            // for the run. Stamped onto the result so verdict
+            // renderers / HTML emitters can compare against the
+            // observed profile (post-stamped at the JUnit boundary).
+            org.javai.punit.api.typed.covariate.CovariateProfile baselineProfile =
+                    org.javai.punit.api.typed.covariate.CovariateProfile.empty();
             for (Registered<OT> entry : registered) {
+                BaselineLookupCapture capture = new BaselineLookupCapture();
                 CriterionResult result = evaluate(
                         entry.criterion(), s, factorBundle, useCaseId,
                         testInputsIdentity, baselineInputsIdentity,
-                        provider, warnings);
+                        provider, warnings, capture);
                 evaluated.add(new EvaluatedCriterion(result, entry.role()));
+                if (baselineProfile.isEmpty() && !capture.profile.isEmpty()) {
+                    baselineProfile = capture.profile;
+                }
             }
 
             Verdict composed = Verdict.compose(evaluated);
             return new ProbabilisticTestResult(
                     composed, factorBundle, evaluated, intent,
-                    List.copyOf(warnings));
+                    List.copyOf(warnings),
+                    org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                            org.javai.punit.api.typed.covariate.CovariateProfile.empty(),
+                            baselineProfile));
+        }
+
+        /**
+         * Side channel for {@link #evaluate} to surface the matched
+         * baseline's covariate profile back to {@link #conclude}.
+         * Kept off {@link CriterionResult} because the matched-baseline
+         * profile is a lookup-side concern, not a criterion-semantic
+         * concern — every empirical criterion that resolves a
+         * baseline for the same {@code (useCaseId, factorsFingerprint)}
+         * tuple sees the same profile, so the data belongs to the
+         * run, not to any one criterion.
+         */
+        private static final class BaselineLookupCapture {
+            org.javai.punit.api.typed.covariate.CovariateProfile profile =
+                    org.javai.punit.api.typed.covariate.CovariateProfile.empty();
         }
 
         private boolean anyEmpiricalCriterion() {
@@ -212,7 +243,8 @@ public final class ProbabilisticTest implements Spec {
                 String testInputsIdentity,
                 Optional<String> baselineInputsIdentity,
                 BaselineProvider provider,
-                java.util.Set<String> warnings) {
+                java.util.Set<String> warnings,
+                BaselineLookupCapture capture) {
             Criterion raw = criterion;
             Optional<? extends BaselineStatistics> resolved;
             if (criterion.isEmpirical()) {
@@ -220,6 +252,7 @@ public final class ProbabilisticTest implements Spec {
                         useCaseId, factorBundle, criterion.name(), criterion.statisticsType());
                 resolved = lookup.selected();
                 warnings.addAll(lookup.notes());
+                capture.profile = lookup.baselineProfile();
             } else {
                 resolved = Optional.empty();
             }
