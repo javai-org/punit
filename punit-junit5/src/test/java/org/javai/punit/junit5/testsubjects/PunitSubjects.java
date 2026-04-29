@@ -92,6 +92,39 @@ public final class PunitSubjects {
         }
     }
 
+    /**
+     * Passing test that declares a contract reference and opts in to
+     * transparentStats — both the rendered verdict and the verbose
+     * statistical analysis must surface the reference for audit
+     * traceability.
+     */
+    public static final class ContractRefPassingTest {
+        @ProbabilisticTest
+        void passesWithContractRef() {
+            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .contractRef("Acme API SLA v3.2 §2.1")
+                    .transparentStats()
+                    .assertPasses();
+        }
+    }
+
+    /**
+     * Failing test that declares a contract reference. The contract
+     * reference must appear in the JUnit assertion message so failure
+     * triage can trace the threshold back to the document it derives
+     * from.
+     */
+    public static final class ContractRefFailingTest {
+        @ProbabilisticTest
+        void failsWithContractRef() {
+            Punit.testing(sampling(PunitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
+                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .contractRef("Acme API SLA v3.2 §2.1")
+                    .assertPasses();
+        }
+    }
+
     /** Contractual test that should fail: 0% observed < 50% threshold. */
     public static final class FailingContractualTest {
         @ProbabilisticTest

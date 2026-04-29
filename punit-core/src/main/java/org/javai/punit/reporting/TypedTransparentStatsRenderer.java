@@ -96,6 +96,8 @@ public final class TypedTransparentStatsRenderer {
         }
 
         sb.append("  Test intent: ").append(result.intent()).append('\n');
+        result.contractRef().ifPresent(ref ->
+                sb.append("  Contract: ").append(ref).append('\n'));
         return sb.toString();
     }
 
