@@ -11,17 +11,20 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Postcondition — Eiffel-flavoured acceptance criteria")
+@DisplayName("Postcondition — unopinionated evaluation of one aspect")
 class PostconditionTest {
 
     @Nested
-    @DisplayName("ensure(predicate)")
-    class EnsurePredicate {
+    @DisplayName("ensure")
+    class Ensure {
 
         @Test
-        @DisplayName("predicate true → passed; description carried through")
+        @DisplayName("Outcome.ok → passed; description carried through")
         void passes() {
-            Postcondition<String> p = ensure("non-empty", s -> !s.isEmpty());
+            Postcondition<String> p = ensure("non-empty",
+                    s -> s.isEmpty()
+                            ? Outcome.fail("empty", "string was empty")
+                            : Outcome.ok());
 
             PostconditionResult r = p.evaluate("hello");
 
@@ -30,38 +33,12 @@ class PostconditionTest {
         }
 
         @Test
-        @DisplayName("predicate false → failed; synthesised reason")
-        void fails() {
-            Postcondition<String> p = ensure("non-empty", s -> !s.isEmpty());
-
-            PostconditionResult r = p.evaluate("");
-
-            assertThat(r.failed()).isTrue();
-            assertThat(r.description()).isEqualTo("non-empty");
-            assertThat(r.failureReason()).contains("postcondition not satisfied");
-        }
-
-        @Test
-        @DisplayName("evaluateAll on a leaf returns a singleton list")
-        void evaluateAllLeaf() {
-            Postcondition<String> p = ensure("non-empty", s -> !s.isEmpty());
-
-            List<PostconditionResult> results = p.evaluateAll("hello");
-
-            assertThat(results).hasSize(1);
-            assertThat(results.get(0).passed()).isTrue();
-        }
-    }
-
-    @Nested
-    @DisplayName("Leaf with rich check")
-    class LeafRichCheck {
-
-        @Test
         @DisplayName("Outcome.fail's reason is preserved")
         void preservesFailureReason() {
-            Postcondition<Integer> p = new Postcondition.Leaf<>("positive",
-                    v -> v > 0 ? Outcome.ok() : Outcome.fail("negative", "got " + v));
+            Postcondition<Integer> p = ensure("positive",
+                    v -> v > 0
+                            ? Outcome.ok()
+                            : Outcome.fail("negative", "got " + v));
 
             PostconditionResult r = p.evaluate(-3);
 
@@ -72,7 +49,7 @@ class PostconditionTest {
         @Test
         @DisplayName("a thrown RuntimeException is captured as a failure")
         void thrownExceptionCaptured() {
-            Postcondition<Integer> p = new Postcondition.Leaf<>("checked", v -> {
+            Postcondition<Integer> p = ensure("checked", v -> {
                 throw new IllegalStateException("boom");
             });
 
@@ -80,6 +57,20 @@ class PostconditionTest {
 
             assertThat(r.failed()).isTrue();
             assertThat(r.failureReason()).contains("boom");
+        }
+
+        @Test
+        @DisplayName("evaluateAll on a leaf returns a singleton list")
+        void evaluateAllLeaf() {
+            Postcondition<String> p = ensure("non-empty",
+                    s -> s.isEmpty()
+                            ? Outcome.fail("empty", "")
+                            : Outcome.ok());
+
+            List<PostconditionResult> results = p.evaluateAll("hello");
+
+            assertThat(results).hasSize(1);
+            assertThat(results.get(0).passed()).isTrue();
         }
     }
 
@@ -92,8 +83,12 @@ class PostconditionTest {
         void derivationSucceeds() {
             Postcondition<String> p = deriving("parsed length",
                     s -> Outcome.ok(s.length()),
-                    ensure("at least 3", n -> n >= 3),
-                    ensure("at most 10", n -> n <= 10));
+                    ensure("at least 3", n -> n >= 3
+                            ? Outcome.ok()
+                            : Outcome.fail("too-short", "n=" + n)),
+                    ensure("at most 10", n -> n <= 10
+                            ? Outcome.ok()
+                            : Outcome.fail("too-long", "n=" + n)));
 
             List<PostconditionResult> results = p.evaluateAll("hello");
 
@@ -111,8 +106,8 @@ class PostconditionTest {
         void derivationFailsSkipsNested() {
             Postcondition<String> p = deriving("parsed",
                     s -> Outcome.<Integer>fail("parse-error", "malformed"),
-                    ensure("inner-1", (Integer n) -> true),
-                    ensure("inner-2", (Integer n) -> true));
+                    ensure("inner-1", (Integer n) -> Outcome.ok()),
+                    ensure("inner-2", (Integer n) -> Outcome.ok()));
 
             List<PostconditionResult> results = p.evaluateAll("garbage");
 
@@ -132,7 +127,7 @@ class PostconditionTest {
         void derivationThrowsSkipsNested() {
             Postcondition<String> p = deriving("parsed",
                     (String s) -> { throw new RuntimeException("kaboom"); },
-                    ensure("inner", (Integer n) -> true));
+                    ensure("inner", (Integer n) -> Outcome.ok()));
 
             List<PostconditionResult> results = p.evaluateAll("anything");
 
@@ -148,7 +143,7 @@ class PostconditionTest {
         void evaluateSingleCollapsesToDerivation() {
             Postcondition<String> p = deriving("parsed",
                     s -> Outcome.ok(s.length()),
-                    ensure("inner", (Integer n) -> false));
+                    ensure("inner", (Integer n) -> Outcome.fail("nope", "x")));
 
             PostconditionResult r = p.evaluate("hello");
 
@@ -161,7 +156,9 @@ class PostconditionTest {
         void nestedDerivationsSkipChain() {
             Postcondition<Integer> innerDerived = deriving("doubled",
                     n -> Outcome.ok(n * 2),
-                    ensure("doubled positive", (Integer d) -> d > 0));
+                    ensure("doubled positive", (Integer d) -> d > 0
+                            ? Outcome.ok()
+                            : Outcome.fail("non-positive", "d=" + d)));
 
             Postcondition<String> p = deriving("length",
                     s -> Outcome.<Integer>fail("err", "bad"),
@@ -187,7 +184,7 @@ class PostconditionTest {
         @DisplayName("blank description rejected")
         void blankDescriptionRejected() {
             org.assertj.core.api.Assertions.assertThatThrownBy(
-                    () -> ensure("", (Object v) -> true))
+                    () -> ensure("", (Object v) -> Outcome.ok()))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }

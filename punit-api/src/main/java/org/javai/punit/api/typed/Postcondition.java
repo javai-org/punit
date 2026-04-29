@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import org.javai.outcome.Outcome;
 
@@ -17,24 +16,38 @@ import org.javai.outcome.Outcome;
  *
  * <h2>Authoring</h2>
  *
- * <p>The {@code ensure} factory mirrors Eiffel's design-by-contract
- * vocabulary: each call declares one postcondition that the use case
- * promises will hold for every successful invocation. The check is a
- * predicate — the description label carries the failure semantics.
+ * <p>The {@code ensure} factory is a nod to Eiffel's
+ * design-by-contract vocabulary, not a strict replication of it. Each
+ * call declares one postcondition that delivers an unopinionated
+ * evaluation of an aspect of the output. The check function returns
+ * an {@link Outcome.Ok} when the aspect holds, or an
+ * {@link Outcome.Fail} carrying the specific reason — what was
+ * observed, which element tripped the check, the diagnostic detail a
+ * downstream report or optimize-feedback histogram needs.
+ *
+ * <p>The verdict is not formed at the postcondition site. Each
+ * {@code ensure} produces a {@link PostconditionResult}; the
+ * framework collects all of them per sample, and the opinion (pass /
+ * fail) is taken later when the test or experiment asks for it. A
+ * postcondition's {@code Outcome.Fail} only manifests as a JUnit-style
+ * assertion failure when the test's {@code assertPasses()} (or
+ * equivalent) is invoked.
  *
  * <pre>{@code
  * import static org.javai.punit.api.typed.Postcondition.ensure;
  * import static org.javai.punit.api.typed.Postcondition.deriving;
  *
- * ensure("Response has actions", t -> !t.actions().isEmpty())
- * ensure("All actions known",     ShoppingBasketUseCase::allKnown)
- * }</pre>
+ * ensure("Response has actions", t -> t.actions().isEmpty()
+ *         ? Outcome.fail("empty", "actions list was empty")
+ *         : Outcome.ok())
  *
- * <p>Authors who need a richer failure reason — naming <em>which</em>
- * input element tripped the check, embedding diagnostic data in the
- * failure — construct a {@link Leaf} directly with a
- * {@link PostconditionCheck} that returns
- * {@code Outcome.fail("name", reason)}.
+ * ensure("All actions known", t -> {
+ *     var unknown = unknownActions(t);
+ *     return unknown.isEmpty()
+ *             ? Outcome.ok()
+ *             : Outcome.fail("unknown-action", "found: " + unknown);
+ * })
+ * }</pre>
  *
  * <h2>Derivations</h2>
  *
@@ -79,17 +92,15 @@ public sealed interface Postcondition<T>
     // ── Authoring entry points ──────────────────────────────────────
 
     /**
-     * Declare a postcondition from a predicate. On failure the
-     * description label is used as the reason — suitable when no
-     * further explanation is meaningful at the failure site. For
-     * richer failure reasons, construct {@link Leaf} directly with a
-     * {@link PostconditionCheck}.
+     * Declare a postcondition. The check function evaluates one aspect
+     * of the output and returns an {@link Outcome.Ok} if the aspect
+     * holds or an {@link Outcome.Fail} carrying the specific reason
+     * if it does not. The framework collects every postcondition's
+     * result per sample; whether a failure becomes an assertion
+     * failure is decided later by the test, not here.
      */
-    static <T> Postcondition<T> ensure(String description, Predicate<T> predicate) {
-        Objects.requireNonNull(predicate, "predicate");
-        return new Leaf<>(description, value -> predicate.test(value)
-                ? Outcome.ok()
-                : Outcome.fail(description, "postcondition not satisfied"));
+    static <T> Postcondition<T> ensure(String description, PostconditionCheck<T> check) {
+        return new Leaf<>(description, check);
     }
 
     /**
