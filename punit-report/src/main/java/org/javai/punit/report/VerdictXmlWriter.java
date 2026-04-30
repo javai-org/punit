@@ -7,6 +7,8 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PUnitVerdict;
@@ -82,6 +84,7 @@ public final class VerdictXmlWriter {
         writeWarnings(w, v.statistics());
         v.pacing().ifPresent(p -> writePacingUnchecked(w, p));
         writeEnvironment(w, v.environmentMetadata());
+        writePostconditionFailures(w, v.postconditionFailures());
         writeVerdictElement(w, v);
 
         w.writeEndElement();
@@ -278,6 +281,35 @@ public final class VerdictXmlWriter {
             w.writeStartElement("entry");
             w.writeAttribute("key", entry.getKey());
             w.writeAttribute("value", entry.getValue());
+            w.writeEndElement();
+        }
+        w.writeEndElement();
+    }
+
+    /**
+     * Emits {@code <postcondition-failures>} per the RP07 schema. Iteration
+     * order of the map is preserved so clauses appear in the order the
+     * contract declared them (the typed pipeline delivers a
+     * {@link java.util.LinkedHashMap}). The writer emits whatever exemplars
+     * the producer retained — the engine caps the list at three per clause.
+     */
+    private void writePostconditionFailures(XMLStreamWriter w, Map<String, FailureCount> byClause)
+            throws XMLStreamException {
+        if (byClause == null || byClause.isEmpty()) {
+            return;
+        }
+        w.writeStartElement("postcondition-failures");
+        for (Map.Entry<String, FailureCount> entry : byClause.entrySet()) {
+            FailureCount bucket = entry.getValue();
+            w.writeStartElement("clause");
+            w.writeAttribute("description", entry.getKey());
+            w.writeAttribute("count", Integer.toString(bucket.count()));
+            for (FailureExemplar ex : bucket.exemplars()) {
+                w.writeStartElement("exemplar");
+                w.writeAttribute("input", ex.input());
+                w.writeAttribute("reason", ex.reason());
+                w.writeEndElement();
+            }
             w.writeEndElement();
         }
         w.writeEndElement();

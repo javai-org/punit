@@ -7,6 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
@@ -169,6 +171,9 @@ final class HtmlReportWriter {
         html.append("<pre class=\"level3\">").append(VerdictTextRenderer.renderStatisticalAnalysisHtml(verdict)).append("</pre>\n");
         html.append("</details>\n");
 
+        // Per-clause failure histogram (only when non-empty)
+        appendPostconditionFailures(html, verdict.postconditionFailures());
+
         html.append("</details>\n");
         html.append("</td>\n");
 
@@ -224,6 +229,47 @@ final class HtmlReportWriter {
         html.append("Re-run experiment to regenerate baseline: <code>./gradlew exp -Prun=")
                 .append(escape(simpleClassName)).append("</code>\n");
         html.append("</div>\n");
+    }
+
+    /**
+     * Renders the per-clause failure histogram as a nested {@code <details>}
+     * block. Clauses appear in declaration order. Each row shows the clause
+     * description, total count, and any retained exemplars. Omitted entirely
+     * when the histogram is empty (clean run, or contract with no clauses).
+     */
+    private static void appendPostconditionFailures(
+            StringBuilder html, Map<String, FailureCount> byClause) {
+        if (byClause == null || byClause.isEmpty()) {
+            return;
+        }
+        html.append("<details>\n");
+        html.append("<summary>Postcondition Failures</summary>\n");
+        html.append("<table class=\"postcondition-failures\">\n");
+        html.append("<thead><tr><th>Clause</th><th>Count</th><th>Exemplars</th></tr></thead>\n");
+        html.append("<tbody>\n");
+        for (Map.Entry<String, FailureCount> entry : byClause.entrySet()) {
+            FailureCount bucket = entry.getValue();
+            html.append("<tr>\n");
+            html.append("<td class=\"clause\">").append(escape(entry.getKey())).append("</td>\n");
+            html.append("<td class=\"count\">").append(bucket.count()).append("</td>\n");
+            html.append("<td class=\"exemplars\">");
+            if (bucket.exemplars().isEmpty()) {
+                html.append("<span class=\"no-exemplars\">(no exemplars retained)</span>");
+            } else {
+                html.append("<ul>\n");
+                for (FailureExemplar ex : bucket.exemplars()) {
+                    html.append("<li><code>").append(escape(ex.input()))
+                            .append("</code> &rarr; ").append(escape(ex.reason()))
+                            .append("</li>\n");
+                }
+                html.append("</ul>");
+            }
+            html.append("</td>\n");
+            html.append("</tr>\n");
+        }
+        html.append("</tbody>\n");
+        html.append("</table>\n");
+        html.append("</details>\n");
     }
 
     private static void appendLatencyCell(StringBuilder html, LatencyDimension lat,
@@ -402,6 +448,45 @@ final class HtmlReportWriter {
                     background: var(--bg-white);
                     padding: 0.1rem 0.4rem;
                     border-radius: 3px;
+                }
+                table.postcondition-failures {
+                    margin: 0.5rem 0 0.5rem 1.5rem;
+                    border-collapse: collapse;
+                    font-size: 0.8125rem;
+                    background: var(--bg-white);
+                }
+                table.postcondition-failures th,
+                table.postcondition-failures td {
+                    padding: 0.4rem 0.6rem;
+                    border: 1px solid var(--border-color);
+                    vertical-align: top;
+                    text-align: left;
+                }
+                table.postcondition-failures th {
+                    background: #f8f9fa;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                }
+                table.postcondition-failures td.clause { font-weight: 500; }
+                table.postcondition-failures td.count {
+                    text-align: right;
+                    font-variant-numeric: tabular-nums;
+                    color: var(--fail-color);
+                    font-weight: 600;
+                }
+                table.postcondition-failures td.exemplars ul {
+                    margin: 0;
+                    padding-left: 1rem;
+                }
+                table.postcondition-failures td.exemplars li { margin: 0.1rem 0; }
+                table.postcondition-failures td.exemplars code {
+                    background: #f3f4f6;
+                    padding: 0.05rem 0.3rem;
+                    border-radius: 3px;
+                }
+                table.postcondition-failures .no-exemplars {
+                    color: var(--text-muted);
+                    font-style: italic;
                 }
                 .assumptions {
                     margin-bottom: 1.5rem;
