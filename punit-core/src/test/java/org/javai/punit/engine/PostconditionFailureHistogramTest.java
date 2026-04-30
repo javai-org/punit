@@ -157,6 +157,43 @@ class PostconditionFailureHistogramTest {
         assertThat(result.failuresByPostcondition().get("evenFails").count()).isEqualTo(2);
     }
 
+    @Test
+    @DisplayName("Optimize stepper sees the histogram on each IterationResult")
+    void optimizeIterationCarriesHistogram() {
+        Sampling<Factors, Integer, Integer> sampling = Sampling
+                .<Factors, Integer, Integer>builder()
+                .useCaseFactory(f -> new TwoClauseUseCase())
+                .inputs(1, 2)
+                .samples(2)
+                .build();
+
+        // Minimal stepper: produce one more candidate, then stop.
+        var seenHistograms = new java.util.ArrayList<java.util.Map<String, FailureCount>>();
+        org.javai.punit.api.typed.spec.FactorsStepper<Factors> stepper =
+                (current, history) -> {
+                    history.forEach(h -> seenHistograms.add(h.failuresByPostcondition()));
+                    return history.size() >= 2 ? null : current;
+                };
+
+        Experiment spec = Experiment.optimizing(sampling)
+                .initialFactors(new Factors())
+                .stepper(stepper)
+                .maximize(s -> 1.0 / (1.0 + s.failures()))
+                .maxIterations(2)
+                .noImprovementWindow(10)
+                .experimentId("hist-test")
+                .build();
+
+        new Engine().run(spec);
+
+        // The stepper saw at least one IterationResult with a populated histogram.
+        assertThat(seenHistograms).isNotEmpty();
+        var lastSeen = seenHistograms.get(seenHistograms.size() - 1);
+        assertThat(lastSeen).containsKeys("alwaysFails", "evenFails");
+        assertThat(lastSeen.get("alwaysFails").count()).isEqualTo(2);
+        assertThat(lastSeen.get("evenFails").count()).isEqualTo(1);   // input 2
+    }
+
     // Suppress the (unused) ExperimentResult import — it's referenced by the test bodies above
     @SuppressWarnings("unused") private static final Class<?> KEEP_IMPORT = ExperimentResult.class;
     @SuppressWarnings("unused") private static final Class<?> KEEP_IMPORT_LIST = List.class;
