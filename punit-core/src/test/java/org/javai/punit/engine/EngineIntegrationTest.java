@@ -270,7 +270,7 @@ class EngineIntegrationTest {
         assertThat(summary.trials().get(3).input()).isEqualTo("a");
         assertThat(summary.trials().get(6).input()).isEqualTo("a");
         // LengthUseCase returns input.length()
-        assertThat(summary.trials().get(2).outcome().rawResult()).isEqualTo(3);
+        assertThat(summary.trials().get(2).outcome().result().getOrThrow()).isEqualTo(3);
     }
 
     @Test

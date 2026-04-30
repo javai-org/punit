@@ -5,8 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
+import org.javai.outcome.Outcome;
+import org.javai.punit.api.typed.Contract;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.LatencyResult;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,10 +19,28 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Trial + SampleSummary.trials")
 class TrialTest {
 
+    /** Stand-in contract for outcome construction. */
+    private static final Contract<String, Integer> CONTRACT = new Contract<>() {
+        @Override
+        public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input.length());
+        }
+
+        @Override
+        public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+    };
+
+    private static UseCaseOutcome<String, Integer> ok(int value) {
+        return new UseCaseOutcome<>(
+                Outcome.ok(value), CONTRACT,
+                List.of(), Optional.empty(),
+                0L, Duration.ZERO);
+    }
+
     @Test
     @DisplayName("Trial round-trips its components")
     void trialRoundTrip() {
-        UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(42);
+        UseCaseOutcome<String, Integer> outcome = ok(42);
         Trial<String, Integer> trial = new Trial<>("hello", outcome, Duration.ofMillis(7));
 
         assertThat(trial.input()).isEqualTo("hello");
@@ -28,7 +51,7 @@ class TrialTest {
     @Test
     @DisplayName("Trial accepts a null input — input is the only nullable component")
     void trialAllowsNullInput() {
-        UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(42);
+        UseCaseOutcome<String, Integer> outcome = ok(42);
         Trial<String, Integer> trial = new Trial<>(null, outcome, Duration.ZERO);
         assertThat(trial.input()).isNull();
     }
@@ -43,7 +66,7 @@ class TrialTest {
     @Test
     @DisplayName("Trial rejects a null duration")
     void trialRejectsNullDuration() {
-        UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(42);
+        UseCaseOutcome<String, Integer> outcome = ok(42);
         assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> new Trial<>("hello", outcome, null));
     }
@@ -51,14 +74,14 @@ class TrialTest {
     @Test
     @DisplayName("SampleSummary.trials() returns the supplied list")
     void summaryTrialsAccessor() {
-        UseCaseOutcome<Integer> ok = UseCaseOutcome.ok(1);
-        UseCaseOutcome<Integer> ok2 = UseCaseOutcome.ok(2);
+        UseCaseOutcome<String, Integer> ok1 = ok(1);
+        UseCaseOutcome<String, Integer> ok2 = ok(2);
         List<Trial<?, Integer>> trials = List.of(
-                new Trial<String, Integer>("a", ok, Duration.ofMillis(5)),
-                new Trial<String, Integer>("b", ok2, Duration.ofMillis(7)));
+                new Trial<>("a", ok1, Duration.ofMillis(5)),
+                new Trial<>("b", ok2, Duration.ofMillis(7)));
 
         SampleSummary<Integer> summary = new SampleSummary<>(
-                List.of(ok, ok2),
+                List.of(ok1, ok2),
                 Duration.ofMillis(12),
                 2, 0, 0L, 0,
                 LatencyResult.empty(),
@@ -73,14 +96,14 @@ class TrialTest {
     @Test
     @DisplayName("SampleSummary rejects a trials list whose size does not match successes + failures")
     void summaryRejectsMismatchedTrialCount() {
-        UseCaseOutcome<Integer> ok = UseCaseOutcome.ok(1);
+        UseCaseOutcome<String, Integer> okOutcome = ok(1);
         List<Trial<?, Integer>> oneTrial = List.of(
-                new Trial<String, Integer>("a", ok, Duration.ofMillis(5)));
+                new Trial<>("a", okOutcome, Duration.ofMillis(5)));
 
         // successes + failures = 2, but trials list has 1 entry
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> new SampleSummary<>(
-                        List.of(ok, ok),
+                        List.of(okOutcome, okOutcome),
                         Duration.ofMillis(12),
                         2, 0, 0L, 0,
                         LatencyResult.empty(),
@@ -92,9 +115,9 @@ class TrialTest {
     @Test
     @DisplayName("SampleSummary accepts an empty trials list (back-compat path)")
     void summaryAcceptsEmptyTrials() {
-        UseCaseOutcome<Integer> ok = UseCaseOutcome.ok(1);
+        UseCaseOutcome<String, Integer> okOutcome = ok(1);
         SampleSummary<Integer> summary = new SampleSummary<>(
-                List.of(ok),
+                List.of(okOutcome),
                 Duration.ofMillis(5),
                 1, 0, 0L, 0,
                 LatencyResult.empty(),

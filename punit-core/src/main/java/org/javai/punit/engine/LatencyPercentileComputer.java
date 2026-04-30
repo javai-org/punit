@@ -24,7 +24,7 @@ final class LatencyPercentileComputer {
 
     private LatencyPercentileComputer() {}
 
-    static <OT> LatencyResult computeFrom(List<UseCaseOutcome<OT>> outcomes) {
+    static <OT> LatencyResult computeFrom(List<UseCaseOutcome<?, OT>> outcomes) {
         if (outcomes.isEmpty()) {
             return LatencyResult.empty();
         }

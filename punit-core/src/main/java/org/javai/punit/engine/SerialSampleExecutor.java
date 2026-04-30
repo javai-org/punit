@@ -83,7 +83,7 @@ public final class SerialSampleExecutor implements SampleExecutor {
             }
             IT input = inputs.get((cycleStart + i) % inputs.size());
             long t0 = System.nanoTime();
-            UseCaseOutcome<OT> outcome;
+            UseCaseOutcome<IT, OT> outcome;
             try {
                 outcome = useCase.apply(input, tracker);
             } catch (Throwable t) {

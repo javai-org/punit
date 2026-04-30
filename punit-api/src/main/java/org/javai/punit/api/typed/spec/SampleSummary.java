@@ -49,7 +49,7 @@ import org.javai.punit.api.typed.UseCaseOutcome;
  * @param <OT> the outcome value type
  */
 public record SampleSummary<OT>(
-        List<UseCaseOutcome<OT>> outcomes,
+        List<UseCaseOutcome<?, OT>> outcomes,
         Duration elapsed,
         int successes,
         int failures,
@@ -101,13 +101,13 @@ public record SampleSummary<OT>(
      * directly with a populated trials list.
      */
     public static <OT> SampleSummary<OT> from(
-            List<UseCaseOutcome<OT>> outcomes,
+            List<UseCaseOutcome<?, OT>> outcomes,
             Duration elapsed,
             LatencyResult latencyResult,
             TerminationReason terminationReason) {
         int s = 0, f = 0;
         long tokens = 0L;
-        for (UseCaseOutcome<OT> o : outcomes) {
+        for (UseCaseOutcome<?, OT> o : outcomes) {
             if (o.value().isOk()) s++;
             else f++;
             tokens += o.tokens();
@@ -121,7 +121,7 @@ public record SampleSummary<OT>(
      * {@code latencyResult} to {@link LatencyResult#empty()} and
      * {@code terminationReason} to {@link TerminationReason#COMPLETED}.
      */
-    public static <OT> SampleSummary<OT> from(List<UseCaseOutcome<OT>> outcomes, Duration elapsed) {
+    public static <OT> SampleSummary<OT> from(List<UseCaseOutcome<?, OT>> outcomes, Duration elapsed) {
         return from(outcomes, elapsed, LatencyResult.empty(), TerminationReason.COMPLETED);
     }
 

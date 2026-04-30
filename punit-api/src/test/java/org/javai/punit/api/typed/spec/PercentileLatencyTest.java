@@ -7,10 +7,14 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.Contract;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.LatencyResult;
 import org.javai.punit.api.typed.LatencySpec;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,11 +24,18 @@ class PercentileLatencyTest {
 
     record Factors(String label) {}
 
+    private static final Contract<Object, String> STUB_CONTRACT = new Contract<>() {
+        @Override public Outcome<String> invoke(Object input, TokenTracker tracker) {
+            return Outcome.ok("ok");
+        }
+        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+    };
+
     private static SampleSummary<String> summary(LatencyResult latency, int successes, int failures) {
         int total = successes + failures;
-        var outcomes = new java.util.ArrayList<UseCaseOutcome<String>>(total);
-        for (int i = 0; i < successes; i++) outcomes.add(UseCaseOutcome.ok("ok"));
-        for (int i = 0; i < failures; i++) outcomes.add(UseCaseOutcome.fail("nope", "msg"));
+        var outcomes = new java.util.ArrayList<UseCaseOutcome<?, String>>(total);
+        for (int i = 0; i < successes; i++) outcomes.add(stubOutcome(Outcome.ok("ok")));
+        for (int i = 0; i < failures; i++) outcomes.add(stubOutcome(Outcome.fail("nope", "msg")));
         return new SampleSummary<>(
                 outcomes,
                 Duration.ofMillis(1),
@@ -32,6 +43,13 @@ class PercentileLatencyTest {
                 latency,
                 TerminationReason.COMPLETED,
                 List.of());
+    }
+
+    private static UseCaseOutcome<Object, String> stubOutcome(Outcome<String> result) {
+        return new UseCaseOutcome<>(
+                result, STUB_CONTRACT,
+                List.of(), Optional.empty(),
+                0L, Duration.ZERO);
     }
 
     private static LatencyResult observed(long p50, long p90, long p95, long p99, int n) {
