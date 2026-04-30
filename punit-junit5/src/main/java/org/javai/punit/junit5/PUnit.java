@@ -236,7 +236,8 @@ public final class PUnit {
         return false;
     }
 
-    private static String formatMessage(ProbabilisticTestResult result) {
+    // Package-private for direct unit testing; not part of the public API.
+    static String formatMessage(ProbabilisticTestResult result) {
         StringBuilder sb = new StringBuilder();
         sb.append(result.verdict());
         List<EvaluatedCriterion> evaluated = result.criterionResults();
