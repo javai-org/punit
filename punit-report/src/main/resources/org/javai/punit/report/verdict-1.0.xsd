@@ -30,6 +30,7 @@
     <xs:all>
       <xs:element name="identity"     type="tns:IdentityType"/>
       <xs:element name="execution"    type="tns:ExecutionType"/>
+      <xs:element name="factors"      type="tns:FactorsType"      minOccurs="0"/>
       <xs:element name="functional"   type="tns:FunctionalType"   minOccurs="0"/>
       <xs:element name="latency"      type="tns:LatencyType"      minOccurs="0"/>
       <xs:element name="statistics"   type="tns:StatisticsType"   minOccurs="0"/>
@@ -41,6 +42,7 @@
       <xs:element name="warnings"     type="tns:WarningsType"     minOccurs="0"/>
       <xs:element name="pacing"       type="tns:PacingType"       minOccurs="0"/>
       <xs:element name="environment"  type="tns:EnvironmentType"  minOccurs="0"/>
+      <xs:element name="postcondition-failures" type="tns:PostconditionFailuresType" minOccurs="0"/>
       <xs:element name="verdict"      type="tns:VerdictType"/>
     </xs:all>
     <xs:attribute name="version"        type="xs:string"   use="required"/>
@@ -77,6 +79,36 @@
     <xs:restriction base="xs:string">
       <xs:enumeration value="VERIFICATION"/>
       <xs:enumeration value="SMOKE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================================================================
+       Factor bundle (FT instance the test ran under; shape-symmetric
+       with EX04 baseline factors:)
+       =================================================================== -->
+
+  <xs:complexType name="FactorsType">
+    <xs:sequence>
+      <xs:element name="entry" type="tns:FactorEntryType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="FactorEntryType">
+    <xs:attribute name="key"   type="xs:string"           use="required"/>
+    <xs:attribute name="value" type="xs:string"           use="required"/>
+    <xs:attribute name="type"  type="tns:FactorTypeEnum"  use="required"/>
+  </xs:complexType>
+
+  <xs:simpleType name="FactorTypeEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="string"/>
+      <xs:enumeration value="number"/>
+      <xs:enumeration value="boolean"/>
+      <xs:enumeration value="enum"/>
+      <xs:enumeration value="duration"/>
+      <xs:enumeration value="instant"/>
+      <xs:enumeration value="uri"/>
     </xs:restriction>
   </xs:simpleType>
 
@@ -310,6 +342,31 @@
 
   <xs:complexType name="WarningType" mixed="true">
     <xs:attribute name="code" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- ===================================================================
+       Postcondition failures (per-clause histogram with bounded exemplars)
+       =================================================================== -->
+
+  <xs:complexType name="PostconditionFailuresType">
+    <xs:sequence>
+      <xs:element name="clause" type="tns:PostconditionClauseFailureType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PostconditionClauseFailureType">
+    <xs:sequence>
+      <xs:element name="exemplar" type="tns:PostconditionExemplarType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="description" type="xs:string" use="required"/>
+    <xs:attribute name="count"       type="xs:int"    use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="PostconditionExemplarType">
+    <xs:attribute name="input"  type="xs:string" use="required"/>
+    <xs:attribute name="reason" type="xs:string" use="required"/>
   </xs:complexType>
 
   <!-- ===================================================================
