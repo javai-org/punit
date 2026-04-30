@@ -1,6 +1,7 @@
 package org.javai.punit.api.typed.spec;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -61,7 +62,8 @@ public record ProbabilisticTestResult(
         TestIntent intent,
         List<String> warnings,
         CovariateAlignment covariates,
-        Optional<String> contractRef) implements EngineResult {
+        Optional<String> contractRef,
+        Map<String, FailureCount> failuresByPostcondition) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
@@ -71,15 +73,16 @@ public record ProbabilisticTestResult(
         Objects.requireNonNull(warnings, "warnings");
         Objects.requireNonNull(covariates, "covariates");
         Objects.requireNonNull(contractRef, "contractRef");
+        Objects.requireNonNull(failuresByPostcondition, "failuresByPostcondition");
         criterionResults = List.copyOf(criterionResults);
         warnings = List.copyOf(warnings);
+        failuresByPostcondition = Map.copyOf(failuresByPostcondition);
     }
 
     /**
      * Convenience constructor for callers that don't carry covariate
-     * alignment or a contract reference. Equivalent to the canonical
-     * constructor with {@link CovariateAlignment#none()} and an empty
-     * contract reference.
+     * alignment, a contract reference, or per-postcondition failure
+     * data.
      */
     public ProbabilisticTestResult(
             Verdict verdict,
@@ -88,13 +91,11 @@ public record ProbabilisticTestResult(
             TestIntent intent,
             List<String> warnings) {
         this(verdict, factors, criterionResults, intent, warnings,
-                CovariateAlignment.none(), Optional.empty());
+                CovariateAlignment.none(), Optional.empty(), Map.of());
     }
 
     /**
-     * Convenience constructor preserving the pre-contractRef shape:
-     * canonical fields plus an explicit covariate alignment, with the
-     * contract reference defaulting to {@link Optional#empty()}.
+     * Convenience constructor preserving the pre-contractRef shape.
      */
     public ProbabilisticTestResult(
             Verdict verdict,
@@ -104,7 +105,25 @@ public record ProbabilisticTestResult(
             List<String> warnings,
             CovariateAlignment covariates) {
         this(verdict, factors, criterionResults, intent, warnings,
-                covariates, Optional.empty());
+                covariates, Optional.empty(), Map.of());
+    }
+
+    /**
+     * Convenience constructor preserving the pre-failuresByPostcondition
+     * shape: canonical fields through {@code contractRef}, with an
+     * empty failure histogram. Used by call sites that don't yet
+     * carry the histogram through.
+     */
+    public ProbabilisticTestResult(
+            Verdict verdict,
+            FactorBundle factors,
+            List<EvaluatedCriterion> criterionResults,
+            TestIntent intent,
+            List<String> warnings,
+            CovariateAlignment covariates,
+            Optional<String> contractRef) {
+        this(verdict, factors, criterionResults, intent, warnings,
+                covariates, contractRef, Map.of());
     }
 
     /**
@@ -117,7 +136,7 @@ public record ProbabilisticTestResult(
     public ProbabilisticTestResult withCovariates(CovariateAlignment covariates) {
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
-                covariates, contractRef);
+                covariates, contractRef, failuresByPostcondition);
     }
 
     /**
@@ -137,6 +156,6 @@ public record ProbabilisticTestResult(
                 : Optional.of(contractRef);
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
-                covariates, wrapped);
+                covariates, wrapped, failuresByPostcondition);
     }
 }
