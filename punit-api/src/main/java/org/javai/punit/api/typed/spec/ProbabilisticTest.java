@@ -207,7 +207,9 @@ public final class ProbabilisticTest implements Spec {
                     List.copyOf(warnings),
                     org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
                             org.javai.punit.api.typed.covariate.CovariateProfile.empty(),
-                            baselineProfile));
+                            baselineProfile),
+                    Optional.empty(),
+                    s.failuresByPostcondition());
         }
 
         /**

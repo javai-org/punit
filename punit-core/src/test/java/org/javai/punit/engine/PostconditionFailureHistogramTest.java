@@ -1,0 +1,163 @@
+package org.javai.punit.engine;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+
+import org.javai.outcome.Outcome;
+import org.javai.punit.api.typed.ContractBuilder;
+import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
+import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.typed.spec.Experiment;
+import org.javai.punit.api.typed.spec.ExperimentResult;
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Pins the engine's per-postcondition failure histogram behaviour:
+ * the {@code failuresByPostcondition()} map on {@code SampleSummary}
+ * accumulates counts and bounded exemplars by clause description as
+ * samples roll through.
+ */
+@DisplayName("Engine — failuresByPostcondition histogram")
+class PostconditionFailureHistogramTest {
+
+    record Factors() {}
+
+    /**
+     * Use case that always returns the input's value. Two postconditions:
+     * one that always fails ("alwaysFails"), one that fails when input
+     * is even ("evenFails").
+     */
+    private static class TwoClauseUseCase implements UseCase<Factors, Integer, Integer> {
+        @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.ok(input);
+        }
+        @Override public void postconditions(ContractBuilder<Integer> b) {
+            b.ensure("alwaysFails", v ->
+                    Outcome.fail("alwaysFails-mode", "input was " + v));
+            b.ensure("evenFails", v -> v % 2 == 0
+                    ? Outcome.fail("even-mode", "input " + v + " is even")
+                    : Outcome.ok());
+        }
+    }
+
+    @Test
+    @DisplayName("alwaysFails clause accumulates count == samples; evenFails counts only even inputs")
+    void histogramAccumulates() {
+        Sampling<Factors, Integer, Integer> sampling = Sampling
+                .<Factors, Integer, Integer>builder()
+                .useCaseFactory(f -> new TwoClauseUseCase())
+                .inputs(1, 2, 3, 4, 5, 6)
+                .samples(6)
+                .build();
+        Experiment spec = Experiment.measuring(sampling, new Factors()).build();
+
+        new Engine().run(spec);
+        var summary = spec.lastSummary().orElseThrow();
+
+        var hist = summary.failuresByPostcondition();
+        assertThat(hist).containsKeys("alwaysFails", "evenFails");
+        assertThat(hist.get("alwaysFails").count()).isEqualTo(6);
+        assertThat(hist.get("evenFails").count()).isEqualTo(3);   // 2, 4, 6
+    }
+
+    @Test
+    @DisplayName("exemplars are capped at 3 per clause; counts continue past the cap")
+    void exemplarsCapAtThree() {
+        Sampling<Factors, Integer, Integer> sampling = Sampling
+                .<Factors, Integer, Integer>builder()
+                .useCaseFactory(f -> new TwoClauseUseCase())
+                .inputs(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+                .samples(10)
+                .build();
+        Experiment spec = Experiment.measuring(sampling, new Factors()).build();
+
+        new Engine().run(spec);
+        var summary = spec.lastSummary().orElseThrow();
+
+        FailureCount alwaysFails = summary.failuresByPostcondition().get("alwaysFails");
+        assertThat(alwaysFails.count()).isEqualTo(10);
+        assertThat(alwaysFails.exemplars()).hasSize(3);
+        // Exemplars retained are the first three (cycled-input order: 1, 2, 3)
+        assertThat(alwaysFails.exemplars().get(0).input()).isEqualTo("1");
+        assertThat(alwaysFails.exemplars().get(0).reason()).contains("input was 1");
+    }
+
+    @Test
+    @DisplayName("a use case with no postconditions produces an empty histogram")
+    void emptyHistogramWhenNoClauses() {
+        UseCase<Factors, Integer, Integer> noClauses = new UseCase<>() {
+            @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        };
+        Sampling<Factors, Integer, Integer> sampling = Sampling
+                .<Factors, Integer, Integer>builder()
+                .useCaseFactory(f -> noClauses)
+                .inputs(1, 2, 3)
+                .samples(3)
+                .build();
+        Experiment spec = Experiment.measuring(sampling, new Factors()).build();
+
+        new Engine().run(spec);
+        var summary = spec.lastSummary().orElseThrow();
+
+        assertThat(summary.failuresByPostcondition()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("apply-level Outcome.Fail does not contribute to the postcondition histogram")
+    void applyFailDoesNotAppearInHistogram() {
+        UseCase<Factors, Integer, Integer> applyFail = new UseCase<>() {
+            @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) {
+                return Outcome.fail("upstream-error", "always fails at apply");
+            }
+            @Override public void postconditions(ContractBuilder<Integer> b) {
+                b.ensure("would-have-checked", v -> Outcome.ok());
+            }
+        };
+        Sampling<Factors, Integer, Integer> sampling = Sampling
+                .<Factors, Integer, Integer>builder()
+                .useCaseFactory(f -> applyFail)
+                .inputs(1)
+                .samples(5)
+                .build();
+        Experiment spec = Experiment.measuring(sampling, new Factors()).build();
+
+        new Engine().run(spec);
+        var summary = spec.lastSummary().orElseThrow();
+
+        // No postcondition was evaluated because invoke failed every sample.
+        assertThat(summary.failuresByPostcondition()).isEmpty();
+        assertThat(summary.failures()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTestResult carries the same histogram as its summary")
+    void resultMirrorsSummary() {
+        Sampling<Factors, Integer, Integer> sampling = Sampling
+                .<Factors, Integer, Integer>builder()
+                .useCaseFactory(f -> new TwoClauseUseCase())
+                .inputs(1, 2, 3, 4)
+                .samples(4)
+                .build();
+        org.javai.punit.api.typed.spec.ProbabilisticTest spec =
+                org.javai.punit.api.typed.spec.ProbabilisticTest
+                        .testing(sampling, new Factors())
+                        .criterion(org.javai.punit.engine.criteria.BernoulliPassRate.<Integer>meeting(
+                                0.5, org.javai.punit.api.ThresholdOrigin.SLA))
+                        .build();
+
+        var result = (org.javai.punit.api.typed.spec.ProbabilisticTestResult) new Engine().run(spec);
+
+        assertThat(result.failuresByPostcondition()).containsKeys("alwaysFails", "evenFails");
+        assertThat(result.failuresByPostcondition().get("alwaysFails").count()).isEqualTo(4);
+        assertThat(result.failuresByPostcondition().get("evenFails").count()).isEqualTo(2);
+    }
+
+    // Suppress the (unused) ExperimentResult import — it's referenced by the test bodies above
+    @SuppressWarnings("unused") private static final Class<?> KEEP_IMPORT = ExperimentResult.class;
+    @SuppressWarnings("unused") private static final Class<?> KEEP_IMPORT_LIST = List.class;
+}

@@ -2,6 +2,7 @@ package org.javai.punit.api.typed.spec;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.javai.punit.api.typed.LatencyResult;
@@ -57,7 +58,8 @@ public record SampleSummary<OT>(
         int failuresDropped,
         LatencyResult latencyResult,
         TerminationReason terminationReason,
-        List<Trial<?, OT>> trials) {
+        List<Trial<?, OT>> trials,
+        Map<String, FailureCount> failuresByPostcondition) {
 
     public SampleSummary {
         Objects.requireNonNull(outcomes, "outcomes");
@@ -65,6 +67,7 @@ public record SampleSummary<OT>(
         Objects.requireNonNull(latencyResult, "latencyResult");
         Objects.requireNonNull(terminationReason, "terminationReason");
         Objects.requireNonNull(trials, "trials");
+        Objects.requireNonNull(failuresByPostcondition, "failuresByPostcondition");
         if (successes < 0 || failures < 0) {
             throw new IllegalArgumentException("counts must be non-negative");
         }
@@ -89,6 +92,29 @@ public record SampleSummary<OT>(
         }
         outcomes = List.copyOf(outcomes);
         trials = List.copyOf(trials);
+        failuresByPostcondition = Map.copyOf(failuresByPostcondition);
+    }
+
+    /**
+     * Backward-compatible constructor that defaults
+     * {@link #failuresByPostcondition()} to an empty map. Used by
+     * test fixtures and call sites that haven't yet migrated to the
+     * canonical 10-field shape; the engine constructs summaries via
+     * the canonical constructor with a populated histogram.
+     */
+    public SampleSummary(
+            List<UseCaseOutcome<?, OT>> outcomes,
+            Duration elapsed,
+            int successes,
+            int failures,
+            long tokensConsumed,
+            int failuresDropped,
+            LatencyResult latencyResult,
+            TerminationReason terminationReason,
+            List<Trial<?, OT>> trials) {
+        this(outcomes, elapsed, successes, failures, tokensConsumed,
+                failuresDropped, latencyResult, terminationReason, trials,
+                Map.of());
     }
 
     /**

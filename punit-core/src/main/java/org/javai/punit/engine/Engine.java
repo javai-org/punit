@@ -3,7 +3,9 @@ package org.javai.punit.engine;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -17,6 +19,8 @@ import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.Configuration;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.api.typed.spec.SampleClassification;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
@@ -143,6 +147,9 @@ public final class Engine {
         private final List<UseCaseOutcome<?, OT>> retained = new ArrayList<>();
         private final List<UseCaseOutcome<?, OT>> allForLatency = new ArrayList<>();
         private final List<Trial<?, OT>> trials = new ArrayList<>();
+        private final LinkedHashMap<String, MutableFailureBucket> failuresByPostcondition =
+                new LinkedHashMap<>();
+        private static final int EXEMPLAR_CAP_PER_CLAUSE = 3;
         private int successes = 0;
         private int failures = 0;
         private int retainedFailures = 0;
@@ -224,7 +231,30 @@ public final class Engine {
                     failuresDropped++;
                 }
             }
+            recordPostconditionFailures(index, classification);
             tokensConsumed += classification.tokens() + tracker.tokenCharge();
+        }
+
+        private void recordPostconditionFailures(int index, SampleClassification classification) {
+            IT input = inputForIndex(index);
+            String inputStr = String.valueOf(input);
+            for (var result : classification.postconditionResults()) {
+                if (!result.failed()) {
+                    continue;
+                }
+                MutableFailureBucket bucket = failuresByPostcondition.computeIfAbsent(
+                        result.description(), k -> new MutableFailureBucket());
+                bucket.count++;
+                if (bucket.exemplars.size() < EXEMPLAR_CAP_PER_CLAUSE) {
+                    String reason = result.failureReason().orElse(result.description());
+                    bucket.exemplars.add(new FailureExemplar(inputStr, reason));
+                }
+            }
+        }
+
+        private static final class MutableFailureBucket {
+            int count = 0;
+            final List<FailureExemplar> exemplars = new ArrayList<>();
         }
 
         private <I> Trial<IT, OT> trialFor(int index, UseCaseOutcome<I, OT> stamped) {
@@ -252,7 +282,18 @@ public final class Engine {
                     failuresDropped,
                     latencyResult,
                     tracker.terminationReason(),
-                    trials);
+                    trials,
+                    immutableFailuresByPostcondition());
+        }
+
+        private Map<String, FailureCount> immutableFailuresByPostcondition() {
+            // Preserve insertion order via LinkedHashMap so reporters see
+            // postconditions in the order the contract declared them.
+            LinkedHashMap<String, FailureCount> out = new LinkedHashMap<>();
+            for (var e : failuresByPostcondition.entrySet()) {
+                out.put(e.getKey(), new FailureCount(e.getValue().count, e.getValue().exemplars));
+            }
+            return Map.copyOf(out);
         }
     }
 }
