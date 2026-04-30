@@ -18,6 +18,8 @@ import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.EvaluatedCriterion;
 import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.FactorsStepper;
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.Scorer;
@@ -289,6 +291,32 @@ public final class PUnit {
                     first = false;
                 }
                 sb.append('\n');
+            }
+        }
+        // Per-postcondition failure breakdown — when the contract has
+        // clauses and any of them tripped, surface the histogram so
+        // the developer sees which clause failed, how many times, and
+        // a small bounded set of input/reason exemplars. This is the
+        // diagnostic that turns "the test failed" into "this specific
+        // clause failed because the LLM produced X for input Y."
+        if (!result.failuresByPostcondition().isEmpty()) {
+            sb.append('\n').append("  Postcondition failures:").append('\n');
+            // Sort clauses by descending count so the most-common
+            // failure mode appears first.
+            var ordered = result.failuresByPostcondition().entrySet().stream()
+                    .sorted((a, b) -> Integer.compare(b.getValue().count(), a.getValue().count()))
+                    .toList();
+            for (var entry : ordered) {
+                FailureCount bucket = entry.getValue();
+                sb.append("    - \"").append(entry.getKey()).append("\" → ")
+                        .append(bucket.count()).append(" failures").append('\n');
+                int shown = 0;
+                for (FailureExemplar ex : bucket.exemplars()) {
+                    if (shown == 2) break;   // cap shown exemplars at 2 per clause
+                    sb.append("        e.g. \"").append(ex.input()).append("\" → ")
+                            .append(ex.reason()).append('\n');
+                    shown++;
+                }
             }
         }
         // Author-supplied audit pointer to the document the threshold
