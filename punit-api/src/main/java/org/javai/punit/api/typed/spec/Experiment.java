@@ -418,7 +418,20 @@ public final class Experiment implements Spec {
 
         @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
             double score = scorer.score(summary);
-            history.add(new IterationResult<>(config.factors(), score));
+            history.add(new IterationResult<>(
+                    config.factors(),
+                    score,
+                    summary.failuresByPostcondition(),
+                    flattenExemplars(summary.failuresByPostcondition())));
+        }
+
+        private static List<FailureExemplar> flattenExemplars(
+                Map<String, FailureCount> byClause) {
+            List<FailureExemplar> all = new ArrayList<>();
+            for (FailureCount bucket : byClause.values()) {
+                all.addAll(bucket.exemplars());
+            }
+            return List.copyOf(all);
         }
 
         @Override public EngineResult conclude(BaselineProvider provider) {
