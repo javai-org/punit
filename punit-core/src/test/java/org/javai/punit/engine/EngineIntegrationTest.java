@@ -95,6 +95,37 @@ class EngineIntegrationTest {
     }
 
     @Test
+    @DisplayName("ProbabilisticTestResult carries engine-run summary populated from SampleSummary")
+    void engineSummaryPopulated() {
+        Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
+                .<LlmFactors, Integer, Boolean>builder()
+                .useCaseFactory(f -> new AlwaysPassesUseCase())
+                .inputs(1, 2, 3)
+                .samples(30)
+                .build();
+        ProbabilisticTest spec = ProbabilisticTest
+                .testing(sampling, new LlmFactors("gpt-4o", 0.3))
+                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .build();
+
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
+
+        var summary = result.engineSummary();
+        assertThat(summary.plannedSamples()).isEqualTo(30);
+        assertThat(summary.samplesExecuted()).isEqualTo(30);
+        assertThat(summary.successes()).isEqualTo(30);
+        assertThat(summary.failures()).isZero();
+        assertThat(summary.elapsedMs()).isGreaterThanOrEqualTo(0L);
+        assertThat(summary.terminationReason())
+                .isEqualTo(org.javai.punit.api.typed.spec.TerminationReason.COMPLETED);
+        // Contractual mode: confidence falls back to default 0.95 since
+        // BernoulliPassRate's contractual path doesn't surface confidence
+        // in detail map.
+        assertThat(summary.confidence()).isEqualTo(0.95);
+        assertThat(summary.baselineFilename()).isEmpty();
+    }
+
+    @Test
     @DisplayName("ProbabilisticTest with BernoulliPassRate.meeting() produces FAIL when observed below threshold")
     void contractualProducesFail() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling

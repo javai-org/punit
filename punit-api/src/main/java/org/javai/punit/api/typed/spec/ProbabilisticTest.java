@@ -189,6 +189,10 @@ public final class ProbabilisticTest implements Spec {
             // observed profile (post-stamped at the JUnit boundary).
             org.javai.punit.api.typed.covariate.CovariateProfile baselineProfile =
                     org.javai.punit.api.typed.covariate.CovariateProfile.empty();
+            // Same logic as baselineProfile: every empirical criterion
+            // that resolves for the same (useCaseId, factorsFingerprint)
+            // tuple sees the same baseline file, so first-non-empty wins.
+            Optional<String> baselineFilename = Optional.empty();
             for (Registered<OT> entry : registered) {
                 BaselineLookupCapture capture = new BaselineLookupCapture();
                 CriterionResult result = evaluate(
@@ -199,9 +203,13 @@ public final class ProbabilisticTest implements Spec {
                 if (baselineProfile.isEmpty() && !capture.profile.isEmpty()) {
                     baselineProfile = capture.profile;
                 }
+                if (baselineFilename.isEmpty() && capture.sourceFile.isPresent()) {
+                    baselineFilename = capture.sourceFile;
+                }
             }
 
             Verdict composed = Verdict.compose(evaluated);
+            EngineRunSummary engineSummary = buildEngineSummary(s, evaluated, baselineFilename);
             return new ProbabilisticTestResult(
                     composed, factorBundle, evaluated, intent,
                     List.copyOf(warnings),
@@ -209,7 +217,44 @@ public final class ProbabilisticTest implements Spec {
                             org.javai.punit.api.typed.covariate.CovariateProfile.empty(),
                             baselineProfile),
                     Optional.empty(),
-                    s.failuresByPostcondition());
+                    s.failuresByPostcondition(),
+                    engineSummary);
+        }
+
+        /**
+         * Build the engine-run summary from the captured
+         * {@link SampleSummary}, the evaluated criteria, and the
+         * matched-baseline source file. Confidence is lifted from the
+         * first criterion whose detail map carries a "confidence" entry
+         * (BernoulliPassRate); falls back to 0.95.
+         */
+        private EngineRunSummary buildEngineSummary(
+                SampleSummary<OT> s,
+                List<EvaluatedCriterion> evaluated,
+                Optional<String> baselineFilename) {
+            double confidence = scanConfidence(evaluated);
+            return new EngineRunSummary(
+                    sampling.samples(),
+                    s.total(),
+                    s.successes(),
+                    s.failures(),
+                    s.elapsed().toMillis(),
+                    s.tokensConsumed(),
+                    s.failuresDropped(),
+                    s.latencyResult(),
+                    s.terminationReason(),
+                    confidence,
+                    baselineFilename);
+        }
+
+        private static double scanConfidence(List<EvaluatedCriterion> evaluated) {
+            for (EvaluatedCriterion ec : evaluated) {
+                Object v = ec.result().detail().get("confidence");
+                if (v instanceof Number n) {
+                    return n.doubleValue();
+                }
+            }
+            return 0.95;
         }
 
         /**
@@ -225,6 +270,7 @@ public final class ProbabilisticTest implements Spec {
         private static final class BaselineLookupCapture {
             org.javai.punit.api.typed.covariate.CovariateProfile profile =
                     org.javai.punit.api.typed.covariate.CovariateProfile.empty();
+            Optional<String> sourceFile = Optional.empty();
         }
 
         private boolean anyEmpiricalCriterion() {
@@ -255,6 +301,7 @@ public final class ProbabilisticTest implements Spec {
                 resolved = lookup.selected();
                 warnings.addAll(lookup.notes());
                 capture.profile = lookup.baselineProfile();
+                capture.sourceFile = lookup.sourceFile();
             } else {
                 resolved = Optional.empty();
             }

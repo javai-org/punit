@@ -37,34 +37,53 @@ import org.javai.punit.api.typed.covariate.CovariateProfile;
  * @param baselineProfile  the matched baseline's covariate profile,
  *                         when one was selected; otherwise empty
  * @param notes            rejection / fallback reasons; possibly empty
+ * @param sourceFile       filename of the matched baseline, when a
+ *                         candidate matched; surfaces to RP07 verdict
+ *                         XML's {@code <provenance spec-filename>} for
+ *                         audit traceability. Empty otherwise.
  */
 public record BaselineLookup<S extends BaselineStatistics>(
         Optional<S> selected,
         CovariateProfile baselineProfile,
-        List<String> notes) {
+        List<String> notes,
+        Optional<String> sourceFile) {
 
     public BaselineLookup {
         Objects.requireNonNull(selected, "selected");
         Objects.requireNonNull(baselineProfile, "baselineProfile");
         Objects.requireNonNull(notes, "notes");
+        Objects.requireNonNull(sourceFile, "sourceFile");
         notes = List.copyOf(notes);
     }
 
     /**
+     * Backward-compatible constructor that omits {@link #sourceFile()}.
+     * Defaults to {@link Optional#empty()}.
+     */
+    public BaselineLookup(
+            Optional<S> selected,
+            CovariateProfile baselineProfile,
+            List<String> notes) {
+        this(selected, baselineProfile, notes, Optional.empty());
+    }
+
+    /**
      * @return an empty lookup ({@link Optional#empty()} selected,
-     *         empty profile, no notes)
+     *         empty profile, no notes, no source file)
      */
     public static <S extends BaselineStatistics> BaselineLookup<S> empty() {
-        return new BaselineLookup<>(Optional.empty(), CovariateProfile.empty(), List.of());
+        return new BaselineLookup<>(
+                Optional.empty(), CovariateProfile.empty(), List.of(), Optional.empty());
     }
 
     /**
      * @return a lookup that wraps an existing {@code Optional<S>} with
-     *         no profile + no notes — convenience for default-method
-     *         delegates
+     *         no profile + no notes + no source file — convenience for
+     *         default-method delegates
      */
     public static <S extends BaselineStatistics> BaselineLookup<S> of(
             Optional<S> selected) {
-        return new BaselineLookup<>(selected, CovariateProfile.empty(), List.of());
+        return new BaselineLookup<>(
+                selected, CovariateProfile.empty(), List.of(), Optional.empty());
     }
 }

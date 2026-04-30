@@ -63,7 +63,8 @@ public record ProbabilisticTestResult(
         List<String> warnings,
         CovariateAlignment covariates,
         Optional<String> contractRef,
-        Map<String, FailureCount> failuresByPostcondition) implements EngineResult {
+        Map<String, FailureCount> failuresByPostcondition,
+        EngineRunSummary engineSummary) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
@@ -74,6 +75,7 @@ public record ProbabilisticTestResult(
         Objects.requireNonNull(covariates, "covariates");
         Objects.requireNonNull(contractRef, "contractRef");
         Objects.requireNonNull(failuresByPostcondition, "failuresByPostcondition");
+        Objects.requireNonNull(engineSummary, "engineSummary");
         criterionResults = List.copyOf(criterionResults);
         warnings = List.copyOf(warnings);
         failuresByPostcondition = Map.copyOf(failuresByPostcondition);
@@ -91,7 +93,8 @@ public record ProbabilisticTestResult(
             TestIntent intent,
             List<String> warnings) {
         this(verdict, factors, criterionResults, intent, warnings,
-                CovariateAlignment.none(), Optional.empty(), Map.of());
+                CovariateAlignment.none(), Optional.empty(), Map.of(),
+                EngineRunSummary.empty());
     }
 
     /**
@@ -105,7 +108,8 @@ public record ProbabilisticTestResult(
             List<String> warnings,
             CovariateAlignment covariates) {
         this(verdict, factors, criterionResults, intent, warnings,
-                covariates, Optional.empty(), Map.of());
+                covariates, Optional.empty(), Map.of(),
+                EngineRunSummary.empty());
     }
 
     /**
@@ -123,7 +127,27 @@ public record ProbabilisticTestResult(
             CovariateAlignment covariates,
             Optional<String> contractRef) {
         this(verdict, factors, criterionResults, intent, warnings,
-                covariates, contractRef, Map.of());
+                covariates, contractRef, Map.of(), EngineRunSummary.empty());
+    }
+
+    /**
+     * Convenience constructor preserving the pre-engineSummary shape:
+     * canonical fields through {@code failuresByPostcondition}, with
+     * an empty engine summary. Used by call sites that don't yet
+     * carry engine-run scalars through.
+     */
+    public ProbabilisticTestResult(
+            Verdict verdict,
+            FactorBundle factors,
+            List<EvaluatedCriterion> criterionResults,
+            TestIntent intent,
+            List<String> warnings,
+            CovariateAlignment covariates,
+            Optional<String> contractRef,
+            Map<String, FailureCount> failuresByPostcondition) {
+        this(verdict, factors, criterionResults, intent, warnings,
+                covariates, contractRef, failuresByPostcondition,
+                EngineRunSummary.empty());
     }
 
     /**
@@ -136,7 +160,7 @@ public record ProbabilisticTestResult(
     public ProbabilisticTestResult withCovariates(CovariateAlignment covariates) {
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
-                covariates, contractRef, failuresByPostcondition);
+                covariates, contractRef, failuresByPostcondition, engineSummary);
     }
 
     /**
@@ -156,6 +180,6 @@ public record ProbabilisticTestResult(
                 : Optional.of(contractRef);
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
-                covariates, wrapped, failuresByPostcondition);
+                covariates, wrapped, failuresByPostcondition, engineSummary);
     }
 }
