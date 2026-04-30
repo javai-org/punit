@@ -2,12 +2,14 @@ package org.javai.punit.engine;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 import org.javai.punit.api.typed.Pacing;
 import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.typed.ValueMatcher;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
 
@@ -55,6 +57,8 @@ public final class SerialSampleExecutor implements SampleExecutor {
     public <FT, IT, OT> void runSamples(
             UseCase<FT, IT, OT> useCase,
             List<IT> inputs,
+            List<OT> expected,
+            Optional<ValueMatcher<OT>> matcher,
             int sampleCount,
             int cycleStart,
             SampleObserver<OT> observer,
@@ -66,10 +70,15 @@ public final class SerialSampleExecutor implements SampleExecutor {
         if (sampleCount < 0) {
             throw new IllegalArgumentException("sampleCount must be non-negative");
         }
+        if (!expected.isEmpty() && matcher.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "matcher is required when expected outputs are supplied");
+        }
 
         Pacing pacing = useCase.pacing();
         long minDelayMillis = pacing.effectiveMinDelayMillis();
         TokenTracker tracker = new InMemoryTokenTracker();
+        boolean matching = !expected.isEmpty();
 
         for (int i = 0; i < sampleCount; i++) {
             if (stopRequested.getAsBoolean()) {
@@ -81,11 +90,17 @@ public final class SerialSampleExecutor implements SampleExecutor {
                     return;
                 }
             }
-            IT input = inputs.get((cycleStart + i) % inputs.size());
+            int inputIndex = (cycleStart + i) % inputs.size();
+            IT input = inputs.get(inputIndex);
             long t0 = System.nanoTime();
             UseCaseOutcome<IT, OT> outcome;
             try {
-                outcome = useCase.apply(input, tracker);
+                if (matching) {
+                    OT expectedValue = expected.get(inputIndex % expected.size());
+                    outcome = useCase.apply(input, expectedValue, matcher.get(), tracker);
+                } else {
+                    outcome = useCase.apply(input, tracker);
+                }
             } catch (Throwable t) {
                 Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
                 observer.onDefect(i, t, elapsed);
