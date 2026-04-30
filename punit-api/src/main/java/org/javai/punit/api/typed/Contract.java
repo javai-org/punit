@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import org.javai.outcome.Outcome;
+import org.javai.outcome.Outcome.Fail;
+import org.javai.outcome.Outcome.Ok;
 
 /**
  * The operational layer of a use case: how to invoke the service for
@@ -107,7 +109,7 @@ public interface Contract<I, O> {
      * <p>Concrete default; the framework dispatches to this form when
      * the test/experiment hasn't configured matching.
      */
-    default UseCaseOutcome<O> apply(I input, TokenTracker tracker) {
+    default UseCaseOutcome<I, O> apply(I input, TokenTracker tracker) {
         return runSample(input, tracker, Optional.empty());
     }
 
@@ -118,7 +120,7 @@ public interface Contract<I, O> {
      * form when the test/experiment configured an expected list but
      * no custom matcher.
      */
-    default UseCaseOutcome<O> apply(I input, O expected, TokenTracker tracker) {
+    default UseCaseOutcome<I, O> apply(I input, O expected, TokenTracker tracker) {
         return apply(input, expected, ValueMatcher.equality(), tracker);
     }
 
@@ -127,12 +129,12 @@ public interface Contract<I, O> {
      * Concrete default; the framework dispatches to this form when
      * the test/experiment configured matching with a custom matcher.
      */
-    default UseCaseOutcome<O> apply(I input, O expected, ValueMatcher<O> matcher, TokenTracker tracker) {
+    default UseCaseOutcome<I, O> apply(I input, O expected, ValueMatcher<O> matcher, TokenTracker tracker) {
         return runSample(input, tracker,
                 Optional.of(value -> matcher.match(expected, value)));
     }
 
-    private UseCaseOutcome<O> runSample(
+    private UseCaseOutcome<I, O> runSample(
             I input,
             TokenTracker tracker,
             Optional<Function<O, MatchResult>> matchStep) {
@@ -143,43 +145,28 @@ public interface Contract<I, O> {
         Duration duration = Duration.ofNanos(System.nanoTime() - start);
         long sampleTokens = Math.max(0L, tracker.totalTokens() - startTokens);
 
-        return switch (result) {
-            case Outcome.Ok<O> ok -> {
-                Optional<MatchResult> match = matchStep.map(step -> step.apply(ok.value()));
-                UseCaseOutcome<O> built = new UseCaseOutcome<>(
-                        ok.value(),
-                        contractEvaluator(),
-                        match,
-                        sampleTokens,
-                        duration);
-                yield built;
-            }
-            case Outcome.Fail<O> f -> {
-                UseCaseOutcome<O> built = UseCaseOutcome.<O>fail(
-                                f.failure().id().name(),
-                                f.failure().message())
-                        .withTokens(sampleTokens)
-                        .withDuration(duration);
-                yield built;
-            }
-        };
+        List<PostconditionResult> clauseResults = result instanceof Ok<O> ok
+                ? evaluateClauses(ok.value())
+                : List.of();   // postcondition evaluation skipped on apply-level failure
+
+        Optional<MatchResult> match = result instanceof Ok<O> ok2
+                ? matchStep.map(step -> step.apply(ok2.value()))
+                : Optional.empty();
+
+        return new UseCaseOutcome<>(
+                result,
+                this,
+                clauseResults,
+                match,
+                sampleTokens,
+                duration);
     }
 
-    private PostconditionEvaluator<O> contractEvaluator() {
-        List<Postcondition<O>> clauses = postconditions();
-        return new PostconditionEvaluator<>() {
-            @Override
-            public List<PostconditionResult> evaluate(O result) {
-                List<PostconditionResult> out = new ArrayList<>();
-                for (Postcondition<O> p : clauses) {
-                    out.addAll(p.evaluateAll(result));
-                }
-                return List.copyOf(out);
-            }
-            @Override
-            public int postconditionCount() {
-                return clauses.size();
-            }
-        };
+    private List<PostconditionResult> evaluateClauses(O value) {
+        List<PostconditionResult> out = new ArrayList<>();
+        for (Postcondition<O> p : postconditions()) {
+            out.addAll(p.evaluateAll(value));
+        }
+        return out;   // UseCaseOutcome canonical constructor defensive-copies
     }
 }

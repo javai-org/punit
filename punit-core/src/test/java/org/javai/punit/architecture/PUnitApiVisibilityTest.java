@@ -2,7 +2,10 @@ package org.javai.punit.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.javai.punit.api.typed.Contract;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +23,16 @@ class PUnitApiVisibilityTest {
     @Test
     @DisplayName("types from punit-api are visible and usable")
     void typesAreVisible() {
-        UseCaseOutcome<Integer> outcome = UseCaseOutcome.ok(42);
+        Contract<Object, Integer> contract = new Contract<>() {
+            @Override public org.javai.outcome.Outcome<Integer> invoke(Object input, TokenTracker tracker) {
+                return org.javai.outcome.Outcome.ok(42);
+            }
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        };
+        UseCaseOutcome<Object, Integer> outcome = new UseCaseOutcome<>(
+                org.javai.outcome.Outcome.ok(42), contract,
+                java.util.List.of(), java.util.Optional.empty(),
+                0L, java.time.Duration.ZERO);
         assertThat(outcome.value().isOk()).isTrue();
         assertThat(outcome.value().getOrThrow()).isEqualTo(42);
 

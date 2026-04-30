@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.typed.LatencyResult;
 import org.javai.punit.api.typed.MatchResult;
 import org.javai.punit.api.typed.UseCase;
@@ -98,6 +99,7 @@ public final class Engine {
         BudgetTracker tracker = new BudgetTracker(
                 spec.timeBudget(), spec.tokenBudget(), spec.tokenCharge());
         Aggregator<IT, OT> agg = new Aggregator<>(
+                useCase,
                 cfg.inputs(),
                 cfg.expected(),
                 cycleStart,
@@ -126,6 +128,7 @@ public final class Engine {
      */
     private static final class Aggregator<IT, OT> implements SampleObserver<OT> {
 
+        private final UseCase<?, IT, OT> useCase;
         private final List<IT> inputs;
         private final List<OT> expected;
         private final int cycleStart;
@@ -138,8 +141,8 @@ public final class Engine {
         // from every sample so latency stats never skew on drop.
         // trials carries the full ordered (input, outcome, duration)
         // history regardless of the failure cap.
-        private final List<UseCaseOutcome<OT>> retained = new ArrayList<>();
-        private final List<UseCaseOutcome<OT>> allForLatency = new ArrayList<>();
+        private final List<UseCaseOutcome<?, OT>> retained = new ArrayList<>();
+        private final List<UseCaseOutcome<?, OT>> allForLatency = new ArrayList<>();
         private final List<Trial<?, OT>> trials = new ArrayList<>();
         private int successes = 0;
         private int failures = 0;
@@ -147,13 +150,15 @@ public final class Engine {
         private long tokensConsumed = 0L;
         private int failuresDropped = 0;
 
-        Aggregator(List<IT> inputs,
+        Aggregator(UseCase<?, IT, OT> useCase,
+                   List<IT> inputs,
                    List<OT> expected,
                    int cycleStart,
                    Optional<ValueMatcher<OT>> matcher,
                    ExceptionPolicy exceptionPolicy,
                    int maxExampleFailures,
                    BudgetTracker tracker) {
+            this.useCase = useCase;
             this.inputs = inputs;
             this.expected = expected;
             this.cycleStart = cycleStart;
@@ -164,10 +169,11 @@ public final class Engine {
         }
 
         @Override
-        public void onSample(int index, UseCaseOutcome<OT> outcome, Duration elapsed) {
-            UseCaseOutcome<OT> stamped = outcome.withDuration(elapsed);
-            stamped = maybeAttachMatch(index, stamped);
-            record(index, stamped, elapsed);
+        public void onSample(int index, UseCaseOutcome<?, OT> outcome, Duration elapsed) {
+            // outcome already carries duration from Contract.apply; ignore
+            // the executor's measurement (which is essentially the same).
+            UseCaseOutcome<?, OT> withMatch = maybeAttachMatch(index, outcome);
+            record(index, withMatch);
         }
 
         @Override
@@ -184,16 +190,20 @@ public final class Engine {
                 throw new RuntimeException(throwable);
             }
             // FAIL_SAMPLE: synthesise a failing outcome and continue.
-            UseCaseOutcome<OT> synthetic = UseCaseOutcome
-                    .<OT>fail("defect", throwable.toString())
-                    .withDuration(elapsed);
-            record(index, synthetic, elapsed);
+            UseCaseOutcome<IT, OT> synthetic = new UseCaseOutcome<>(
+                    Outcome.fail("defect", throwable.toString()),
+                    useCase,
+                    List.of(),
+                    Optional.empty(),
+                    0L,
+                    elapsed);
+            record(index, synthetic);
         }
 
-        private void record(int index, UseCaseOutcome<OT> stamped, Duration duration) {
+        private void record(int index, UseCaseOutcome<?, OT> stamped) {
             tracker.recordSampleTokens(stamped.tokens());
             allForLatency.add(stamped);
-            trials.add(new Trial<>(inputForIndex(index), stamped, duration));
+            trials.add(trialFor(index, stamped));
             boolean ok = stamped.value().isOk();
             if (ok) {
                 successes++;
@@ -210,20 +220,43 @@ public final class Engine {
             tokensConsumed += stamped.tokens() + tracker.tokenCharge();
         }
 
+        private <I> Trial<IT, OT> trialFor(int index, UseCaseOutcome<I, OT> stamped) {
+            // Trial<IT, OT> requires UseCaseOutcome<IT, OT>; the wildcard
+            // carrier in onSample loses that I; we know the executor only
+            // ever supplies UseCaseOutcome<IT, OT> so this is safe.
+            @SuppressWarnings("unchecked")
+            UseCaseOutcome<IT, OT> typed = (UseCaseOutcome<IT, OT>) stamped;
+            return new Trial<>(inputForIndex(index), typed, stamped.duration());
+        }
+
         private IT inputForIndex(int index) {
             int cycleIndex = (cycleStart + index) % inputs.size();
             return inputs.get(cycleIndex);
         }
 
-        private UseCaseOutcome<OT> maybeAttachMatch(int index, UseCaseOutcome<OT> outcome) {
+        private UseCaseOutcome<?, OT> maybeAttachMatch(int index, UseCaseOutcome<?, OT> outcome) {
             if (expected.isEmpty() || matcher.isEmpty()) {
                 return outcome;
             }
+            if (!(outcome.result() instanceof org.javai.outcome.Outcome.Ok<OT> ok)) {
+                return outcome;   // can't compare against expected if no value produced
+            }
             int cycleIndex = (cycleStart + index) % expected.size();
             OT expectedValue = expected.get(cycleIndex);
-            OT actualValue = outcome.rawResult();
+            OT actualValue = ok.value();
             MatchResult result = matcher.get().match(expectedValue, actualValue);
-            return outcome.withMatch(result);
+            return reconstructWithMatch(outcome, result);
+        }
+
+        private static <I, OT> UseCaseOutcome<I, OT> reconstructWithMatch(
+                UseCaseOutcome<I, OT> outcome, MatchResult match) {
+            return new UseCaseOutcome<>(
+                    outcome.result(),
+                    outcome.contract(),
+                    outcome.postconditionResults(),
+                    Optional.of(match),
+                    outcome.tokens(),
+                    outcome.duration());
         }
 
         SampleSummary<OT> toSummary(Duration elapsed) {

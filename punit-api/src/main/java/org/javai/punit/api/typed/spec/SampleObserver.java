@@ -34,7 +34,7 @@ public interface SampleObserver<OT> {
      * @param outcome the wrapped outcome
      * @param elapsed the wall-clock time the invocation took
      */
-    void onSample(int index, UseCaseOutcome<OT> outcome, Duration elapsed);
+    void onSample(int index, UseCaseOutcome<?, OT> outcome, Duration elapsed);
 
     /**
      * Invoked when {@code useCase.apply(input)} throws. The default

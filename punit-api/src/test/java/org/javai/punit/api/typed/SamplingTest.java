@@ -271,6 +271,53 @@ class SamplingTest {
         assertThat(external.inputs()).containsExactly("a", "b");
     }
 
+    // ── matching(...) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName(".matching(expectedOutputs) defaults to the equality matcher")
+    void matchingDefaultsEquality() {
+        Sampling<Factors, String, String> s = baseBuilder()
+                .matching(java.util.List.of("X", "Y"))
+                .build();
+
+        assertThat(s.expected()).containsExactly("X", "Y");
+        assertThat(s.matcher()).isPresent();
+    }
+
+    @Test
+    @DisplayName(".matching(expectedOutputs, matcher) carries both fields")
+    void matchingWithCustomMatcher() {
+        ValueMatcher<String> custom = ValueMatcher.equality();
+        Sampling<Factors, String, String> s = baseBuilder()
+                .matching(java.util.List.of("a", "b"), custom)
+                .build();
+
+        assertThat(s.expected()).containsExactly("a", "b");
+        assertThat(s.matcher()).contains(custom);
+    }
+
+    @Test
+    @DisplayName("default matcher is empty when matching not configured")
+    void matchingDefaultEmpty() {
+        Sampling<Factors, String, String> s = baseBuilder().build();
+        assertThat(s.expected()).isEmpty();
+        assertThat(s.matcher()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(".matching(null) is rejected")
+    void matchingNullRejected() {
+        assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(() -> baseBuilder().matching(null));
+    }
+
+    @Test
+    @DisplayName(".matching(list, null) is rejected")
+    void matchingNullMatcherRejected() {
+        assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(() -> baseBuilder().matching(java.util.List.of("x"), null));
+    }
+
     @Test
     @DisplayName("Sampling.inputSupplier() returns the underlying supplier")
     void inputSupplierAccessor() {

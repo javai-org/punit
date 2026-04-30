@@ -23,7 +23,7 @@ import org.javai.punit.api.typed.UseCaseOutcome;
  * @param <IT>     the per-sample input type
  * @param <OT>     the per-sample outcome value type
  */
-public record Trial<IT, OT>(IT input, UseCaseOutcome<OT> outcome, Duration duration) {
+public record Trial<IT, OT>(IT input, UseCaseOutcome<IT, OT> outcome, Duration duration) {
 
     public Trial {
         Objects.requireNonNull(outcome, "outcome");

@@ -6,10 +6,14 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.Contract;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.LatencyResult;
 import org.javai.punit.api.typed.LatencySpec;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 import org.javai.punit.api.typed.spec.CriterionResult;
@@ -35,9 +39,23 @@ class CriterionResultDetailTest {
 
     record Factors(String label) {}
 
+    private static final Contract<Object, Integer> STUB_CONTRACT = new Contract<>() {
+        @Override public Outcome<Integer> invoke(Object input, TokenTracker tracker) {
+            return Outcome.ok(0);
+        }
+        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+    };
+
+    private static UseCaseOutcome<Object, Integer> stubOutcome(int value) {
+        return new UseCaseOutcome<>(
+                Outcome.ok(value), STUB_CONTRACT,
+                List.of(), Optional.empty(),
+                0L, Duration.ZERO);
+    }
+
     private static SampleSummary<Integer> summaryWithLatency(LatencyResult latency) {
         return new SampleSummary<>(
-                List.of(UseCaseOutcome.ok(1), UseCaseOutcome.ok(2)),
+                List.of(stubOutcome(1), stubOutcome(2)),
                 Duration.ofMillis(10),
                 2, 0, 0L, 0,
                 latency,

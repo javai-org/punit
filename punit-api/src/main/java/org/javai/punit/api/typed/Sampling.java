@@ -107,6 +107,8 @@ public final class Sampling<FT, IT, OT> {
     private final BudgetExhaustionPolicy budgetPolicy;
     private final ExceptionPolicy exceptionPolicy;
     private final int maxExampleFailures;
+    private final List<OT> expected;
+    private final Optional<ValueMatcher<OT>> matcher;
 
     private Sampling(Builder<FT, IT, OT> b) {
         this.useCaseFactory = b.useCaseFactory;
@@ -118,6 +120,8 @@ public final class Sampling<FT, IT, OT> {
         this.budgetPolicy = b.budgetPolicy;
         this.exceptionPolicy = b.exceptionPolicy;
         this.maxExampleFailures = b.maxExampleFailures;
+        this.expected = b.expected;
+        this.matcher = b.matcher;
     }
 
     public static <FT, IT, OT> Builder<FT, IT, OT> builder() {
@@ -226,6 +230,32 @@ public final class Sampling<FT, IT, OT> {
     }
 
     /**
+     * The expected output values, paired by index with {@link #inputs()}.
+     * Empty when no instance-conformance matching is configured.
+     *
+     * <p>Set via {@link Builder#matching(List)} /
+     * {@link Builder#matching(List, ValueMatcher)}. When non-empty,
+     * the engine pairs each input with its expected value at sample
+     * time and runs {@link #matcher()} (or
+     * {@link ValueMatcher#equality()}) to compare against the
+     * use case's produced value.
+     */
+    public List<OT> expected() {
+        return expected;
+    }
+
+    /**
+     * The matcher to use against {@link #expected()}, if configured.
+     * Defaults to {@link ValueMatcher#equality()} when
+     * {@link Builder#matching(List)} is used; explicitly supplied via
+     * {@link Builder#matching(List, ValueMatcher)} otherwise. Empty
+     * when {@link #expected()} is empty.
+     */
+    public Optional<ValueMatcher<OT>> matcher() {
+        return matcher;
+    }
+
+    /**
      * Returns a new sampling with the sample count replaced. Supports
      * the confidence-first authoring pattern:
      * {@code PowerAnalysis.sampleSize(...)} computes an {@code int},
@@ -251,6 +281,8 @@ public final class Sampling<FT, IT, OT> {
         b.budgetPolicy = this.budgetPolicy;
         b.exceptionPolicy = this.exceptionPolicy;
         b.maxExampleFailures = this.maxExampleFailures;
+        b.expected = this.expected;
+        b.matcher = this.matcher;
         return b;
     }
 
@@ -265,6 +297,8 @@ public final class Sampling<FT, IT, OT> {
         private BudgetExhaustionPolicy budgetPolicy = BudgetExhaustionPolicy.FAIL;
         private ExceptionPolicy exceptionPolicy = ExceptionPolicy.ABORT_TEST;
         private int maxExampleFailures = 10;
+        private List<OT> expected = List.of();
+        private Optional<ValueMatcher<OT>> matcher = Optional.empty();
 
         private Builder() {}
 
@@ -357,6 +391,47 @@ public final class Sampling<FT, IT, OT> {
                         "maxExampleFailures must be non-negative, got " + cap);
             }
             this.maxExampleFailures = cap;
+            return this;
+        }
+
+        /**
+         * Configures instance-conformance matching: pairs each input
+         * with the expected value at the same index, and uses the
+         * default {@link ValueMatcher#equality() equality matcher} to
+         * compare the use case's produced value against it.
+         *
+         * <p>For richer comparisons (case-insensitive string equality,
+         * JSON structural equivalence, …) use the
+         * {@link #matching(List, ValueMatcher) two-arg form}.
+         *
+         * @param expectedOutputs values paired by index with
+         *                        {@link #inputs(List)}; must be the
+         *                        same length as the input list at
+         *                        {@link #build()} time
+         * @throws NullPointerException if {@code expectedOutputs} is null
+         */
+        public Builder<FT, IT, OT> matching(List<OT> expectedOutputs) {
+            return matching(expectedOutputs, ValueMatcher.equality());
+        }
+
+        /**
+         * Configures instance-conformance matching with a custom
+         * matcher. The matcher is invoked per sample against
+         * {@code expected[i]} and the use case's produced value.
+         *
+         * @param expectedOutputs values paired by index with
+         *                        {@link #inputs(List)}; must be the
+         *                        same length as the input list at
+         *                        {@link #build()} time
+         * @param valueMatcher    the comparison function
+         * @throws NullPointerException if either argument is null
+         */
+        public Builder<FT, IT, OT> matching(List<OT> expectedOutputs,
+                                            ValueMatcher<OT> valueMatcher) {
+            Objects.requireNonNull(expectedOutputs, "expectedOutputs");
+            Objects.requireNonNull(valueMatcher, "matcher");
+            this.expected = List.copyOf(expectedOutputs);
+            this.matcher = Optional.of(valueMatcher);
             return this;
         }
 
