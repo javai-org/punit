@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Typed pipeline emits RP07 XML verdicts.** Every typed `@ProbabilisticTest` now produces an `{className}.{methodName}.xml` file under `build/reports/punit/xml/` (configurable via `punit.report.dir` / `PUNIT_REPORT_DIR`, suppressible with `punit.report.enabled=false`). The default behaviour matches the legacy pipeline. The HTML report (`./gradlew punitReport`) consumes these files identically. Some fields don't have a typed-pipeline analogue and render at builder defaults — see Part 11 of the user guide for the full fidelity table.
+- **`<postcondition-failures>` element on RP07 verdict XML.** Per-clause failure histograms produced by the typed pipeline now surface in verdict XML (each clause shows its description, count, and up to three retained input/reason exemplars) and in the HTML report (nested table per test row). The legacy pipeline does not yet populate the histogram; its verdicts continue to omit the section.
+- **`EngineRunSummary` on `ProbabilisticTestResult`.** Run-level scalars (planned/executed samples, elapsed, tokens, latency, termination, confidence, matched baseline filename) are now carried on the typed result. Existing call sites compile unchanged via a back-compat constructor that defaults the summary to empty.
+- **`BaselineLookup.sourceFile`.** The matched baseline's filename is threaded from `BaselineResolver` through `Spec.conclude` so it can populate the verdict XML's `<provenance spec-filename>` attribute.
+
 ### Removed (breaking)
 - **`@FactorSetter`, `@FactorGetter` annotations.** Previously deprecated in 0.6.0. Factor values for EXPLORE and OPTIMIZE experiments must be supplied via `UseCaseProvider.registerWithFactors(...)`; mutable-setter patterns are no longer supported.
 - **`UseCaseProvider.registerAutoWired(...)`** (and the parallel `UseCaseFactory.registerAutoWired(...)`). Previously deprecated in 0.6.0. Use `registerWithFactors(...)` instead.

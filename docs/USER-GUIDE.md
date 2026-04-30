@@ -2350,6 +2350,32 @@ XML verdict collection is enabled by default. The following properties control r
 ./gradlew test -Dpunit.report.enabled=false
 ```
 
+### Typed Pipeline Emission
+
+Both authoring paths emit RP07 XML to the same directory using the same configuration knobs. The legacy `@ProbabilisticTest(...)` annotation path and the typed compositional `PUnit.testing(...).assertPasses()` path produce one file per test invocation, named `{className}.{methodName}.xml`.
+
+The typed pipeline reads test identity by walking the JVM stack to find the nearest `@ProbabilisticTest`-annotated method. When run outside JUnit (for example, a hand-driven integration test that calls `PUnit.testing(...)` directly), the resolver falls back to the use-case identifier in place of `className`/`methodName`. This keeps emission working for non-JUnit usage at the cost of less informative filenames.
+
+A few RP07 fields do not have a direct analogue on a typed-pipeline run today and render at framework defaults rather than with values from the run. The table below makes the distinction explicit so downstream tooling knows what to trust:
+
+| RP07 element / attribute            | Typed pipeline behaviour                                                                                                                                            |
+|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `<identity use-case-id>`            | The use case's `id()`. Falls back to `className` if `id()` returns blank (matching the legacy pipeline's behaviour).                                                |
+| `<execution planned-samples>`       | From `Sampling.samples()`.                                                                                                                                          |
+| `<execution warmup>`                | Not surfaced. Builder default (omitted attribute).                                                                                                                  |
+| `<execution applied-multiplier>`    | Not surfaced. The typed pipeline doesn't apply the legacy `samplesMultiplier`.                                                                                      |
+| `<provenance spec-filename>`        | Populated for empirical criteria that resolve a baseline. Absent when only contractual criteria run.                                                                |
+| `<provenance contract-ref>`         | From `.contractRef(...)` on the test builder when set; absent otherwise.                                                                                            |
+| `<cost total-tokens>`               | From the engine's per-sample token tracker.                                                                                                                         |
+| `<cost ...-budget>`                 | Always `0` (= unlimited). The typed pipeline doesn't surface per-method budget configuration on the verdict.                                                        |
+| `<pacing>`                          | Omitted. Pacing configuration isn't surfaced on the verdict from the typed pipeline.                                                                                |
+| `<latency>`                         | Observed-only — `<observed>` percentiles populated, `<evaluations>` empty (typed pipeline doesn't yet emit per-percentile latency assertions).                      |
+| `<postcondition-failures>`          | Populated from the typed pipeline's per-clause failure histogram. The legacy pipeline omits this section entirely (it doesn't compute the histogram).               |
+| `<termination>`                     | Mapped from the typed `TerminationReason` enum: `COMPLETED` → `COMPLETED`, `TIME_BUDGET` → `METHOD_TIME_BUDGET_EXHAUSTED`, `TOKEN_BUDGET` → `METHOD_TOKEN_BUDGET_EXHAUSTED`. |
+| `correlation-id` (on root)          | Auto-generated `v:xxxxxx` UUID-fragment unless explicitly supplied via `TypedRunMetadata.correlationId`.                                                            |
+
+Custom verdict sinks (Slack notifiers, observability webhooks, archive uploaders) can be plugged in via `TypedVerdictSinkBus.register(VerdictSink)`. The framework's default `VerdictXmlSink` is installed automatically; calling `register(...)` adds your sink alongside it. Tests that need exclusive control can use `TypedVerdictSinkBus.replaceAll(...)`.
+
 ---
 
 ## Appendices
