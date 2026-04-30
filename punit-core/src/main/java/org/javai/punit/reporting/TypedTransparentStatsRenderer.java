@@ -9,6 +9,8 @@ import org.javai.punit.api.typed.covariate.CovariateAlignment;
 import org.javai.punit.api.typed.covariate.CovariateProfile;
 import org.javai.punit.api.typed.spec.CriterionResult;
 import org.javai.punit.api.typed.spec.EvaluatedCriterion;
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.Verdict;
 
@@ -86,6 +88,8 @@ public final class TypedTransparentStatsRenderer {
         for (EvaluatedCriterion entry : result.criterionResults()) {
             renderCriterion(sb, entry);
         }
+
+        renderPostconditionFailures(sb, result.failuresByPostcondition());
 
         if (!result.warnings().isEmpty()) {
             sb.append("  Notes\n");
@@ -258,5 +262,34 @@ public final class TypedTransparentStatsRenderer {
             out.put(cr.criterionName(), cr.detail());
         }
         return out;
+    }
+
+    /**
+     * Renders the per-postcondition failure histogram. Empty when the
+     * contract has no clauses, or when every clause held on every
+     * sample. Clauses are presented in descending count order so the
+     * most-common failure mode appears first; each clause shows its
+     * count and every retained exemplar (engine cap of 3 per clause).
+     */
+    private static void renderPostconditionFailures(
+            StringBuilder sb, Map<String, FailureCount> byClause) {
+        if (byClause.isEmpty()) {
+            return;
+        }
+        sb.append("  Postcondition failures\n");
+        var ordered = byClause.entrySet().stream()
+                .sorted((a, b) -> Integer.compare(b.getValue().count(), a.getValue().count()))
+                .toList();
+        for (var entry : ordered) {
+            FailureCount bucket = entry.getValue();
+            sb.append("    ").append(entry.getKey())
+                    .append(" — ").append(bucket.count()).append(" failure")
+                    .append(bucket.count() == 1 ? "" : "s").append('\n');
+            for (FailureExemplar ex : bucket.exemplars()) {
+                sb.append("      • ").append(ex.input())
+                        .append(" → ").append(ex.reason()).append('\n');
+            }
+        }
+        sb.append('\n');
     }
 }

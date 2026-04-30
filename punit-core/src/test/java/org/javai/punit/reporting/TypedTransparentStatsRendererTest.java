@@ -301,4 +301,89 @@ class TypedTransparentStatsRendererTest {
         assertThat(snapshot.get("percentile-latency"))
                 .containsEntry("p99", "PT0.010S");
     }
+
+    @Nested
+    @DisplayName("Postcondition failures rendering")
+    class PostconditionFailures {
+
+        private ProbabilisticTestResult resultWithHistogram(
+                Map<String, org.javai.punit.api.typed.spec.FailureCount> hist) {
+            return new ProbabilisticTestResult(
+                    Verdict.FAIL, FactorBundle.empty(),
+                    List.of(criterion("bernoulli-pass-rate", Verdict.FAIL,
+                            "observed=0.65", Map.of())),
+                    TestIntent.VERIFICATION,
+                    List.of(),
+                    CovariateAlignment.none(),
+                    java.util.Optional.empty(),
+                    hist);
+        }
+
+        @Test
+        @DisplayName("empty histogram → no Postcondition failures section")
+        void emptyHistogramOmitsSection() {
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithHistogram(Map.of()));
+
+            assertThat(rendered).doesNotContain("Postcondition failures");
+        }
+
+        @Test
+        @DisplayName("non-empty histogram renders section with all retained exemplars")
+        void rendersSection() {
+            var hist = Map.of(
+                    "Valid JSON", new org.javai.punit.api.typed.spec.FailureCount(8, List.of(
+                            new org.javai.punit.api.typed.spec.FailureExemplar(
+                                    "Add 2 apples", "trailing commentary"),
+                            new org.javai.punit.api.typed.spec.FailureExemplar(
+                                    "Clear the basket", "unexpected end of input"),
+                            new org.javai.punit.api.typed.spec.FailureExemplar(
+                                    "Remove the milk", "malformed brace"))));
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithHistogram(hist));
+
+            assertThat(rendered).contains("Postcondition failures");
+            assertThat(rendered).contains("Valid JSON — 8 failures");
+            // All three retained exemplars are surfaced (engine cap of 3 per
+            // clause; transparent stats shows them all — no further truncation).
+            assertThat(rendered).contains("• Add 2 apples → trailing commentary");
+            assertThat(rendered).contains("• Clear the basket → unexpected end of input");
+            assertThat(rendered).contains("• Remove the milk → malformed brace");
+        }
+
+        @Test
+        @DisplayName("clauses sorted by descending count")
+        void sortedByDescendingCount() {
+            var hist = Map.of(
+                    "Less common", new org.javai.punit.api.typed.spec.FailureCount(2, List.of()),
+                    "Most common", new org.javai.punit.api.typed.spec.FailureCount(10, List.of()),
+                    "Middle", new org.javai.punit.api.typed.spec.FailureCount(5, List.of()));
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithHistogram(hist));
+
+            int mostIdx = rendered.indexOf("Most common");
+            int middleIdx = rendered.indexOf("Middle");
+            int lessIdx = rendered.indexOf("Less common");
+
+            assertThat(mostIdx).isPositive();
+            assertThat(middleIdx).isGreaterThan(mostIdx);
+            assertThat(lessIdx).isGreaterThan(middleIdx);
+        }
+
+        @Test
+        @DisplayName("count of 1 uses singular 'failure', > 1 uses plural")
+        void singularPluralAgreement() {
+            var hist = Map.of(
+                    "Single trip", new org.javai.punit.api.typed.spec.FailureCount(1, List.of()),
+                    "Multi trip", new org.javai.punit.api.typed.spec.FailureCount(5, List.of()));
+
+            String rendered = TypedTransparentStatsRenderer.render(
+                    "test", resultWithHistogram(hist));
+
+            assertThat(rendered).contains("Single trip — 1 failure\n");
+            assertThat(rendered).contains("Multi trip — 5 failures\n");
+        }
+    }
 }
