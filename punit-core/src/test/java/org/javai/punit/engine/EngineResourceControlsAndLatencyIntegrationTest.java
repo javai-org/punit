@@ -4,12 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.LatencySpec;
 import org.javai.punit.api.typed.Pacing;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
@@ -51,11 +55,12 @@ class EngineResourceControlsAndLatencyIntegrationTest {
             this.scriptMillis = scriptMillis;
         }
 
-        @Override public UseCaseOutcome<Integer> apply(Integer input) {
+        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             long millis = scriptMillis[index % scriptMillis.length];
             index++;
             sleep(millis);
-            return UseCaseOutcome.ok(input);
+            return Outcome.ok(input);
         }
     }
 
@@ -69,9 +74,11 @@ class EngineResourceControlsAndLatencyIntegrationTest {
             this.tokens = tokens;
         }
 
-        @Override public UseCaseOutcome<Integer> apply(Integer input) {
+        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             sleep(sleepMillis);
-            return UseCaseOutcome.<Integer>ok(input).withTokens(tokens);
+            tracker.recordTokens(tokens);
+            return Outcome.ok(input);
         }
     }
 
@@ -109,8 +116,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         // per outcome would be accounted post-sample; the *projection*
         // is static, so this scenario uses tokenCharge to model it.
         UseCase<Factors, Integer, Integer> zeroOutcomeTokens = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(Integer input) {
-                return UseCaseOutcome.ok(input);
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(input);
             }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
@@ -137,8 +145,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("RC03: static token charge is accounted for each sample")
     void staticChargeAccountedEachSample() {
         UseCase<Factors, Integer, Integer> zeroCost = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(Integer input) {
-                return UseCaseOutcome.ok(input);
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(input);
             }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
@@ -187,8 +196,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void maxRpsInsertsDelay() {
         // 10 RPS → 100ms min delay between samples.
         UseCase<Factors, Integer, Integer> pacingUc = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(Integer input) {
-                return UseCaseOutcome.ok(input);
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(input);
             }
             @Override public Pacing pacing() {
                 return Pacing.builder().maxRequestsPerSecond(10.0).build();
@@ -215,8 +225,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void mostRestrictiveWinsComposition() {
         // maxRps implies 100ms; min explicit 250ms should dominate.
         UseCase<Factors, Integer, Integer> pacingUc = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(Integer input) {
-                return UseCaseOutcome.ok(input);
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(input);
             }
             @Override public Pacing pacing() {
                 return Pacing.builder()
@@ -248,12 +259,13 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void failSampleCatchesAndCounts() {
         AtomicInteger n = new AtomicInteger();
         UseCase<Factors, Integer, Integer> flaky = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(Integer input) {
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 int i = n.incrementAndGet();
                 if (i % 2 == 0) {
                     throw new IllegalStateException("scripted defect " + i);
                 }
-                return UseCaseOutcome.ok(input);
+                return Outcome.ok(input);
             }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
@@ -277,7 +289,8 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("RC13: ABORT_TEST (default) rethrows a thrown defect — preserves legacy behaviour")
     void abortTestRethrows() {
         UseCase<Factors, Integer, Integer> defective = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(Integer input) {
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 throw new IllegalStateException("never mind the exception policy, this is a defect");
             }
         };
@@ -300,8 +313,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("RC14: maxExampleFailures caps retained detail but not failure counts")
     void maxExampleFailuresCaps() {
         UseCase<Factors, Integer, Integer> failing = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(Integer input) {
-                return UseCaseOutcome.fail("scripted", "boom");
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.fail("scripted", "boom");
             }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
@@ -355,9 +369,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void percentileLatencyBreachProducesFail() {
         // 50ms sleeps, assert p50 ≤ 10ms.
         UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
-                return UseCaseOutcome.ok(Boolean.TRUE);
+                return Outcome.ok(Boolean.TRUE);
             }
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling
@@ -387,9 +402,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("mixed criteria: functional PASS + latency FAIL composes to FAIL when both REQUIRED")
     void mixedCriteriaBothRequiredComposesToFail() {
         UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
-                return UseCaseOutcome.ok(Boolean.TRUE);
+                return Outcome.ok(Boolean.TRUE);
             }
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling
@@ -415,9 +431,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("reportOnly latency: functional PASS + latency FAIL(report-only) composes to PASS")
     void reportOnlyLatencyExcludedFromComposition() {
         UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
-                return UseCaseOutcome.ok(Boolean.TRUE);
+                return Outcome.ok(Boolean.TRUE);
             }
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling
@@ -447,9 +464,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("reportOnly functional: contract failures reported but excluded → latency criterion determines verdict")
     void reportOnlyFunctionalExcludedFromComposition() {
         UseCase<Factors, Integer, Boolean> fastButBroken = new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(5);
-                return UseCaseOutcome.fail("scripted", "functional fail intentional");
+                return Outcome.fail("scripted", "functional fail intentional");
             }
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling

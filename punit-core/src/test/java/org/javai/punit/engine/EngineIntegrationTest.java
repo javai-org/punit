@@ -6,9 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
@@ -40,8 +43,9 @@ class EngineIntegrationTest {
 
     /** Always returns the length of the input. Used as a deterministic sample. */
     private static class LengthUseCase implements UseCase<LlmFactors, String, Integer> {
-        @Override public UseCaseOutcome<Integer> apply(String input) {
-            return UseCaseOutcome.ok(input.length());
+        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input.length());
         }
     }
 
@@ -157,8 +161,9 @@ class EngineIntegrationTest {
     void instanceConformanceDrivesVerdict() {
         // Use case: mirror the input, but uppercase it (deliberately wrong for half).
         UseCase<LlmFactors, String, String> upperCase = new UseCase<>() {
-            @Override public UseCaseOutcome<String> apply(String input) {
-                return UseCaseOutcome.ok(input.toUpperCase());
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input.toUpperCase());
             }
         };
 
@@ -185,8 +190,9 @@ class EngineIntegrationTest {
     @DisplayName("expectations: custom matcher overrides equality default")
     void instanceConformanceUsesCustomMatcher() {
         UseCase<LlmFactors, String, String> returnSameCase = new UseCase<>() {
-            @Override public UseCaseOutcome<String> apply(String input) {
-                return UseCaseOutcome.ok(input);
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
             }
         };
 
@@ -219,8 +225,9 @@ class EngineIntegrationTest {
         Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
                 .useCaseFactory(f -> new UseCase<LlmFactors, String, String>() {
-                    @Override public UseCaseOutcome<String> apply(String input) {
-                        return UseCaseOutcome.ok(input);
+                    @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+                    @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                        return Outcome.ok(input);
                     }
                 })
                 .inputs("a", "b")
@@ -271,8 +278,9 @@ class EngineIntegrationTest {
     void exploreSpecRunsEachFactorBundle() {
         var observedByModel = new java.util.LinkedHashMap<String, Integer>();
         UseCase<LlmFactors, String, Integer> counting = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(String input) {
-                return UseCaseOutcome.ok(0);
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(0);
             }
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
@@ -301,8 +309,9 @@ class EngineIntegrationTest {
     @DisplayName("Experiment.optimizing(shape) runs the stepper/scorer loop up to maxIterations")
     void optimizeSpecRunsIterationLoop() {
         UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(String input) {
-                return UseCaseOutcome.ok(input.length());
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input.length());
             }
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
@@ -357,9 +366,10 @@ class EngineIntegrationTest {
     private List<String> runAndRecord() {
         List<String> observed = new ArrayList<>();
         UseCase<LlmFactors, String, Integer> recording = new UseCase<>() {
-            @Override public UseCaseOutcome<Integer> apply(String input) {
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 observed.add(input);
-                return UseCaseOutcome.ok(0);
+                return Outcome.ok(0);
             }
         };
         Sampling<LlmFactors, String, Integer> sampling = Sampling
@@ -376,21 +386,24 @@ class EngineIntegrationTest {
     // ── Test doubles ────────────────────────────────────────────────
 
     private static class AlwaysPassesUseCase implements UseCase<LlmFactors, Integer, Boolean> {
-        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            return UseCaseOutcome.ok(Boolean.TRUE);
+        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.ok(Boolean.TRUE);
         }
     }
 
     /** Returns business-level Fail outcomes — the "contract didn't hold" signal. */
     private static class AlwaysReturnsFailUseCase implements UseCase<LlmFactors, Integer, Boolean> {
-        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            return UseCaseOutcome.fail("contract_violation", "scripted failure for input " + input);
+        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.fail("contract_violation", "scripted failure for input " + input);
         }
     }
 
     /** Throws — a defect, not a business-level failure. The engine aborts. */
     private static class DefectiveUseCase implements UseCase<LlmFactors, Integer, Boolean> {
-        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
+        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             throw new IllegalStateException("simulated defect — this should abort the run");
         }
     }

@@ -2,6 +2,7 @@ package org.javai.punit.api.typed;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.javai.outcome.Outcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -9,26 +10,30 @@ import org.junit.jupiter.api.Test;
 class UseCaseTest {
 
     private static class SimpleUseCase implements UseCase<Object, String, Integer> {
-        @Override public UseCaseOutcome<Integer> apply(String input) {
-            return UseCaseOutcome.ok(input.length());
+        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input.length());
         }
     }
 
     private static class ShoppingBasketUseCase implements UseCase<Object, String, String> {
-        @Override public UseCaseOutcome<String> apply(String input) {
-            return UseCaseOutcome.ok(input);
+        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input);
         }
     }
 
     private static class HTTPClientUseCase implements UseCase<Object, String, String> {
-        @Override public UseCaseOutcome<String> apply(String input) {
-            return UseCaseOutcome.ok(input);
+        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input);
         }
     }
 
     private static class PaymentGateway implements UseCase<Object, String, String> {
-        @Override public UseCaseOutcome<String> apply(String input) {
-            return UseCaseOutcome.ok(input);
+        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input);
         }
     }
 
@@ -81,9 +86,9 @@ class UseCaseTest {
     }
 
     @Test
-    @DisplayName("apply wraps the output value as an Ok outcome")
+    @DisplayName("apply produces an Ok outcome wrapping the invoke result")
     void applyWrapsOutputValue() {
-        var outcome = new SimpleUseCase().apply("hello");
+        var outcome = new SimpleUseCase().apply("hello", TokenTracker.create());
         assertThat(outcome.value().isOk()).isTrue();
         assertThat(outcome.value().getOrThrow()).isEqualTo(5);
     }

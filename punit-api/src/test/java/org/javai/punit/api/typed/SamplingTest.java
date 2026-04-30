@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.time.Duration;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.typed.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
 import org.junit.jupiter.api.DisplayName;
@@ -19,8 +20,11 @@ class SamplingTest {
         EchoUseCase(Factors factors) {}
 
         @Override
-        public UseCaseOutcome<String> apply(String input) {
-            return UseCaseOutcome.ok(input);
+        public void postconditions(ContractBuilder<String> b) { /* none */ }
+
+        @Override
+        public Outcome<String> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input);
         }
 
         @Override

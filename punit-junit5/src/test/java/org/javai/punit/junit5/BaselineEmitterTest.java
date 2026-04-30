@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.nio.file.Path;
 
+import org.javai.outcome.Outcome;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.Experiment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,8 +20,9 @@ class BaselineEmitterTest {
     record NoFactors() { }
 
     private static final UseCase<NoFactors, Integer, Boolean> ALWAYS_PASSES = new UseCase<>() {
-        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            return UseCaseOutcome.ok(true);
+        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.ok(true);
         }
     };
 

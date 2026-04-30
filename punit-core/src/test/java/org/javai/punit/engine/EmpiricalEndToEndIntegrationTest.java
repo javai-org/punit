@@ -5,12 +5,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
+import org.javai.outcome.Outcome;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
@@ -35,8 +38,9 @@ class EmpiricalEndToEndIntegrationTest {
     private static final String USE_CASE_ID = "always-passes-use-case";
 
     static class AlwaysPassesUseCase implements UseCase<Factors, Integer, Boolean> {
-        @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-            return UseCaseOutcome.ok(true);
+        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.ok(true);
         }
         @Override public String id() { return USE_CASE_ID; }
     }

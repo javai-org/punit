@@ -7,13 +7,16 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.javai.outcome.Outcome;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.FactorBundle;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.BaselineStatistics;
 import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.PassRateStatistics;
@@ -33,7 +36,10 @@ class PowerAnalysisTest {
     private static final String USE_CASE_ID = "echo-use-case";
 
     private static final UseCase<Factors, String, String> ECHO = new UseCase<>() {
-        @Override public UseCaseOutcome<String> apply(String input) { return UseCaseOutcome.ok(input); }
+        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input);
+        }
         @Override public String id() { return USE_CASE_ID; }
     };
 

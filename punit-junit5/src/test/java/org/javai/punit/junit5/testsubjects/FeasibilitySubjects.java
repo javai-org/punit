@@ -1,10 +1,12 @@
 package org.javai.punit.junit5.testsubjects;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
 import org.javai.punit.junit5.PUnit;
 
@@ -26,8 +28,9 @@ public final class FeasibilitySubjects {
 
     private static UseCase<NoFactors, Integer, Boolean> alwaysPasses() {
         return new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-                return UseCaseOutcome.ok(true);
+            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(true);
             }
             @Override public String id() { return USE_CASE_ID; }
         };
