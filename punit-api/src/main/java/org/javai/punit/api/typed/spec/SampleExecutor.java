@@ -1,9 +1,11 @@
 package org.javai.punit.api.typed.spec;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.typed.ValueMatcher;
 
 /**
  * How samples are dispatched to the use case's {@code apply()} method.
@@ -29,11 +31,24 @@ public interface SampleExecutor {
      * successive invocations (so a call with {@code cycleStart = k}
      * reads input {@code inputs.get((k) % inputs.size())} first).
      *
+     * <p>When {@code expected} is non-empty and {@code matcher} is
+     * present, the executor dispatches to the use case's matching
+     * {@code apply} form (form 3) per sample, pairing each input
+     * with its expected value. Otherwise it dispatches to the
+     * input-only form (form 1).
+     *
      * <p>Before each sample, the executor consults {@code stopRequested}
      * and halts when it returns true.
      *
      * @param useCase the use case instance
      * @param inputs the inputs to cycle through (non-empty)
+     * @param expected the expected values paired with inputs by
+     *                 round-robin index; empty when no
+     *                 instance-conformance matching is configured.
+     *                 When non-empty, must be the same length as
+     *                 {@code inputs}
+     * @param matcher the matcher to use against {@code expected};
+     *                must be present iff {@code expected} is non-empty
      * @param sampleCount the upper bound on samples to run; must be
      *                    non-negative
      * @param cycleStart the starting cycle index (so warmup can set this
@@ -48,6 +63,8 @@ public interface SampleExecutor {
     <FT, IT, OT> void runSamples(
             UseCase<FT, IT, OT> useCase,
             List<IT> inputs,
+            List<OT> expected,
+            Optional<ValueMatcher<OT>> matcher,
             int sampleCount,
             int cycleStart,
             SampleObserver<OT> observer,

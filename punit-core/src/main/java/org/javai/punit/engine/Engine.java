@@ -17,6 +17,7 @@ import org.javai.punit.api.typed.spec.BaselineProvider;
 import org.javai.punit.api.typed.spec.Configuration;
 import org.javai.punit.api.typed.spec.EngineResult;
 import org.javai.punit.api.typed.spec.ExceptionPolicy;
+import org.javai.punit.api.typed.spec.SampleClassification;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
 import org.javai.punit.api.typed.spec.SampleSummary;
@@ -101,9 +102,7 @@ public final class Engine {
         Aggregator<IT, OT> agg = new Aggregator<>(
                 useCase,
                 cfg.inputs(),
-                cfg.expected(),
                 cycleStart,
-                spec.matcher(),
                 spec.exceptionPolicy(),
                 spec.maxExampleFailures(),
                 tracker);
@@ -112,6 +111,8 @@ public final class Engine {
         executor.runSamples(
                 useCase,
                 cfg.inputs(),
+                cfg.expected(),
+                spec.matcher(),
                 cfg.samples(),
                 cycleStart,
                 agg,
@@ -130,9 +131,7 @@ public final class Engine {
 
         private final UseCase<?, IT, OT> useCase;
         private final List<IT> inputs;
-        private final List<OT> expected;
         private final int cycleStart;
-        private final Optional<ValueMatcher<OT>> matcher;
         private final ExceptionPolicy exceptionPolicy;
         private final int maxExampleFailures;
         private final BudgetTracker tracker;
@@ -152,17 +151,13 @@ public final class Engine {
 
         Aggregator(UseCase<?, IT, OT> useCase,
                    List<IT> inputs,
-                   List<OT> expected,
                    int cycleStart,
-                   Optional<ValueMatcher<OT>> matcher,
                    ExceptionPolicy exceptionPolicy,
                    int maxExampleFailures,
                    BudgetTracker tracker) {
             this.useCase = useCase;
             this.inputs = inputs;
-            this.expected = expected;
             this.cycleStart = cycleStart;
-            this.matcher = matcher;
             this.exceptionPolicy = exceptionPolicy;
             this.maxExampleFailures = maxExampleFailures;
             this.tracker = tracker;
@@ -170,10 +165,11 @@ public final class Engine {
 
         @Override
         public void onSample(int index, UseCaseOutcome<?, OT> outcome, Duration elapsed) {
-            // outcome already carries duration from Contract.apply; ignore
-            // the executor's measurement (which is essentially the same).
-            UseCaseOutcome<?, OT> withMatch = maybeAttachMatch(index, outcome);
-            record(index, withMatch);
+            // The outcome already carries duration, tokens, postcondition
+            // results, and the optional match (set by Contract.apply form 3
+            // when the executor is configured for matching). The classifier
+            // adds the optional duration violation by reading useCase.maxLatency().
+            record(index, outcome, classify(outcome));
         }
 
         @Override
@@ -197,11 +193,22 @@ public final class Engine {
                     Optional.empty(),
                     0L,
                     elapsed);
-            record(index, synthetic);
+            record(index, synthetic, classify(synthetic));
         }
 
-        private void record(int index, UseCaseOutcome<?, OT> stamped) {
-            tracker.recordSampleTokens(stamped.tokens());
+        private SampleClassification classify(UseCaseOutcome<?, OT> outcome) {
+            // SampleClassification.classify wants UseCaseOutcome<I, OT>; the
+            // wildcard at this site is safe because all outcomes flowing
+            // through this aggregator come from the executor, which only
+            // produces UseCaseOutcome<IT, OT>.
+            @SuppressWarnings("unchecked")
+            UseCaseOutcome<IT, OT> typed = (UseCaseOutcome<IT, OT>) outcome;
+            return SampleClassification.classify(useCase, typed);
+        }
+
+        private void record(int index, UseCaseOutcome<?, OT> stamped,
+                            SampleClassification classification) {
+            tracker.recordSampleTokens(classification.tokens());
             allForLatency.add(stamped);
             trials.add(trialFor(index, stamped));
             boolean ok = stamped.value().isOk();
@@ -217,7 +224,7 @@ public final class Engine {
                     failuresDropped++;
                 }
             }
-            tokensConsumed += stamped.tokens() + tracker.tokenCharge();
+            tokensConsumed += classification.tokens() + tracker.tokenCharge();
         }
 
         private <I> Trial<IT, OT> trialFor(int index, UseCaseOutcome<I, OT> stamped) {
@@ -232,31 +239,6 @@ public final class Engine {
         private IT inputForIndex(int index) {
             int cycleIndex = (cycleStart + index) % inputs.size();
             return inputs.get(cycleIndex);
-        }
-
-        private UseCaseOutcome<?, OT> maybeAttachMatch(int index, UseCaseOutcome<?, OT> outcome) {
-            if (expected.isEmpty() || matcher.isEmpty()) {
-                return outcome;
-            }
-            if (!(outcome.result() instanceof org.javai.outcome.Outcome.Ok<OT> ok)) {
-                return outcome;   // can't compare against expected if no value produced
-            }
-            int cycleIndex = (cycleStart + index) % expected.size();
-            OT expectedValue = expected.get(cycleIndex);
-            OT actualValue = ok.value();
-            MatchResult result = matcher.get().match(expectedValue, actualValue);
-            return reconstructWithMatch(outcome, result);
-        }
-
-        private static <I, OT> UseCaseOutcome<I, OT> reconstructWithMatch(
-                UseCaseOutcome<I, OT> outcome, MatchResult match) {
-            return new UseCaseOutcome<>(
-                    outcome.result(),
-                    outcome.contract(),
-                    outcome.postconditionResults(),
-                    Optional.of(match),
-                    outcome.tokens(),
-                    outcome.duration());
         }
 
         SampleSummary<OT> toSummary(Duration elapsed) {
