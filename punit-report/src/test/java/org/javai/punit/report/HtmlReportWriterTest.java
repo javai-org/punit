@@ -2,10 +2,13 @@ package org.javai.punit.report;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
@@ -464,6 +467,76 @@ class HtmlReportWriterTest {
         }
     }
 
+    @Nested
+    @DisplayName("postcondition failures section")
+    class PostconditionFailuresSection {
+
+        @Test
+        @DisplayName("renders nested details with table when histogram is non-empty")
+        void rendersTableWhenPopulated() {
+            String html = HtmlReportWriter.generate(List.of(verdictWithPostconditionFailures()));
+
+            assertThat(html).contains("<summary>Postcondition Failures</summary>");
+            assertThat(html).contains("<table class=\"postcondition-failures\">");
+            assertThat(html).contains("<th>Clause</th>");
+            assertThat(html).contains("<th>Count</th>");
+            assertThat(html).contains("<th>Exemplars</th>");
+        }
+
+        @Test
+        @DisplayName("clauses appear in declaration (insertion) order")
+        void clausesInDeclarationOrder() {
+            String html = HtmlReportWriter.generate(List.of(verdictWithPostconditionFailures()));
+
+            int firstIdx = html.indexOf("Response not empty");
+            int secondIdx = html.indexOf("Valid JSON");
+            assertThat(firstIdx).isPositive();
+            assertThat(secondIdx).isGreaterThan(firstIdx);
+        }
+
+        @Test
+        @DisplayName("exemplars rendered as bullet list with code-formatted input")
+        void exemplarsRenderedAsList() {
+            String html = HtmlReportWriter.generate(List.of(verdictWithPostconditionFailures()));
+
+            assertThat(html).contains("<code>instr-7</code>");
+            assertThat(html).contains("missing actions");
+        }
+
+        @Test
+        @DisplayName("section omitted entirely when histogram is empty")
+        void omittedWhenEmpty() {
+            String html = HtmlReportWriter.generate(List.of(passingVerdict()));
+
+            assertThat(html).doesNotContain("Postcondition Failures");
+            assertThat(html).doesNotContain("table class=\"postcondition-failures\"");
+        }
+
+        @Test
+        @DisplayName("CSS includes postcondition-failures rules")
+        void cssRulesPresent() {
+            String html = HtmlReportWriter.generate(List.of(verdictWithPostconditionFailures()));
+
+            assertThat(html).contains("table.postcondition-failures");
+            assertThat(html).contains(".postcondition-failures td.count");
+        }
+
+        @Test
+        @DisplayName("escapes XML special characters in clause and exemplar fields")
+        void escapesSpecialCharacters() {
+            LinkedHashMap<String, FailureCount> hist = new LinkedHashMap<>();
+            hist.put("clause with <chevrons> & \"quotes\"", new FailureCount(1, List.of(
+                    new FailureExemplar("input <bad>", "reason has \" & < & >"))));
+            ProbabilisticTestVerdict verdict = postconditionFailuresVerdict(hist);
+
+            String html = HtmlReportWriter.generate(List.of(verdict));
+
+            assertThat(html).contains("clause with &lt;chevrons&gt; &amp; &quot;quotes&quot;");
+            assertThat(html).contains("input &lt;bad&gt;");
+            assertThat(html).contains("reason has &quot; &amp; &lt; &amp; &gt;");
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private ProbabilisticTestVerdict passingVerdict() {
@@ -597,6 +670,31 @@ class HtmlReportWriterTest {
                 base.pacing(), Optional.of(prov), base.termination(),
                 base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
                 base.verdictReason()
+        );
+    }
+
+    private ProbabilisticTestVerdict verdictWithPostconditionFailures() {
+        LinkedHashMap<String, FailureCount> hist = new LinkedHashMap<>();
+        hist.put("Response not empty", new FailureCount(2, List.of(
+                new FailureExemplar("instr-1", "blank"),
+                new FailureExemplar("instr-2", "blank"))));
+        hist.put("Valid JSON", new FailureCount(8, List.of(
+                new FailureExemplar("instr-7", "missing actions"),
+                new FailureExemplar("instr-9", "unexpected token"),
+                new FailureExemplar("instr-12", "trailing comma"))));
+        return postconditionFailuresVerdict(hist);
+    }
+
+    private ProbabilisticTestVerdict postconditionFailuresVerdict(
+            Map<String, FailureCount> hist) {
+        ProbabilisticTestVerdict base = passingVerdict();
+        return new ProbabilisticTestVerdict(
+                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
+                base.functional(), base.latency(), base.statistics(), base.covariates(),
+                base.cost(), base.pacing(), base.provenance(), base.termination(),
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason(),
+                hist
         );
     }
 

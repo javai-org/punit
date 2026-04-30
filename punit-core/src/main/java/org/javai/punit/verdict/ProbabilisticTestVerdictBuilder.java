@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.spec.FailureCount;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
@@ -101,6 +102,9 @@ public class ProbabilisticTestVerdictBuilder {
     // ── Verdicts ──────────────────────────────────────────────────────────
     private boolean junitPassed;
     private boolean passedStatistically;
+
+    // ── Postcondition failure histogram ───────────────────────────────────
+    private Map<String, FailureCount> postconditionFailures = Map.of();
 
     // ── Builder methods ───────────────────────────────────────────────────
 
@@ -248,6 +252,24 @@ public class ProbabilisticTestVerdictBuilder {
         return this;
     }
 
+    /**
+     * Per-postcondition failure histogram, keyed by clause description.
+     * Iteration order is preserved (the typed pipeline delivers a
+     * {@link java.util.LinkedHashMap}); the writer renders clauses in
+     * the order the contract declared them.
+     *
+     * @param postconditionFailures the histogram; {@code null} maps to
+     *                              an empty map
+     */
+    public ProbabilisticTestVerdictBuilder postconditionFailures(
+            Map<String, FailureCount> postconditionFailures) {
+        this.postconditionFailures = postconditionFailures != null
+                ? java.util.Collections.unmodifiableMap(
+                        new java.util.LinkedHashMap<>(postconditionFailures))
+                : Map.of();
+        return this;
+    }
+
     // ── Build ─────────────────────────────────────────────────────────────
 
     public ProbabilisticTestVerdict build() {
@@ -269,7 +291,8 @@ public class ProbabilisticTestVerdictBuilder {
                 id, Instant.now(),
                 identity, execution, functional, latency, statistics,
                 covariates, cost, pacing, provenance, termination,
-                environmentMetadata, junitPassed, punitVerdict, verdictReason
+                environmentMetadata, junitPassed, punitVerdict, verdictReason,
+                postconditionFailures
         );
     }
 

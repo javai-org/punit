@@ -19,7 +19,11 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
+import java.util.LinkedHashMap;
+
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
@@ -407,6 +411,112 @@ class VerdictXmlWriterTest {
     }
 
     @Nested
+    @DisplayName("postcondition failures")
+    class PostconditionFailures {
+
+        @Test
+        @DisplayName("emits clauses in declaration (insertion) order with retained exemplars")
+        void emitsClausesInDeclarationOrder() throws Exception {
+            LinkedHashMap<String, FailureCount> hist = new LinkedHashMap<>();
+            hist.put("Response not empty", new FailureCount(2, List.of(
+                    new FailureExemplar("instr-1", "blank"),
+                    new FailureExemplar("instr-2", "blank"))));
+            hist.put("Valid JSON", new FailureCount(8, List.of(
+                    new FailureExemplar("instr-7", "missing actions"),
+                    new FailureExemplar("instr-9", "unexpected token"),
+                    new FailureExemplar("instr-12", "trailing comma"))));
+            ProbabilisticTestVerdict verdict = verdictWithPostconditionFailures(hist);
+
+            Document doc = writeAndParse(verdict);
+            Element section = firstElement(doc, "postcondition-failures");
+            NodeList clauses = section.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "clause");
+
+            assertThat(clauses.getLength()).isEqualTo(2);
+            // Declaration (insertion) order is preserved — not sorted by count
+            assertThat(((Element) clauses.item(0)).getAttribute("description"))
+                    .isEqualTo("Response not empty");
+            assertThat(((Element) clauses.item(0)).getAttribute("count")).isEqualTo("2");
+            assertThat(((Element) clauses.item(1)).getAttribute("description"))
+                    .isEqualTo("Valid JSON");
+            assertThat(((Element) clauses.item(1)).getAttribute("count")).isEqualTo("8");
+
+            NodeList exemplars0 = ((Element) clauses.item(0))
+                    .getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "exemplar");
+            assertThat(exemplars0.getLength()).isEqualTo(2);
+            assertThat(((Element) exemplars0.item(0)).getAttribute("input")).isEqualTo("instr-1");
+            assertThat(((Element) exemplars0.item(0)).getAttribute("reason")).isEqualTo("blank");
+
+            NodeList exemplars1 = ((Element) clauses.item(1))
+                    .getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "exemplar");
+            assertThat(exemplars1.getLength()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("omits postcondition-failures element when histogram is empty")
+        void omitsWhenEmpty() throws Exception {
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
+
+            Document doc = writeAndParse(verdict);
+            NodeList section = doc.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "postcondition-failures");
+
+            assertThat(section.getLength()).isZero();
+        }
+
+        @Test
+        @DisplayName("escapes XML special characters in input and reason attributes")
+        void escapesXmlSpecialChars() throws Exception {
+            LinkedHashMap<String, FailureCount> hist = new LinkedHashMap<>();
+            hist.put("clause with <chevrons> & \"quotes\"", new FailureCount(1, List.of(
+                    new FailureExemplar("input <bad>", "reason has \" & < & >"))));
+            ProbabilisticTestVerdict verdict = verdictWithPostconditionFailures(hist);
+
+            // writeAndParse round-trips the XML; the parser will fail if
+            // the writer didn't escape correctly.
+            Document doc = writeAndParse(verdict);
+            Element clause = (Element) doc.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "clause").item(0);
+            Element exemplar = (Element) clause.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "exemplar").item(0);
+
+            assertThat(clause.getAttribute("description"))
+                    .isEqualTo("clause with <chevrons> & \"quotes\"");
+            assertThat(exemplar.getAttribute("input")).isEqualTo("input <bad>");
+            assertThat(exemplar.getAttribute("reason")).isEqualTo("reason has \" & < & >");
+        }
+
+        @Test
+        @DisplayName("clause with zero exemplars renders count without children")
+        void clauseWithZeroExemplars() throws Exception {
+            LinkedHashMap<String, FailureCount> hist = new LinkedHashMap<>();
+            hist.put("noisy clause", new FailureCount(42, List.of()));
+            ProbabilisticTestVerdict verdict = verdictWithPostconditionFailures(hist);
+
+            Document doc = writeAndParse(verdict);
+            Element clause = (Element) doc.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "clause").item(0);
+
+            assertThat(clause.getAttribute("count")).isEqualTo("42");
+            NodeList exemplars = clause.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "exemplar");
+            assertThat(exemplars.getLength()).isZero();
+        }
+
+        @Test
+        @DisplayName("verdict with postcondition failures validates against RP07 XSD")
+        void validatesAgainstXsd() throws Exception {
+            LinkedHashMap<String, FailureCount> hist = new LinkedHashMap<>();
+            hist.put("Response not empty", new FailureCount(3, List.of(
+                    new FailureExemplar("a", "blank"))));
+            ProbabilisticTestVerdict verdict = verdictWithPostconditionFailures(hist);
+
+            String xml = writeToString(verdict);
+
+            validateAgainstSchema(xml);
+        }
+    }
+
+    @Nested
     @DisplayName("schema validation")
     class SchemaValidation {
 
@@ -615,6 +725,19 @@ class VerdictXmlWriterTest {
                 base.pacing(), base.provenance(), base.termination(),
                 base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
                 base.verdictReason()
+        );
+    }
+
+    private ProbabilisticTestVerdict verdictWithPostconditionFailures(
+            Map<String, FailureCount> hist) {
+        ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
+        return new ProbabilisticTestVerdict(
+                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
+                base.functional(), base.latency(), base.statistics(), base.covariates(),
+                base.cost(), base.pacing(), base.provenance(), base.termination(),
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason(),
+                hist
         );
     }
 

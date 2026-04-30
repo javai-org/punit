@@ -1,12 +1,14 @@
 package org.javai.punit.verdict;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.typed.spec.FailureCount;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
@@ -38,8 +40,47 @@ public record ProbabilisticTestVerdict(
         Map<String, String> environmentMetadata,
         boolean junitPassed,
         PUnitVerdict punitVerdict,
-        String verdictReason
+        String verdictReason,
+        Map<String, FailureCount> postconditionFailures
 ) {
+
+    public ProbabilisticTestVerdict {
+        // Preserve insertion order — clauses appear in the order the
+        // contract declared them. Map.copyOf does not guarantee order;
+        // unmodifiableMap(LinkedHashMap) does.
+        postconditionFailures = postconditionFailures != null
+                ? Collections.unmodifiableMap(new LinkedHashMap<>(postconditionFailures))
+                : Map.of();
+    }
+
+    /**
+     * Backward-compatible constructor for the 16-component shape that
+     * predates the per-postcondition failure histogram. Defaults the
+     * histogram to an empty map. Used by test fixtures and any
+     * legacy producer that doesn't yet thread the histogram through.
+     */
+    public ProbabilisticTestVerdict(
+            String correlationId,
+            Instant timestamp,
+            TestIdentity identity,
+            ExecutionSummary execution,
+            Optional<FunctionalDimension> functional,
+            Optional<LatencyDimension> latency,
+            StatisticalAnalysis statistics,
+            CovariateStatus covariates,
+            CostSummary cost,
+            Optional<PacingSummary> pacing,
+            Optional<SpecProvenance> provenance,
+            Termination termination,
+            Map<String, String> environmentMetadata,
+            boolean junitPassed,
+            PUnitVerdict punitVerdict,
+            String verdictReason) {
+        this(correlationId, timestamp, identity, execution, functional, latency,
+                statistics, covariates, cost, pacing, provenance, termination,
+                environmentMetadata, junitPassed, punitVerdict, verdictReason,
+                Map.of());
+    }
 
     // ── TestIdentity ──────────────────────────────────────────────────────
 
