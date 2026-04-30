@@ -147,7 +147,7 @@ public sealed interface Postcondition<T>
             }
             return switch (result) {
                 case Outcome.Ok<?> ignored -> PostconditionResult.passed(description);
-                case Outcome.Fail<?> f -> PostconditionResult.failed(description, f.failure().message());
+                case Outcome.Fail<?> f -> PostconditionResult.failed(description, f);
             };
         }
 
@@ -189,7 +189,7 @@ public sealed interface Postcondition<T>
             }
             return switch (derived) {
                 case Outcome.Ok<D> ignored -> PostconditionResult.passed(description);
-                case Outcome.Fail<D> f -> PostconditionResult.failed(description, f.failure().message());
+                case Outcome.Fail<D> f -> PostconditionResult.failed(description, f);
             };
         }
 
@@ -215,7 +215,7 @@ public sealed interface Postcondition<T>
                     }
                 }
                 case Outcome.Fail<D> f -> {
-                    out.add(PostconditionResult.failed(description, f.failure().message()));
+                    out.add(PostconditionResult.failed(description, f));
                     appendSkipped(out);
                 }
             }

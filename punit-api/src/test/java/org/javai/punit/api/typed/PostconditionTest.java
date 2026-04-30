@@ -47,6 +47,48 @@ class PostconditionTest {
         }
 
         @Test
+        @DisplayName("Outcome.fail's name is preserved (distinct from description)")
+        void preservesFailureName() {
+            Postcondition<Integer> p = ensure("positive",
+                    v -> v > 0
+                            ? Outcome.ok()
+                            : Outcome.fail("negative", "got " + v));
+
+            PostconditionResult r = p.evaluate(-3);
+
+            assertThat(r.failureName()).contains("negative");
+            assertThat(r.description()).isEqualTo("positive");
+        }
+
+        @Test
+        @DisplayName("a thrown exception fills failureName with the description (synthetic)")
+        void thrownExceptionUsesSyntheticName() {
+            Postcondition<Integer> p = ensure("checked", v -> {
+                throw new IllegalStateException("boom");
+            });
+
+            PostconditionResult r = p.evaluate(0);
+
+            assertThat(r.failed()).isTrue();
+            assertThat(r.failureName()).contains("checked");
+            assertThat(r.failureReason()).contains("boom");
+        }
+
+        @Test
+        @DisplayName("passed result has empty failureName")
+        void passedResultEmptyFailureName() {
+            Postcondition<String> p = ensure("non-empty",
+                    s -> s.isEmpty()
+                            ? Outcome.fail("empty", "was empty")
+                            : Outcome.ok());
+
+            PostconditionResult r = p.evaluate("hello");
+
+            assertThat(r.passed()).isTrue();
+            assertThat(r.failureName()).isEmpty();
+        }
+
+        @Test
         @DisplayName("a thrown RuntimeException is captured as a failure")
         void thrownExceptionCaptured() {
             Postcondition<Integer> p = ensure("checked", v -> {
@@ -149,6 +191,19 @@ class PostconditionTest {
 
             assertThat(r.passed()).isTrue();
             assertThat(r.description()).isEqualTo("parsed");
+        }
+
+        @Test
+        @DisplayName("derivation Outcome.fail preserves the failure name (not the description)")
+        void derivationFailPreservesFailureName() {
+            Postcondition<String> p = deriving("parsed",
+                    s -> Outcome.<Integer>fail("parse-error", "malformed"),
+                    ensure("inner", (Integer n) -> Outcome.ok()));
+
+            List<PostconditionResult> results = p.evaluateAll("garbage");
+
+            assertThat(results.get(0).failureName()).contains("parse-error");
+            assertThat(results.get(0).description()).isEqualTo("parsed");
         }
 
         @Test
