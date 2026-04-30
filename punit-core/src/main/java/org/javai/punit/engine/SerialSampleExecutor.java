@@ -5,18 +5,25 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 
 import org.javai.punit.api.typed.Pacing;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
 import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.SampleExecutor;
 import org.javai.punit.api.typed.spec.SampleObserver;
 
 /**
- * One-at-a-time sample executor. Invokes {@code useCase.apply(input)}
- * on the calling thread and forwards outcomes along with the
- * wall-clock time taken. Consults the caller's early-stop predicate
- * between samples so the engine can enforce wall-clock and token
- * budgets, and honours the use case's declared {@link Pacing}
- * between samples.
+ * One-at-a-time sample executor. Invokes
+ * {@code useCase.apply(input, tracker)} on the calling thread and
+ * forwards outcomes along with the wall-clock time taken. Consults
+ * the caller's early-stop predicate between samples so the engine
+ * can enforce wall-clock and token budgets, and honours the use
+ * case's declared {@link Pacing} between samples.
+ *
+ * <p>Constructs one {@link TokenTracker} per {@code runSamples} call
+ * — that tracker spans every sample in the call, accumulating cost
+ * across the whole run. The contract's {@code apply} default diffs
+ * the tracker's total before and after each {@code invoke} to derive
+ * the per-sample cost recorded on the outcome.
  *
  * <h2>Pacing behaviour</h2>
  *
@@ -62,6 +69,7 @@ public final class SerialSampleExecutor implements SampleExecutor {
 
         Pacing pacing = useCase.pacing();
         long minDelayMillis = pacing.effectiveMinDelayMillis();
+        TokenTracker tracker = new InMemoryTokenTracker();
 
         for (int i = 0; i < sampleCount; i++) {
             if (stopRequested.getAsBoolean()) {
@@ -77,7 +85,7 @@ public final class SerialSampleExecutor implements SampleExecutor {
             long t0 = System.nanoTime();
             UseCaseOutcome<OT> outcome;
             try {
-                outcome = useCase.apply(input);
+                outcome = useCase.apply(input, tracker);
             } catch (Throwable t) {
                 Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
                 observer.onDefect(i, t, elapsed);

@@ -3,9 +3,11 @@ package org.javai.punit.engine.criteria;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.ContractBuilder;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.api.typed.spec.Experiment;
 import org.javai.punit.api.typed.spec.ProbabilisticTest;
 import org.junit.jupiter.api.DisplayName;
@@ -17,7 +19,10 @@ class InlineSamplingFormTest {
     record Factors(String label) {}
 
     private static final UseCase<Factors, String, String> ECHO = new UseCase<>() {
-        @Override public UseCaseOutcome<String> apply(String input) { return UseCaseOutcome.ok(input); }
+        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input);
+        }
     };
 
     @Test

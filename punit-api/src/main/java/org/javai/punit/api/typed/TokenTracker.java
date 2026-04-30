@@ -1,5 +1,7 @@
 package org.javai.punit.api.typed;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Per-run cost channel. The framework creates one {@code TokenTracker}
  * at the start of a run and threads it through every {@code apply}
@@ -41,4 +43,30 @@ public interface TokenTracker {
      *         {@code recordTokens} call so far in this run
      */
     long totalTokens();
+
+    /**
+     * Returns a fresh, thread-safe {@code TokenTracker} backed by an
+     * atomic counter. Used by the framework to construct the
+     * per-run tracker; equally usable from tests that need a simple
+     * concrete instance without depending on engine internals.
+     */
+    static TokenTracker create() {
+        return new TokenTracker() {
+            private final AtomicLong total = new AtomicLong();
+
+            @Override
+            public void recordTokens(long n) {
+                if (n < 0) {
+                    throw new IllegalArgumentException(
+                            "token count must be non-negative, got " + n);
+                }
+                total.addAndGet(n);
+            }
+
+            @Override
+            public long totalTokens() {
+                return total.get();
+            }
+        };
+    }
 }

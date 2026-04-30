@@ -1,11 +1,13 @@
 package org.javai.punit.junit5.testsubjects;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
 import org.javai.punit.junit5.PUnit;
 
@@ -42,8 +44,9 @@ public final class PUnitSubjects {
 
     private static <F> UseCase<F, Integer, Boolean> alwaysPasses() {
         return new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-                return UseCaseOutcome.ok(true);
+            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(true);
             }
             // Anonymous-class getSimpleName() is "", which BaselineRecord
             // rejects as a blank useCaseId. Override with a stable id.
@@ -53,8 +56,9 @@ public final class PUnitSubjects {
 
     private static <F> UseCase<F, Integer, Boolean> alwaysFails() {
         return new UseCase<>() {
-            @Override public UseCaseOutcome<Boolean> apply(Integer input) {
-                return UseCaseOutcome.fail("nope", "always fails");
+            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.fail("nope", "always fails");
             }
             @Override public String id() { return "always-fails-subject"; }
         };

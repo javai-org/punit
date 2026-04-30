@@ -1,23 +1,32 @@
 package org.javai.punit.api.typed;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.javai.outcome.Outcome;
 import org.javai.punit.api.typed.covariate.Covariate;
 
 /**
  * A stochastic service invocation expressed as a typed, three-parameter
- * function.
+ * function. The metadata layer of a use case: how the framework
+ * identifies it, what covariates it is sensitive to, what pacing and
+ * warmup it requires.
+ *
+ * <p>{@code UseCase} extends {@link Contract} — the operational layer
+ * that carries the service call ({@link Contract#invoke invoke}) and
+ * the acceptance criteria ({@link Contract#postconditions(ContractBuilder)
+ * postconditions}). An author writing one use case implements one
+ * interface and overrides three methods: {@code invoke},
+ * {@code postconditions(ContractBuilder)}, and whichever metadata
+ * methods diverge from the framework defaults.
  *
  * <p>{@code FT} is the factor record — the configuration the author has
  * chosen to vary. {@code IT} is the per-sample input. {@code OT} is the
- * per-sample output value type; it is wrapped in a
- * {@link UseCaseOutcome}, whose {@link UseCaseOutcome#value() value}
- * is an {@link org.javai.outcome.Outcome Outcome&lt;OT&gt;} so that the
- * use case can distinguish a produced value from an expected business
- * failure without abusing exceptions.
+ * per-sample output value type, wrapped in an {@link UseCaseOutcome}
+ * assembled by the framework's {@code apply} dispatch on
+ * {@link Contract}.
  *
  * <p>A {@code UseCase} is constructed by the framework once per factor
  * configuration (via the factory declared on the spec). Once
@@ -27,40 +36,34 @@ import org.javai.punit.api.typed.covariate.Covariate;
  *
  * <p>Implementations are free to keep internal caches, connection
  * handles, or other per-configuration state, but must not mutate such
- * state in a way that changes the behaviour observed by
- * {@link #apply(Object) apply}. Pre-existing caches and pools are fine;
- * live reconfiguration in response to sample outcomes is not.
+ * state in a way that changes the behaviour observed by {@code invoke}.
+ * Pre-existing caches and pools are fine; live reconfiguration in
+ * response to sample outcomes is not.
  *
  * @param <FT> the factor record type — typically a {@code record}
  * @param <IT> the per-sample input type
  * @param <OT> the per-sample output value type
  */
-public interface UseCase<FT, IT, OT> {
+public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
 
     /**
-     * Invokes the service for one sample.
+     * An optional per-sample wall-clock bound. When present, the engine
+     * records a duration violation for any sample whose
+     * {@link UseCaseOutcome#duration() duration} exceeds the bound. The
+     * sample's postcondition results are still collected; the violation
+     * is an additional facet, not a short-circuit.
      *
-     * <p>Return an outcome whose {@code value} is an {@link Outcome.Ok}
-     * for a successful invocation and an {@link Outcome.Fail} for an
-     * expected business-level failure (contract violation, validation
-     * error, service-returned error code). The engine counts
-     * {@code Ok} samples as successes and {@code Fail} samples as
-     * failures, preserving the full {@link org.javai.outcome.Failure}
-     * details in the {@code SampleSummary} for diagnostics.
+     * <p>Most use cases do not have a per-sample bound — aggregate
+     * latency claims (e.g. 95th-percentile under N ms) belong on the
+     * test via the {@code PercentileLatency} criterion. The two
+     * statements have two distinct homes.
      *
-     * <p>Throwing from this method is reserved for <em>defects</em> —
-     * {@code NullPointerException}, {@code IllegalStateException},
-     * {@code OutOfMemoryError}, and the like — conditions the author
-     * did not anticipate and that indicate a bug or catastrophe. A
-     * thrown exception bubbles out of the engine and aborts the run.
-     * Do not throw to signal a failed sample; return
-     * {@link UseCaseOutcome#fail(String, String)
-     * UseCaseOutcome.fail(...)} instead.
-     *
-     * @param input the per-sample input
-     * @return the wrapped outcome
+     * @return the per-sample latency bound; never null. The default is
+     *         {@link Optional#empty()}.
      */
-    UseCaseOutcome<OT> apply(IT input);
+    default Optional<Duration> maxLatency() {
+        return Optional.empty();
+    }
 
     /**
      * The stable identifier used in baseline filenames, logs, and

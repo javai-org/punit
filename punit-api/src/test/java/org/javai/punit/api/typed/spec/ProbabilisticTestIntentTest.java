@@ -3,10 +3,12 @@ package org.javai.punit.api.typed.spec;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.typed.ContractBuilder;
 import org.javai.punit.api.typed.Sampling;
+import org.javai.punit.api.typed.TokenTracker;
 import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +18,10 @@ class ProbabilisticTestIntentTest {
     record Factors(String label) {}
 
     private static final UseCase<Factors, String, String> ECHO = new UseCase<>() {
-        @Override public UseCaseOutcome<String> apply(String input) { return UseCaseOutcome.ok(input); }
+        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+            return Outcome.ok(input);
+        }
     };
 
     private static Sampling<Factors, String, String> sampling() {
