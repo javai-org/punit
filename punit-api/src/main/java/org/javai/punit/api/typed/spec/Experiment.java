@@ -341,9 +341,53 @@ public final class Experiment implements Spec {
 
         @Override public EngineResult conclude(BaselineProvider provider) {
             Path dir = Paths.get("explorations", experimentId);
-            String message = "explore artefact (stage 2 placeholder); configurations="
-                    + perConfig.size();
-            return new ExperimentResult(message, dir);
+            StringBuilder message = new StringBuilder("explore artefact (stage 2 placeholder); configurations=")
+                    .append(perConfig.size());
+            renderPerConfigHistograms(message);
+            return new ExperimentResult(message.toString(), dir);
+        }
+
+        /**
+         * Renders the per-configuration postcondition-failure histograms
+         * as a "diff-style" appendix to the explore artefact message —
+         * one block per grid point, so readers see at a glance which
+         * configurations tripped which clauses. Configurations with no
+         * postcondition failures emit a one-line marker so the column
+         * structure stays visible.
+         *
+         * <p>This is a placeholder rendering until the typed-pipeline
+         * gains a real explore-diff output writer; once that lands, the
+         * same per-config data feeds into a structured artefact instead
+         * of an inline message string.
+         */
+        private void renderPerConfigHistograms(StringBuilder out) {
+            boolean anyHistogram = false;
+            for (var summary : perConfig.values()) {
+                if (!summary.failuresByPostcondition().isEmpty()) {
+                    anyHistogram = true;
+                    break;
+                }
+            }
+            if (!anyHistogram) {
+                return;
+            }
+            out.append('\n').append("Failure breakdown by configuration:");
+            for (var entry : perConfig.entrySet()) {
+                out.append('\n').append("  config=").append(entry.getKey()).append(':');
+                var hist = entry.getValue().failuresByPostcondition();
+                if (hist.isEmpty()) {
+                    out.append(" (no postcondition failures)");
+                    continue;
+                }
+                var ordered = hist.entrySet().stream()
+                        .sorted((a, b) -> Integer.compare(b.getValue().count(), a.getValue().count()))
+                        .toList();
+                for (var clause : ordered) {
+                    out.append('\n').append("    ").append(clause.getKey())
+                       .append(": ").append(clause.getValue().count()).append(" failure")
+                       .append(clause.getValue().count() == 1 ? "" : "s");
+                }
+            }
         }
     }
 

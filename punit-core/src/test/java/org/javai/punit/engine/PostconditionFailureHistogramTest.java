@@ -194,6 +194,43 @@ class PostconditionFailureHistogramTest {
         assertThat(lastSeen.get("evenFails").count()).isEqualTo(1);   // input 2
     }
 
+    record GridFactors(String label) {}
+
+    /** A two-clause use case keyed on GridFactors so the explore test
+     *  can use distinct grid points. */
+    private static class GridTwoClauseUseCase implements UseCase<GridFactors, Integer, Integer> {
+        @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.ok(input);
+        }
+        @Override public void postconditions(ContractBuilder<Integer> b) {
+            b.ensure("alwaysFails", v -> Outcome.fail("alwaysFails", "input " + v));
+        }
+    }
+
+    @Test
+    @DisplayName("Explore artefact message renders per-config failure breakdown")
+    void exploreArtefactSurfacesPerConfigHistogram() {
+        var sampling = Sampling
+                .<GridFactors, Integer, Integer>builder()
+                .useCaseFactory(f -> new GridTwoClauseUseCase())
+                .inputs(1)
+                .samples(1)
+                .build();
+
+        Experiment spec = Experiment.exploring(sampling)
+                .grid(new GridFactors("alpha"), new GridFactors("beta"))
+                .build();
+
+        var result = (ExperimentResult) new Engine().run(spec);
+
+        assertThat(result.message())
+                .contains("configurations=2")
+                .contains("Failure breakdown by configuration:")
+                .contains("config=GridFactors[label=alpha]")
+                .contains("config=GridFactors[label=beta]")
+                .contains("alwaysFails: 1 failure");
+    }
+
     // Suppress the (unused) ExperimentResult import — it's referenced by the test bodies above
     @SuppressWarnings("unused") private static final Class<?> KEEP_IMPORT = ExperimentResult.class;
     @SuppressWarnings("unused") private static final Class<?> KEEP_IMPORT_LIST = List.class;
