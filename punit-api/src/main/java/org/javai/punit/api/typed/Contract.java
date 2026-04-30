@@ -46,23 +46,35 @@ public interface Contract<I, O> {
     /**
      * Invoke the service for one sample.
      *
-     * <p>Return {@link Outcome.Ok} carrying the produced value for a
-     * successful invocation, or {@link Outcome.Fail} for an expected
-     * business-level failure (a contract violation, a service-returned
-     * error code, an explicit refusal). The framework counts
-     * {@code Ok} samples as candidates for postcondition evaluation
-     * and {@code Fail} samples as apply-level failures, preserving the
-     * full {@link org.javai.outcome.Failure} for diagnostics.
+     * <h4>How the framework treats the return value</h4>
      *
-     * <p>Throwing from this method is reserved for <em>defects</em> —
-     * programming mistakes, misconfiguration, catastrophe. A thrown
-     * exception bubbles out and aborts the run. Do not throw to
-     * signal a failed sample; return {@code Outcome.fail(name, msg)}.
+     * <ul>
+     *   <li>{@link Outcome.Ok} — the framework treats the sample as a
+     *       candidate for postcondition evaluation. The carried value is
+     *       what each {@code ensure}/{@code deriving} clause sees.</li>
+     *   <li>{@link Outcome.Fail} — the framework treats the sample as an
+     *       apply-level failure. Postconditions are not evaluated (no
+     *       result was produced). The full {@link org.javai.outcome.Failure}
+     *       — symbolic name, message, optional cause — is preserved on
+     *       the {@link UseCaseOutcome} for diagnostics.</li>
+     * </ul>
      *
-     * <p>Record cost via {@code tracker.recordTokens(n)}. The
-     * framework derives the per-sample token count by diffing
-     * {@link TokenTracker#totalTokens()} before and after this call.
-     * Authors with no cost to track simply omit the call.
+     * <h4>How the framework treats a thrown exception</h4>
+     *
+     * <p>The framework does not catch exceptions thrown from this
+     * method. A thrown exception propagates out of the sample runner,
+     * out of the engine, and aborts the run. How an author handles
+     * exception-prone code inside this method body is their decision;
+     * the framework neither encourages nor discourages any particular
+     * pattern.
+     *
+     * <h4>Cost tracking</h4>
+     *
+     * <p>Call {@code tracker.recordTokens(n)} to record cost incurred
+     * during this invocation. The framework derives the per-sample
+     * token count by diffing {@link TokenTracker#totalTokens()} before
+     * and after the call. Authors with no cost to track simply omit
+     * the call.
      *
      * @param input   the per-sample input
      * @param tracker the per-run cost channel
