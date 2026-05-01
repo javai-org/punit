@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.javai.punit.junit5.testsubjects.CovariateSubjects;
+import org.javai.punit.engine.baseline.BaselineResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,8 +37,8 @@ class CovariateRoundTripTest {
 
     @BeforeEach
     void setUp() {
-        savedProperty = System.getProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY,
+        savedProperty = System.getProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY,
                 baselineDir.toString());
         savedCustomCovariate = System.getProperty(CovariateSubjects.REGION_PROPERTY);
         System.setProperty(CovariateSubjects.REGION_PROPERTY, "EU");
@@ -45,7 +46,7 @@ class CovariateRoundTripTest {
 
     @AfterEach
     void tearDown() {
-        restoreProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, savedProperty);
+        restoreProperty(BaselineResolver.BASELINE_DIR_PROPERTY, savedProperty);
         restoreProperty(CovariateSubjects.REGION_PROPERTY, savedCustomCovariate);
     }
 

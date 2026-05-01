@@ -1,4 +1,4 @@
-package org.javai.punit.junit5;
+package org.javai.punit.runtime;
 
 import java.lang.reflect.Method;
 import java.util.Optional;

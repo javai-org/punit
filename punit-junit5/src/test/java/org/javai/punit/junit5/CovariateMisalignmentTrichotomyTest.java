@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import org.javai.punit.junit5.testsubjects.CovariateSubjects;
+import org.javai.punit.engine.baseline.BaselineResolver;
+import org.javai.punit.runtime.PUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,15 +52,15 @@ class CovariateMisalignmentTrichotomyTest {
 
     @BeforeEach
     void setUp() {
-        savedBaselineProperty = System.getProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
+        savedBaselineProperty = System.getProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
         savedRegionProperty = System.getProperty(CovariateSubjects.REGION_PROPERTY);
         System.setProperty(CovariateSubjects.REGION_PROPERTY, "EU");
     }
 
     @AfterEach
     void tearDown() {
-        restore(BaselineProviderResolver.BASELINE_DIR_PROPERTY, savedBaselineProperty);
+        restore(BaselineResolver.BASELINE_DIR_PROPERTY, savedBaselineProperty);
         restore(CovariateSubjects.REGION_PROPERTY, savedRegionProperty);
     }
 

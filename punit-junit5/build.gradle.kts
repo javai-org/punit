@@ -24,6 +24,7 @@ tasks.test {
 dependencies {
     api(project(":punit-core"))
     api(project(":punit-report"))
+    api(project(":punit-runtime"))
     api("org.junit.jupiter:junit-jupiter-api")
 
     // Jackson — needed by InputSourceResolver for JSON/CSV parsing

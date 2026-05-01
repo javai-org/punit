@@ -18,6 +18,7 @@ import org.javai.punit.engine.baseline.BaselineRecord;
 import org.javai.punit.engine.baseline.BaselineWriter;
 import org.javai.punit.engine.baseline.FactorsFingerprint;
 import org.javai.punit.junit5.testsubjects.RoundTripSubjects;
+import org.javai.punit.engine.baseline.BaselineResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,15 +38,15 @@ class MeasureToTestRoundTripTest {
 
     @BeforeEach
     void clearProperty() {
-        savedProperty = System.getProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
+        savedProperty = System.getProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
     }
 
     @AfterEach
     void restoreProperty() {
         if (savedProperty == null) {
-            System.clearProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
+            System.clearProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
         } else {
-            System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, savedProperty);
+            System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, savedProperty);
         }
     }
 
@@ -54,7 +55,7 @@ class MeasureToTestRoundTripTest {
     @Test
     @DisplayName("PUnit.measuring(...).run() writes a baseline YAML when a baseline directory is configured")
     void measureWritesBaseline(@TempDir Path baselineDir) throws IOException {
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
 
         Events events = run(RoundTripSubjects.PassingMeasure.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
@@ -77,7 +78,7 @@ class MeasureToTestRoundTripTest {
         // emitter recorded, and an always-passes use case at n=20 has Wilson
         // lower bound ≈ 0.88 — clears 0.5 comfortably; cannot clear 1.0.
         writeBaselineAt(baselineDir, 0.5, 50);
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
 
         Events events = run(RoundTripSubjects.EmpiricalAgainstBaseline.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));
@@ -90,7 +91,7 @@ class MeasureToTestRoundTripTest {
         // The use case here passes always; the recorded rate will be 1.0,
         // which is too tight a threshold for a Wilson-bound test to clear.
         // We overwrite with a hand-written 0.5 baseline so Phase 2 can pass.
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
         Events emitEvents = run(RoundTripSubjects.PassingMeasure.class);
         emitEvents.assertStatistics(stats -> stats.started(1).succeeded(1));
         try (Stream<Path> files = Files.list(baselineDir)) {
