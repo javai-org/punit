@@ -194,9 +194,14 @@ class PUnitPluginFunctionalTest {
             testDir.mkdirs()
             File(testDir, "MyReliabilitySpec.java").writeText("""
                 package sentinel;
-                import org.javai.punit.api.Sentinel;
-                @Sentinel
-                public class MyReliabilitySpec {}
+                import org.javai.punit.api.ProbabilisticTest;
+                public class MyReliabilitySpec {
+                    @ProbabilisticTest
+                    void shoppingMeetsBaseline() {
+                        // body intentionally empty — the plugin scans
+                        // for the annotation, not the body
+                    }
+                }
             """.trimIndent())
 
             val result = runner("createSentinel").build()
@@ -215,7 +220,7 @@ class PUnitPluginFunctionalTest {
                 val manifest = jar.getInputStream(jar.getEntry("META-INF/punit/sentinel-classes"))
                     .bufferedReader().readText().trim()
                 assertTrue(manifest.contains("sentinel.MyReliabilitySpec"),
-                    "Manifest should list the @Sentinel class")
+                    "Manifest should list the class with the typed @ProbabilisticTest method")
 
                 // Main-Class attribute
                 val mainClass = jar.manifest.mainAttributes.getValue("Main-Class")
@@ -224,12 +229,12 @@ class PUnitPluginFunctionalTest {
                 // Sentinel runtime classes
                 assertTrue(entryNames.contains("org/javai/punit/sentinel/SentinelMain.class"),
                     "JAR should contain SentinelMain")
-                assertTrue(entryNames.contains("org/javai/punit/sentinel/SentinelRunner.class"),
-                    "JAR should contain SentinelRunner")
+                assertTrue(entryNames.contains("org/javai/punit/sentinel/SentinelOrchestrator.class"),
+                    "JAR should contain SentinelOrchestrator")
 
-                // The @Sentinel-annotated class itself
+                // The registered class itself
                 assertTrue(entryNames.contains("sentinel/MyReliabilitySpec.class"),
-                    "JAR should contain the @Sentinel class")
+                    "JAR should contain the registered class")
             }
         }
     }

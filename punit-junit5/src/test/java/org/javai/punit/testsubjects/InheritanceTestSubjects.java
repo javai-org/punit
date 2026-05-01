@@ -10,7 +10,6 @@ import org.javai.punit.api.InputSource;
 import org.javai.punit.api.legacy.MeasureExperiment;
 import org.javai.punit.api.OutcomeCaptor;
 import org.javai.punit.api.legacy.ProbabilisticTest;
-import org.javai.punit.api.Sentinel;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.UseCaseProvider;
 import org.javai.punit.api.UseCase;
@@ -78,7 +77,6 @@ public class InheritanceTestSubjects {
      * Superclass simulating a @Sentinel reliability spec.
      * Declares UseCaseFactory, @ProbabilisticTest method — pure PUnit, no JUnit.
      */
-    @Sentinel
     public static class ProbabilisticTestSpec {
         UseCaseFactory factory = new UseCaseFactory();
         {
@@ -112,7 +110,6 @@ public class InheritanceTestSubjects {
     /**
      * Superclass with @ProbabilisticTest + @InputSource, both inherited.
      */
-    @Sentinel
     public static class ProbabilisticTestWithInputsSpec {
         UseCaseFactory factory = new UseCaseFactory();
         {
@@ -152,7 +149,6 @@ public class InheritanceTestSubjects {
     /**
      * Superclass with @MeasureExperiment.
      */
-    @Sentinel
     public static class MeasureExperimentSpec {
         UseCaseFactory factory = new UseCaseFactory();
         {
