@@ -46,6 +46,7 @@ All attribution licensing is ARL.
   - [Use Case Metadata](#use-case-metadata)
   - [Per-Sample Latency Bounds](#per-sample-latency-bounds)
   - [Warmup: Achieving Statistical Stationarity](#warmup-achieving-statistical-stationarity)
+  - [DI integration: Spring, Guice, and friends](#di-integration-spring-guice-and-friends)
 - [Part 4: The EXPLORE Experiment](#part-4-the-explore-experiment)
   - [When to Use EXPLORE](#when-to-use-explore)
   - [Comparing Configurations](#comparing-configurations)
@@ -307,65 +308,65 @@ This is not a PUnit limitation — it is fundamental to statistical inference. P
 
 ### Threshold Approaches
 
-Three operational modes for `@ProbabilisticTest` that work without baselines. Each approach fixes two parameters and lets PUnit compute the third.
+Three operational modes for a probabilistic test, distinguished by which knob the author fixes first. The first two use an **empirical** threshold (the baseline rate, resolved at runtime, with a Wilson lower bound applied to the run's observed rate at the configured confidence). The third uses a **contractual** threshold (an externally-fixed SLA / SLO / policy figure, with a deterministic `observed >= threshold` comparison — no Wilson margin).
 
-**You cannot specify all three parameters.** Attempting to fix sample size, threshold, *and* confidence simultaneously is statistically nonsensical — the parameter triangle means these values are interdependent.
+**1. Sample-Size-First (Budget-Driven)**
 
-**1. Threshold-First**
+*"I have a sample budget of 100. Run them against the recorded baseline."*
 
-*"I know the pass rate must be ≥90%. Run 100 samples to verify."*
-
-- **You specify**: Sample size + Threshold
-- **PUnit computes**: The implied confidence level
+- **You specify**: sample size.
+- **PUnit applies**: the Wilson lower bound at the default confidence (0.95) to the run's observed rate, and passes iff that lower bound clears the baseline rate read from the matched spec.
 
 ```java
-@ProbabilisticTest(
-    samples = 100,
-    minPassRate = 0.90
-)
-void thresholdFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
-    useCase.translateInstruction(instruction).assertAll();
+@ProbabilisticTest
+void sampleSizeFirst() {
+    PUnit.testing(this::baseline)
+            .samples(100)
+            .criterion(BernoulliPassRate.empirical())
+            .assertPasses();
 }
 ```
 
-**2. Sample-Size-First**
+**2. Confidence-First (Power-Driven)**
 
-*"I have budget for 100 samples. What threshold can I verify with 95% confidence?"*
+*"I need to detect a 5-percentage-point regression with 80% power at 95% confidence. How many samples?"*
 
-- **You specify**: Sample size + Confidence level
-- **PUnit computes**: The achievable threshold
+- **You specify**: target confidence + power + minimum detectable effect (MDE).
+- **PUnit derives**: the required sample size via `PowerAnalysis.sampleSize(baseline, mde, power)`. The verdict still applies the Wilson lower bound, but N is sized so a real regression of size MDE has the configured probability of failing the bound.
+
+The MDE is essential — without it the question "how many samples do I need?" has no finite answer (detecting arbitrarily small degradations requires arbitrarily many samples).
 
 ```java
-@ProbabilisticTest(
-    samples = 100,
-    thresholdConfidence = 0.95
-)
-void sampleSizeFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
-    useCase.translateInstruction(instruction).assertAll();
+@ProbabilisticTest
+void confidenceFirst() {
+    int n = PowerAnalysis.sampleSize(this::baseline, 0.05, 0.80);
+
+    PUnit.testing(this::baseline)
+            .samples(n)
+            .criterion(BernoulliPassRate.empirical().atConfidence(0.95))
+            .assertPasses();
 }
 ```
 
-**3. Confidence-First**
+**3. Threshold-First (Externally-Dictated)**
 
-*"I need to detect a 5% degradation with 95% confidence and 80% power."*
+*"The threshold is 0.90, dictated by SLA. Verify against it."*
 
-- **You specify**: Confidence level + Power + Minimum detectable effect
-- **PUnit computes**: The required sample size
-
-The `minDetectableEffect` parameter is essential here. Without it, the question "how many samples do I need?" has no finite answer — detecting arbitrarily small degradations requires arbitrarily many samples.
+- **You specify**: a contractual threshold and its provenance (`SLA`, `SLO`, or `POLICY`).
+- **PUnit applies**: a deterministic `observed >= threshold` comparison. No baseline is involved; no Wilson margin. The provenance is recorded on the verdict for audit traceability.
 
 ```java
-@ProbabilisticTest(
-    confidence = 0.95,
-    minDetectableEffect = 0.05,
-    power = 0.80
-)
-void confidenceFirst(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
-    useCase.translateInstruction(instruction).assertAll();
+@ProbabilisticTest
+void thresholdFirst() {
+    PUnit.testing(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 100), LlmTuning.DEFAULT)
+            .criterion(BernoulliPassRate.meeting(0.90, ThresholdOrigin.SLA))
+            .assertPasses();
 }
 ```
 
-*Source: `org.javai.punit.examples.probabilistictests.ShoppingBasketThresholdApproachesTest`*
+> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `BernoulliPassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: a roughly coin-flip false-fail rate. The proper baseline-comparison path is `BernoulliPassRate.empirical()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
+
+*Source: `org.javai.punit.examples.probabilistictests.ShoppingBasketThresholdApproachesTest`.*
 
 ### Understanding Test Results
 
@@ -929,6 +930,70 @@ There is no universal formula. The right value depends on what the system needs 
 When in doubt, run a MEASURE experiment with `warmup = 0` and examine the latency profile. If the first few samples show conspicuously higher latency or lower pass rates, increase the warmup count until the distribution stabilises. The EXPLORE experiment can also be used to compare warmup values side by side.
 
 The default is `warmup = 0` — no warmup invocations. Only add warmup when you have evidence of cold-start non-stationarity.
+
+### DI integration: Spring, Guice, and friends
+
+PUnit has no dependency on any DI framework. The integration is whatever produces a configured use case instance — and the integration point is the factory closure on `Sampling.Builder.useCaseFactory(...)`.
+
+**Spring Boot:**
+
+```java
+@SpringBootTest
+class ProductSearchTest {
+
+    @Autowired
+    ApplicationContext ctx;
+
+    @ProbabilisticTest
+    void searchMeetsBaseline() {
+        PUnit.testing(
+                Sampling.<Tuning, String, SearchResult>builder()
+                        .useCaseFactory(tuning -> ctx.getBean(ProductSearchUseCase.class))
+                        .inputs("phone", "laptop", "shoes")
+                        .samples(100)
+                        .build(),
+                Tuning.DEFAULT)
+            .criterion(BernoulliPassRate.empirical())
+            .assertPasses();
+    }
+}
+```
+
+**Guice:**
+
+```java
+class ProductSearchTest {
+
+    private static final Injector injector =
+            Guice.createInjector(new AppModule(), new TestModule());
+
+    @ProbabilisticTest
+    void searchMeetsBaseline() {
+        PUnit.testing(
+                Sampling.<Tuning, String, SearchResult>builder()
+                        .useCaseFactory(tuning -> injector.getInstance(ProductSearchUseCase.class))
+                        .inputs("phone", "laptop", "shoes")
+                        .samples(100)
+                        .build(),
+                Tuning.DEFAULT)
+            .criterion(BernoulliPassRate.empirical())
+            .assertPasses();
+    }
+}
+```
+
+The factory is called once per factor configuration. If your use case takes injected dependencies (an LLM client, a payment-gateway facade), let the container wire them — the factory just hands back the container-managed instance.
+
+If the factor record needs to influence which bean is returned (e.g. a different LLM client per configuration), branch inside the factory:
+
+```java
+.useCaseFactory(tuning -> switch (tuning.provider()) {
+    case OPENAI    -> ctx.getBean(OpenAiSearchUseCase.class);
+    case ANTHROPIC -> ctx.getBean(AnthropicSearchUseCase.class);
+})
+```
+
+There is nothing PUnit-specific about the integration. The factory closure is the contract; everything else is the framework you already use.
 
 ---
 

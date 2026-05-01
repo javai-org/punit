@@ -66,86 +66,98 @@ Both paradigms use the same `@ProbabilisticTest` annotation. The difference is w
 
 ## The Three Operational Approaches
 
-Regardless of which paradigm you use, you must decide **how to parameterize** your test. There are three approaches:
+Regardless of which paradigm you use, you must decide **how to parameterize** your test.
 
-> **See also:** [`ShoppingAssistantSlaExample.java`](../src/test/java/org/javai/punit/examples/ShoppingAssistantSlaExample.java) for a complete working example demonstrating all three approaches.
+> **Where the threshold comes from, and how the comparison is decided.** PUnit's `BernoulliPassRate` criterion has two modes:
+>
+> - **Empirical** (`BernoulliPassRate.empirical()`) — the threshold is the observed pass rate read at runtime from the matched baseline spec (produced by a prior MEASURE experiment). The verdict applies a one-sided **Wilson score lower bound** to the run's observed rate at the configured confidence (default 0.95) and passes iff that lower bound clears the baseline rate. Approaches 1 and 2 below use this mode.
+> - **Contractual** (`BernoulliPassRate.meeting(threshold, origin)`) — the threshold is an externally-fixed number declared in code (an SLA, SLO, or policy figure). The verdict is a **deterministic** `observed >= threshold` comparison. No Wilson margin: an SLA is an external commitment to a specific number, not a statistical claim against a baseline. Approach 3 uses this mode.
+>
+> What the three approaches differ in is which knob the author fixes first.
 
-### Approach 1: Sample-Size-First (Cost-Driven)
+### Approach 1: Sample-Size-First (Budget-Driven)
 
-*"We can afford 100 samples per run. Given our threshold, what confidence does that achieve?"*
+*"My budget allows 100 samples per run. Run them against the recorded baseline and let the framework decide."*
 
 ```java
-@ProbabilisticTest(
-    minPassRate = 0.999,   // SLA or spec-derived threshold
-    samples = 100          // Fixed by budget/time constraints
-)
+@ProbabilisticTest
+void sampleSizeFirst() {
+    PUnit.testing(this::baseline)
+            .samples(100)
+            .criterion(BernoulliPassRate.empirical())
+            .assertPasses();
+}
 ```
 
 **What happens:**
-- PUnit runs exactly 100 samples
-- Computes implied confidence and detection power
-- Reports what conclusions the evidence supports
+- PUnit runs the chosen samples.
+- `empirical()` resolves the matched baseline spec at runtime; its observed rate becomes the threshold for this run.
+- The verdict applies the Wilson lower bound at the default confidence (0.95) to *this* run's observed rate, and passes iff that lower bound clears the baseline.
+- With small N the Wilson margin is wide, so passing requires the observed rate to be clearly above the baseline.
 
-**Trade-off:** You accept whatever statistical power 100 samples provides. Good for detecting large regressions; less sensitive to small degradations.
+**Trade-off:** You accept whatever statistical power 100 samples affords. Detects large regressions confidently; less sensitive to small ones.
 
 **Best for:** Continuous monitoring, CI pipelines, rate-limited APIs.
 
-### Approach 2: Confidence-First (Risk-Driven)
+### Approach 2: Confidence-First (Power-Driven)
 
-*"We need 95% confidence that a pass is meaningful. How many samples?"*
+*"I need to be able to detect a 5-percentage-point regression with 80% probability at 95% confidence. How many samples?"*
 
 ```java
-@ProbabilisticTest(
-    minPassRate = 0.999,
-    confidence = 0.95,           // How sure we need to be
-    power = 0.80,                // Probability of detecting a real problem
-    minDetectableEffect = 0.002  // Smallest degradation we care about
-)
+@ProbabilisticTest
+void confidenceFirst() {
+    int n = PowerAnalysis.sampleSize(this::baseline, 0.05, 0.80);
+
+    PUnit.testing(this::baseline)
+            .samples(n)
+            .criterion(BernoulliPassRate.empirical().atConfidence(0.95))
+            .assertPasses();
+}
 ```
 
 **What happens:**
-- PUnit computes required sample size from statistical parameters
-- Runs that many samples (may be large)
-- Provides guaranteed confidence and power
+- `PowerAnalysis.sampleSize(baseline, mde, power)` derives the required N from the baseline rate, the minimum detectable effect (MDE), and the target power.
+- PUnit runs that many samples (typically larger than budget-driven runs).
+- Verdict still applies the Wilson lower bound at the target confidence — but N is sized so a real regression of size MDE has the configured probability of failing the bound.
 
-**Trade-off:** Sample size is determined by statistics, not budget. May require many samples for tight thresholds.
+**Trade-off:** Sample size is determined by statistics, not budget. Tight MDEs and high power require many samples.
 
 **Best for:** Safety-critical systems, compliance audits, pre-release assurance.
 
-### Approach 3: Threshold-First (Baseline-Anchored)
+### Approach 3: Threshold-First (Externally-Dictated)
 
-*"We want to test against the exact experimental rate."*
+*"The threshold is fixed by an SLA, SLO, or policy. Verify against it."*
 
 ```java
-@ProbabilisticTest(
-    useCase = MyUseCase.class,   // Spec provides empirical data
-    samples = 100,
-    minPassRate = 0.935          // Raw experimental rate
-)
+@ProbabilisticTest
+void thresholdFirst() {
+    PUnit.testing(MyUseCase.sampling(INPUTS, 100), MyFactors.DEFAULT)
+            .criterion(BernoulliPassRate.meeting(0.90, ThresholdOrigin.SLA))
+            .contractRef("Customer API SLA §3.1")
+            .assertPasses();
+}
 ```
 
 **What happens:**
-- PUnit uses the explicit threshold
-- Computes implied confidence
-- Warns if false positive rate is high
+- The threshold and its provenance (`SLA`, `SLO`, or `POLICY`) are declared in code; no baseline is involved.
+- PUnit runs the chosen samples and applies a **deterministic** `observed >= threshold` comparison — no Wilson margin.
+- The threshold's provenance and the optional `contractRef` are recorded on the verdict for audit traceability.
 
-**Trade-off:** Using the raw experimental rate as threshold means ~50% of legitimate tests will fail due to sampling variance.
+**Trade-off:** No statistical buffer. With a small N relative to a strict threshold, declare `intent = TestIntent.SMOKE` to mark the run as a sentinel rather than a verification claim; otherwise PUnit's pre-flight feasibility gate may reject the configuration as undersized for verification.
 
-**Best for:** Organizations learning the trade-offs, or deliberately accepting strict thresholds.
+**Best for:** SLA-style verification of services with externally-committed reliability targets.
+
+> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `BernoulliPassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: ~50% false-fail rate. The proper baseline-comparison path is `BernoulliPassRate.empirical()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
 
 ### Choosing Your Approach
 
-**In practice, choose ONE approach and use it consistently across your organization.**
+| If Your Priority Is...               | Use...            | You're Saying...                                                       |
+|--------------------------------------|-------------------|------------------------------------------------------------------------|
+| Controlling costs (CI time, API)     | Sample-Size-First | "We can afford N samples against the baseline. Verdict at default confidence." |
+| Minimizing risk (safety, compliance) | Confidence-First  | "We need to detect this regression at this power. How many samples?"   |
+| Honouring a contractual target       | Threshold-First   | "The SLA says 0.99. Pass iff observed beats it."                       |
 
-| If Your Priority Is...               | Use...            | You're Saying...                            |
-|--------------------------------------|-------------------|---------------------------------------------|
-| Controlling costs (CI time, API)     | Sample-Size-First | "We can afford N samples. What do we get?"  |
-| Minimizing risk (safety, compliance) | Confidence-First  | "We need X% confidence. What does it cost?" |
-| Learning the trade-offs              | Threshold-First   | "Show me exactly what's happening."         |
-
-All three approaches work with both SLA-driven and spec-driven testing. The approach determines **how** you parameterize—not **where** the threshold comes from.
-
-> **Working example:** See [`ShoppingAssistantSlaExample.java`](../src/test/java/org/javai/punit/examples/ShoppingAssistantSlaExample.java) for a complete demonstration of all three approaches with extensive commentary.
+> **Working example:** See [`ShoppingBasketThresholdApproachesTest`](https://github.com/javai-org/punitexamples/blob/main/src/test/java/org/javai/punit/examples/probabilistictests/ShoppingBasketThresholdApproachesTest.java) in punitexamples for a complete demonstration of all three approaches.
 
 ---
 
@@ -180,18 +192,29 @@ We therefore define a **Use Case** and its associated **Service Contract**. The 
 - **Experiments** use it as a source of correctness data (to measure behavior).
 - **Probabilistic Tests** use it as a correctness enforcer (to verify performance against a threshold).
 
-A Use Case is a reusable function that invokes your production code and captures observations:
+A Use Case is a reusable class that invokes your production code and declares an acceptance contract:
 
 ```java
-@UseCase("usecase.json.generation")
-public UseCaseResult generateJson(String prompt, UseCaseContext context) {
-    LlmResponse response = llmClient.complete(prompt);
-    boolean isValid = JsonValidator.isValid(response.getContent());
-    
-    return UseCaseResult.builder()
-        .value("isValidJson", isValid)
-        .value("tokensUsed", response.getTokensUsed())
-        .build();
+public final class JsonGenerationUseCase
+        implements UseCase<Tuning, String, String> {
+
+    @Override
+    public Outcome<String> invoke(String prompt, TokenTracker tracker) {
+        LlmResponse response = llmClient.complete(prompt);
+        tracker.recordTokens(response.getTokensUsed());
+        return Outcome.ok(response.getContent());
+    }
+
+    @Override
+    public void postconditions(ContractBuilder<String> b) {
+        b.ensure("Output is valid JSON",
+                output -> JsonValidator.isValid(output)
+                        ? Outcome.ok()
+                        : Outcome.fail("invalid-json", "validator rejected output"));
+    }
+
+    @Override
+    public String id() { return "json-generation"; }
 }
 ```
 
@@ -417,7 +440,7 @@ OPTIMIZE iteratively refines a **control factor** through mutation and evaluatio
 
 | Step            | Command             | Output                                  |
 |-----------------|---------------------|-----------------------------------------|
-| Define use case | —                   | `@UseCase` class                        |
+| Define use case | —                   | `UseCase<F, I, O>` class                |
 | Run experiment  | `./gradlew measure` | Spec file                               |
 | Commit spec     | `git commit`        | Version-controlled baseline             |
 | Run tests       | `./gradlew test`    | Qualified verdicts (VERIFICATION/SMOKE) |

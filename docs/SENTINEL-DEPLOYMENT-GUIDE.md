@@ -20,13 +20,17 @@ This is the PUnit Sentinel: an execution engine that runs the same probabilistic
 
 ## Reference Module Layout
 
+For a real production deployment a multi-module split keeps responsibilities clean:
+
 ```
 app-stochastic          punit-core
   ↑         ↑              ↑
 app-main    app-usecases ──┘
-              ↑
-         test suite ──→ createSentinel task ──→ sentinel.jar
+                  │
+                  └──→ createSentinel task ──→ sentinel.jar
 ```
+
+For a self-contained example a single module is fine — the same `src/main/java` shape works in either case (see `punitexamples` for a single-module reference). What matters is **where the sentinel-deployable classes live**, not how many Gradle modules the project has.
 
 ### Module Responsibilities
 
@@ -57,9 +61,9 @@ public class OpenAiClient {
 }
 ```
 
-#### `app-usecases` — Reliability Specifications
+#### `app-usecases` — Use Cases and Sentinel-Deployable Classes
 
-Contains `@Sentinel`-annotated reliability specification classes, use case implementations, service contracts, and `@InputSource` methods. This is the bridge between the application's stochastic services and PUnit's monitoring framework.
+Contains `UseCase` implementations and the sentinel-deployable classes that exercise them. A sentinel-deployable class is just a class declaring one or more `@ProbabilisticTest` and/or `@Experiment` methods — there is **no class-level marker annotation**. The same class is consumed by JUnit at development time (because `@ProbabilisticTest` and `@Experiment` are meta-annotated `@Test`) and by the Sentinel runner at deployment time.
 
 ```kotlin
 // app-usecases/build.gradle.kts
@@ -69,9 +73,9 @@ dependencies {
 }
 ```
 
-This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`@Sentinel`, `UseCaseFactory`, `UseCaseOutcome`, `ServiceContract`, etc.) are production dependencies in this module because the reliability specification is a production artifact.
+This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`UseCase`, `Contract`, `ContractBuilder`, `Sampling`, `PUnit`, etc.) are production dependencies in this module because the sentinel-deployable classes are production artefacts.
 
-The module must **not** depend on `punit-junit5` or `junit-jupiter-api`. The reliability specification is JUnit-free. For how to author a `@Sentinel` class and the reliability-specification-first model, see [Part 10 of the User Guide](USER-GUIDE.md#part-10-the-sentinel).
+The module must **not** depend on `punit-junit5` or `junit-jupiter-api`. Sentinel-deployable code is JUnit-free. For the contract-first authoring model, see [Part 3 of the User Guide](USER-GUIDE.md#part-3-the-use-case).
 
 #### `app-main` — Main Application
 
@@ -90,7 +94,7 @@ The DI layer simply instantiates the stochastic service classes from `app-stocha
 
 #### Test Suite — JUnit Probabilistic Tests
 
-The JUnit test source set. Contains thin subclasses of `@Sentinel` reliability specifications, standalone `@ProbabilisticTest` classes, experiments, and test utilities.
+The JUnit test source set. Contains standalone `@ProbabilisticTest` and `@Experiment` classes plus test utilities. Sentinel-deployable classes from `app-usecases` are picked up automatically by JUnit alongside these.
 
 ```kotlin
 // In app-usecases/build.gradle.kts or a dedicated app-tests module
@@ -103,7 +107,7 @@ dependencies {
 
 #### Sentinel JAR — Built by the PUnit Gradle Plugin
 
-The PUnit Gradle plugin provides a `createSentinel` task that builds an executable fat JAR from the test classpath. No dedicated `app-sentinel` module is needed — the task discovers all `@Sentinel`-annotated classes, packages them with their dependencies and the Sentinel runtime, and produces a self-contained executable:
+The PUnit Gradle plugin provides a `createSentinel` task that builds an executable fat JAR from compiled main classes. The task scans for classes declaring `@ProbabilisticTest` or `@Experiment` methods, packages them with their dependencies and the Sentinel runtime, and produces a self-contained executable:
 
 ```bash
 ./gradlew createSentinel
@@ -111,22 +115,22 @@ The PUnit Gradle plugin provides a `createSentinel` task that builds an executab
 
 The resulting JAR (`build/libs/<project>-sentinel.jar`) includes:
 
-- All `@Sentinel`-annotated classes (from test and main source sets, plus transitive project dependencies)
-- The `punit-sentinel` runtime (`SentinelMain`, `SentinelRunner`, verdict sinks)
+- All sentinel-runnable classes (from main source sets and transitive project dependencies)
+- The `punit-sentinel` runtime (`SentinelMain`, `SentinelOrchestrator`, `SentinelExecutor`, verdict sinks)
 - All runtime dependencies, unpacked into the fat JAR
 - A generated `META-INF/punit/sentinel-classes` manifest
 
-The task requires at least one `@Sentinel`-annotated class on the test classpath. The plugin automatically adds `punit-sentinel` as a dependency — no manual dependency declaration is needed beyond the standard `org.javai.punit` plugin application.
+The task requires at least one class declaring `@ProbabilisticTest` or `@Experiment` on the main classpath. The plugin automatically adds `punit-sentinel` as a dependency — no manual dependency declaration is needed beyond the standard `org.javai.punit` plugin application.
 
 ---
 
-## Why Reliability Specifications Are Not Test Code
+## Why Sentinel-Deployable Classes Are Not Test Code
 
-Reliability specifications define **what to measure** and **what to verify** about stochastic behaviour. They are consumed by both the JUnit test suite (via inheritance) and the Sentinel (directly).
+Sentinel-deployable classes define **what to measure** and **what to verify** about stochastic behaviour. They are consumed by both the JUnit test suite (because their `@ProbabilisticTest` / `@Experiment` methods are meta-annotated `@Test`) and the Sentinel runner (which discovers them via the build-time manifest).
 
-Placing them in a test source set makes them unavailable to the Sentinel — code in `src/test/java` is never packaged into a JAR. The `app-usecases` module is the bridge: it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `UseCaseFactory`, `UseCaseOutcome`, `ServiceContract`, annotations, etc.), and it produces a production artifact consumable by both engines.
+Placing them in a test source set makes them unavailable to the Sentinel — code in `src/test/java` is never packaged into a deployable JAR. The `app-usecases` module is the bridge: it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `UseCase`, `Contract`, `ContractBuilder`, `PUnit`, etc.), and produces a production artefact consumable by both engines.
 
-This also applies to `@InputSource` methods and their data. The Sentinel engine needs the same inputs as the JUnit engine. If input data lives in the test source set, the Sentinel cannot reach it.
+This also applies to input data — anything passed to `Sampling.Builder.inputs(...)`. The Sentinel engine needs the same inputs as the JUnit engine. If input data lives in the test source set or a test resource folder, the Sentinel cannot reach it.
 
 ---
 
@@ -136,7 +140,7 @@ The Sentinel runtime has no DI container. Stochastic services must be constructa
 
 This is not a limitation — it's a **forcing function for clean API boundaries** around non-deterministic behaviour. Applications using Spring, Guice, or other DI frameworks isolate their stochastic integrations in `app-stochastic` as plain Java objects. The main application's DI layer wraps them as beans. No code duplication, no PUnit dependency in the main application.
 
-No framework-specific Sentinel variants are needed or provided. There is no `SpringSentinel` or `GuiceSentinel`. The `@Sentinel` class constructs its stochastic dependencies as plain Java objects, and the Sentinel runtime knows nothing about DI frameworks.
+No framework-specific Sentinel variants are needed or provided. There is no `SpringSentinel` or `GuiceSentinel`. A sentinel-deployable class constructs its stochastic dependencies as plain Java objects (via factory closures on `Sampling.Builder.useCaseFactory(...)`), and the Sentinel runtime knows nothing about DI frameworks.
 
 ---
 
@@ -144,7 +148,7 @@ No framework-specific Sentinel variants are needed or provided. There is no `Spr
 
 ### 0. Build the Sentinel JAR
 
-Build the executable sentinel JAR from the project that contains the `@Sentinel` classes:
+Build the executable sentinel JAR from the project that contains the sentinel-deployable classes:
 
 ```bash
 ./gradlew createSentinel
@@ -160,16 +164,7 @@ List the tests and experiments packaged in the JAR:
 java -jar sentinel.jar --list
 ```
 
-```
-Use Case Id            Type        Name                                      Samples
-──────────────────────────────────────────────────────────────────────────────────────
-PaymentGatewayUseCase  experiment  PaymentGatewayReliability.measureBaseline  200
-PaymentGatewayUseCase  test        PaymentGatewayReliability.testLatency      50
-ShoppingBasketUseCase  experiment  ShoppingBasketReliability.measureBaseline  1000
-ShoppingBasketUseCase  test        ShoppingBasketReliability.testBaseline     100
-```
-
-The **Use Case Id** column is the value to pass to `--useCase` for selective execution.
+The output groups discovered methods by use case, distinguishing `@Experiment` methods (which produce baselines, exploration grids, or optimisation histories) from `@ProbabilisticTest` methods (which produce verdicts).
 
 ### 2. Establish Baselines (Experiment Mode)
 
@@ -179,11 +174,11 @@ Run measure experiments in the target environment to produce environment-local b
 # Run all experiments
 java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp
 
-# Run experiments for a specific use case
-java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp --useCase ShoppingBasketUseCase
+# Run experiments for a specific class
+java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp --class ShoppingBasketSentinel
 ```
 
-This scans `@MeasureExperiment` methods in each `@Sentinel` class, executes the sample loops, and writes per-dimension spec files to the specified directory. The spec directory is required for experiment mode and can be set via `-Dpunit.spec.dir` or the `PUNIT_SPEC_DIR` environment variable.
+This scans `@Experiment` methods on each registered class, executes the bodies (which call `PUnit.measuring(...).run()` to produce baselines, or `PUnit.exploring(...) / .optimizing(...)` for exploration / optimisation runs), and writes outputs to the configured directories. The spec directory is required for measure experiments and can be set via `-Dpunit.spec.dir` or the `PUNIT_SPEC_DIR` environment variable.
 
 ### 3. Verify Against Baselines (Test Mode)
 
@@ -193,14 +188,14 @@ Run probabilistic tests against the current baselines:
 # Run all tests
 java -jar sentinel.jar test
 
-# Run tests for a specific use case
-java -jar sentinel.jar test --useCase PaymentGatewayUseCase
+# Run tests for a specific class
+java -jar sentinel.jar test --class PaymentGatewaySentinel
 
 # Run with per-sample progress output
 java -jar sentinel.jar test --verbose
 ```
 
-This scans `@ProbabilisticTest` methods, loads specs via the layered `SpecRepository` (environment-local first, classpath fallback), derives thresholds, and executes the sample loops.
+This scans `@ProbabilisticTest` methods, executes the bodies (which call `PUnit.testing(...).criterion(...).assertPasses()`), resolves baselines via the layered `BaselineProvider` (environment-local first, classpath fallback), derives thresholds, and dispatches verdicts.
 
 ### 4. Verdict Dispatch
 
@@ -214,7 +209,7 @@ Verdicts are dispatched to all configured `VerdictSink` instances. Each verdict 
 
 ## Scheduling Is the Deployer's Responsibility
 
-The Sentinel is a library, not a daemon. It does not schedule its own execution, manage cron expressions, or run a background loop. The `SentinelRunner` executes when called, produces a `SentinelResult`, and returns. How and when it is called is entirely up to the deployer.
+The Sentinel is a library, not a daemon. It does not schedule its own execution, manage cron expressions, or run a background loop. `SentinelOrchestrator.run(...)` executes when called, returns a `SentinelResult`, and that's it. How and when it is called is entirely up to the deployer.
 
 This is a deliberate design choice. Scheduling infrastructure varies widely across deployment environments, and PUnit has no reason to reinvent or constrain it. The deployer selects the mechanism that fits their operational context:
 
@@ -230,23 +225,23 @@ The Sentinel's exit code (`SentinelResult.allPassed()`) and verdict dispatch (`V
 
 ## Dependency Summary
 
-| Module           | PUnit Dependency          | JUnit Dependency       | Purpose                         |
-|------------------|---------------------------|------------------------|---------------------------------|
-| `app-stochastic` | None                      | None                   | Stochastic service integrations |
-| `app-main`       | None                      | None                   | Main application                |
-| `app-usecases`   | `punit-core` (production) | None                   | Reliability specifications      |
-| Test suite       | `punit-junit5` (test)     | `junit-jupiter` (test) | JUnit probabilistic tests       |
+| Module           | PUnit Dependency          | JUnit Dependency       | Purpose                                                |
+|------------------|---------------------------|------------------------|--------------------------------------------------------|
+| `app-stochastic` | None                      | None                   | Stochastic service integrations                        |
+| `app-main`       | None                      | None                   | Main application                                       |
+| `app-usecases`   | `punit-core` (production) | None                   | Use cases + sentinel-deployable classes                |
+| Test suite       | `punit-junit5` (test)     | `junit-jupiter` (test) | JUnit-driven probabilistic tests, experiments, fixtures|
 
-The sentinel JAR is built by the PUnit Gradle plugin's `createSentinel` task from the test classpath — no dedicated sentinel module is needed. The plugin automatically includes `punit-sentinel` and its transitive dependencies.
+The sentinel JAR is built by the PUnit Gradle plugin's `createSentinel` task from the main classpath — no dedicated sentinel module is needed. The plugin automatically includes `punit-sentinel` and its transitive dependencies.
 
 ---
 
-## PUnit Artifact Selection
+## PUnit Artefact Selection
 
-| Consumer                      | Artifact                   | Scope                                                    |
-|-------------------------------|----------------------------|----------------------------------------------------------|
-| Reliability spec author       | `org.javai:punit-core`     | `api` (production)                                       |
-| JUnit test developer          | `org.javai:punit-junit5`   | `testImplementation`                                     |
-| Existing consumer (pre-split) | `org.javai:punit`          | `testImplementation` (backward-compatible meta-artifact) |
+| Consumer                            | Artefact                   | Scope                |
+|-------------------------------------|----------------------------|----------------------|
+| Sentinel-deployable / use-case author | `org.javai:punit-core`     | `api` (production)   |
+| JUnit test developer                | `org.javai:punit-junit5`   | `testImplementation` |
+| Verdict-XML / report consumer       | `org.javai:punit-report`   | as appropriate       |
 
-The `punit-sentinel` artifact is included automatically by the PUnit Gradle plugin when building the sentinel JAR via `createSentinel`. No manual dependency declaration is needed for sentinel deployment.
+The `punit-sentinel` artefact is included automatically by the PUnit Gradle plugin when building the sentinel JAR via `createSentinel`. No manual dependency declaration is needed for sentinel deployment.
