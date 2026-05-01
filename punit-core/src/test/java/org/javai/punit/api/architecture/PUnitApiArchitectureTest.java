@@ -14,14 +14,22 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Architecture rules for the {@code punit-api} module.
+ * Architecture rules for the {@code org.javai.punit.api} package.
  *
- * <p>{@code punit-api} is the thin public authoring surface. It must
- * not drag in any framework internals and must not depend on JUnit —
- * authors and downstream consumers must be able to use these types
- * without JUnit on the classpath.
+ * <p>The api package is the public authoring surface. Two rules
+ * remain meaningful at package level (the third — "no JUnit at all"
+ * — is replaced by the narrower
+ * {@code apiPackageMustNotDependOnJUnitExtensions} rule in
+ * {@link org.javai.punit.architecture.CoreArchitectureTest}, which
+ * permits {@code @Tag} / {@code @Test} meta-annotations on the
+ * package's own annotation types):
+ *
+ * <ul>
+ *   <li>statistics-stays-out (no Apache Commons leakage), and</li>
+ *   <li>retired-type-name protections.</li>
+ * </ul>
  */
-@DisplayName("punit-api Architecture Rules")
+@DisplayName("api package Architecture Rules")
 class PUnitApiArchitectureTest {
 
     private static JavaClasses classes;
@@ -34,48 +42,15 @@ class PUnitApiArchitectureTest {
     }
 
     @Test
-    @DisplayName("punit-api classes must not depend on JUnit")
-    void mustNotDependOnJUnit() {
-        ArchRule rule = noClasses()
-                .that().resideInAPackage("org.javai.punit.api..")
-                .should().dependOnClassesThat()
-                .resideInAnyPackage("org.junit..")
-                .because("punit-api is a JUnit-free author-facing surface");
-        rule.check(classes);
-    }
-
-    @Test
-    @DisplayName("punit-api classes must not depend on any other punit package")
-    void mustNotDependOnInternalPUnit() {
-        ArchRule rule = noClasses()
-                .that().resideInAPackage("org.javai.punit.api..")
-                .should().dependOnClassesThat()
-                .resideInAnyPackage(
-                        "org.javai.punit.ptest..",
-                        "org.javai.punit.experiment..",
-                        "org.javai.punit.statistics..",
-                        "org.javai.punit.spec..",
-                        "org.javai.punit.model..",
-                        "org.javai.punit.controls..",
-                        "org.javai.punit.reporting..",
-                        "org.javai.punit.verdict..",
-                        "org.javai.punit.contract..",
-                        "org.javai.punit.usecase..",
-                        "org.javai.punit.util.."
-                )
-                .because("the typed API points outward, not to framework internals");
-        rule.check(classes);
-    }
-
-    @Test
-    @DisplayName("punit-api classes must not depend on Apache Commons (statistics stays out of the API)")
+    @DisplayName("api classes must not depend on Apache Commons (statistics stays out of the API)")
     void mustNotDependOnApacheCommons() {
         ArchRule rule = noClasses()
                 .that().resideInAPackage("org.javai.punit.api..")
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("org.apache.commons..")
-                .because("commons-statistics belongs in punit-core; keeping it off the author-facing classpath "
-                        + "stops a transitive dependency leaking to downstream consumers");
+                .because("commons-statistics belongs in the engine layer; keeping it off the "
+                        + "author-facing classpath stops a transitive dependency leaking to "
+                        + "downstream consumers");
         rule.check(classes);
     }
 

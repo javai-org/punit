@@ -62,21 +62,25 @@ Some systems do not yield the same outcome on every run — LLMs, ML models, ran
 | **HTML report**            | Standalone report with per-test statistical detail                   |
 | **Sentinel**               | JUnit-free engine for probabilistic testing in deployed environments |
 
+## Project structure
+
+PUnit ships as four published artefacts plus a Gradle plugin:
+
+| Artefact               | Coordinate                 | Purpose                                                                                                          |
+|------------------------|----------------------------|------------------------------------------------------------------------------------------------------------------|
+| **punit-core**         | `org.javai:punit-core`     | Foundational library: author-facing API (`UseCase`, `Contract`, `Sampling`, criteria), engine, statistics, baselines, runtime entry point. JUnit-free; sentinel-deployable directly. |
+| **punit-junit5**       | `org.javai:punit-junit5`   | JUnit 5 integration. The artefact most consumers depend on; pulls `punit-core` transitively.                     |
+| **punit-sentinel**     | `org.javai:punit-sentinel` | Sentinel runner for production/scheduled probabilistic checks without a test harness.                            |
+| **punit-report**       | `org.javai:punit-report`   | HTML report generator and verdict-XML reader/writer. Pulled in by `punit-junit5`; also consumable on its own.    |
+| **punit Gradle plugin**| `org.javai.punit` (plugin) | Auto-configures the `test` task, registers `experiment` / `exp` tasks, supports `-Prun=` filtering.              |
+
+The four library artefacts share the `punit-` prefix; `punit-core` is the foundation, the others extend it.
+
 ## Quick Start
 
 ### 1. Add Dependency
 
-PUnit publishes three artifacts to Maven Central:
-
-| Artifact             | Purpose                                                                                      |
-|----------------------|----------------------------------------------------------------------------------------------|
-| `punit-core`         | JUnit-free statistical engine, use case factories, and user-facing annotations               |
-| `punit-junit5`       | JUnit 5 extensions that register probabilistic tests and experiments with the JUnit platform |
-| `punit-sentinel`     | JUnit-free runtime for executing probabilistic tests in deployed environments                |
-
-Most users depend on `punit-junit5`, which transitively includes `punit-core`. Add `punit-sentinel` only if you build a sentinel application.
-
-**Gradle (Kotlin DSL):**
+Most users depend on `punit-junit5`, which pulls `punit-core` (and `punit-report`) transitively:
 
 ```kotlin
 plugins {
@@ -105,29 +109,47 @@ dependencies {
 
 Maven users need to enable JUnit extension auto-detection and configure Surefire/Failsafe — see [MAVEN-CONFIGURATION.md](docs/MAVEN-CONFIGURATION.md).
 
+For sentinel-deployable applications that run probabilistic checks without a test harness, depend on `punit-core` directly (and optionally `punit-sentinel` for the standalone runner). See [Part 9: The Sentinel](docs/USER-GUIDE.md#part-9-the-sentinel) in the user guide.
+
 ### 2. Write a Probabilistic Test
 
+A use case wraps the service call and declares its acceptance contract:
+
 ```java
-import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.ThresholdOrigin;
-import static org.assertj.core.api.Assertions.assertThat;
+public class GreetingService implements UseCase<Void, String, String> {
+    @Override
+    public Outcome<String> invoke(String name, TokenTracker tracker) {
+        return Outcome.ok(myService.greet(name));
+    }
 
-class MyServiceTest {
-
-    @ProbabilisticTest(
-        samples = 100,
-        minPassRate = 0.90,
-        thresholdOrigin = ThresholdOrigin.SLA,
-        contractRef = "Service Agreement §4.2"
-    )
-    void serviceReturnsValidResponse() {
-        Response response = myService.call();
-        assertThat(response.isValid()).isTrue();
+    @Override
+    public void postconditions(ContractBuilder<String> b) {
+        b.ensure("Greeting is non-empty", s ->
+                s == null || s.isBlank()
+                        ? Outcome.fail("empty", "no content")
+                        : Outcome.ok());
     }
 }
 ```
 
-This test runs 100 samples, requires 90% success, and documents that the threshold comes from an SLA. PUnit will terminate early if success is guaranteed or failure becomes inevitable.
+The probabilistic test exercises that use case with a `Sampling` (factory + inputs + sample count) and asserts a population-level criterion:
+
+```java
+class GreetingServiceTest {
+    @ProbabilisticTest
+    void serviceGreetsConsistently() {
+        PUnit.testing(
+                Sampling.of(v -> new GreetingService(), 100,
+                        List.of("Alice", "Bob", "Charlie")),
+                null)
+            .criterion(BernoulliPassRate.meeting(0.95, ThresholdOrigin.SLA))
+            .contractRef("Service Agreement §4.2")
+            .assertPasses();
+    }
+}
+```
+
+This runs 100 samples, requires a 95% success rate at the configured confidence (default 0.95), and records the threshold's provenance as an SLA. The framework terminates early if success is guaranteed or failure becomes inevitable.
 
 ### 3. Run It
 

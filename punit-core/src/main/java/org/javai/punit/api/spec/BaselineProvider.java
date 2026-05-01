@@ -15,7 +15,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
  * concern); kept as a regular interface so the {@link #EMPTY} constant
  * has a stable place to live. Implementations live in the engine
  * layer (e.g. punit-core's {@code engine.baseline.YamlBaselineProvider});
- * the {@code punit-api} module declares only the contract.
+ * the {@code api package} module declares only the contract.
  *
  * <p>The framework consults a {@code BaselineProvider} once per
  * empirical {@link Criterion} during {@link Spec#dispatch dispatch} of

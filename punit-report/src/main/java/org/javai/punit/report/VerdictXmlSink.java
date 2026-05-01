@@ -17,6 +17,14 @@ import org.javai.punit.verdict.VerdictSink;
  *
  * <p>Each verdict produces one file at:
  * {@code {outputDir}/{className}.{methodName}.xml}
+ *
+ * <p>Discovered as a {@link VerdictSink} {@code ServiceLoader} entry
+ * (see {@code META-INF/services/org.javai.punit.verdict.VerdictSink})
+ * so PUnit's runtime auto-installs an instance whenever
+ * {@code punit-report} is on the classpath. Authors can construct
+ * an instance directly with explicit configuration; the no-arg
+ * constructor used by {@code ServiceLoader} resolves configuration
+ * via {@link ReportConfiguration#resolve()}.
  */
 public final class VerdictXmlSink implements VerdictSink {
 
@@ -24,6 +32,11 @@ public final class VerdictXmlSink implements VerdictSink {
 
     private final VerdictXmlWriter writer = new VerdictXmlWriter();
     private final ReportConfiguration config;
+
+    /** Used by {@code ServiceLoader}; resolves config from system properties + env. */
+    public VerdictXmlSink() {
+        this(ReportConfiguration.resolve());
+    }
 
     public VerdictXmlSink(ReportConfiguration config) {
         this.config = config;

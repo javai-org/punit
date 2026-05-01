@@ -11,14 +11,18 @@ signing {
 }
 
 dependencies {
-    // Author-facing surface (UseCase, FactorBundle, FactorValue, UseCaseOutcome).
-    // Exposed transitively so downstream modules see the types.
-    api(project(":punit-api"))
-
     // JUnit Jupiter API — compileOnly because annotations reference JUnit
     // meta-annotations but punit-core does not transitively require JUnit
     // at runtime.
     compileOnly("org.junit.jupiter:junit-jupiter-api")
+
+    // opentest4j — the de-facto contract for non-JUnit test-failure
+    // signalling. PUnit.assertPasses() throws AssertionFailedError /
+    // TestAbortedException to translate FAIL / INCONCLUSIVE verdicts;
+    // opentest4j has no JUnit Platform engine dependency, so a sentinel-
+    // deployed class can drive PUnit without dragging in JUnit Jupiter
+    // or Platform.
+    api("org.opentest4j:opentest4j:1.3.0")
 
     // Apache Commons Statistics — for statistical calculations (confidence intervals, distributions)
     implementation("org.apache.commons:commons-statistics-distribution:1.2")
@@ -114,7 +118,7 @@ tasks.named<ProcessResources>("processTestResources") {
 tasks.jar {
     manifest {
         attributes(
-            "Implementation-Title" to "PUnit Core",
+            "Implementation-Title" to "PUnit",
             "Implementation-Version" to project.version,
             "Implementation-Vendor" to "javai.org",
             "Automatic-Module-Name" to "org.javai.punit.core"
@@ -130,7 +134,7 @@ mavenPublishing {
 
     pom {
         name.set("PUnit Core")
-        description.set("Core statistical engine, annotations, and contracts for PUnit probabilistic testing")
+        description.set("PUnit probabilistic testing — author-facing API (UseCase, Contract, Sampling, criteria), execution engine, statistics, baselines, runtime entry point. JUnit-free; sentinel-deployable directly.")
         url.set("https://github.com/javai-org/punit")
 
         licenses {

@@ -3,6 +3,7 @@ package org.javai.punit.runtime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.TestIntent;
@@ -32,13 +33,12 @@ import org.javai.punit.engine.Engine;
 import org.javai.punit.engine.baseline.ProfileBoundBaselineProvider;
 import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.engine.criteria.Feasibility;
-import org.javai.punit.report.ReportConfiguration;
-import org.javai.punit.report.VerdictXmlSink;
 import org.javai.punit.reporting.TransparentStatsRenderer;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.RunMetadata;
 import org.javai.punit.verdict.VerdictAdapter;
+import org.javai.punit.verdict.VerdictSink;
 import org.javai.punit.verdict.VerdictSinkBus;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
@@ -53,7 +53,7 @@ import org.opentest4j.TestAbortedException;
  * <p>Each factory returns a builder that wraps the corresponding
  * {@link Experiment}- or
  * {@link ProbabilisticTest}-builder
- * in {@code punit-api}, adding a terminal {@link MeasureBuilder#run}
+ * in {@code api package}, adding a terminal {@link MeasureBuilder#run}
  * (for experiments) or {@link TestBuilder#assertPasses} (for
  * probabilistic tests). Each terminal drives the spec through
  * {@link Engine} and translates the outcome:
@@ -207,13 +207,18 @@ public final class PUnit {
      * frame); falls back to {@code (useCaseId, useCaseId)} when the
      * resolver finds no annotated frame (e.g. hand-driven tests).
      *
-     * <p>Installs the default sink — {@link VerdictXmlSink} reading
-     * {@link ReportConfiguration#resolve()} — on first call. Idempotent;
-     * tests can override via {@link VerdictSinkBus#replaceAll}.
+     * <p>Installs the default sink — discovered via {@code ServiceLoader}
+     * over {@link VerdictSink} — on first call. With {@code punit-report}
+     * on the classpath this resolves to its XML sink; with no provider
+     * present (e.g. a sentinel binary that ships no reporter), no
+     * default sink is installed and verdicts dispatch only to whatever
+     * sinks the caller has registered explicitly. Idempotent; tests
+     * can override via {@link VerdictSinkBus#replaceAll}.
      */
     private static void emitVerdict(ProbabilisticTestResult result, String fallbackUseCaseId) {
-        VerdictSinkBus.installDefaultSink(
-                () -> new VerdictXmlSink(ReportConfiguration.resolve()));
+        ServiceLoader.load(VerdictSink.class)
+                .findFirst()
+                .ifPresent(sink -> VerdictSinkBus.installDefaultSink(() -> sink));
         RunMetadata meta = TestIdentityResolver.resolve()
                 .orElseGet(() -> RunMetadata.of(
                         fallbackUseCaseId, fallbackUseCaseId, fallbackUseCaseId));
