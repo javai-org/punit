@@ -46,12 +46,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>One annotation, three kinds — the kind is chosen at the
  * method body's verb ({@code measuring} / {@code exploring} /
- * {@code optimizing}). Distinct from the legacy
- * {@link org.javai.punit.api.legacy.MeasureExperiment @MeasureExperiment} /
- * {@link org.javai.punit.api.legacy.ExploreExperiment @ExploreExperiment} /
- * {@link org.javai.punit.api.legacy.OptimizeExperiment @OptimizeExperiment}
- * trio, which split the kinds across three annotations carrying
- * legacy attributes the legacy extension reads.
+ * {@code optimizing}).
  *
  * <p>Tagged {@code "punit-experiment"} so the standard test run
  * (filtered by Gradle / Maven configuration) excludes them by
