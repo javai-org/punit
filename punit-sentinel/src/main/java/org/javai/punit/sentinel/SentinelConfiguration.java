@@ -8,10 +8,11 @@ import org.javai.punit.reporting.LogVerdictSink;
 import org.javai.punit.verdict.VerdictSink;
 
 /**
- * Configuration for a {@code SentinelRunner} execution.
+ * Configuration for a Sentinel run.
  *
- * <p>Built via a fluent builder pattern. The only required element is at least
- * one {@code @Sentinel}-annotated class.
+ * <p>Built via a fluent builder. The only required element is at
+ * least one registered class — a class declaring methods annotated
+ * with the typed {@code @ProbabilisticTest} or {@code @Experiment}.
  *
  * <pre>{@code
  * SentinelConfiguration config = SentinelConfiguration.builder()

@@ -204,7 +204,7 @@ class PUnitPlugin : Plugin<Project> {
         sentinelConfig: org.gradle.api.artifacts.Configuration
     ) {
         project.tasks.register("createSentinel", Jar::class.java).configure {
-            description = "Builds an executable sentinel JAR with all @Sentinel classes"
+            description = "Builds an executable sentinel JAR bundling all classes whose methods carry the typed @ProbabilisticTest or @Experiment annotation"
             group = "build"
 
             val testSourceSet = project.extensions
@@ -277,8 +277,9 @@ class PUnitPlugin : Plugin<Project> {
 
                 if (sentinelClasses.isEmpty()) {
                     throw org.gradle.api.GradleException(
-                        "No @Sentinel-annotated classes found on the test classpath. " +
-                        "Annotate at least one reliability spec class with @Sentinel.")
+                        "No classes with typed @ProbabilisticTest or @Experiment methods found " +
+                        "on the test classpath. Annotate at least one method on at least one " +
+                        "class with the typed @ProbabilisticTest or @Experiment annotation.")
                 }
 
                 // Write manifest to a temp directory that gets included in the JAR
@@ -302,15 +303,22 @@ class PUnitPlugin : Plugin<Project> {
     }
 
     /**
-     * Scans compiled class directories and JARs on the classpath for classes
-     * annotated with @Sentinel. Uses an isolated URLClassLoader to avoid
-     * polluting the plugin's classloader.
+     * Scans compiled class directories and JARs on the classpath for
+     * classes whose methods carry the typed {@code @ProbabilisticTest}
+     * or {@code @Experiment} annotation — those classes are what the
+     * Sentinel runtime invokes, so the manifest lists them. There is no
+     * class-level marker; presence of an annotated method is the
+     * registration signal.
+     *
+     * <p>Uses an isolated {@code URLClassLoader} to avoid polluting the
+     * plugin's classloader.
      *
      * @param classesDirs  test source output directories (always scanned)
-     * @param classpathFiles  full runtime classpath — directories are scanned
-     *                        for @Sentinel classes; JARs provide the classloader
-     *                        context but are not scanned (sentinel classes must
-     *                        come from project sources, not third-party libraries)
+     * @param classpathFiles  full runtime classpath — directories are
+     *                        scanned for typed-method-bearing classes;
+     *                        JARs provide classloader context and are
+     *                        also scanned, since project dependencies
+     *                        get packaged as JARs in composite builds
      */
     private fun scanForSentinelClasses(
         classesDirs: Set<File>,
@@ -322,30 +330,32 @@ class PUnitPlugin : Plugin<Project> {
             .toTypedArray()
 
         val classLoader = URLClassLoader(urls, ClassLoader.getSystemClassLoader())
-        val sentinelAnnotation = try {
-            classLoader.loadClass("org.javai.punit.api.Sentinel")
-        } catch (e: ClassNotFoundException) {
-            throw org.gradle.api.GradleException(
-                "Could not find @Sentinel annotation on classpath. " +
-                "Ensure punit-core or punit-sentinel is a dependency.")
+        val typedAnnotations = listOf(
+            "org.javai.punit.api.ProbabilisticTest",
+            "org.javai.punit.api.Experiment"
+        ).map { fqn ->
+            try {
+                classLoader.loadClass(fqn)
+            } catch (e: ClassNotFoundException) {
+                throw org.gradle.api.GradleException(
+                    "Could not find $fqn on classpath. Ensure punit-core is a dependency."
+                )
+            }
         }
 
         val sentinelClasses = mutableListOf<String>()
 
-        // Scan test output dirs and all class directories on the classpath
         val allClassesDirs = (classesDirs + classpathFiles)
             .filter { it.isDirectory && it.exists() }
             .distinct()
 
         for (classesDir in allClassesDirs) {
-            scanDirectory(classesDir, classLoader, sentinelAnnotation, sentinelClasses)
+            scanDirectory(classesDir, classLoader, typedAnnotations, sentinelClasses)
         }
 
-        // Also scan JARs on the classpath — project dependencies are packaged
-        // as JARs by Gradle, so @Sentinel classes from sibling modules appear here
         for (jar in classpathFiles) {
             if (!jar.isFile || !jar.name.endsWith(".jar")) continue
-            scanJar(jar, classLoader, sentinelAnnotation, sentinelClasses)
+            scanJar(jar, classLoader, typedAnnotations, sentinelClasses)
         }
 
         classLoader.close()
@@ -355,7 +365,7 @@ class PUnitPlugin : Plugin<Project> {
     private fun scanDirectory(
         classesDir: File,
         classLoader: URLClassLoader,
-        sentinelAnnotation: Class<*>,
+        typedAnnotations: List<Class<*>>,
         results: MutableList<String>
     ) {
         classesDir.walkTopDown()
@@ -365,14 +375,14 @@ class PUnitPlugin : Plugin<Project> {
                 val className = classFile.relativeTo(classesDir).path
                     .removeSuffix(".class")
                     .replace(File.separatorChar, '.')
-                checkForSentinel(className, classLoader, sentinelAnnotation, results)
+                checkForSentinel(className, classLoader, typedAnnotations, results)
             }
     }
 
     private fun scanJar(
         jar: File,
         classLoader: URLClassLoader,
-        sentinelAnnotation: Class<*>,
+        typedAnnotations: List<Class<*>>,
         results: MutableList<String>
     ) {
         try {
@@ -384,7 +394,7 @@ class PUnitPlugin : Plugin<Project> {
                         val className = entry.name
                             .removeSuffix(".class")
                             .replace('/', '.')
-                        checkForSentinel(className, classLoader, sentinelAnnotation, results)
+                        checkForSentinel(className, classLoader, typedAnnotations, results)
                     }
             }
         } catch (_: Exception) {
@@ -395,12 +405,17 @@ class PUnitPlugin : Plugin<Project> {
     private fun checkForSentinel(
         className: String,
         classLoader: URLClassLoader,
-        sentinelAnnotation: Class<*>,
+        typedAnnotations: List<Class<*>>,
         results: MutableList<String>
     ) {
         try {
             val clazz = classLoader.loadClass(className)
-            if (clazz.annotations.any { sentinelAnnotation.isInstance(it) }) {
+            val hasTypedMethod = clazz.declaredMethods.any { method ->
+                method.annotations.any { annotation ->
+                    typedAnnotations.any { it.isInstance(annotation) }
+                }
+            }
+            if (hasTypedMethod) {
                 results.add(className)
             }
         } catch (_: Throwable) {
