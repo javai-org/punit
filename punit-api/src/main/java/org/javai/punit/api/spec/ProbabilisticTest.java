@@ -130,7 +130,7 @@ public final class ProbabilisticTest implements Spec {
         return d.apply(typed);
     }
 
-    // ── Typed internal delegate (engine-facing) ─────────────────────
+    // ── Internal delegate (engine-facing) ───────────────────────────
 
     private static final class Internal<FT, IT, OT> implements TypedSpec<FT, IT, OT> {
 

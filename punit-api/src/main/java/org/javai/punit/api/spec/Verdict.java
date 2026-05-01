@@ -7,10 +7,6 @@ import java.util.Objects;
  * Three-state statistical verdict returned by a
  * {@link ProbabilisticTest}'s {@link Spec#conclude() conclude()}
  * call.
- *
- * <p>Kept distinct from the legacy
- * {@code org.javai.punit.verdict.PUnitVerdict} used by the existing
- * reporting pipeline; Stage 8 reconciles the two.
  */
 public enum Verdict {
 

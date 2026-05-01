@@ -12,7 +12,7 @@ final class BaselineSchema {
 
     private BaselineSchema() { }
 
-    /** The structural-version discriminator for the typed-compositional schema. */
+    /** The structural-version discriminator for the baseline YAML schema. */
     static final String SCHEMA_VERSION_VALUE = "punit-baseline-2";
 
     static final String FIELD_SCHEMA_VERSION = "schemaVersion";

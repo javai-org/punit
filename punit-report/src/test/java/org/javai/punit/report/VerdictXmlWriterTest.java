@@ -48,7 +48,7 @@ class VerdictXmlWriterTest {
     class MinimalVerdict {
 
         @Test
-        @DisplayName("serialises to RP07 verdict-record root element")
+        @DisplayName("serialises to verdict-record root element")
         void rp07RootElement() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
@@ -357,7 +357,7 @@ class VerdictXmlWriterTest {
         }
 
         @Test
-        @DisplayName("maps budget exhaustion to RP07 reason")
+        @DisplayName("maps budget exhaustion to standard reason")
         void serialisesBudgetExhaustion() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithBudgetExhaustion();
 
@@ -374,7 +374,7 @@ class VerdictXmlWriterTest {
     class CostTests {
 
         @Test
-        @DisplayName("serialises cost in RP07 format")
+        @DisplayName("serialises cost in XML format")
         void serialisesCost() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
@@ -503,7 +503,7 @@ class VerdictXmlWriterTest {
         }
 
         @Test
-        @DisplayName("verdict with postcondition failures validates against RP07 XSD")
+        @DisplayName("verdict with postcondition failures validates against verdict-1.0 XSD")
         void validatesAgainstXsd() throws Exception {
             LinkedHashMap<String, FailureCount> hist = new LinkedHashMap<>();
             hist.put("Response not empty", new FailureCount(3, List.of(
@@ -521,7 +521,7 @@ class VerdictXmlWriterTest {
     class SchemaValidation {
 
         @Test
-        @DisplayName("minimal verdict validates against RP07 XSD")
+        @DisplayName("minimal verdict validates against verdict-1.0 XSD")
         void minimalVerdictValidatesAgainstXsd() throws Exception {
             ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
 
@@ -531,7 +531,7 @@ class VerdictXmlWriterTest {
         }
 
         @Test
-        @DisplayName("full verdict validates against RP07 XSD")
+        @DisplayName("full verdict validates against verdict-1.0 XSD")
         void fullVerdictValidatesAgainstXsd() throws Exception {
             ProbabilisticTestVerdict verdict = fullVerdict();
 

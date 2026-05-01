@@ -14,8 +14,7 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityResult;
 
 /**
- * Pre-flight feasibility gate for probabilistic tests authored against
- * the typed-compositional surface.
+ * Pre-flight feasibility gate for probabilistic tests.
  *
  * <p>Per {@link TestIntent}'s contract:
  *
@@ -30,7 +29,7 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  * </ul>
  *
  * <p>The check applies only to <em>empirical</em> {@link BernoulliPassRate}
- * criteria — the only place the typed pipeline makes a confidence-backed
+ * criteria — the only place the engine makes a confidence-backed
  * statistical claim today. Contractual {@code .meeting(threshold, origin)}
  * paths use a deterministic {@code observed >= threshold} comparison and
  * have no feasibility concern. Non-{@code BernoulliPassRate} criteria
@@ -43,10 +42,9 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  * time, which is the correct outcome for "no baseline available."
  *
  * <p>Statistics-isolation rule: the math lives in
- * {@link VerificationFeasibilityEvaluator}; this gate only orchestrates.
- * The diagnostic prose comes from {@link InfeasibilityMessageRenderer}, the
- * same renderer the legacy {@code ProbabilisticTestExtension} consumes —
- * one source of wording for both authoring surfaces.
+ * {@link VerificationFeasibilityEvaluator}; this gate only
+ * orchestrates. Diagnostic prose comes from
+ * {@link InfeasibilityMessageRenderer}.
  */
 public final class Feasibility {
 

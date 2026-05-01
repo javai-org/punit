@@ -167,7 +167,7 @@ public final class ExecutionSpecification {
 	 * <p>This data is essential for computing thresholds at runtime based on
 	 * the operational approach specified in the test annotation.
 	 *
-	 * @return the empirical basis, or null if not set (legacy specs)
+	 * @return the empirical basis, or null if not set (older specs)
 	 */
 	public EmpiricalBasis getEmpiricalBasis() {
 		return empiricalBasis;

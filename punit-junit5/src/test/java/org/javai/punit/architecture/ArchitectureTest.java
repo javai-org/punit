@@ -13,18 +13,11 @@ import org.junit.jupiter.api.Test;
 /**
  * Architecture tests to enforce PUnit's structural constraints.
  *
- * <p>The original three-pillar layout
- * ({@code experiment/} / {@code ptest/} / {@code spec/}) is gone — the
- * legacy {@code ptest} and {@code experiment} packages were retired in
- * Stage 8 (DIR-PUNIT-S8), leaving the typed pipeline as the sole
- * authoring surface. The pillar-independence rules that policed those
- * packages have retired alongside them.
- *
- * <p>The remaining rules enforce abstraction-level discipline that
- * still applies to surviving classes — evaluators / resolvers /
- * deciders may not depend on reporting; renderers may not depend on
- * statistical computation; strategies may not instantiate
- * {@link org.javai.punit.reporting.PUnitReporter} directly.
+ * <p>Rules enforce abstraction-level discipline — evaluators /
+ * resolvers / deciders may not depend on reporting; renderers may
+ * not depend on statistical computation; strategies may not
+ * instantiate {@link org.javai.punit.reporting.PUnitReporter}
+ * directly.
  */
 @DisplayName("Architecture Rules")
 class ArchitectureTest {

@@ -13,22 +13,23 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 
 /**
- * Serialises a {@link ProbabilisticTestVerdict} to verdict XML using the
- * RP07 verdict XML interchange standard.
+ * Serialises a {@link ProbabilisticTestVerdict} to the verdict XML
+ * interchange format.
  *
- * <p>The output conforms to the {@code http://javai.org/verdict/1.0} namespace
- * and {@code verdict-1.0.xsd} schema defined in the orchestrator at
- * {@code javai-orchestrator/inventory/catalog/reporting/RP07-verdict-xml-interchange/}.
+ * <p>The output conforms to the {@code http://javai.org/verdict/1.0}
+ * namespace and the {@code verdict-1.0.xsd} schema bundled with this
+ * module.
  *
- * <p>PUnit-specific extensions not in RP07 (pacing, environment, expiration,
- * correlation ID, JUnit pass status) are not serialised. The verdict model in
- * punit-core remains unchanged — this class maps from the punit record to the
+ * <p>PUnit-specific extensions not in the verdict-XML standard
+ * (pacing, environment, expiration, correlation ID, JUnit pass
+ * status) are not serialised. The verdict model in punit-core
+ * remains unchanged — this class maps from the punit record to the
  * cross-project XML format.
  */
 public final class VerdictXmlWriter {
 
     /**
-     * RP07 standard namespace.
+     * standard namespace.
      */
     static final String NAMESPACE = "http://javai.org/verdict/1.0";
     static final String VERSION = "1.0";
@@ -45,7 +46,7 @@ public final class VerdictXmlWriter {
     }
 
     /**
-     * Writes the verdict as RP07 XML to the given output stream.
+     * Writes the verdict as XML to the given output stream.
      * The stream is not closed by this method.
      */
     public void write(ProbabilisticTestVerdict verdict, OutputStream out) throws XMLStreamException {
@@ -91,7 +92,7 @@ public final class VerdictXmlWriter {
 
     private void writeIdentity(XMLStreamWriter w, TestIdentity id) throws XMLStreamException {
         w.writeStartElement("identity");
-        // RP07: use-case-id is required. Map from useCaseId if present, else className.
+        // verdict-XML: use-case-id is required. Map from useCaseId if present, else className.
         String useCaseId = id.useCaseId().orElse(id.className());
         w.writeAttribute("use-case-id", useCaseId);
         w.writeAttribute("test-name", id.methodName());
@@ -123,7 +124,7 @@ public final class VerdictXmlWriter {
 
     private void writeLatency(XMLStreamWriter w, LatencyDimension lat) throws XMLStreamException {
         if (lat.skipped()) {
-            return; // RP07 omits latency when not applicable
+            return; // the verdict-XML standard omits latency when not applicable
         }
         w.writeStartElement("latency");
         w.writeAttribute("successful-samples", Integer.toString(lat.successfulSamples()));
@@ -286,7 +287,7 @@ public final class VerdictXmlWriter {
     }
 
     /**
-     * Emits {@code <postcondition-failures>} per the RP07 schema. Iteration
+     * Emits {@code <postcondition-failures>} per the verdict-1.0 schema. Iteration
      * order of the map is preserved so clauses appear in the order the
      * contract declared them (the typed pipeline delivers a
      * {@link java.util.LinkedHashMap}). The writer emits whatever exemplars
@@ -345,7 +346,7 @@ public final class VerdictXmlWriter {
     }
 
     /**
-     * Maps punit's termination reasons to RP07 standard reasons.
+     * Maps punit's termination reasons to verdict XML standard reasons.
      */
     private static String mapTerminationReason(org.javai.punit.model.TerminationReason reason) {
         return switch (reason) {

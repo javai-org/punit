@@ -29,9 +29,8 @@ import org.javai.punit.api.covariate.CovariateProfile;
  * lookup) are the primary contract. Implementations supply them.
  * The convenience overloads without {@code currentProfile} and
  * {@code declarations} default-delegate with {@link CovariateProfile#empty()}
- * and {@link List#of()}; covariate-aware implementations interpret
- * those defaults as the legacy ("use case declares no covariates")
- * path.
+ * and {@link List#of()}; covariate-aware implementations treat those
+ * defaults as the "use case declares no covariates" path.
  *
  * <p>The framework wraps the underlying provider in a profile-bound
  * decorator before handing it to {@link Spec#dispatch} so that
@@ -51,8 +50,8 @@ public interface BaselineProvider {
      *                       in declaration order; {@link List#of()}
      *                       when the use case declared no covariates
      * @return the baseline statistics of the requested kind for the
-     *         best-matching baseline per UC05, or {@link Optional#empty()}
-     *         when none is selectable
+     *         best-matching baseline, or {@link Optional#empty()} when
+     *         none is selectable
      */
     <S extends BaselineStatistics> Optional<S> baselineFor(
             String useCaseId,
@@ -89,8 +88,8 @@ public interface BaselineProvider {
 
     /**
      * Convenience overload for callers that don't carry covariate
-     * state. Same legacy semantics as the four-arg
-     * {@link #baselineFor(String, FactorBundle, String, Class) baselineFor}.
+     * state. Restricts selection to baselines whose own profile is
+     * empty.
      */
     default Optional<String> baselineInputsIdentityFor(
             String useCaseId, FactorBundle factors) {

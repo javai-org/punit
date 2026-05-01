@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
  * JUnit extension or engine types. The only permitted JUnit usage is
  * {@code @TestTemplate} and {@code @Tag} meta-annotations on PUnit's own
  * annotations in the {@code api} package — these are inert without the
- * JUnit engine on the classpath (DD-05).
+ * JUnit engine on the classpath.
  */
 @DisplayName("punit-core Architecture Rules")
 class CoreArchitectureTest {

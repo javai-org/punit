@@ -81,8 +81,7 @@ public final class BaselineResolver {
      *
      * <p>Equivalent to the covariate-aware overload with an empty
      * current profile and empty declarations. Selection limits to
-     * baselines whose own profile is empty, preserving pre-CV-3
-     * behaviour for use cases that don't declare covariates.
+     * baselines whose own profile is empty.
      */
     public <S extends BaselineStatistics> Optional<S> resolve(
             String useCaseId,
@@ -95,7 +94,7 @@ public final class BaselineResolver {
 
     /**
      * Resolve a baseline statistics entry with covariate-aware
-     * best-match selection per UC05.
+     * best-match selection.
      *
      * @param currentProfile the resolved covariate profile for the
      *                       current run; empty when the use case
@@ -242,16 +241,16 @@ public final class BaselineResolver {
     }
 
     /**
-     * Match the legacy {@code -{ff}.yaml} suffix and the new
-     * {@code -{ff}-{cov1}...-{covN}.yaml} extension. Both forms
-     * share the {@code -{ff}} segment immediately followed by either
-     * the file extension or another hash component.
+     * Match the {@code -{ff}.yaml} suffix (covariate-insensitive form)
+     * and the {@code -{ff}-{cov1}...-{covN}.yaml} extension
+     * (covariate-stamped form). Both share the {@code -{ff}} segment
+     * immediately followed by either the file extension or another
+     * hash component.
      *
-     * <p>Stage 4 stays exact-match on {@code (useCaseId, fingerprint)};
-     * when multiple covariate-partitioned files share the same
-     * fingerprint, this method returns true for each and the caller
-     * picks the first one (file listing order). Covariate-aware
-     * selection lands in CV-3c.
+     * <p>This method stays exact-match on {@code (useCaseId,
+     * fingerprint)}; when multiple covariate-partitioned files share
+     * the same fingerprint, it returns true for each and the caller
+     * runs covariate-aware selection over the matching set.
      */
     private static boolean matchesFactorsFingerprint(
             String name, String prefix, String factorsSegment, String yamlExt) {
@@ -264,8 +263,8 @@ public final class BaselineResolver {
         }
         int afterSegment = idx + factorsSegment.length();
         // The factors-fingerprint segment must be terminated by either
-        // ".yaml" (legacy / empty-profile case) or "-" (the start of
-        // a covariate hash). A bare longer-fingerprint match like
+        // ".yaml" (covariate-insensitive case) or "-" (the start of a
+        // covariate hash). A bare longer-fingerprint match like
         // -aabbccdd matching a file with fingerprint -aabbccddee would
         // pass startsWith here but fail this terminator check.
         return afterSegment == name.length() - yamlExt.length()

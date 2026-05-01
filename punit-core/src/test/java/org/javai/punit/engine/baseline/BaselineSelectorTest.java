@@ -17,7 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("BaselineSelector — covariate-aware best-match per UC05")
+@DisplayName("BaselineSelector — covariate-aware best-match")
 class BaselineSelectorTest {
 
     private static final Map<String, BaselineStatistics> STATS =
@@ -48,8 +48,8 @@ class BaselineSelectorTest {
     }
 
     @Nested
-    @DisplayName("legacy path: no declarations → only empty-profile candidates considered")
-    class LegacyPath {
+    @DisplayName("no declarations → only empty-profile candidates considered")
+    class NoDeclarations {
 
         @Test
         @DisplayName("picks the empty-profile candidate when one is present")
@@ -207,7 +207,7 @@ class BaselineSelectorTest {
         @DisplayName("ties broken by category priority: TEMPORAL beats INFRASTRUCTURE")
         void categoryPriorityBreaksTies() {
             // Both candidates score 1 — A matches dow (TEMPORAL),
-            // B matches region (INFRASTRUCTURE). UC05 prio:
+            // B matches region (INFRASTRUCTURE). Category priority:
             // TEMPORAL > INFRASTRUCTURE → A wins.
             BaselineRecord matchesDow = baseline("ff", profile(Map.of(
                     "day_of_week", "WEEKDAY",

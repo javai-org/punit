@@ -185,7 +185,7 @@ public final class SpecificationLoader {
 				inLatency = false;
 
 				if (line.startsWith("specId:") || line.startsWith("useCaseId:")) {
-					// Both specId (legacy) and useCaseId map to useCaseId
+					// Both the older specId field and useCaseId map to useCaseId
 					builder.useCaseId(extractValue(line));
 				} else if (line.startsWith("version:")) {
 					builder.version(Integer.parseInt(extractValue(line)));

@@ -15,14 +15,11 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 
 /**
- * Verbose statistical breakdown of a typed
- * {@link ProbabilisticTestResult} for the audit / compliance use
- * case where the reasoning behind a verdict — including a passing
- * one — has to be visible.
+ * Verbose statistical breakdown of a {@link ProbabilisticTestResult}
+ * for the audit / compliance use case where the reasoning behind a
+ * verdict — including a passing one — has to be visible.
  *
- * <p>The legacy framework expressed this through
- * {@code @ProbabilisticTest(transparentStats = true)}. The typed
- * pipeline exposes the same feature through
+ * <p>Authors opt in via
  * {@code PUnit.testing(...).transparentStats()}; this class is the
  * renderer that produces the actual output.
  *
@@ -71,7 +68,7 @@ public final class TransparentStatsRenderer {
     /**
      * @param testIdentity the className.methodName the verdict
      *                     belongs to, for the report header
-     * @param result       the typed result to render — the renderer
+     * @param result       the result to render — the renderer
      *                     reads {@link ProbabilisticTestResult#covariates()
      *                     covariates()} for observed-vs-baseline
      *                     alignment, criterion details, and warnings

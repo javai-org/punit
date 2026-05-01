@@ -8,9 +8,9 @@ import java.util.function.Supplier;
 import org.javai.punit.reporting.CompositeVerdictSink;
 
 /**
- * Singleton-style registry of {@link VerdictSink}s that the typed
- * pipeline's {@code PUnit.assertPasses(...)} dispatches to after a
- * verdict is produced.
+ * Singleton-style registry of {@link VerdictSink}s that
+ * {@code PUnit.assertPasses(...)} dispatches to after a verdict is
+ * produced.
  *
  * <p>The bus holds an ordered list of sinks. By default, the list
  * contains the framework's "primary" sink (configured via

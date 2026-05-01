@@ -11,12 +11,13 @@ signing {
 }
 
 dependencies {
-    // Typed author-facing surface (UseCase, FactorBundle, FactorValue, UseCaseOutcome).
+    // Author-facing surface (UseCase, FactorBundle, FactorValue, UseCaseOutcome).
     // Exposed transitively so downstream modules see the types.
     api(project(":punit-api"))
 
-    // JUnit Jupiter API — compileOnly per DD-05: annotations reference JUnit meta-annotations
-    // but punit-core does not transitively require JUnit at runtime
+    // JUnit Jupiter API — compileOnly because annotations reference JUnit
+    // meta-annotations but punit-core does not transitively require JUnit
+    // at runtime.
     compileOnly("org.junit.jupiter:junit-jupiter-api")
 
     // Apache Commons Statistics — for statistical calculations (confidence intervals, distributions)

@@ -24,9 +24,8 @@ import java.util.regex.Pattern;
  * {@code > 59}, zero-duration periods, periods that cross midnight,
  * and periods that overlap one another.
  *
- * <p>Logic ported from the legacy {@code TimePeriodExtractor} in
- * {@code spec.baseline.covariate}; retains its semantics so the typed
- * pipeline emits identical labels when the same periods are declared.
+ * <p>The same period inputs produce the same labels run-to-run so
+ * the matcher's output is stable across baselines.
  */
 final class PeriodMatcher {
 

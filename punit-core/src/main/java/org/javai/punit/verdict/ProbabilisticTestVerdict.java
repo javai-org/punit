@@ -57,7 +57,7 @@ public record ProbabilisticTestVerdict(
      * Backward-compatible constructor for the 16-component shape that
      * predates the per-postcondition failure histogram. Defaults the
      * histogram to an empty map. Used by test fixtures and any
-     * legacy producer that doesn't yet thread the histogram through.
+     * producer that doesn't yet thread the histogram through.
      */
     public ProbabilisticTestVerdict(
             String correlationId,

@@ -119,12 +119,11 @@ final class BaselineEmitter {
             stats.put("percentile-latency", new LatencyStatistics(latency, total));
         }
 
-        // Per UC04, the resolved covariate profile is part of the
-        // baseline's identity. The use case's declarations + custom
-        // resolvers feed the resolver; the resulting profile is
-        // stamped into the BaselineRecord and surfaces as an EX09
-        // covariate-hash tail in the filename, plus a covariates:
-        // block in the YAML body.
+        // The resolved covariate profile is part of the baseline's
+        // identity. The use case's declarations + custom resolvers
+        // feed the resolver; the resulting profile is stamped into
+        // the BaselineRecord and surfaces as a covariate-hash tail
+        // in the filename, plus a covariates: block in the YAML body.
         List<Covariate> declarations = useCase.covariates();
         CovariateProfile profile = declarations.isEmpty()
                 ? CovariateProfile.empty()

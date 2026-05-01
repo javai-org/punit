@@ -18,7 +18,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
  *   <li>{@code baselineProfile} — the resolved baseline's covariate
  *       profile, when one was selected. Empty when no baseline
  *       matched, or when the matched baseline carried no covariate
- *       data (legacy / pre-CV-3a baselines).</li>
+ *       data (covariate-insensitive baselines on disk).</li>
  *   <li>{@code notes} — human-readable selection diagnostics: one
  *       per rejected candidate, plus partial-match / fallback
  *       announcements. Surfaced through
@@ -30,8 +30,8 @@ import org.javai.punit.api.covariate.CovariateProfile;
  * alignment" diagnostic possible: comparing the matched baseline's
  * profile against the current run's profile (resolved separately at
  * the engine boundary) lets the renderer produce the
- * {@code baseline=X, observed=Y} misalignment block the legacy
- * pipeline emits.
+ * {@code baseline=X, observed=Y} misalignment block in the verdict
+ * output.
  *
  * @param <S> the requested {@link BaselineStatistics} subtype
  * @param selected         the selected statistics, when a candidate matched
@@ -39,9 +39,9 @@ import org.javai.punit.api.covariate.CovariateProfile;
  *                         when one was selected; otherwise empty
  * @param notes            rejection / fallback reasons; possibly empty
  * @param sourceFile       filename of the matched baseline, when a
- *                         candidate matched; surfaces to RP07 verdict
- *                         XML's {@code <provenance spec-filename>} for
- *                         audit traceability. Empty otherwise.
+ *                         candidate matched; surfaces to verdict XML's
+ *                         {@code <provenance spec-filename>} for audit
+ *                         traceability. Empty otherwise.
  */
 public record BaselineLookup<S extends BaselineStatistics>(
         Optional<S> selected,

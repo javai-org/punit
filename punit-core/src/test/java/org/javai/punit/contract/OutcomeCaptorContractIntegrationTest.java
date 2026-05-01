@@ -138,8 +138,8 @@ class OutcomeCaptorContractIntegrationTest {
         }
 
         @Test
-        @DisplayName("provides direct access to typed result")
-        void providesDirectAccessToTypedResult() {
+        @DisplayName("provides direct access to the contract outcome")
+        void providesDirectAccessToContractOutcome() {
             ServiceContract<Void, String> contract = ServiceContract
                     .<Void, String>define()
                     .build();

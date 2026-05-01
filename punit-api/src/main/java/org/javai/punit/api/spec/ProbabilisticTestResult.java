@@ -31,9 +31,7 @@ import org.javai.punit.api.covariate.CovariateAlignment;
  * resolved covariate profile and the matched baseline's covariate
  * profile (when an empirical criterion matched one). The structured
  * value flows through to verdict-text renderers, HTML report
- * emitters, and JSON sinks, mirroring the legacy pipeline's
- * {@code CovariateStatus} so downstream tooling sees the same shape
- * from both pipelines.
+ * emitters, and JSON sinks.
  *
  * <p>{@link #contractRef()} carries an author-supplied human-readable
  * pointer to the external document the test's threshold derives from

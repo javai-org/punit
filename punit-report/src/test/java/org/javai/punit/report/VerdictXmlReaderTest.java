@@ -45,13 +45,13 @@ class VerdictXmlReaderTest {
         }
 
         @Test
-        @DisplayName("preserves identity via RP07 mapping")
+        @DisplayName("preserves identity via verdict-XML identity mapping")
         void preservesIdentity() throws Exception {
             ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            // Class name without use-case-id maps to use-case-id in RP07
+            // Class name without use-case-id maps to use-case-id in the verdict-XML standard
             assertThat(result.identity().useCaseId()).contains("com.example.MyTest");
             assertThat(result.identity().methodName()).isEqualTo("shouldPass");
         }
@@ -169,7 +169,7 @@ class VerdictXmlReaderTest {
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            // Skipped latency is not emitted in RP07
+            // Skipped latency is not emitted in the verdict-XML standard
             assertThat(result.latency()).isEmpty();
         }
     }
@@ -315,7 +315,7 @@ class VerdictXmlReaderTest {
     class FullRoundTrip {
 
         @Test
-        @DisplayName("round-trips a full verdict preserving RP07 fields")
+        @DisplayName("round-trips a full verdict preserving verdict-XML fields")
         void roundTripsFullVerdict() throws Exception {
             ProbabilisticTestVerdict original = fullVerdict();
 

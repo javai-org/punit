@@ -9,9 +9,8 @@ import java.util.TreeSet;
 /**
  * The alignment between a probabilistic test's observed (current
  * run's) covariate profile and the matched baseline's covariate
- * profile. Mirrors the legacy {@code CovariateStatus} so downstream
- * consumers — verdict-text renderers, HTML report emitters, JSON
- * sinks — see the same structured shape from both pipelines.
+ * profile. The structured value flows to verdict-text renderers,
+ * HTML report emitters, and JSON sinks.
  *
  * <p>Empty profiles (the use case declared no covariates) produce
  * the {@link #aligned() aligned} state with no misalignments. A

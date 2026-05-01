@@ -90,7 +90,7 @@ public final class BaselineWriter {
         if (!record.covariateProfile().isEmpty()) {
             // Insertion order of the profile is the use case's
             // covariate-declaration order — preserved on the way out
-            // so EX09's filename hashes appear in the same order.
+            // so the filename hashes appear in the same order.
             root.put(FIELD_COVARIATES,
                     new LinkedHashMap<>(record.covariateProfile().values()));
         }

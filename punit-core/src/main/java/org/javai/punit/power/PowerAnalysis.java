@@ -18,12 +18,12 @@ import org.javai.punit.statistics.SampleSizeCalculator;
 
 /**
  * Authoring-time sample-size utility for the confidence-first
- * probabilistic-test pattern (PT03).
+ * probabilistic-test pattern.
  *
  * <p>Given a baseline supplier and a desired minimum detectable
  * effect plus statistical power, computes the sample size at which
- * the one-proportion z-test (SC06) achieves that power against the
- * baseline rate.
+ * the one-proportion z-test achieves that power against the baseline
+ * rate.
  *
  * <p>Authors call this at spec-construction time and stamp the
  * computed sample count onto a template sampling, then bind factors
@@ -152,7 +152,7 @@ public final class PowerAnalysis {
                             + " — the [rate-mde, rate+mde] interval must lie in (0, 1)");
         }
 
-        // Sample-size formula (SC06) lives in SampleSizeCalculator — the
+        // The sample-size formula lives in SampleSizeCalculator — the
         // dedicated statistics-package home. This bridge resolves the
         // baseline rate and delegates the math.
         return SAMPLE_SIZE_CALCULATOR
@@ -176,7 +176,7 @@ public final class PowerAnalysis {
 
     /**
      * Dispatcher that captures the {@code <FT>} type parameter from the
-     * spec's typed view long enough to call
+     * spec's engine-facing view long enough to call
      * {@code useCaseFactory.apply(factors).id()} and compute the
      * factors fingerprint, then collapses the result back to a
      * non-generic carrier.
@@ -184,16 +184,16 @@ public final class PowerAnalysis {
     private static final Spec.Dispatcher<BaselineLookup> LOOKUP_DISPATCHER =
             new Spec.Dispatcher<>() {
                 @Override
-                public <FT, IT, OT> BaselineLookup apply(TypedSpec<FT, IT, OT> typed) {
-                    Iterator<Configuration<FT, IT, OT>> iterator = typed.configurations();
+                public <FT, IT, OT> BaselineLookup apply(TypedSpec<FT, IT, OT> spec) {
+                    Iterator<Configuration<FT, IT, OT>> iterator = spec.configurations();
                     if (!iterator.hasNext()) {
                         throw new IllegalStateException(
                                 "MEASURE experiment produced no configurations — "
-                                        + "the typed spec is malformed");
+                                        + "the spec is malformed");
                     }
                     Configuration<FT, IT, OT> cfg = iterator.next();
                     FT factors = cfg.factors();
-                    UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
+                    UseCase<FT, IT, OT> useCase = spec.useCaseFactory().apply(factors);
                     String useCaseId = useCase.id();
                     String fingerprint = FactorsFingerprint.of(FactorBundle.of(factors));
                     return new BaselineLookup(useCaseId, fingerprint);

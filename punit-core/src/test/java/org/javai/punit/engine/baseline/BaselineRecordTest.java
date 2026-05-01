@@ -93,7 +93,7 @@ class BaselineRecordTest {
     }
 
     @Test
-    @DisplayName("filename appends one 4-char EX09 hash per covariate, in declaration order")
+    @DisplayName("filename appends one 4-char hash per covariate, in declaration order")
     void filenameWithCovariates() {
         java.util.LinkedHashMap<String, String> profile =
                 new java.util.LinkedHashMap<>();
@@ -115,7 +115,7 @@ class BaselineRecordTest {
     }
 
     @Test
-    @DisplayName("filename for empty covariate profile is unchanged from pre-CV-3")
+    @DisplayName("filename for empty covariate profile is the covariate-insensitive form")
     void filenameUnchangedWhenProfileEmpty() {
         BaselineRecord record = new BaselineRecord(
                 "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",

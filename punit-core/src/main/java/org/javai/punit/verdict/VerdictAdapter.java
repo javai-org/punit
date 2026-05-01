@@ -15,13 +15,13 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.LatencyInput;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput;
 
 /**
- * Adapts a typed-pipeline {@link ProbabilisticTestResult} to the legacy
- * XML-bound {@link ProbabilisticTestVerdict} shape so the
+ * Adapts a {@link ProbabilisticTestResult} to the XML-bound
+ * {@link ProbabilisticTestVerdict} shape so the
  * {@link org.javai.punit.report.VerdictXmlWriter VerdictXmlWriter} (and
- * the HTML report) can serialise the typed pipeline's runs to RP07.
+ * the HTML report) can serialise runs to verdict XML.
  *
  * <p>The adapter is a thin field-mapping function — it does not perform
- * statistical computation, judgement, or rendering. It reads the typed
+ * statistical computation, judgement, or rendering. It reads the
  * result's components and the supplied {@link RunMetadata}, and
  * delegates to {@link ProbabilisticTestVerdictBuilder} for the heavy
  * lifting (Wilson-score CI, baseline-derivation narrative, verdict-reason
@@ -46,19 +46,19 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  *   <li><b>Covariates</b> — from {@code result.covariates()}.</li>
  *   <li><b>Cost</b> — only {@code methodTokensConsumed} populated;
  *       budgets and {@link TokenMode} default to "unlimited / NONE"
- *       because the typed pipeline doesn't surface per-method budgets
- *       on the result today.</li>
+ *       because per-method budgets are not surfaced on the result
+ *       today.</li>
  *   <li><b>Provenance</b> — threshold origin from the first
  *       {@code BernoulliPassRate} criterion's {@code "origin"} detail
  *       key; contract reference from
  *       {@link ProbabilisticTestResult#contractRef()}; spec filename
  *       from {@code engineSummary.baselineFilename()}.</li>
- *   <li><b>Termination</b> — typed
+ *   <li><b>Termination</b> — the API
  *       {@link org.javai.punit.api.spec.TerminationReason} mapped
  *       to the richer core enum; details kept null.</li>
  *   <li><b>Postcondition failures</b> — pass-through from
  *       {@link ProbabilisticTestResult#failuresByPostcondition()}.</li>
- *   <li><b>Verdict</b> — typed {@link Verdict#PASS} maps to
+ *   <li><b>Verdict</b> — {@link Verdict#PASS} maps to
  *       {@code passedStatistically=true}; {@link Verdict#FAIL} and
  *       {@link Verdict#INCONCLUSIVE} both map to false (the builder's
  *       covariate-alignment logic decides FAIL vs INCONCLUSIVE).</li>
@@ -67,22 +67,23 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  * <h2>What the adapter cannot fill</h2>
  *
  * <p>Some {@link ProbabilisticTestVerdict} components have no analogue
- * on a typed pipeline run today: budget snapshots, pacing configuration,
- * spec expiration, JUnit-pass status. The adapter produces a verdict with
- * those left at their builder defaults. Field-level fidelity is captured
- * in the test suite; renderers are tolerant of absent optional fields.
+ * on the result today: budget snapshots, pacing configuration, spec
+ * expiration, JUnit-pass status. The adapter produces a verdict with
+ * those left at their builder defaults. Field-level fidelity is
+ * captured in the test suite; renderers are tolerant of absent
+ * optional fields.
  */
 public final class VerdictAdapter {
 
     private VerdictAdapter() { }
 
     /**
-     * Build a {@link ProbabilisticTestVerdict} from a typed result and
-     * the per-run metadata.
+     * Build a {@link ProbabilisticTestVerdict} from a result and the
+     * per-run metadata.
      *
-     * @param result the typed pipeline's result
+     * @param result the run's result
      * @param meta   the run metadata captured at the JUnit boundary
-     * @return a fully populated legacy verdict, ready for XML/HTML
+     * @return a fully populated verdict, ready for XML/HTML
      *         serialisation
      */
     public static ProbabilisticTestVerdict adapt(
@@ -130,8 +131,8 @@ public final class VerdictAdapter {
                 alignment.observed().values());
         b.misalignments(toMisalignmentInputs(alignment));
 
-        // Cost — typed pipeline has no per-method budget surface yet;
-        // pass tokensConsumed and zero budgets / NONE token mode.
+        // No per-method budget surface yet; pass tokensConsumed and
+        // zero budgets / NONE token mode.
         b.cost(engine.tokensConsumed(), 0L, 0L, TokenMode.NONE);
 
         // Provenance
@@ -153,9 +154,8 @@ public final class VerdictAdapter {
 
         // Verdict
         b.passedStatistically(result.verdict() == Verdict.PASS);
-        // The typed pipeline carries no JUnit-pass concept on the
-        // result; default true (the legacy field is meaningless outside
-        // the legacy JUnit context).
+        // No JUnit-pass concept on the result; default true (the
+        // field is only meaningful inside the JUnit context).
         b.junitPassed(true);
 
         return b.build();
@@ -195,10 +195,9 @@ public final class VerdictAdapter {
         if (lat.sampleCount() == 0) {
             return null;
         }
-        // Typed pipeline emits observed-only latency — no per-percentile
-        // assertions, no caveats. Successful samples = engine.successes;
-        // dimension failures = 0 (latency is not asserted on the typed
-        // path today).
+        // Observed-only latency — no per-percentile assertions, no
+        // caveats. Successful samples = engine.successes; dimension
+        // failures = 0 (latency isn't asserted as a criterion today).
         return new LatencyInput(
                 engine.successes(),
                 engine.samplesExecuted(),
@@ -228,8 +227,8 @@ public final class VerdictAdapter {
     }
 
     private static TerminationReason mapTerminationReason(
-            org.javai.punit.api.spec.TerminationReason typed) {
-        return switch (typed) {
+            org.javai.punit.api.spec.TerminationReason source) {
+        return switch (source) {
             case COMPLETED -> TerminationReason.COMPLETED;
             case TIME_BUDGET -> TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED;
             case TOKEN_BUDGET -> TerminationReason.METHOD_TOKEN_BUDGET_EXHAUSTED;

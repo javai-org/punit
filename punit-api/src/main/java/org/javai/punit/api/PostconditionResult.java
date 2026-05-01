@@ -9,11 +9,6 @@ import org.javai.outcome.Outcome;
  * The result of evaluating one postcondition against a use case's raw
  * result.
  *
- * <p>Mirrors {@code org.javai.punit.contract.PostconditionResult} —
- * the two will converge when Stage 8 retires the legacy contract
- * surface. Until then they coexist: the legacy one is consumed by the
- * annotation-driven engine, this one by the typed engine.
- *
  * @param description human-readable description of what was checked
  * @param outcome the check's outcome — {@link Outcome.Ok} if the
  *                postcondition held, {@link Outcome.Fail} otherwise

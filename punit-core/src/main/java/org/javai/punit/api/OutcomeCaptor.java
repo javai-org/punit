@@ -41,7 +41,7 @@ public class OutcomeCaptor {
     /**
      * Records a use case outcome.
      *
-     * <p>This method captures the typed result and postconditions for aggregation.
+     * <p>This method captures the result and postconditions for aggregation.
      *
      * <h2>Example Usage</h2>
      * <pre>{@code

@@ -70,13 +70,13 @@ class CovariateRoundTripTest {
                     .as("baseline emitted under %s", baselineDir)
                     .hasSize(1);
             String filename = emitted.get(0).getFileName().toString();
-            // EX09: filename ends with -{covHash}.yaml when a covariate
-            // is declared. The exact hash is environment-derived; we
-            // pin shape, not value.
+            // Filename ends with -{covHash}.yaml when a covariate is
+            // declared. The exact hash is environment-derived; we pin
+            // shape, not value.
             assertThat(filename)
                     .startsWith(CovariateSubjects.USE_CASE_ID + ".measureBaseline-")
                     // Factors fingerprint is 8 hex chars; one declared
-                    // covariate adds a -{4-hex} tail per EX09.
+                    // covariate adds a -{4-hex} tail.
                     .matches(".*-[0-9a-f]{8}-[0-9a-f]{4}\\.yaml$");
         }
     }

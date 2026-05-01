@@ -2,7 +2,7 @@
  * Concrete {@link org.javai.punit.api.spec.Criterion} implementations.
  *
  * <p>The {@code Criterion} interface lives in {@code punit-api} so authors
- * compose typed specs without pulling in the engine. Implementations
+ * compose specs without pulling in the engine. Implementations
  * whose {@code evaluate(...)} delegates to statistical machinery live
  * here, in {@code punit-core}, where they can call into
  * {@link org.javai.punit.statistics.BinomialProportionEstimator} and
