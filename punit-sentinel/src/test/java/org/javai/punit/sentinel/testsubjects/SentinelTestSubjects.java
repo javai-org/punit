@@ -13,7 +13,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.PUnitVerdict;
-import org.javai.punit.verdict.TypedVerdictSinkBus;
+import org.javai.punit.verdict.VerdictSinkBus;
 import org.opentest4j.AssertionFailedError;
 
 /**
@@ -23,7 +23,7 @@ import org.opentest4j.AssertionFailedError;
  * <p>Each nested class declares a typed-pipeline annotated method
  * whose body dispatches a stubbed
  * {@link ProbabilisticTestVerdict} directly to
- * {@link TypedVerdictSinkBus} — bypassing the real engine. This
+ * {@link VerdictSinkBus} — bypassing the real engine. This
  * keeps the sentinel runtime tests focused on the framework's
  * verdict-capture and orchestration mechanics; engine-level
  * behaviour is exercised in {@code punit-core}.
@@ -32,7 +32,7 @@ import org.opentest4j.AssertionFailedError;
  * excludes these from JUnit's normal test discovery — the
  * {@code @ProbabilisticTest} meta-annotation would otherwise make
  * JUnit try to run them as plain tests, which would fire the
- * {@link TypedVerdictSinkBus} side-effect outside the sentinel
+ * {@link VerdictSinkBus} side-effect outside the sentinel
  * harness.
  */
 public final class SentinelTestSubjects {
@@ -45,7 +45,7 @@ public final class SentinelTestSubjects {
 
         @ProbabilisticTest
         public void emitsPass() {
-            TypedVerdictSinkBus.dispatch(stubVerdict(true));
+            VerdictSinkBus.dispatch(stubVerdict(true));
         }
     }
 
@@ -55,7 +55,7 @@ public final class SentinelTestSubjects {
 
         @ProbabilisticTest
         public void emitsFailAndThrows() {
-            TypedVerdictSinkBus.dispatch(stubVerdict(false));
+            VerdictSinkBus.dispatch(stubVerdict(false));
             throw new AssertionFailedError("simulated FAIL");
         }
     }
@@ -66,7 +66,7 @@ public final class SentinelTestSubjects {
 
         @Experiment
         public void emitsMeasurement() {
-            TypedVerdictSinkBus.dispatch(stubVerdict(true));
+            VerdictSinkBus.dispatch(stubVerdict(true));
         }
     }
 

@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
-import org.javai.punit.verdict.TypedVerdictSinkBus;
+import org.javai.punit.verdict.VerdictSinkBus;
 import org.javai.punit.verdict.VerdictSink;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
@@ -18,7 +18,7 @@ import org.opentest4j.TestAbortedException;
  *
  * <p>Sentinel-side execution is structurally simpler than JUnit-side
  * execution: the framework's typed pipeline already separates verdict
- * emission ({@code TypedVerdictSinkBus.dispatch}) from JUnit-style
+ * emission ({@code VerdictSinkBus.dispatch}) from JUnit-style
  * translation ({@code AssertionFailedError} / {@code TestAbortedException}
  * throws). The executor:
  *
@@ -59,7 +59,7 @@ public class SentinelExecutor {
      */
     public Outcome execute(Class<?> sentinelClass, Method method) {
         Capturer capturer = new Capturer();
-        TypedVerdictSinkBus.replaceAll(capturer);
+        VerdictSinkBus.replaceAll(capturer);
         Throwable defect = null;
         try {
             Object instance = sentinelClass.getDeclaredConstructor().newInstance();

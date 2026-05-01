@@ -2372,9 +2372,9 @@ A few RP07 fields do not have a direct analogue on a typed-pipeline run today an
 | `<latency>`                         | Observed-only — `<observed>` percentiles populated, `<evaluations>` empty (typed pipeline doesn't yet emit per-percentile latency assertions).                      |
 | `<postcondition-failures>`          | Populated from the typed pipeline's per-clause failure histogram. The legacy pipeline omits this section entirely (it doesn't compute the histogram).               |
 | `<termination>`                     | Mapped from the typed `TerminationReason` enum: `COMPLETED` → `COMPLETED`, `TIME_BUDGET` → `METHOD_TIME_BUDGET_EXHAUSTED`, `TOKEN_BUDGET` → `METHOD_TOKEN_BUDGET_EXHAUSTED`. |
-| `correlation-id` (on root)          | Auto-generated `v:xxxxxx` UUID-fragment unless explicitly supplied via `TypedRunMetadata.correlationId`.                                                            |
+| `correlation-id` (on root)          | Auto-generated `v:xxxxxx` UUID-fragment unless explicitly supplied via `RunMetadata.correlationId`.                                                            |
 
-Custom verdict sinks (Slack notifiers, observability webhooks, archive uploaders) can be plugged in via `TypedVerdictSinkBus.register(VerdictSink)`. The framework's default `VerdictXmlSink` is installed automatically; calling `register(...)` adds your sink alongside it. Tests that need exclusive control can use `TypedVerdictSinkBus.replaceAll(...)`.
+Custom verdict sinks (Slack notifiers, observability webhooks, archive uploaders) can be plugged in via `VerdictSinkBus.register(VerdictSink)`. The framework's default `VerdictXmlSink` is installed automatically; calling `register(...)` adds your sink alongside it. Tests that need exclusive control can use `VerdictSinkBus.replaceAll(...)`.
 
 ---
 

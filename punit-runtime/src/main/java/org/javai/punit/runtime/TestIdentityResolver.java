@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.verdict.TypedRunMetadata;
+import org.javai.punit.verdict.RunMetadata;
 
 /**
  * Resolves the {@code className} / {@code methodName} of the typed
@@ -25,9 +25,9 @@ import org.javai.punit.verdict.TypedRunMetadata;
  * integration test or a REPL demo). Callers should fall back to a
  * generic identity in that case.
  */
-final class TypedTestIdentityResolver {
+final class TestIdentityResolver {
 
-    private TypedTestIdentityResolver() { }
+    private TestIdentityResolver() { }
 
     /**
      * @return the identity of the nearest enclosing
@@ -35,16 +35,16 @@ final class TypedTestIdentityResolver {
      *         method on the current call stack, or
      *         {@link Optional#empty()} if none is found
      */
-    static Optional<TypedRunMetadata> resolve() {
+    static Optional<RunMetadata> resolve() {
         return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
                 .walk(frames -> frames
-                        .map(TypedTestIdentityResolver::asMetadata)
+                        .map(TestIdentityResolver::asMetadata)
                         .filter(Optional::isPresent)
                         .map(Optional::get)
                         .findFirst());
     }
 
-    private static Optional<TypedRunMetadata> asMetadata(StackWalker.StackFrame frame) {
+    private static Optional<RunMetadata> asMetadata(StackWalker.StackFrame frame) {
         Class<?> declaring = frame.getDeclaringClass();
         String methodName = frame.getMethodName();
         // Match by name only — overload disambiguation isn't worth the
@@ -54,7 +54,7 @@ final class TypedTestIdentityResolver {
         for (Method m : declaring.getDeclaredMethods()) {
             if (m.getName().equals(methodName)
                     && m.isAnnotationPresent(ProbabilisticTest.class)) {
-                return Optional.of(TypedRunMetadata.of(declaring.getName(), methodName));
+                return Optional.of(RunMetadata.of(declaring.getName(), methodName));
             }
         }
         return Optional.empty();

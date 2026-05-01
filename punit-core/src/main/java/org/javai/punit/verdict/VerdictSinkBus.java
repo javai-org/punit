@@ -35,13 +35,13 @@ import org.javai.punit.reporting.CompositeVerdictSink;
  * {@link #installDefaultSink(Supplier)} (idempotent if the sink is
  * stateless).
  */
-public final class TypedVerdictSinkBus {
+public final class VerdictSinkBus {
 
     private static final List<VerdictSink> SINKS = new ArrayList<>();
     private static Supplier<VerdictSink> defaultSupplier;
     private static boolean defaultInstalled;
 
-    private TypedVerdictSinkBus() { }
+    private VerdictSinkBus() { }
 
     /**
      * Configures the default sink supplier, lazy-evaluated on first
