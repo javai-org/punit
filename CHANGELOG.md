@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (breaking — published artefact set)
+- **`punit-api` and `punit-runtime` artefacts are retired.** Their contents are now part of `punit-core`; the package layout (`org.javai.punit.api.*`, `org.javai.punit.runtime.*`) is unchanged. Downstream consumers depending on `org.javai:punit-api` or `org.javai:punit-runtime` must migrate to `org.javai:punit-core`. `punit-core`, `punit-junit5`, `punit-sentinel`, and `punit-report` keep their existing coordinates. The structural api → engine → runtime layering inside `punit-core` is still enforced — at the package level rather than the module level — by the existing ArchUnit rules.
+- **Default `VerdictSink` discovery via `ServiceLoader`.** `PUnit.assertPasses(...)` now installs the default sink via `ServiceLoader.load(VerdictSink.class).findFirst()` rather than instantiating `VerdictXmlSink` directly. With `punit-report` on the classpath this resolves to its XML sink (registered in `META-INF/services/`); without it, no default sink is installed and verdicts dispatch only to sinks the caller has registered explicitly. This decouples `punit-core` from `punit-report`.
+
 ### Added
 - **RP07 XML verdicts on every test.** Each `@ProbabilisticTest` now produces a `{className}.{methodName}.xml` file under `build/reports/punit/xml/` (configurable via `punit.report.dir` / `PUNIT_REPORT_DIR`, suppressible with `punit.report.enabled=false`). The HTML report (`./gradlew punitReport`) consumes these files. See Part 11 of the user guide for the field reference.
 - **`<postcondition-failures>` element on RP07 verdict XML.** Per-clause failure histograms now surface in verdict XML (each clause shows its description, count, and up to three retained input/reason exemplars) and in the HTML report (nested table per test row).

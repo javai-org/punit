@@ -47,11 +47,11 @@ import org.javai.punit.statistics.BinomialProportionEstimator;
  * {@code observed >= threshold} check: an SLA-style threshold is an
  * external commitment, not a statistical claim against a baseline.
  *
- * <p>Lives in {@code punit-core} rather than {@code punit-api} because
+ * <p>Lives in {@code punit-core} rather than {@code api package} because
  * the empirical path needs {@code BinomialProportionEstimator} and
- * {@code punit-api} is contractually free of statistics-library
+ * {@code api package} is contractually free of statistics-library
  * dependencies. The {@link Criterion} interface itself stays in
- * {@code punit-api}; only this implementation moved.
+ * {@code api package}; only this implementation moved.
  */
 public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatistics> {
 

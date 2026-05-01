@@ -1,7 +1,7 @@
 /**
  * Concrete {@link org.javai.punit.api.spec.Criterion} implementations.
  *
- * <p>The {@code Criterion} interface lives in {@code punit-api} so authors
+ * <p>The {@code Criterion} interface lives in {@code api package} so authors
  * compose specs without pulling in the engine. Implementations
  * whose {@code evaluate(...)} delegates to statistical machinery live
  * here, in {@code punit-core}, where they can call into

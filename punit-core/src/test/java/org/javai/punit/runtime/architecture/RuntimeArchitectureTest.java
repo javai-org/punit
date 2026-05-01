@@ -11,12 +11,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Architecture rules for {@code punit-runtime}.
+ * Architecture rules for {@code org.javai.punit.runtime}.
  *
- * <p>{@code punit-runtime} hosts the typed authoring entry point
- * ({@code PUnit}) and its supporting classes. It exists as a separate
- * module specifically so a sentinel-deployed class can drive the typed
- * pipeline without dragging in JUnit Jupiter or JUnit Platform.
+ * <p>The runtime package hosts the authoring entry point
+ * ({@code PUnit}) and its supporting classes. It must remain
+ * importable from a sentinel-deployed class — i.e. without
+ * dragging in JUnit Jupiter or JUnit Platform on the runtime
+ * classpath.
  *
  * <p>Class-level rule: nothing in {@code org.javai.punit.runtime} may
  * import any class in {@code org.junit..}. The {@code opentest4j}
@@ -24,18 +25,8 @@ import org.junit.jupiter.api.Test;
  * {@link org.opentest4j.TestAbortedException}) are permitted — they
  * are the standard contract for non-JUnit test-failure signalling
  * and carry no JUnit Platform dependency themselves.
- *
- * <p>Note on JAR-level dependency graph: the project's root
- * {@code build.gradle.kts} currently adds {@code junit-jupiter-api}
- * to every subproject via a {@code subprojects { ... }} block, so
- * {@code punit-runtime} ends up with JUnit on its compile classpath
- * transitively. That is a pre-existing softness in the module layering
- * (see {@code punit-sentinel}, which has the same shape). This rule
- * pins the class-level guarantee — no class in this module imports
- * a JUnit type. The JAR-level fix (scoping JUnit per-module) is
- * tracked separately.
  */
-@DisplayName("punit-runtime architecture rules")
+@DisplayName("runtime package architecture rules")
 class RuntimeArchitectureTest {
 
     private static JavaClasses runtimeClasses;
@@ -54,7 +45,7 @@ class RuntimeArchitectureTest {
                 .that().resideInAPackage("org.javai.punit.runtime..")
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("org.junit..")
-                .because("punit-runtime is the JUnit-free authoring runtime — "
+                .because("the runtime package is the JUnit-free authoring runtime — "
                         + "it must be reachable from a sentinel-deployed class "
                         + "without bringing JUnit Jupiter or JUnit Platform along");
 

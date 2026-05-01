@@ -17,7 +17,7 @@ import org.javai.punit.statistics.LatencyStatistics;
  * the javai-R oracle is preserved.
  *
  * <p>This bridge lives in {@code punit-core} rather than
- * {@code punit-api} to keep the {@code commons-statistics} dependency
+ * {@code api package} to keep the {@code commons-statistics} dependency
  * out of the author-facing surface.
  */
 final class LatencyPercentileComputer {
