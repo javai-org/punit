@@ -1,5 +1,5 @@
 /**
- * Typed spec builders and the strategy contract the engine dispatches
+ * Spec builders and the strategy contract the engine dispatches
  * through.
  *
  * <p>Each concrete spec ({@link org.javai.punit.api.spec.Experiment},

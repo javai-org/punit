@@ -12,24 +12,22 @@ import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 
 /**
- * Iterates registered classes, finds typed-pipeline
- * {@link ProbabilisticTest} or {@link Experiment} methods, and
- * dispatches each one to {@link SentinelExecutor}.
+ * Iterates registered classes, finds {@link ProbabilisticTest} or
+ * {@link Experiment} methods, and dispatches each one to
+ * {@link SentinelExecutor}.
  *
- * <p>Discovery is purely reflective. There is no class-level marker
- * (the legacy {@code @Sentinel} annotation has been retired) — a class
- * is "Sentinel-runnable" by virtue of being in the binary's build-time
- * registration manifest. The orchestrator simply iterates the
+ * <p>Discovery is purely reflective. There is no class-level marker —
+ * a class is "Sentinel-runnable" by virtue of being in the binary's
+ * build-time registration manifest. The orchestrator iterates the
  * registered list and invokes the right methods.
  *
  * <p>Methods are iterated in alphabetical order by name, so a Sentinel
  * binary's behaviour is deterministic across runs.
  *
  * <p>Inherited methods are not invoked. {@code getDeclaredMethods()} —
- * not {@code getMethods()} — is used so that a parent class's typed
- * methods aren't run twice when a subclass is also registered. If
- * inheritance becomes a real authoring pattern, this is the place to
- * extend.
+ * not {@code getMethods()} — is used so that a parent class's methods
+ * aren't run twice when a subclass is also registered. If inheritance
+ * becomes a real authoring pattern, this is the place to extend.
  */
 public final class SentinelOrchestrator {
 

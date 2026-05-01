@@ -137,14 +137,12 @@ class BaselineResolverTest {
     }
 
     @Test
-    @DisplayName("4-arg overload (legacy path) ignores covariate-tagged files when no declarations are supplied")
-    void legacyOverloadSkipsCovariateTaggedFiles(@TempDir Path dir) throws IOException {
-        // Pre-CV-3c, the 4-arg overload returned the first matching
-        // file regardless of covariate state. Post-CV-3c, the legacy
-        // overload restricts to empty-profile baselines, matching
-        // UC05's "use cases that don't declare covariates use the
-        // default baseline" rule. The covariate-aware overload (with
-        // declarations + profile) is exercised in
+    @DisplayName("4-arg overload ignores covariate-tagged files when no declarations are supplied")
+    void noDeclarationsOverloadSkipsCovariateTaggedFiles(@TempDir Path dir) throws IOException {
+        // The 4-arg overload (no declarations) restricts to
+        // empty-profile baselines — use cases that don't declare
+        // covariates use the default baseline. The covariate-aware
+        // overload (with declarations + profile) is exercised in
         // covariateAwarePicksMatching below.
         java.util.LinkedHashMap<String, String> profile = new java.util.LinkedHashMap<>();
         profile.put("region", "DE_FR");
@@ -212,8 +210,8 @@ class BaselineResolverTest {
     @DisplayName("covariate-aware overload: falls back to default baseline when no covariate match")
     void covariateAwareFallsBackToDefault(@TempDir Path dir) throws IOException {
         // Only an empty-profile baseline is on disk. With covariates
-        // declared, this should still resolve via the UC05 default-
-        // fallback rule.
+        // declared, this should still resolve via the default-fallback
+        // rule.
         writeBaselineWithProfile(dir, null, new PassRateStatistics(0.7, 1000));
 
         var resolver = new BaselineResolver(dir);

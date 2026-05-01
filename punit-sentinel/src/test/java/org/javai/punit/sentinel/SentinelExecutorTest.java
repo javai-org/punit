@@ -25,7 +25,7 @@ import org.opentest4j.TestAbortedException;
 /**
  * Tests for {@link SentinelExecutor}.
  *
- * <p>The subject classes are plain (no typed annotations) — the executor
+ * <p>The subject classes are plain (no PUnit annotations) — the executor
  * only cares about reflective invocation mechanics and verdict capture.
  * Annotation-based filtering is the orchestrator's concern (see
  * {@code SentinelOrchestratorTest}).

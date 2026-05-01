@@ -20,7 +20,7 @@ import org.javai.punit.verdict.VerdictSinkBus;
  * Tests for {@link SentinelMain}.
  *
  * <p>Exercises CLI argument parsing, manifest loading, and the
- * orchestration path end-to-end against typed test subjects in
+ * orchestration path end-to-end against the test subjects in
  * {@link org.javai.punit.sentinel.testsubjects.SentinelTestSubjects}.
  *
  * <p>The {@link TestSystemBridge} captures the exit code instead of

@@ -7,11 +7,11 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict;
  * Owns the console output for the Sentinel CLI summary.
  *
  * <p>Sentinel runs to completion before producing any output;
- * per-method progress is not surfaced in the typed-pipeline model
- * (each verdict is dispatched to the configured
- * {@link SentinelConfiguration#verdictSink()} as it lands, which is
- * the user-controllable per-event channel). This class only owns
- * the suite-level summary printed at the end of a run.
+ * per-method progress is not surfaced (each verdict is dispatched
+ * to the configured {@link SentinelConfiguration#verdictSink()} as
+ * it lands, which is the user-controllable per-event channel). This
+ * class only owns the suite-level summary printed at the end of a
+ * run.
  *
  * <h2>Test output</h2>
  * <p>Tests deliver verdicts. The summary shows test-level pass / fail

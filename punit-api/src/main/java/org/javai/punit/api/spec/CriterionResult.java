@@ -4,13 +4,13 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * The typed outcome of a single {@link Criterion#evaluate(EvaluationContext)}
+ * The outcome of a single {@link Criterion#evaluate(EvaluationContext)}
  * invocation.
  *
  * <p>{@link #detail()} carries the criterion's structured observations
  * (thresholds, observed values, breaches, baseline source, …) keyed by
  * a stable string. Each concrete criterion kind documents its detail
- * keys in its own javadoc; the same keys feed the RP07 XML
+ * keys in its own javadoc; the same keys feed the verdict-XML
  * {@code <detail>} block without further translation.
  *
  * @param criterionName stable identifier (e.g. {@code "bernoulli-pass-rate"})

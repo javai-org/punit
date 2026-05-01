@@ -315,7 +315,7 @@ class PercentileLatencyTest {
                 .isEqualTo(Verdict.INCONCLUSIVE);
     }
 
-    // ── typed plumbing ───────────────────────────────────────────────
+    // ── plumbing ─────────────────────────────────────────────────────
 
     @Test
     @DisplayName("criterion exposes LatencyStatistics.class as its statistics type")

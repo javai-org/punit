@@ -9,7 +9,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.util.HashUtils;
 
 /**
- * Per-covariate-value hashing per EX09.
+ * Per-covariate-value hashing for the baseline filename schema.
  *
  * <p>Each covariate the use case declared contributes one 4-character
  * hex hash to the baseline filename. The hash is computed as
@@ -25,11 +25,10 @@ import org.javai.punit.util.HashUtils;
  *       {@link Covariate#name()}
  *       returns it (snake_case for built-ins).</li>
  *   <li>{@code {canonical_value}} is the resolved label produced by
- *       the {@code CovariateResolver}'s contract (UC04). For
- *       partitioned built-ins this is the partition label; for
- *       {@code TimezoneCovariate} it is the IANA string; for
- *       {@code CustomCovariate} it is whatever the developer-supplied
- *       resolver returned.</li>
+ *       the {@code CovariateResolver}. For partitioned built-ins this
+ *       is the partition label; for {@code TimezoneCovariate} it is
+ *       the IANA string; for {@code CustomCovariate} it is whatever
+ *       the developer-supplied resolver returned.</li>
  *   <li>The separator is exactly {@code "="} with no whitespace.</li>
  *   <li>The hash input is UTF-8 bytes.</li>
  *   <li>The truncation is the first 4 hex characters of the SHA-256

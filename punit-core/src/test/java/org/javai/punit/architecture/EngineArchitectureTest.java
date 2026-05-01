@@ -11,15 +11,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Architecture rules for the typed-model engine under
+ * Architecture rules for the engine under
  * {@code org.javai.punit.engine}.
  *
- * <p>The core guarantee this stage locks in: the engine does not
- * branch on spec subtype. It reaches flavour-specific behaviour only
- * through the strategy methods on
- * {@code org.javai.punit.api.spec.Spec}.
+ * <p>The core guarantee: the engine does not branch on spec subtype.
+ * It reaches flavour-specific behaviour only through the strategy
+ * methods on {@code org.javai.punit.api.spec.Spec}.
  */
-@DisplayName("typed engine architecture rules")
+@DisplayName("engine architecture rules")
 class EngineArchitectureTest {
 
     private static JavaClasses engineClasses;
@@ -40,7 +39,7 @@ class EngineArchitectureTest {
         // host genuinely Experiment-aware machinery (engine.criteria
         // holds BernoulliPassRate, which references Experiment via
         // its empiricalFrom(Supplier<Experiment>) pinning API; that's
-        // value-typed reference, not subtype-discrimination).
+        // value-shaped reference, not subtype-discrimination).
         ArchRule rule = noClasses()
                 .that().resideInAPackage("org.javai.punit.engine")
                 .should().dependOnClassesThat()

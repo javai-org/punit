@@ -11,15 +11,15 @@ import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
 
 /**
- * Executes a single typed-pipeline {@code @ProbabilisticTest} or
- * {@code @Experiment} method on a registered class, capturing the
- * verdict the method's body emits through {@code PUnit.assertPasses()}
- * or {@code PUnit.run()}.
+ * Executes a single {@code @ProbabilisticTest} or {@code @Experiment}
+ * method on a registered class, capturing the verdict the method's
+ * body emits through {@code PUnit.assertPasses()} or
+ * {@code PUnit.run()}.
  *
  * <p>Sentinel-side execution is structurally simpler than JUnit-side
- * execution: the framework's typed pipeline already separates verdict
- * emission ({@code VerdictSinkBus.dispatch}) from JUnit-style
- * translation ({@code AssertionFailedError} / {@code TestAbortedException}
+ * execution: the framework already separates verdict emission
+ * ({@code VerdictSinkBus.dispatch}) from JUnit-style translation
+ * ({@code AssertionFailedError} / {@code TestAbortedException}
  * throws). The executor:
  *
  * <ol>
@@ -29,10 +29,10 @@ import org.opentest4j.TestAbortedException;
  *       configured sinks (see {@link SentinelConfiguration#verdictSink()}).</li>
  *   <li>Instantiates the registered class via its no-arg constructor.</li>
  *   <li>Invokes the method via reflection.</li>
- *   <li>Catches {@link AssertionFailedError} (FAIL verdict translated
- *       by the typed pipeline) and {@link TestAbortedException}
- *       (INCONCLUSIVE) as expected outcomes — the verdict was
- *       captured in step 1 before the throw.</li>
+ *   <li>Catches {@link AssertionFailedError} (FAIL verdict
+ *       translation) and {@link TestAbortedException} (INCONCLUSIVE)
+ *       as expected outcomes — the verdict was captured in step 1
+ *       before the throw.</li>
  *   <li>Lets every other throwable propagate as a defect — a programming
  *       mistake or framework invariant violation, not a sample failure.</li>
  * </ol>
@@ -49,13 +49,13 @@ public class SentinelExecutor {
      *
      * @param sentinelClass the registered class; must declare a public
      *                      no-arg constructor
-     * @param method        the method to invoke; must be a typed
+     * @param method        the method to invoke; must be a
      *                      {@code @ProbabilisticTest} or
      *                      {@code @Experiment} method (zero parameters,
      *                      returning {@code void})
      * @return the captured outcome — verdict (if emitted) and / or
      *         defect (if the method threw something other than the
-     *         expected typed-pipeline translations)
+     *         expected pass/fail/inconclusive translations)
      */
     public Outcome execute(Class<?> sentinelClass, Method method) {
         Capturer capturer = new Capturer();
@@ -80,9 +80,9 @@ public class SentinelExecutor {
      * The result of executing one method.
      *
      * <p>{@code verdict} is empty only when the method threw before
-     * reaching the typed pipeline's verdict-emission step (i.e. a
-     * defect prevented the run from completing). On a normal run —
-     * including FAIL and INCONCLUSIVE — the verdict is present.
+     * reaching the verdict-emission step (i.e. a defect prevented the
+     * run from completing). On a normal run — including FAIL and
+     * INCONCLUSIVE — the verdict is present.
      *
      * @param sentinelClass the class the method was invoked on
      * @param method        the method that was invoked

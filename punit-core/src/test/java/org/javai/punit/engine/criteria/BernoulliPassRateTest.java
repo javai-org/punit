@@ -416,7 +416,7 @@ class BernoulliPassRateTest {
                 .isEqualTo(Verdict.INCONCLUSIVE);
     }
 
-    // ── typed plumbing ───────────────────────────────────────────────
+    // ── plumbing ─────────────────────────────────────────────────────
 
     @Test
     @DisplayName("criterion exposes PassRateStatistics.class as its statistics type")

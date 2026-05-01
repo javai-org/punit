@@ -135,8 +135,8 @@ class SpecificationRegistryTest {
         }
 
         @Test
-        @DisplayName("strips legacy version suffix")
-        void stripsLegacyVersionSuffix() throws IOException {
+        @DisplayName("strips older version suffix")
+        void stripsOlderVersionSuffix() throws IOException {
             createSpecFile("TestUseCase", 0.9);
 
             var spec = registry.resolveOrThrow("TestUseCase:v1");
@@ -279,8 +279,8 @@ class SpecificationRegistryTest {
         }
 
         @Test
-        @DisplayName("handles legacy version suffix")
-        void handlesLegacyVersionSuffix() throws IOException {
+        @DisplayName("handles older version suffix")
+        void handlesOlderVersionSuffix() throws IOException {
             createSpecFile("TestUseCase", 0.9);
 
             assertThat(registry.exists("TestUseCase:v1")).isTrue();

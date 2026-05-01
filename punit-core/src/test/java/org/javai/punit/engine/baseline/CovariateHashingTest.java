@@ -10,7 +10,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("CovariateHashing — EX09 per-covariate-value 4-char hashes")
+@DisplayName("CovariateHashing — per-covariate-value 4-char hashes")
 class CovariateHashingTest {
 
     @Test
@@ -79,7 +79,7 @@ class CovariateHashingTest {
     @Test
     @DisplayName("hash matches first-4 of SHA-256 over UTF-8 of 'key=value'")
     void matchesNormativeAlgorithm() {
-        // Lock in EX09's algorithm against an externally-computable
+        // Lock in the algorithm against an externally-computable
         // value. SHA-256("region=DE_FR") = the well-known digest;
         // first 4 hex chars are stable across platforms.
         String input = "region=DE_FR";

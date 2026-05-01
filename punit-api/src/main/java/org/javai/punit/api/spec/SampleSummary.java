@@ -143,9 +143,10 @@ public record SampleSummary<OT>(
     }
 
     /**
-     * Back-compat two-arg factory used by legacy tests — defaults
-     * {@code latencyResult} to {@link LatencyResult#empty()} and
-     * {@code terminationReason} to {@link TerminationReason#COMPLETED}.
+     * Two-arg factory for callers that don't carry latency or
+     * termination data — defaults {@code latencyResult} to
+     * {@link LatencyResult#empty()} and {@code terminationReason} to
+     * {@link TerminationReason#COMPLETED}.
      */
     public static <OT> SampleSummary<OT> from(List<UseCaseOutcome<?, OT>> outcomes, Duration elapsed) {
         return from(outcomes, elapsed, LatencyResult.empty(), TerminationReason.COMPLETED);

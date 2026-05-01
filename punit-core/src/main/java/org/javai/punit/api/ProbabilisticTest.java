@@ -10,12 +10,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * Marks a method as a probabilistic test in the typed-compositional
- * authoring model.
+ * Marks a method as a probabilistic test.
  *
  * <p>The annotated method is a normal JUnit {@code void} test. Its
- * body builds a typed test spec via the compositional API and asserts
- * that it reaches a {@code PASS} verdict:
+ * body builds a test spec via the compositional API and asserts that
+ * it reaches a {@code PASS} verdict:
  *
  * <pre>{@code
  * @ProbabilisticTest
@@ -42,7 +41,7 @@ import org.junit.jupiter.api.Test;
  * </ul>
  *
  * <p>The annotation is attribute-free; every parameter lives on the
- * typed spec the method body builds and runs.
+ * spec the method body builds and runs.
  *
  * <p>Tagged {@code "punit"} for suite-level filtering.
  */

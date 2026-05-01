@@ -20,8 +20,8 @@ import org.opentest4j.AssertionFailedError;
  * Test subjects for {@link org.javai.punit.sentinel.SentinelMainTest}
  * and {@link org.javai.punit.sentinel.SentinelOrchestratorTest}.
  *
- * <p>Each nested class declares a typed-pipeline annotated method
- * whose body dispatches a stubbed
+ * <p>Each nested class declares an annotated method whose body
+ * dispatches a stubbed
  * {@link ProbabilisticTestVerdict} directly to
  * {@link VerdictSinkBus} — bypassing the real engine. This
  * keeps the sentinel runtime tests focused on the framework's

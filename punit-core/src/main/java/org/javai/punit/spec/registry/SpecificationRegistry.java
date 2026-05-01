@@ -23,7 +23,7 @@ import org.javai.punit.spec.model.ExecutionSpecification;
  * <h2>Dimension-Qualified Resolution</h2>
  * <p>When a spec ID ends with ".latency", the registry looks for a dedicated
  * latency spec file ({@code {useCaseId}.latency.yaml}). If not found, it falls
- * back to the legacy single-file spec and extracts latency data from it.
+ * back to the older single-file spec format and extracts latency data from it.
  */
 public class SpecificationRegistry implements SpecRepository {
 
@@ -97,7 +97,7 @@ public class SpecificationRegistry implements SpecRepository {
 	 */
 	public ExecutionSpecification resolveOrThrow(String specId) {
 		Objects.requireNonNull(specId, "specId must not be null");
-		// Strip any legacy version suffix (e.g., ":v1") for backwards compatibility
+		// Strip any older version suffix (e.g., ":v1") for backwards compatibility
 		String normalizedId = stripVersionSuffix(specId);
 		return cache.computeIfAbsent(normalizedId, this::loadSpec);
 	}

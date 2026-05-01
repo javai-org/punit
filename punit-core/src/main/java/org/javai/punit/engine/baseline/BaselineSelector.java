@@ -13,7 +13,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 
 /**
  * Covariate-aware best-match selection over a set of candidate
- * baselines per UC05.
+ * baselines.
  *
  * <h2>Algorithm</h2>
  *
@@ -32,25 +32,24 @@ import org.javai.punit.api.covariate.CovariateProfile;
  *   <li><b>Highest score wins.</b> Exact match (all covariates
  *       agree) trivially scores highest; partial matches are picked
  *       in proportion to their fit.</li>
- *   <li><b>Ties broken by category priority.</b> Per UC05's
- *       ordering, a candidate matching a higher-priority category
- *       beats one matching a lower-priority category at the same
- *       score. {@code TEMPORAL > INFRASTRUCTURE > CONFIGURATION >
- *       OPERATIONAL > EXTERNAL_DEPENDENCY > DATA_STATE}. The
- *       comparison is over the set of categories each candidate
+ *   <li><b>Ties broken by category priority.</b> A candidate matching
+ *       a higher-priority category beats one matching a lower-priority
+ *       category at the same score. {@code TEMPORAL > INFRASTRUCTURE >
+ *       CONFIGURATION > OPERATIONAL > EXTERNAL_DEPENDENCY > DATA_STATE}.
+ *       The comparison is over the set of categories each candidate
  *       matched on, smallest-priority-value wins.</li>
- *   <li><b>Default fallback.</b> When a candidate's profile is
- *       empty (covariate-insensitive baseline) and no covariate-
- *       tagged candidate scored positively, the empty-profile
- *       candidate is selected — UC05's "default baseline" rule.</li>
+ *   <li><b>Default fallback.</b> When a candidate's profile is empty
+ *       (covariate-insensitive baseline) and no covariate-tagged
+ *       candidate scored positively, the empty-profile candidate is
+ *       selected as the default.</li>
  * </ol>
  *
- * <h2>Legacy compatibility</h2>
+ * <h2>Covariate-insensitive use cases</h2>
  *
  * <p>When the use case declares no covariates ({@code declarations}
  * is empty), only candidates whose own profile is empty are
- * considered — preserving the byte-identical behaviour of pre-CV-3
- * resolution for use cases that don't opt into covariates.
+ * considered — covariate-insensitive baselines on disk continue to
+ * resolve byte-identically.
  *
  * <p>The category enforcement requires the categories of the
  * declared covariates; the candidate file alone (which only carries
@@ -59,7 +58,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 final class BaselineSelector {
 
     /**
-     * UC05 priority ordering. Lower index = higher precedence.
+     * Category priority ordering. Lower index = higher precedence.
      */
     private static final List<CovariateCategory> PRIORITY = List.of(
             CovariateCategory.TEMPORAL,
@@ -77,8 +76,8 @@ final class BaselineSelector {
      * @param currentProfile  the profile resolved for the current run
      * @param declarations    the use case's covariate declarations,
      *                        in declaration order
-     * @return the best-matching baseline per UC05, or empty when no
-     *         candidate is selectable (CONFIGURATION mismatch on every
+     * @return the best-matching baseline, or empty when no candidate
+     *         is selectable (CONFIGURATION mismatch on every
      *         covariate-tagged candidate <i>and</i> no empty-profile
      *         fallback)
      */
@@ -90,15 +89,15 @@ final class BaselineSelector {
     }
 
     /**
-     * Selects the best-matching baseline (UC05) and returns the
-     * decision <em>plus</em> a list of human-readable notes capturing
-     * each candidate that was rejected and why. The notes are surfaced
+     * Selects the best-matching baseline and returns the decision
+     * <em>plus</em> a list of human-readable notes capturing each
+     * candidate that was rejected and why. The notes are surfaced
      * upstream through {@link BaselineLookup#notes()} so that an
      * INCONCLUSIVE verdict explains the misalignment.
      *
      * <p>Notes are only emitted on the covariate-aware path
-     * ({@code declarations} non-empty); the legacy "no declarations"
-     * path returns an empty notes list.
+     * ({@code declarations} non-empty); the no-declarations path
+     * returns an empty notes list.
      */
     static SelectionReport selectWithReport(
             List<BaselineRecord> candidates,
@@ -112,7 +111,7 @@ final class BaselineSelector {
             return SelectionReport.NONE;
         }
         // No covariate declarations → only match unstamped baselines.
-        // Preserves pre-CV-3 behaviour for use cases that don't opt in.
+        // Covariate-insensitive use cases resolve byte-identically.
         if (declarations.isEmpty()) {
             return new SelectionReport(
                     candidates.stream()
@@ -133,8 +132,8 @@ final class BaselineSelector {
                 // declared covariates is the "wrong" baseline by
                 // identity — it was measured under environmental
                 // conditions disjoint from the current run. Reject it;
-                // the empty-profile baseline (UC05's default fallback)
-                // is the only candidate allowed at score 0.
+                // the empty-profile baseline (default fallback) is the
+                // only candidate allowed at score 0.
                 if (s.matches == 0 && !c.covariateProfile().isEmpty()) {
                     notes.add(rejectedNote(c.filename(),
                             "no overlap with the current covariate profile"));
@@ -274,8 +273,7 @@ final class BaselineSelector {
         // comparison degrades to the filename tiebreaker, which
         // happens to leave the empty-profile baseline (the shortest
         // filename for a given (ucid, ff)) at the front. That is the
-        // UC05 "default baseline" fallback expressed via lexical
-        // order.
+        // "default baseline" fallback expressed via lexical order.
         int best = Integer.MAX_VALUE;
         for (CovariateCategory cat : s.matchedCategories) {
             int idx = PRIORITY.indexOf(cat);

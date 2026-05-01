@@ -141,8 +141,8 @@ public final class PUnit {
      * first configuration. Returns {@link CovariateProfile#empty()}
      * when the use case declared no covariates.
      *
-     * <p>Per UC04 the profile is resolved once per run, before any
-     * samples execute.
+     * <p>The profile is resolved once per run, before any samples
+     * execute.
      */
     private static CovariateProfile resolveCovariateProfile(
             Spec spec) {
@@ -293,9 +293,7 @@ public final class PUnit {
         // ran, paired with the matched baseline's covariates. Useful
         // diagnostic context on FAIL / INCONCLUSIVE: the author
         // should immediately see which environment was being tested
-        // and how it differed from the baseline (when at all). Same
-        // structured shape the legacy CovariateStatus emits, so HTML
-        // and XML report consumers see parity from both pipelines.
+        // and how it differed from the baseline (when at all).
         var alignment = result.covariates();
         if (!alignment.observed().isEmpty() || !alignment.baseline().isEmpty()) {
             sb.append('\n');
@@ -604,9 +602,7 @@ public final class PUnit {
             // it onto the result alongside the baseline profile that
             // conclude collected. The structured CovariateAlignment
             // flows downstream — to the verbose renderer here, and
-            // to HTML / XML / JSON sinks when the typed pipeline
-            // grows them — preserving parity with the legacy
-            // CovariateStatus shape.
+            // to HTML / XML / JSON sinks.
             CovariateProfile observed = resolveCovariateProfile(spec);
             ProbabilisticTestResult stamped = typed.withCovariates(
                             CovariateAlignment.compute(

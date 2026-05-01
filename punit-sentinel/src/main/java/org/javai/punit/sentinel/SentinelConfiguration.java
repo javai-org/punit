@@ -12,7 +12,7 @@ import org.javai.punit.verdict.VerdictSink;
  *
  * <p>Built via a fluent builder. The only required element is at
  * least one registered class — a class declaring methods annotated
- * with the typed {@code @ProbabilisticTest} or {@code @Experiment}.
+ * with {@code @ProbabilisticTest} or {@code @Experiment}.
  *
  * <pre>{@code
  * SentinelConfiguration config = SentinelConfiguration.builder()
@@ -76,7 +76,7 @@ public final class SentinelConfiguration {
         /**
          * Registers a class for Sentinel execution. The class must
          * declare a public no-arg constructor and one or more methods
-         * annotated with the typed {@code @ProbabilisticTest} or
+         * annotated with {@code @ProbabilisticTest} or
          * {@code @Experiment}.
          */
         public Builder sentinelClass(Class<?> sentinelClass) {

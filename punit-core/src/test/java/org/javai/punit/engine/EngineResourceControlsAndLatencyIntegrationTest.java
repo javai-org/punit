@@ -29,14 +29,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Stage-3 end-to-end engine behaviour: budget enforcement, pacing,
- * exception policy, latency computation, two-dimensional verdicts.
+ * End-to-end engine behaviour: budget enforcement, pacing, exception
+ * policy, latency computation, two-dimensional verdicts.
  *
  * <p>No JUnit extensions, no annotation scanning — these tests
- * construct typed specs directly and drive them through
- * {@link Engine}.
+ * construct specs directly and drive them through {@link Engine}.
  */
-@DisplayName("Engine Stage-3 resource controls + latency integration")
+@DisplayName("Engine resource controls + latency integration")
 class EngineResourceControlsAndLatencyIntegrationTest {
 
     record Factors(String model) {}
@@ -77,10 +76,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         }
     }
 
-    // ── 1. RC01 time budget stops sampling early ─────────────────────
+    // ── 1. Time budget stops sampling early ─────────────────────
 
     @Test
-    @DisplayName("RC01: time budget terminates sampling early with TIME_BUDGET marker")
+    @DisplayName("time budget terminates sampling early with TIME_BUDGET marker")
     void timeBudgetTerminatesEarly() {
         UseCase<Factors, Integer, Integer> sleeper = new SleepyUseCase(100, 0);
         Sampling<Factors, Integer, Integer> sampling = Sampling
@@ -99,10 +98,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         assertThat(summary.terminationReason()).isEqualTo(TerminationReason.TIME_BUDGET);
     }
 
-    // ── 2. RC02 token budget stops sampling early ────────────────────
+    // ── 2. Token budget stops sampling early ────────────────────
 
     @Test
-    @DisplayName("RC02: token budget terminates sampling early with TOKEN_BUDGET marker")
+    @DisplayName("token budget terminates sampling early with TOKEN_BUDGET marker")
     void tokenBudgetTerminatesEarly() {
         // Declaring a static per-sample charge of 100 matches the
         // BudgetTracker's pre-sample projection: after 2 samples the
@@ -134,10 +133,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         assertThat(summary.terminationReason()).isEqualTo(TerminationReason.TOKEN_BUDGET);
     }
 
-    // ── 3. RC03 static charge contributes to budget ─────────────────
+    // ── 3. Static charge contributes to budget ─────────────────
 
     @Test
-    @DisplayName("RC03: static token charge is accounted for each sample")
+    @DisplayName("static token charge is accounted for each sample")
     void staticChargeAccountedEachSample() {
         UseCase<Factors, Integer, Integer> zeroCost = new UseCase<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
@@ -161,10 +160,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         assertThat(summary.tokensConsumed()).isEqualTo(50L * 5);
     }
 
-    // ── 4. RC05 PASS_INCOMPLETE surfaces partial result ─────────────
+    // ── 4. PASS_INCOMPLETE surfaces partial result ─────────────
 
     @Test
-    @DisplayName("RC05: budget exhaustion produces a summary the spec can detect (terminatedEarly)")
+    @DisplayName("budget exhaustion produces a summary the spec can detect (terminatedEarly)")
     void passIncompleteSurfacesPartialResult() {
         UseCase<Factors, Integer, Integer> sleeper = new SleepyUseCase(50, 0);
         Sampling<Factors, Integer, Integer> sampling = Sampling
@@ -184,10 +183,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         assertThat(summary.total()).isBetween(2, 7);
     }
 
-    // ── 5 & 6. RC08 / RC10 pacing inserts inter-sample delay ────────
+    // ── 5 & 6. Pacing inserts inter-sample delay ────────────────
 
     @Test
-    @DisplayName("RC08: maxRequestsPerSecond inserts inter-sample delay")
+    @DisplayName("maxRequestsPerSecond inserts inter-sample delay")
     void maxRpsInsertsDelay() {
         // 10 RPS → 100ms min delay between samples.
         UseCase<Factors, Integer, Integer> pacingUc = new UseCase<>() {
@@ -216,7 +215,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     }
 
     @Test
-    @DisplayName("RC10: minMillisPerSample composes with RC08 via most-restrictive-wins")
+    @DisplayName("minMillisPerSample composes with maxRequestsPerSecond via most-restrictive-wins")
     void mostRestrictiveWinsComposition() {
         // maxRps implies 100ms; min explicit 250ms should dominate.
         UseCase<Factors, Integer, Integer> pacingUc = new UseCase<>() {
@@ -250,7 +249,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     // ── 7 & 8. Exception policy paths ───────────────────────────────
 
     @Test
-    @DisplayName("RC12: FAIL_SAMPLE catches a thrown defect and counts it as a failed sample")
+    @DisplayName("FAIL_SAMPLE catches a thrown defect and counts it as a failed sample")
     void failSampleCatchesAndCounts() {
         AtomicInteger n = new AtomicInteger();
         UseCase<Factors, Integer, Integer> flaky = new UseCase<>() {
@@ -281,7 +280,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     }
 
     @Test
-    @DisplayName("RC13: ABORT_TEST (default) rethrows a thrown defect — preserves legacy behaviour")
+    @DisplayName("ABORT_TEST (default) rethrows a thrown defect")
     void abortTestRethrows() {
         UseCase<Factors, Integer, Integer> defective = new UseCase<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
@@ -302,10 +301,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .hasMessageContaining("defect");
     }
 
-    // ── 9. RC14 maxExampleFailures ──────────────────────────────────
+    // ── 9. maxExampleFailures ──────────────────────────────────
 
     @Test
-    @DisplayName("RC14: maxExampleFailures caps retained detail but not failure counts")
+    @DisplayName("maxExampleFailures caps retained detail but not failure counts")
     void maxExampleFailuresCaps() {
         UseCase<Factors, Integer, Integer> failing = new UseCase<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
@@ -332,10 +331,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         assertThat(summary.outcomes()).hasSize(3);
     }
 
-    // ── 10. LT01 latency percentile computation ─────────────────────
+    // ── 10. Latency percentile computation ─────────────────────
 
     @Test
-    @DisplayName("LT01: latency percentiles computed from observed durations (nearest-rank)")
+    @DisplayName("latency percentiles computed from observed durations (nearest-rank)")
     void latencyPercentilesComputed() {
         // Scripted sleeps 10/20/30/40/50ms.
         UseCase<Factors, Integer, Integer> scripted = new ScriptedLatencyUseCase(10L, 20L, 30L, 40L, 50L);

@@ -127,8 +127,8 @@ class PUnitApiArchitectureTest {
                 .and().haveName(verb)
                 .should().beStatic()
                 .andShould().bePublic()
-                .because(specSimpleName + " is composed via " + verb + "(...) — see DG01/DG02 for shape, "
-                        + "EX01/EX02/EX03/CR04 for spec-kind specifics");
+                .because(specSimpleName + " is composed via " + verb + "(...) — "
+                        + "the static factory is the spec's only entry point");
         rule.check(classes);
     }
 }

@@ -15,10 +15,6 @@ import java.util.List;
  * equal {@link PostconditionResult} lists. The engine relies on this
  * to make per-sample evaluation idempotent.
  *
- * <p>Parallel to {@code org.javai.punit.contract.PostconditionEvaluator}
- * — the two will converge when Stage 8 retires the legacy contract
- * surface.
- *
  * @param <R> the raw result type produced by the use case
  */
 public interface PostconditionEvaluator<R> {

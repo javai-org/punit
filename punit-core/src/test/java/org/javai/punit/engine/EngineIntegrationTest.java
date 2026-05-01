@@ -28,13 +28,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Hand-wired end-to-end test for the typed-model engine.
+ * Hand-wired end-to-end test for the engine.
  *
  * <p>No JUnit extensions, no annotation scanning, no reflection
- * into PUnit internals. Constructs typed specs, runs them through
+ * into PUnit internals. Constructs specs, runs them through
  * {@link Engine}, and asserts the resulting {@link EngineResult}.
- *
- * <p>This is the Stage 2 validation signal.
  */
 @DisplayName("Engine end-to-end integration")
 class EngineIntegrationTest {

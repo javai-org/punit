@@ -219,9 +219,9 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         } else {
             // Empirical: wrap the observed value in a Wilson-score one-sided
             // lower bound at the criterion's confidence; PASS iff the bound
-            // respects the baseline-derived threshold. SC02 in the
-            // orchestrator catalog. Calculation lives in the dedicated
-            // statistics package — see CLAUDE.md §"Statistics isolation rule".
+            // respects the baseline-derived threshold. The calculation lives
+            // in the dedicated statistics package — see CLAUDE.md
+            // §"Statistics isolation rule".
             wilsonLower = ESTIMATOR.lowerBound(summary.successes(), total, confidence);
             verdict = wilsonLower >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
         }

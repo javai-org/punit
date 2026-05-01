@@ -9,14 +9,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * Marks a method as an experiment in the typed-compositional
- * authoring model — a measure, explore, or optimize whose role is
- * to produce an artefact (baseline file, exploration grid,
- * optimization history) rather than a verdict.
+ * Marks a method as an experiment — a measure, explore, or optimize
+ * whose role is to produce an artefact (baseline file, exploration
+ * grid, optimization history) rather than a verdict.
  *
  * <p>The annotated method is a normal JUnit {@code void} test. Its
- * body builds a typed experiment spec via the compositional API and
- * runs it:
+ * body builds an experiment spec via the compositional API and runs
+ * it:
  *
  * <pre>{@code
  * @Experiment

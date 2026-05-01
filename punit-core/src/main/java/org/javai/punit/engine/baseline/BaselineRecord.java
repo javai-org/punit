@@ -34,10 +34,10 @@ import org.javai.punit.api.spec.BaselineStatistics;
  *        {@code Criterion.name()}
  * @param covariateProfile    the resolved covariate profile under
  *        which this baseline was measured. Empty when the use case
- *        declared no covariates (legacy / covariate-insensitive
- *        baselines). Part of the baseline's identity per UC04 — a
- *        baseline measured under one profile must not silently match
- *        a test running under a different profile.
+ *        declared no covariates (covariate-insensitive baselines).
+ *        Part of the baseline's identity — a baseline measured under
+ *        one profile must not silently match a test running under a
+ *        different profile.
  */
 public record BaselineRecord(
         String useCaseId,
@@ -80,9 +80,9 @@ public record BaselineRecord(
 
     /**
      * Convenience constructor for callers that don't carry a covariate
-     * profile (legacy baselines, tests that don't exercise covariate
-     * resolution). Equivalent to the canonical constructor with
-     * {@link CovariateProfile#empty()}.
+     * profile (covariate-insensitive baselines, tests that don't
+     * exercise covariate resolution). Equivalent to the canonical
+     * constructor with {@link CovariateProfile#empty()}.
      */
     public BaselineRecord(
             String useCaseId,
@@ -106,15 +106,16 @@ public record BaselineRecord(
      * {useCaseId}.{methodName}-{factorsFingerprint}.yaml
      * }</pre>
      *
-     * <p>Non-empty covariate profile — one 4-char EX09 hash per
-     * covariate, in declaration order, separated by hyphens after the
-     * factors fingerprint:
+     * <p>Non-empty covariate profile — one 4-char hash per covariate,
+     * in declaration order, separated by hyphens after the factors
+     * fingerprint:
      * <pre>{@code
      * {useCaseId}.{methodName}-{factorsFingerprint}-{cov1}-{cov2}...-{covN}.yaml
      * }</pre>
      *
-     * <p>The empty-profile form is byte-identical to pre-CV-3
-     * filenames; legacy baselines on disk continue to match.
+     * <p>The empty-profile form is byte-identical to the
+     * covariate-insensitive filename, so older baselines on disk
+     * continue to match.
      */
     public String filename() {
         StringBuilder name = new StringBuilder()

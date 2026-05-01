@@ -53,18 +53,13 @@ import org.javai.punit.api.covariate.TimezoneCovariate;
  *       provides; fail fast if no resolver is registered.</li>
  * </ul>
  *
- * <p>Label conventions match the legacy resolvers (in
- * {@code spec.baseline.covariate}) so a baseline emitted by the
- * legacy pipeline and a baseline emitted by the typed pipeline use
- * identical labels for identical covariate inputs.
- *
  * <p>Resolvers are deterministic for a given {@code Clock},
  * {@code ZoneId}, and environment lookup. Inject custom values
  * through {@link Builder} for tests; production code uses
  * {@link #defaults()}.
  *
- * <p>Per UC04, this resolver is invoked once per experiment run or
- * test execution — the resulting profile travels with every sample
+ * <p>This resolver is invoked once per experiment run or test
+ * execution — the resulting profile travels with every sample
  * in that run. Re-resolving per sample would let the profile drift
  * mid-run (the clock advances, the system property could mutate),
  * defeating the purpose of recording a snapshot.

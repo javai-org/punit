@@ -189,11 +189,11 @@ class BaselineReaderTest {
     }
 
     @Test
-    @DisplayName("legacy baselines without a covariates block parse to an empty profile")
-    void legacyMissingCovariates() {
-        // A YAML emitted before CV-3a has no covariates: block. The
-        // reader must accept it and assign the empty profile, so old
-        // baselines on disk continue to work after the upgrade.
+    @DisplayName("baselines without a covariates block parse to an empty profile")
+    void missingCovariates() {
+        // Older YAML predates the covariates: block. The reader must
+        // accept it and assign the empty profile so old baselines on
+        // disk continue to work after the upgrade.
         String yaml = "schemaVersion: punit-baseline-2\n"
                 + "useCaseId: x\n"
                 + "methodName: m\n"

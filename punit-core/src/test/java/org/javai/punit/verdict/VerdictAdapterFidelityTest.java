@@ -27,11 +27,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Living documentation: each test pins one row of the
- * "RP07 element / attribute → typed pipeline behaviour" table in
- * {@code USER-GUIDE.md} Part 11 ("Typed Pipeline Emission") to an
- * executable assertion. If a behaviour shifts and the doc gets
- * out of sync, this test fails first.
+ * Living documentation: each test pins one row of the verdict-XML
+ * field-reference table in {@code USER-GUIDE.md} Part 11 to an
+ * executable assertion. If a behaviour shifts and the doc gets out
+ * of sync, this test fails first.
  *
  * <p>Distinct from {@link VerdictAdapterTest} which exercises
  * field-level mapping; this fidelity suite asserts what's
@@ -43,8 +42,8 @@ class VerdictAdapterFidelityTest {
     private record Factors() { }
 
     @Nested
-    @DisplayName("typed-derived fields")
-    class TypedDerived {
+    @DisplayName("source-derived fields")
+    class SourceDerived {
 
         @Test
         @DisplayName("identity use-case-id falls back to className when use-case-id absent")
@@ -137,7 +136,7 @@ class VerdictAdapterFidelityTest {
     }
 
     @Nested
-    @DisplayName("defaulted (no typed-pipeline analogue)")
+    @DisplayName("defaulted (no source analogue)")
     class Defaulted {
 
         @Test
@@ -213,7 +212,7 @@ class VerdictAdapterFidelityTest {
         }
 
         @Test
-        @DisplayName("junitPassed defaulted to true (typed pipeline has no JUnit-pass concept)")
+        @DisplayName("junitPassed defaulted to true (no JUnit-pass concept on the result)")
         void junitPassedDefaulted() {
             ProbabilisticTestVerdict verdict = adapt(minimalResult());
 
@@ -250,11 +249,11 @@ class VerdictAdapterFidelityTest {
         }
 
         private void assertMapping(
-                org.javai.punit.api.spec.TerminationReason typed,
+                org.javai.punit.api.spec.TerminationReason reason,
                 TerminationReason expectedCore) {
             ProbabilisticTestResult result = withEngine(new EngineRunSummary(
                     1, 1, 1, 0, 1L, 0L, 0,
-                    LatencyResult.empty(), typed, 0.95, Optional.empty()));
+                    LatencyResult.empty(), reason, 0.95, Optional.empty()));
 
             ProbabilisticTestVerdict verdict = adapt(result);
 

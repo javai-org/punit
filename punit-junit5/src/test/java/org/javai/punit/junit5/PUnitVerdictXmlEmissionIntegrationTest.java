@@ -54,7 +54,7 @@ class PUnitVerdictXmlEmissionIntegrationTest {
     }
 
     @Test
-    @DisplayName("contractual PASS produces an RP07 XML file at {className}.{methodName}.xml")
+    @DisplayName("contractual PASS produces an XML file at {className}.{methodName}.xml")
     void contractualPassEmitsXmlFile() throws Exception {
         Events events = run(PUnitSubjects.PassingContractualTest.class);
         events.assertStatistics(stats -> stats.started(1).succeeded(1).failed(0));

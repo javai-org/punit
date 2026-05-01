@@ -29,10 +29,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Pins the cross-criterion detail-key conventions specified by CR02
- * and CR03. The keys feed RP07's {@code <detail>} block directly when
- * Stage 7 lands the serialiser; if a key drifts, the serialiser sees
- * a different shape, so the conventions are load-bearing.
+ * Pins the cross-criterion detail-key conventions. The keys feed
+ * the verdict-XML {@code <detail>} block directly; if a key drifts,
+ * the serialiser sees a different shape, so the conventions are
+ * load-bearing.
  */
 @DisplayName("CriterionResult.detail conventions")
 class CriterionResultDetailTest {

@@ -253,7 +253,7 @@ public class ProbabilisticTestVerdictBuilder {
 
     /**
      * Per-postcondition failure histogram, keyed by clause description.
-     * Iteration order is preserved (the typed pipeline delivers a
+     * Iteration order is preserved (the engine delivers a
      * {@link java.util.LinkedHashMap}); the writer renders clauses in
      * the order the contract declared them.
      *

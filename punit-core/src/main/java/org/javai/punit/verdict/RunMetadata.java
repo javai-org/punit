@@ -6,9 +6,9 @@ import java.util.Optional;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 
 /**
- * Per-run metadata that the typed pipeline doesn't carry on its
- * result but the RP07 verdict XML requires — test identity, optional
- * correlation ID, and a bag of environment metadata.
+ * Per-run metadata that the result doesn't carry but the verdict
+ * XML requires — test identity, optional correlation ID, and a bag
+ * of environment metadata.
  *
  * <p>Built at the JUnit-extension boundary (where {@code className} and
  * {@code methodName} are knowable via stack walk or the test extension
@@ -19,9 +19,8 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
  *
  * <p>{@link #correlationId()} and {@link #environmentMetadata()} are
  * optional. The adapter generates a UUID-fragment correlation ID when
- * absent (matching the legacy verdict builder's behaviour) and treats
- * empty environment metadata as the absence of an {@code <environment>}
- * element rather than an empty one.
+ * absent and treats empty environment metadata as the absence of an
+ * {@code <environment>} element rather than an empty one.
  *
  * @param className           the test class's fully-qualified name;
  *                            non-blank
@@ -29,8 +28,7 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
  * @param useCaseId           the use-case identifier, when known; surfaces
  *                            on the verdict's {@code <identity use-case-id>}
  *                            attribute and falls back to {@code className}
- *                            when absent (mirroring the legacy pipeline's
- *                            behaviour)
+ *                            when absent
  * @param correlationId       opaque correlation ID for distributed
  *                            tracing; absent → adapter generates one
  * @param environmentMetadata free-form key/value pairs surfaced as

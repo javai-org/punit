@@ -14,9 +14,9 @@ import org.javai.punit.api.spec.BaselineStatistics;
 
 /**
  * Wraps a {@link BaselineProvider} with a captured covariate profile
- * and declarations so that legacy-shape lookups (no profile/declarations
- * arguments) become covariate-aware lookups against the captured
- * values.
+ * and declarations so that the convenience overloads (no
+ * profile/declarations arguments) become covariate-aware lookups
+ * against the captured values.
  *
  * <p>The framework constructs one of these per probabilistic-test run
  * after resolving the run's covariate profile from the use case, so
@@ -26,8 +26,8 @@ import org.javai.punit.api.spec.BaselineStatistics;
  * selection.
  *
  * <p>The covariate-aware overloads pass through with whatever profile
- * / declarations the caller supplies; only the legacy overloads get
- * the captured-profile substitution. This means a caller that
+ * / declarations the caller supplies; only the convenience overloads
+ * get the captured-profile substitution. This means a caller that
  * <em>already</em> has covariate state can still bypass the binding
  * and pass its own.
  */
@@ -58,9 +58,9 @@ public final class ProfileBoundBaselineProvider implements BaselineProvider {
         Objects.requireNonNull(profile, "profile");
         Objects.requireNonNull(declarations, "declarations");
         if (declarations.isEmpty()) {
-            // No covariates declared → legacy semantics suffice.
-            // Avoiding the wrapper keeps stack traces and toString
-            // honest for non-covariate use cases.
+            // No covariates declared → no binding needed. Skipping
+            // the wrapper keeps stack traces and toString honest for
+            // non-covariate use cases.
             return delegate;
         }
         return new ProfileBoundBaselineProvider(delegate,

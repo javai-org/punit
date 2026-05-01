@@ -24,10 +24,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 /**
- * Deserialises a {@link ProbabilisticTestVerdict} from RP07 verdict XML.
+ * Deserialises a {@link ProbabilisticTestVerdict} from verdict XML.
  *
  * <p>Reads the {@code http://javai.org/verdict/1.0} format and maps it back
- * to the punit verdict model. PUnit-specific fields not present in RP07
+ * to the punit verdict model. PUnit-specific fields not present in the verdict-XML standard
  * (pacing, environment, expiration, correlation ID) receive default values.
  *
  * <p>Uses DOM parsing since individual verdict files are small.
@@ -94,7 +94,7 @@ public final class VerdictXmlReader {
     private TestIdentity readIdentity(Element el) {
         String useCaseId = el.getAttribute("use-case-id");
         Optional<String> testName = optionalAttribute(el, "test-name");
-        // Map RP07 identity back to punit's class-name / method-name model
+        // Map verdict-XML identity back to punit's class-name / method-name model
         String className = useCaseId;
         String methodName = testName.orElse(useCaseId);
         return new TestIdentity(className, methodName, Optional.of(useCaseId));
@@ -114,7 +114,7 @@ public final class VerdictXmlReader {
                 ? (double) successes / samplesExecuted : 0.0;
         return new ExecutionSummary(
                 plannedSamples, samplesExecuted, successes, failures,
-                0.0, // min-pass-rate not in RP07, filled from statistics threshold
+                0.0, // min-pass-rate not in the verdict-XML standard, filled from statistics threshold
                 observedPassRate,
                 elapsedMs, Optional.empty(), intent, confidence,
                 new UseCaseAttributes(warmup)
@@ -210,7 +210,7 @@ public final class VerdictXmlReader {
                 el.getAttribute("source-file"),
                 Instant.parse(el.getAttribute("generated-at")),
                 Integer.parseInt(el.getAttribute("samples")),
-                0, // successes not in RP07 baseline
+                0, // successes not in the verdict-XML standard baseline
                 Double.parseDouble(el.getAttribute("baseline-rate")),
                 Double.parseDouble(el.getAttribute("derived-threshold"))
         );
@@ -263,7 +263,7 @@ public final class VerdictXmlReader {
         return new PacingSummary(
                 Double.parseDouble(el.getAttribute("max-rps")),
                 Double.parseDouble(el.getAttribute("max-rpm")),
-                0.0, // max-rph not in RP07
+                0.0, // max-rph not in the verdict-XML standard
                 Integer.parseInt(el.getAttribute("max-concurrent")),
                 Long.parseLong(el.getAttribute("effective-min-delay-ms")),
                 Integer.parseInt(el.getAttribute("effective-concurrency")),

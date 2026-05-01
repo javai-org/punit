@@ -9,12 +9,12 @@ import org.javai.punit.statistics.LatencyStatistics;
 
 /**
  * Bridge between a list of observed {@link UseCaseOutcome} durations
- * and the typed {@link LatencyResult} record.
+ * and the {@link LatencyResult} record.
  *
- * <p>Computation delegates to {@link LatencyStatistics#nearestRankPercentile(double[], double)}
- * — the same R-compatible nearest-rank percentile the legacy pipeline
- * uses — so conformance with the javai-R oracle is preserved across
- * the typed and legacy paths.
+ * <p>Computation delegates to
+ * {@link LatencyStatistics#nearestRankPercentile(double[], double)}
+ * — the R-compatible nearest-rank percentile, so conformance with
+ * the javai-R oracle is preserved.
  *
  * <p>This bridge lives in {@code punit-core} rather than
  * {@code punit-api} to keep the {@code commons-statistics} dependency

@@ -13,7 +13,7 @@ import org.javai.punit.util.HashUtils;
  *
  * <p>A covariate declaration captures which covariates are relevant for a use case:
  * <ul>
- *   <li>Standard covariates with typed definitions (day groups, time periods, region groups, timezone)</li>
+ *   <li>Standard covariates with built-in definitions (day groups, time periods, region groups, timezone)</li>
  *   <li>Custom covariates with explicit categories</li>
  * </ul>
  *
