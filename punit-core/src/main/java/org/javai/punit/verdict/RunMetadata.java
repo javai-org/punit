@@ -12,7 +12,7 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
  *
  * <p>Built at the JUnit-extension boundary (where {@code className} and
  * {@code methodName} are knowable via stack walk or the test extension
- * context) and threaded into {@link TypedVerdictAdapter} alongside the
+ * context) and threaded into {@link VerdictAdapter} alongside the
  * {@link ProbabilisticTestResult result}
  * itself. The result captures what happened in the run; this metadata
  * captures who ran it and where.
@@ -37,14 +37,14 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
  *                            {@code <environment>} entries; empty →
  *                            adapter omits the section
  */
-public record TypedRunMetadata(
+public record RunMetadata(
         String className,
         String methodName,
         Optional<String> useCaseId,
         Optional<String> correlationId,
         Map<String, String> environmentMetadata) {
 
-    public TypedRunMetadata {
+    public RunMetadata {
         Objects.requireNonNull(className, "className");
         Objects.requireNonNull(methodName, "methodName");
         Objects.requireNonNull(useCaseId, "useCaseId");
@@ -64,8 +64,8 @@ public record TypedRunMetadata(
      * defaults useCaseId, correlationId, and environmentMetadata to
      * empty.
      */
-    public static TypedRunMetadata of(String className, String methodName) {
-        return new TypedRunMetadata(
+    public static RunMetadata of(String className, String methodName) {
+        return new RunMetadata(
                 className, methodName,
                 Optional.empty(), Optional.empty(), Map.of());
     }
@@ -74,11 +74,11 @@ public record TypedRunMetadata(
      * Convenience adding a use-case identifier; correlationId and
      * environmentMetadata default to empty.
      */
-    public static TypedRunMetadata of(String className, String methodName, String useCaseId) {
+    public static RunMetadata of(String className, String methodName, String useCaseId) {
         Optional<String> wrapped = (useCaseId == null || useCaseId.isBlank())
                 ? Optional.empty()
                 : Optional.of(useCaseId);
-        return new TypedRunMetadata(
+        return new RunMetadata(
                 className, methodName, wrapped, Optional.empty(), Map.of());
     }
 }

@@ -26,8 +26,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("TypedVerdictAdapter")
-class TypedVerdictAdapterTest {
+@DisplayName("VerdictAdapter")
+class VerdictAdapterTest {
 
     private record Factors() { }
 
@@ -38,9 +38,9 @@ class TypedVerdictAdapterTest {
         @Test
         @DisplayName("populates className/methodName/useCaseId from metadata")
         void identityFromMetadata() {
-            ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(
+            ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                     minimalResult(Verdict.PASS),
-                    new TypedRunMetadata(
+                    new RunMetadata(
                             "com.example.MyTest", "shouldPass",
                             Optional.of("payment-gateway"),
                             Optional.of("v:abc123"),
@@ -56,9 +56,9 @@ class TypedVerdictAdapterTest {
         @Test
         @DisplayName("absent correlationId triggers builder's UUID-fragment generation")
         void absentCorrelationIdGetsGenerated() {
-            ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(
+            ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                     minimalResult(Verdict.PASS),
-                    TypedRunMetadata.of("com.example.MyTest", "shouldPass"));
+                    RunMetadata.of("com.example.MyTest", "shouldPass"));
 
             assertThat(verdict.correlationId()).isNotEmpty().startsWith("v:");
         }
@@ -339,9 +339,9 @@ class TypedVerdictAdapterTest {
     // ── Helpers ─────────────────────────────────────────────────────
 
     private static ProbabilisticTestVerdict adapt(ProbabilisticTestResult result) {
-        return TypedVerdictAdapter.adapt(
+        return VerdictAdapter.adapt(
                 result,
-                TypedRunMetadata.of("com.example.MyTest", "shouldPass"));
+                RunMetadata.of("com.example.MyTest", "shouldPass"));
     }
 
     private static ProbabilisticTestResult minimalResult(Verdict v) {

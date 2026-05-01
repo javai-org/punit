@@ -33,8 +33,8 @@ import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
-import org.javai.punit.verdict.TypedRunMetadata;
-import org.javai.punit.verdict.TypedVerdictAdapter;
+import org.javai.punit.verdict.RunMetadata;
+import org.javai.punit.verdict.VerdictAdapter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -44,17 +44,17 @@ import org.junit.jupiter.api.Test;
  * because that's where the writer and XSD resource are; punit-core
  * has the adapter unit tests but cannot reach the writer module.
  */
-@DisplayName("TypedVerdictAdapter ↔ VerdictXmlWriter round-trip")
-class TypedVerdictAdapterIntegrationTest {
+@DisplayName("VerdictAdapter ↔ VerdictXmlWriter round-trip")
+class VerdictAdapterIntegrationTest {
 
     private record Factors() { }
 
     @Test
     @DisplayName("PASS verdict round-trips and validates against verdict-1.0.xsd")
     void passRoundTrips() throws Exception {
-        ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(
+        ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                 richResult(Verdict.PASS),
-                new TypedRunMetadata(
+                new RunMetadata(
                         "com.example.PaymentTest", "shouldMeetSla",
                         Optional.of("payment-gateway"),
                         Optional.empty(),
@@ -86,9 +86,9 @@ class TypedVerdictAdapterIntegrationTest {
     @Test
     @DisplayName("FAIL verdict round-trips and validates against verdict-1.0.xsd")
     void failRoundTrips() throws Exception {
-        ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(
+        ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                 richResult(Verdict.FAIL),
-                TypedRunMetadata.of("com.example.PaymentTest", "shouldMeetSla", "payment-gateway"));
+                RunMetadata.of("com.example.PaymentTest", "shouldMeetSla", "payment-gateway"));
 
         String xml = serialise(verdict);
         validateAgainstSchema(xml);
@@ -108,9 +108,9 @@ class TypedVerdictAdapterIntegrationTest {
                 misaligned, Optional.empty(), Map.of(),
                 EngineRunSummary.empty());
 
-        ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(
+        ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                 result,
-                TypedRunMetadata.of("com.example.MyTest", "shouldRun"));
+                RunMetadata.of("com.example.MyTest", "shouldRun"));
 
         String xml = serialise(verdict);
         validateAgainstSchema(xml);

@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 
 import org.javai.punit.junit5.testsubjects.PUnitSubjects;
 import org.javai.punit.engine.baseline.BaselineResolver;
-import org.javai.punit.verdict.TypedVerdictSinkBus;
+import org.javai.punit.verdict.VerdictSinkBus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +23,7 @@ import org.junit.platform.testkit.engine.Events;
  * platform and asserts that the XML verdict file lands on disk at the
  * configured path.
  */
-@DisplayName("PUnit verdict XML emission via TypedVerdictSinkBus")
+@DisplayName("PUnit verdict XML emission via VerdictSinkBus")
 class PUnitVerdictXmlEmissionIntegrationTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
@@ -43,12 +43,12 @@ class PUnitVerdictXmlEmissionIntegrationTest {
         System.setProperty(BASELINE_DIR_PROPERTY, baselineDir.toString());
         // Reset the bus so the default sink is re-installed against
         // the freshly-set report dir property.
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
     }
 
     @AfterEach
     void restorePaths() {
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
         restore(DIR_PROPERTY, savedReportDir);
         restore(BASELINE_DIR_PROPERTY, savedBaselineDir);
     }
@@ -94,7 +94,7 @@ class PUnitVerdictXmlEmissionIntegrationTest {
     void disabledReportSuppressesEmission() throws Exception {
         String savedEnabled = System.getProperty("punit.report.enabled");
         System.setProperty("punit.report.enabled", "false");
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
         try {
             Events events = run(PUnitSubjects.PassingContractualTest.class);
             events.assertStatistics(stats -> stats.started(1).succeeded(1));

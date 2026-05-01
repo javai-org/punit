@@ -22,7 +22,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  *
  * <p>The adapter is a thin field-mapping function — it does not perform
  * statistical computation, judgement, or rendering. It reads the typed
- * result's components and the supplied {@link TypedRunMetadata}, and
+ * result's components and the supplied {@link RunMetadata}, and
  * delegates to {@link ProbabilisticTestVerdictBuilder} for the heavy
  * lifting (Wilson-score CI, baseline-derivation narrative, verdict-reason
  * synthesis).
@@ -30,7 +30,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  * <h2>Field provenance</h2>
  *
  * <ul>
- *   <li><b>Identity</b> — from {@code TypedRunMetadata}.</li>
+ *   <li><b>Identity</b> — from {@code RunMetadata}.</li>
  *   <li><b>Execution</b> — from {@code result.engineSummary()}; the
  *       observed pass rate is computed from successes/total. The
  *       threshold is lifted from the first {@code BernoulliPassRate}
@@ -72,9 +72,9 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  * those left at their builder defaults. Field-level fidelity is captured
  * in the test suite; renderers are tolerant of absent optional fields.
  */
-public final class TypedVerdictAdapter {
+public final class VerdictAdapter {
 
-    private TypedVerdictAdapter() { }
+    private VerdictAdapter() { }
 
     /**
      * Build a {@link ProbabilisticTestVerdict} from a typed result and
@@ -86,7 +86,7 @@ public final class TypedVerdictAdapter {
      *         serialisation
      */
     public static ProbabilisticTestVerdict adapt(
-            ProbabilisticTestResult result, TypedRunMetadata meta) {
+            ProbabilisticTestResult result, RunMetadata meta) {
 
         EngineRunSummary engine = result.engineSummary();
         ProbabilisticTestVerdictBuilder b = new ProbabilisticTestVerdictBuilder();

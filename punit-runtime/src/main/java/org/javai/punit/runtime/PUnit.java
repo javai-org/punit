@@ -34,12 +34,12 @@ import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.engine.criteria.Feasibility;
 import org.javai.punit.report.ReportConfiguration;
 import org.javai.punit.report.VerdictXmlSink;
-import org.javai.punit.reporting.TypedTransparentStatsRenderer;
+import org.javai.punit.reporting.TransparentStatsRenderer;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
-import org.javai.punit.verdict.TypedRunMetadata;
-import org.javai.punit.verdict.TypedVerdictAdapter;
-import org.javai.punit.verdict.TypedVerdictSinkBus;
+import org.javai.punit.verdict.RunMetadata;
+import org.javai.punit.verdict.VerdictAdapter;
+import org.javai.punit.verdict.VerdictSinkBus;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
 
@@ -201,24 +201,24 @@ public final class PUnit {
 
     /**
      * Adapts the typed result to a {@link ProbabilisticTestVerdict} and
-     * dispatches it through {@link TypedVerdictSinkBus}. Identity comes
-     * from {@link TypedTestIdentityResolver} (stack walk for the nearest
+     * dispatches it through {@link VerdictSinkBus}. Identity comes
+     * from {@link TestIdentityResolver} (stack walk for the nearest
      * {@link org.javai.punit.api.ProbabilisticTest @ProbabilisticTest}
      * frame); falls back to {@code (useCaseId, useCaseId)} when the
      * resolver finds no annotated frame (e.g. hand-driven tests).
      *
      * <p>Installs the default sink — {@link VerdictXmlSink} reading
      * {@link ReportConfiguration#resolve()} — on first call. Idempotent;
-     * tests can override via {@link TypedVerdictSinkBus#replaceAll}.
+     * tests can override via {@link VerdictSinkBus#replaceAll}.
      */
     private static void emitVerdict(ProbabilisticTestResult result, String fallbackUseCaseId) {
-        TypedVerdictSinkBus.installDefaultSink(
+        VerdictSinkBus.installDefaultSink(
                 () -> new VerdictXmlSink(ReportConfiguration.resolve()));
-        TypedRunMetadata meta = TypedTestIdentityResolver.resolve()
-                .orElseGet(() -> TypedRunMetadata.of(
+        RunMetadata meta = TestIdentityResolver.resolve()
+                .orElseGet(() -> RunMetadata.of(
                         fallbackUseCaseId, fallbackUseCaseId, fallbackUseCaseId));
-        ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(result, meta);
-        TypedVerdictSinkBus.dispatch(verdict);
+        ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(result, meta);
+        VerdictSinkBus.dispatch(verdict);
     }
 
     private static void translate(ProbabilisticTestResult result) {
@@ -622,7 +622,7 @@ public final class PUnit {
                 return;
             }
             String testIdentity = sampling.useCaseFactory().apply(factors).id();
-            System.err.println(TypedTransparentStatsRenderer.render(testIdentity, result));
+            System.err.println(TransparentStatsRenderer.render(testIdentity, result));
         }
 
         private List<String> preflightFeasibility() {
@@ -780,7 +780,7 @@ public final class PUnit {
             if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
                 return;
             }
-            System.err.println(TypedTransparentStatsRenderer.render(
+            System.err.println(TransparentStatsRenderer.render(
                     resolveUseCaseId(spec), result));
         }
 

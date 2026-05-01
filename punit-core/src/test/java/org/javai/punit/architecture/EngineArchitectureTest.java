@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  * {@code org.javai.punit.api.spec.Spec}.
  */
 @DisplayName("typed engine architecture rules")
-class TypedEngineArchitectureTest {
+class EngineArchitectureTest {
 
     private static JavaClasses engineClasses;
 

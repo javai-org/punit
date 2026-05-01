@@ -22,8 +22,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("TypedTransparentStatsRenderer — verbose statistical breakdown")
-class TypedTransparentStatsRendererTest {
+@DisplayName("TransparentStatsRenderer — verbose statistical breakdown")
+class TransparentStatsRendererTest {
 
     private static ProbabilisticTestResult result(Verdict verdict, EvaluatedCriterion... evaluated) {
         return new ProbabilisticTestResult(
@@ -59,7 +59,7 @@ class TypedTransparentStatsRendererTest {
             detail.put("wilsonLowerBound", 0.929);
             detail.put("baselineSampleCount", 1000);
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "shopping-basket.testInstructionTranslation",
                     result(Verdict.FAIL, criterion(
                             "bernoulli-pass-rate", Verdict.FAIL,
@@ -107,7 +107,7 @@ class TypedTransparentStatsRendererTest {
                     "confidence", 0.95,
                     "wilsonLowerBound", 0.873);
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", result(Verdict.PASS, criterion(
                             "bernoulli-pass-rate", Verdict.PASS, "...", detail)));
 
@@ -132,7 +132,7 @@ class TypedTransparentStatsRendererTest {
                     "failures", 6,
                     "total", 100);
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", result(Verdict.PASS, criterion(
                             "bernoulli-pass-rate", Verdict.PASS, "...", detail)));
 
@@ -158,7 +158,7 @@ class TypedTransparentStatsRendererTest {
                     "p50", "PT0.001S",
                     "p99", "PT0.020S");
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", result(Verdict.PASS, criterion(
                             "percentile-latency", Verdict.PASS,
                             "p50=1ms, p99=20ms within limits", detail)));
@@ -185,7 +185,7 @@ class TypedTransparentStatsRendererTest {
                 TestIntent.VERIFICATION,
                 List.of("rejected file-A — CONFIGURATION mismatch on region (current=APAC, baseline=EU)"));
 
-        String rendered = TypedTransparentStatsRenderer.render(
+        String rendered = TransparentStatsRenderer.render(
                 "test", resultWithWarnings);
 
         assertThat(rendered)
@@ -218,7 +218,7 @@ class TypedTransparentStatsRendererTest {
                     "model_version", "v1")));
             CovariateAlignment alignment = CovariateAlignment.compute(profile, profile);
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithAlignment(alignment));
 
             assertThat(rendered)
@@ -242,7 +242,7 @@ class TypedTransparentStatsRendererTest {
                     "model_version", "v1")));
             CovariateAlignment alignment = CovariateAlignment.compute(observed, baseline);
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithAlignment(alignment));
 
             assertThat(rendered)
@@ -259,7 +259,7 @@ class TypedTransparentStatsRendererTest {
         @Test
         @DisplayName("empty alignment (no covariates declared, no baseline) renders no Covariates section")
         void emptyAlignmentRendersNothing() {
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithAlignment(CovariateAlignment.none()));
 
             assertThat(rendered).doesNotContain("Covariates");
@@ -272,7 +272,7 @@ class TypedTransparentStatsRendererTest {
             CovariateAlignment alignment = CovariateAlignment.compute(
                     observed, CovariateProfile.empty());
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithAlignment(alignment));
 
             assertThat(rendered)
@@ -293,7 +293,7 @@ class TypedTransparentStatsRendererTest {
                 criterion("bernoulli-pass-rate", Verdict.PASS, "ok", bernoulliDetail),
                 criterion("percentile-latency", Verdict.PASS, "ok", latencyDetail));
 
-        var snapshot = TypedTransparentStatsRenderer.snapshotCriteria(r);
+        var snapshot = TransparentStatsRenderer.snapshotCriteria(r);
 
         assertThat(snapshot.keySet())
                 .containsExactly("bernoulli-pass-rate", "percentile-latency");
@@ -324,7 +324,7 @@ class TypedTransparentStatsRendererTest {
         @Test
         @DisplayName("empty histogram → no Postcondition failures section")
         void emptyHistogramOmitsSection() {
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithHistogram(Map.of()));
 
             assertThat(rendered).doesNotContain("Postcondition failures");
@@ -342,7 +342,7 @@ class TypedTransparentStatsRendererTest {
                             new FailureExemplar(
                                     "Remove the milk", "malformed brace"))));
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithHistogram(hist));
 
             assertThat(rendered).contains("Postcondition failures");
@@ -362,7 +362,7 @@ class TypedTransparentStatsRendererTest {
                     "Most common", new FailureCount(10, List.of()),
                     "Middle", new FailureCount(5, List.of()));
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithHistogram(hist));
 
             int mostIdx = rendered.indexOf("Most common");
@@ -381,7 +381,7 @@ class TypedTransparentStatsRendererTest {
                     "Single trip", new FailureCount(1, List.of()),
                     "Multi trip", new FailureCount(5, List.of()));
 
-            String rendered = TypedTransparentStatsRenderer.render(
+            String rendered = TransparentStatsRenderer.render(
                     "test", resultWithHistogram(hist));
 
             assertThat(rendered).contains("Single trip — 1 failure\n");

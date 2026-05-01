@@ -14,7 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.javai.punit.verdict.TypedVerdictSinkBus;
+import org.javai.punit.verdict.VerdictSinkBus;
 
 /**
  * Tests for {@link SentinelMain}.
@@ -36,12 +36,12 @@ class SentinelMainTest {
 
     @BeforeEach
     void resetBus() {
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
     }
 
     @AfterEach
     void cleanUp() {
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
     }
 
     @Nested

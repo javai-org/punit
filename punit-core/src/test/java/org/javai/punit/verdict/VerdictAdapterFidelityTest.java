@@ -33,12 +33,12 @@ import org.junit.jupiter.api.Test;
  * executable assertion. If a behaviour shifts and the doc gets
  * out of sync, this test fails first.
  *
- * <p>Distinct from {@link TypedVerdictAdapterTest} which exercises
+ * <p>Distinct from {@link VerdictAdapterTest} which exercises
  * field-level mapping; this fidelity suite asserts what's
  * <em>defaulted</em>, not just what's mapped.
  */
-@DisplayName("TypedVerdictAdapter fidelity (USER-GUIDE Part 11 table)")
-class TypedVerdictAdapterFidelityTest {
+@DisplayName("VerdictAdapter fidelity (USER-GUIDE Part 11 table)")
+class VerdictAdapterFidelityTest {
 
     private record Factors() { }
 
@@ -49,9 +49,9 @@ class TypedVerdictAdapterFidelityTest {
         @Test
         @DisplayName("identity use-case-id falls back to className when use-case-id absent")
         void identityFallback() {
-            ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(
+            ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                     minimalResult(),
-                    TypedRunMetadata.of("com.example.MyTest", "shouldRun"));
+                    RunMetadata.of("com.example.MyTest", "shouldRun"));
 
             assertThat(verdict.identity().useCaseId()).isEmpty();
             // VerdictXmlWriter falls back to className when useCaseId is absent;
@@ -205,9 +205,9 @@ class TypedVerdictAdapterFidelityTest {
         @Test
         @DisplayName("correlation-id auto-generated when metadata supplies none")
         void correlationIdGenerated() {
-            ProbabilisticTestVerdict verdict = TypedVerdictAdapter.adapt(
+            ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                     minimalResult(),
-                    TypedRunMetadata.of("com.example.MyTest", "shouldRun"));
+                    RunMetadata.of("com.example.MyTest", "shouldRun"));
 
             assertThat(verdict.correlationId()).isNotEmpty().startsWith("v:");
         }
@@ -265,9 +265,9 @@ class TypedVerdictAdapterFidelityTest {
     // ── Helpers ─────────────────────────────────────────────────────
 
     private static ProbabilisticTestVerdict adapt(ProbabilisticTestResult result) {
-        return TypedVerdictAdapter.adapt(
+        return VerdictAdapter.adapt(
                 result,
-                TypedRunMetadata.of("com.example.MyTest", "shouldRun"));
+                RunMetadata.of("com.example.MyTest", "shouldRun"));
     }
 
     private static ProbabilisticTestResult minimalResult() {

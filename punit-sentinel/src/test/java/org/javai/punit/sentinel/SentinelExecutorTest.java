@@ -14,7 +14,7 @@ import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.PUnitVerdict;
-import org.javai.punit.verdict.TypedVerdictSinkBus;
+import org.javai.punit.verdict.VerdictSinkBus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +30,7 @@ import org.opentest4j.TestAbortedException;
  * Annotation-based filtering is the orchestrator's concern (see
  * {@code SentinelOrchestratorTest}).
  *
- * <p>Verdicts are stubbed by directly calling {@link TypedVerdictSinkBus#dispatch}
+ * <p>Verdicts are stubbed by directly calling {@link VerdictSinkBus#dispatch}
  * inside the subject methods, so the test exercises the executor's
  * sink-replacement and capture path without standing up the real engine.
  */
@@ -39,12 +39,12 @@ class SentinelExecutorTest {
 
     @BeforeEach
     void resetBus() {
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
     }
 
     @AfterEach
     void cleanUp() {
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
     }
 
     @Test
@@ -137,16 +137,16 @@ class SentinelExecutorTest {
         public StubSubject() { }
 
         public void dispatchesPass() {
-            TypedVerdictSinkBus.dispatch(stubVerdict(true));
+            VerdictSinkBus.dispatch(stubVerdict(true));
         }
 
         public void dispatchesFailAndThrows() {
-            TypedVerdictSinkBus.dispatch(stubVerdict(false));
+            VerdictSinkBus.dispatch(stubVerdict(false));
             throw new AssertionFailedError("simulated FAIL");
         }
 
         public void dispatchesInconclusiveAndAborts() {
-            TypedVerdictSinkBus.dispatch(stubVerdict(false));
+            VerdictSinkBus.dispatch(stubVerdict(false));
             throw new TestAbortedException("simulated INCONCLUSIVE");
         }
 
@@ -155,7 +155,7 @@ class SentinelExecutorTest {
         }
 
         public void dispatchesThenThrowsUnexpected() {
-            TypedVerdictSinkBus.dispatch(stubVerdict(true));
+            VerdictSinkBus.dispatch(stubVerdict(true));
             throw new IllegalStateException("simulated framework invariant violation");
         }
 

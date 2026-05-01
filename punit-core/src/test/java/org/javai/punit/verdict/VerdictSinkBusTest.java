@@ -18,35 +18,35 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("TypedVerdictSinkBus")
-class TypedVerdictSinkBusTest {
+@DisplayName("VerdictSinkBus")
+class VerdictSinkBusTest {
 
     @BeforeEach
     void resetBus() {
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
     }
 
     @AfterEach
     void cleanUp() {
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
     }
 
     @Test
     @DisplayName("dispatch with no sinks is a no-op")
     void dispatchWithNoSinks() {
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
-        assertThat(TypedVerdictSinkBus.registeredCount()).isZero();
+        assertThat(VerdictSinkBus.registeredCount()).isZero();
     }
 
     @Test
     @DisplayName("registered sink receives dispatched verdicts")
     void registeredSinkReceives() {
         List<ProbabilisticTestVerdict> received = new ArrayList<>();
-        TypedVerdictSinkBus.register(received::add);
+        VerdictSinkBus.register(received::add);
 
         ProbabilisticTestVerdict verdict = stubVerdict();
-        TypedVerdictSinkBus.dispatch(verdict);
+        VerdictSinkBus.dispatch(verdict);
 
         assertThat(received).containsExactly(verdict);
     }
@@ -56,11 +56,11 @@ class TypedVerdictSinkBusTest {
     void multipleSinksAllReceive() {
         AtomicInteger first = new AtomicInteger();
         AtomicInteger second = new AtomicInteger();
-        TypedVerdictSinkBus.register(v -> first.incrementAndGet());
-        TypedVerdictSinkBus.register(v -> second.incrementAndGet());
+        VerdictSinkBus.register(v -> first.incrementAndGet());
+        VerdictSinkBus.register(v -> second.incrementAndGet());
 
-        TypedVerdictSinkBus.dispatch(stubVerdict());
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
         assertThat(first.get()).isEqualTo(2);
         assertThat(second.get()).isEqualTo(2);
@@ -71,7 +71,7 @@ class TypedVerdictSinkBusTest {
     void defaultSinkLazy() {
         AtomicInteger supplierCalled = new AtomicInteger();
         AtomicInteger sinkAccepts = new AtomicInteger();
-        TypedVerdictSinkBus.installDefaultSink(() -> {
+        VerdictSinkBus.installDefaultSink(() -> {
             supplierCalled.incrementAndGet();
             return v -> sinkAccepts.incrementAndGet();
         });
@@ -79,13 +79,13 @@ class TypedVerdictSinkBusTest {
         // Supplier not yet called
         assertThat(supplierCalled.get()).isZero();
 
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
         // Materialised on first dispatch
         assertThat(supplierCalled.get()).isEqualTo(1);
         assertThat(sinkAccepts.get()).isEqualTo(1);
 
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
         // Not re-materialised
         assertThat(supplierCalled.get()).isEqualTo(1);
@@ -97,16 +97,16 @@ class TypedVerdictSinkBusTest {
     void installDefaultSinkIdempotent() {
         AtomicInteger firstSupplier = new AtomicInteger();
         AtomicInteger secondSupplier = new AtomicInteger();
-        TypedVerdictSinkBus.installDefaultSink(() -> {
+        VerdictSinkBus.installDefaultSink(() -> {
             firstSupplier.incrementAndGet();
             return v -> { };
         });
-        TypedVerdictSinkBus.installDefaultSink(() -> {
+        VerdictSinkBus.installDefaultSink(() -> {
             secondSupplier.incrementAndGet();
             return v -> { };
         });
 
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
         assertThat(firstSupplier.get()).isEqualTo(1);
         assertThat(secondSupplier.get()).isZero();
@@ -117,10 +117,10 @@ class TypedVerdictSinkBusTest {
     void replaceAllSuppressesDefault() {
         AtomicInteger defaultSink = new AtomicInteger();
         AtomicInteger replacement = new AtomicInteger();
-        TypedVerdictSinkBus.installDefaultSink(() -> v -> defaultSink.incrementAndGet());
-        TypedVerdictSinkBus.replaceAll(v -> replacement.incrementAndGet());
+        VerdictSinkBus.installDefaultSink(() -> v -> defaultSink.incrementAndGet());
+        VerdictSinkBus.replaceAll(v -> replacement.incrementAndGet());
 
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
         assertThat(defaultSink.get()).isZero();
         assertThat(replacement.get()).isEqualTo(1);
@@ -130,10 +130,10 @@ class TypedVerdictSinkBusTest {
     @DisplayName("replaceAll with empty array suppresses all dispatch")
     void replaceAllEmpty() {
         AtomicInteger anySink = new AtomicInteger();
-        TypedVerdictSinkBus.installDefaultSink(() -> v -> anySink.incrementAndGet());
-        TypedVerdictSinkBus.replaceAll();
+        VerdictSinkBus.installDefaultSink(() -> v -> anySink.incrementAndGet());
+        VerdictSinkBus.replaceAll();
 
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
         assertThat(anySink.get()).isZero();
     }
@@ -142,10 +142,10 @@ class TypedVerdictSinkBusTest {
     @DisplayName("a throwing sink does not prevent other sinks from receiving")
     void throwingSinkIsolated() {
         AtomicInteger goodSink = new AtomicInteger();
-        TypedVerdictSinkBus.register(v -> { throw new RuntimeException("boom"); });
-        TypedVerdictSinkBus.register(v -> goodSink.incrementAndGet());
+        VerdictSinkBus.register(v -> { throw new RuntimeException("boom"); });
+        VerdictSinkBus.register(v -> goodSink.incrementAndGet());
 
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        VerdictSinkBus.dispatch(stubVerdict());
 
         assertThat(goodSink.get()).isEqualTo(1);
     }
@@ -154,13 +154,13 @@ class TypedVerdictSinkBusTest {
     @DisplayName("reset clears registered sinks and the default-installed flag")
     void resetClears() {
         AtomicInteger registered = new AtomicInteger();
-        TypedVerdictSinkBus.register(v -> registered.incrementAndGet());
-        assertThat(TypedVerdictSinkBus.registeredCount()).isEqualTo(1);
+        VerdictSinkBus.register(v -> registered.incrementAndGet());
+        assertThat(VerdictSinkBus.registeredCount()).isEqualTo(1);
 
-        TypedVerdictSinkBus.reset();
+        VerdictSinkBus.reset();
 
-        assertThat(TypedVerdictSinkBus.registeredCount()).isZero();
-        TypedVerdictSinkBus.dispatch(stubVerdict());
+        assertThat(VerdictSinkBus.registeredCount()).isZero();
+        VerdictSinkBus.dispatch(stubVerdict());
         assertThat(registered.get()).isZero();
     }
 
