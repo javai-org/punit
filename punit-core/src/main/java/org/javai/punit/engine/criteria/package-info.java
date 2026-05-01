@@ -1,5 +1,5 @@
 /**
- * Concrete {@link org.javai.punit.api.typed.spec.Criterion} implementations.
+ * Concrete {@link org.javai.punit.api.spec.Criterion} implementations.
  *
  * <p>The {@code Criterion} interface lives in {@code punit-api} so authors
  * compose typed specs without pulling in the engine. Implementations

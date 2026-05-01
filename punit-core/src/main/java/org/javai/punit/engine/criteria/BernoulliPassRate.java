@@ -7,14 +7,14 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.spec.Criterion;
-import org.javai.punit.api.typed.spec.CriterionResult;
-import org.javai.punit.api.typed.spec.EmpiricalChecks;
-import org.javai.punit.api.typed.spec.EvaluationContext;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
-import org.javai.punit.api.typed.spec.SampleSummary;
-import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.spec.Criterion;
+import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.EmpiricalChecks;
+import org.javai.punit.api.spec.EvaluationContext;
+import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.SampleSummary;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.statistics.BinomialProportionEstimator;
 
 /**

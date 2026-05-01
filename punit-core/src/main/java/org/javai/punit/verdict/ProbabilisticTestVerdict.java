@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;

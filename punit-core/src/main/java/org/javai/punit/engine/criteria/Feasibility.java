@@ -5,10 +5,10 @@ import java.util.List;
 import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.spec.BaselineProvider;
-import org.javai.punit.api.typed.spec.Criterion;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.spec.BaselineProvider;
+import org.javai.punit.api.spec.Criterion;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.reporting.InfeasibilityMessageRenderer;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityResult;

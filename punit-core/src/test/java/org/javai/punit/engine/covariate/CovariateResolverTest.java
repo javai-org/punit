@@ -22,8 +22,8 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.api.typed.covariate.Covariate;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

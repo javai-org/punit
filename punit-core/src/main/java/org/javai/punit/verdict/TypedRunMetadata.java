@@ -3,6 +3,7 @@ package org.javai.punit.verdict;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
 
 /**
  * Per-run metadata that the typed pipeline doesn't carry on its
@@ -12,7 +13,7 @@ import java.util.Optional;
  * <p>Built at the JUnit-extension boundary (where {@code className} and
  * {@code methodName} are knowable via stack walk or the test extension
  * context) and threaded into {@link TypedVerdictAdapter} alongside the
- * {@link org.javai.punit.api.typed.spec.ProbabilisticTestResult result}
+ * {@link ProbabilisticTestResult result}
  * itself. The result captures what happened in the run; this metadata
  * captures who ran it and where.
  *

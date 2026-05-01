@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
  * <p>The core guarantee this stage locks in: the engine does not
  * branch on spec subtype. It reaches flavour-specific behaviour only
  * through the strategy methods on
- * {@code org.javai.punit.api.typed.spec.Spec}.
+ * {@code org.javai.punit.api.spec.Spec}.
  */
 @DisplayName("typed engine architecture rules")
 class TypedEngineArchitectureTest {
@@ -45,10 +45,10 @@ class TypedEngineArchitectureTest {
                 .that().resideInAPackage("org.javai.punit.engine")
                 .should().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.Experiment")
+                        "org.javai.punit.api.spec.Experiment")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName(
-                        "org.javai.punit.api.typed.spec.ProbabilisticTest")
+                        "org.javai.punit.api.spec.ProbabilisticTest")
                 .because("engine must dispatch through the Spec strategy interface, "
                         + "never instanceof / switch on subtype");
         rule.check(engineClasses);

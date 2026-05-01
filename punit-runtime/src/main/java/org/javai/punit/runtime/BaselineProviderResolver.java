@@ -2,7 +2,7 @@ package org.javai.punit.runtime;
 
 import java.nio.file.Path;
 
-import org.javai.punit.api.typed.spec.BaselineProvider;
+import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.engine.baseline.BaselineResolver;
 import org.javai.punit.engine.baseline.YamlBaselineProvider;
 

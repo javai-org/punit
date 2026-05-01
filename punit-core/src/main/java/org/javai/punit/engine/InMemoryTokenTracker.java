@@ -2,7 +2,7 @@ package org.javai.punit.engine;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.javai.punit.api.typed.TokenTracker;
+import org.javai.punit.api.TokenTracker;
 
 /**
  * Thread-safe in-memory {@link TokenTracker} used by the framework

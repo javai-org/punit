@@ -5,8 +5,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.BaselineStatistics;
 
 /**
  * In-memory shape of a baseline file. Carries the identity keys the

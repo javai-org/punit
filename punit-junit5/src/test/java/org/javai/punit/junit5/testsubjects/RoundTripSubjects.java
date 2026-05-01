@@ -3,10 +3,10 @@ package org.javai.punit.junit5.testsubjects;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.typed.ContractBuilder;
-import org.javai.punit.api.typed.Sampling;
-import org.javai.punit.api.typed.TokenTracker;
-import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.Sampling;
+import org.javai.punit.api.TokenTracker;
+import org.javai.punit.api.UseCase;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
 import org.javai.punit.runtime.PUnit;
 

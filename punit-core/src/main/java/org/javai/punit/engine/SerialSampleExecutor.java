@@ -5,13 +5,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
-import org.javai.punit.api.typed.Pacing;
-import org.javai.punit.api.typed.TokenTracker;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
-import org.javai.punit.api.typed.ValueMatcher;
-import org.javai.punit.api.typed.spec.SampleExecutor;
-import org.javai.punit.api.typed.spec.SampleObserver;
+import org.javai.punit.api.spec.ExceptionPolicy;
+import org.javai.punit.api.Pacing;
+import org.javai.punit.api.TokenTracker;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ValueMatcher;
+import org.javai.punit.api.spec.SampleExecutor;
+import org.javai.punit.api.spec.SampleObserver;
 
 /**
  * One-at-a-time sample executor. Invokes
@@ -48,7 +49,7 @@ import org.javai.punit.api.typed.spec.SampleObserver;
  * exceptions thrown from {@code apply} — are routed through the
  * observer's {@code onDefect} channel, which the engine's aggregator
  * uses to apply the spec's
- * {@link org.javai.punit.api.typed.spec.ExceptionPolicy}. The
+ * {@link ExceptionPolicy}. The
  * executor itself makes no policy decisions.
  */
 public final class SerialSampleExecutor implements SampleExecutor {

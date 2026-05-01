@@ -7,9 +7,9 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
 
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

@@ -11,10 +11,11 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.LatencyStatistics;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.LatencyStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -166,7 +167,7 @@ class BaselineWriterTest {
                 1000,
                 Instant.parse("2026-04-26T15:30:00Z"),
                 Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
-                org.javai.punit.api.typed.covariate.CovariateProfile.of(profile));
+                CovariateProfile.of(profile));
 
         String yaml = writer.toYaml(record);
         Map<String, Object> root = new Yaml().load(yaml);

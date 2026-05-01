@@ -27,11 +27,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.LatencyStatistics;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.LatencyStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;

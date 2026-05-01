@@ -7,11 +7,10 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import org.javai.punit.api.typed.spec.FailureCount;
-import org.javai.punit.api.typed.spec.FailureExemplar;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
-import org.javai.punit.verdict.PUnitVerdict;
 
 /**
  * Serialises a {@link ProbabilisticTestVerdict} to verdict XML using the

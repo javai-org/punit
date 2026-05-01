@@ -2,10 +2,10 @@
  * Baseline-file machinery for the typed-compositional pipeline.
  *
  * <p>This package is the on-disk persistence layer for
- * {@link org.javai.punit.api.typed.spec.BaselineStatistics} values
+ * {@link org.javai.punit.api.spec.BaselineStatistics} values
  * produced by {@code Experiment.measuring(...)} and consumed by the
- * empirical variants of {@link org.javai.punit.api.typed.spec.BernoulliPassRate}
- * and {@link org.javai.punit.api.typed.spec.PercentileLatency}.
+ * empirical variants of {@link org.javai.punit.engine.criteria.BernoulliPassRate}
+ * and {@link org.javai.punit.api.spec.PercentileLatency}.
  *
  * <p>The schema is documented in
  * {@code docs/DES-BASELINE-YAML-SCHEMA.md}; the directive driving

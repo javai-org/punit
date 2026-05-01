@@ -3,30 +3,31 @@ package org.javai.punit.runtime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.Sampling;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.ValueMatcher;
-import org.javai.punit.api.typed.spec.BaselineProvider;
-import org.javai.punit.api.typed.spec.Criterion;
-import org.javai.punit.api.typed.spec.CriterionResult;
-import org.javai.punit.api.typed.spec.EngineResult;
-import org.javai.punit.api.typed.spec.EvaluatedCriterion;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.FactorsStepper;
-import org.javai.punit.api.typed.spec.FailureCount;
-import org.javai.punit.api.typed.spec.FailureExemplar;
-import org.javai.punit.api.typed.spec.ProbabilisticTest;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Scorer;
-import org.javai.punit.api.typed.spec.Verdict;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.covariate.Covariate;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
+import org.javai.punit.api.covariate.CovariateAlignment;
+import org.javai.punit.api.spec.Spec;
+import org.javai.punit.api.spec.TypedSpec;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.Sampling;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ValueMatcher;
+import org.javai.punit.api.spec.BaselineProvider;
+import org.javai.punit.api.spec.Criterion;
+import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.EngineResult;
+import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.FactorsStepper;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.ProbabilisticTest;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.Scorer;
+import org.javai.punit.api.spec.Verdict;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.engine.Engine;
 import org.javai.punit.engine.baseline.ProfileBoundBaselineProvider;
 import org.javai.punit.engine.covariate.CovariateResolver;
@@ -50,8 +51,8 @@ import org.opentest4j.TestAbortedException;
  * and {@link org.javai.punit.api.Experiment @Experiment} methods.
  *
  * <p>Each factory returns a builder that wraps the corresponding
- * {@link org.javai.punit.api.typed.spec.Experiment}- or
- * {@link org.javai.punit.api.typed.spec.ProbabilisticTest}-builder
+ * {@link Experiment}- or
+ * {@link ProbabilisticTest}-builder
  * in {@code punit-api}, adding a terminal {@link MeasureBuilder#run}
  * (for experiments) or {@link TestBuilder#assertPasses} (for
  * probabilistic tests). Each terminal drives the spec through
@@ -72,7 +73,7 @@ import org.opentest4j.TestAbortedException;
  *
  * <p>A {@code .build()} terminal is also available on every builder
  * — used for the
- * {@link org.javai.punit.api.typed.spec.BernoulliPassRate#empiricalFrom
+ * {@link org.javai.punit.engine.criteria.BernoulliPassRate#empiricalFrom
  * empiricalFrom(supplier)} pattern, where a method returning a built
  * {@link Experiment} value supplies the baseline a probabilistic
  * test compares against.
@@ -125,7 +126,7 @@ public final class PUnit {
 
     // ── Internal: drive an experiment / test ────────────────────────
 
-    private static EngineResult drive(org.javai.punit.api.typed.spec.Spec spec) {
+    private static EngineResult drive(Spec spec) {
         BaselineProvider provider = profileBoundProvider(spec);
         return new Engine(provider).run(spec);
     }
@@ -144,11 +145,11 @@ public final class PUnit {
      * samples execute.
      */
     private static CovariateProfile resolveCovariateProfile(
-            org.javai.punit.api.typed.spec.Spec spec) {
-        return spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<CovariateProfile>() {
+            Spec spec) {
+        return spec.dispatch(new Spec.Dispatcher<CovariateProfile>() {
             @Override
             public <FT, IT, OT> CovariateProfile apply(
-                    org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                    TypedSpec<FT, IT, OT> typed) {
                 var configs = typed.configurations();
                 if (!configs.hasNext()) {
                     return CovariateProfile.empty();
@@ -175,12 +176,12 @@ public final class PUnit {
      * here.
      */
     private static BaselineProvider profileBoundProvider(
-            org.javai.punit.api.typed.spec.Spec spec) {
+            Spec spec) {
         BaselineProvider provider = BaselineProviderResolver.resolve();
-        return spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<>() {
+        return spec.dispatch(new Spec.Dispatcher<>() {
             @Override
             public <FT, IT, OT> BaselineProvider apply(
-                    org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                    TypedSpec<FT, IT, OT> typed) {
                 var configs = typed.configurations();
                 if (!configs.hasNext()) {
                     return provider;
@@ -608,7 +609,7 @@ public final class PUnit {
             // CovariateStatus shape.
             CovariateProfile observed = resolveCovariateProfile(spec);
             ProbabilisticTestResult stamped = typed.withCovariates(
-                            org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                            CovariateAlignment.compute(
                                     observed, typed.covariates().baseline()))
                     .withContractRef(contractRef);
             maybeRenderTransparentStats(stamped);
@@ -736,7 +737,7 @@ public final class PUnit {
             warnings.forEach(System.err::println);
             CovariateProfile observed = resolveCovariateProfile(spec);
             ProbabilisticTestResult stamped = typed.withCovariates(
-                            org.javai.punit.api.typed.covariate.CovariateAlignment.compute(
+                            CovariateAlignment.compute(
                                     observed, typed.covariates().baseline()))
                     .withContractRef(contractRef);
             maybeRenderTransparentStats(spec, stamped);
@@ -748,10 +749,10 @@ public final class PUnit {
         private List<String> preflightFeasibility(ProbabilisticTest spec) {
             BaselineProvider raw = BaselineProviderResolver.resolve();
             List<String> warnings = new ArrayList<>();
-            spec.dispatch(new org.javai.punit.api.typed.spec.Spec.Dispatcher<Void>() {
+            spec.dispatch(new Spec.Dispatcher<Void>() {
                 @Override
                 public <FT, IT, OT> Void apply(
-                        org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                        TypedSpec<FT, IT, OT> typed) {
                     var cfg = typed.configurations().next();
                     FT factors = cfg.factors();
                     UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
@@ -785,10 +786,10 @@ public final class PUnit {
 
         private String resolveUseCaseId(ProbabilisticTest spec) {
             return spec.dispatch(
-                    new org.javai.punit.api.typed.spec.Spec.Dispatcher<String>() {
+                    new Spec.Dispatcher<String>() {
                         @Override
                         public <FT, IT, OT> String apply(
-                                org.javai.punit.api.typed.spec.TypedSpec<FT, IT, OT> typed) {
+                                TypedSpec<FT, IT, OT> typed) {
                             FT factors = typed.configurations().next().factors();
                             return typed.useCaseFactory().apply(factors).id();
                         }

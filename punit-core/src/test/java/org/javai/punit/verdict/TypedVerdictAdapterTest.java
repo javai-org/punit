@@ -9,19 +9,18 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.covariate.CovariateAlignment;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.CriterionResult;
-import org.javai.punit.api.typed.spec.CriterionRole;
-import org.javai.punit.api.typed.spec.EngineRunSummary;
-import org.javai.punit.api.typed.spec.EvaluatedCriterion;
-import org.javai.punit.api.typed.spec.FailureCount;
-import org.javai.punit.api.typed.spec.FailureExemplar;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.covariate.CovariateAlignment;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.CriterionRole;
+import org.javai.punit.api.spec.EngineRunSummary;
+import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.model.TerminationReason;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -77,7 +76,7 @@ class TypedVerdictAdapterTest {
                     new EngineRunSummary(
                             100, 95, 90, 5, 1500L, 0L, 0,
                             LatencyResult.empty(),
-                            org.javai.punit.api.typed.spec.TerminationReason.COMPLETED,
+                            org.javai.punit.api.spec.TerminationReason.COMPLETED,
                             0.95,
                             Optional.empty()));
 
@@ -180,7 +179,7 @@ class TypedVerdictAdapterTest {
                     new EngineRunSummary(
                             50, 50, 48, 2, 1000L, 0L, 0,
                             lat,
-                            org.javai.punit.api.typed.spec.TerminationReason.COMPLETED,
+                            org.javai.punit.api.spec.TerminationReason.COMPLETED,
                             0.95,
                             Optional.empty()));
 
@@ -259,7 +258,7 @@ class TypedVerdictAdapterTest {
                     new EngineRunSummary(
                             50, 50, 50, 0, 100L, 0L, 0,
                             LatencyResult.empty(),
-                            org.javai.punit.api.typed.spec.TerminationReason.COMPLETED,
+                            org.javai.punit.api.spec.TerminationReason.COMPLETED,
                             0.95,
                             Optional.of("payment-gateway-1fbf-54c6-86a6.yaml")));
 
@@ -290,7 +289,7 @@ class TypedVerdictAdapterTest {
         @DisplayName("COMPLETED → COMPLETED")
         void completed() {
             ProbabilisticTestVerdict verdict = adapt(resultWithTermination(
-                    org.javai.punit.api.typed.spec.TerminationReason.COMPLETED));
+                    org.javai.punit.api.spec.TerminationReason.COMPLETED));
             assertThat(verdict.termination().reason()).isEqualTo(TerminationReason.COMPLETED);
         }
 
@@ -298,7 +297,7 @@ class TypedVerdictAdapterTest {
         @DisplayName("TIME_BUDGET → METHOD_TIME_BUDGET_EXHAUSTED")
         void timeBudget() {
             ProbabilisticTestVerdict verdict = adapt(resultWithTermination(
-                    org.javai.punit.api.typed.spec.TerminationReason.TIME_BUDGET));
+                    org.javai.punit.api.spec.TerminationReason.TIME_BUDGET));
             assertThat(verdict.termination().reason())
                     .isEqualTo(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED);
         }
@@ -307,7 +306,7 @@ class TypedVerdictAdapterTest {
         @DisplayName("TOKEN_BUDGET → METHOD_TOKEN_BUDGET_EXHAUSTED")
         void tokenBudget() {
             ProbabilisticTestVerdict verdict = adapt(resultWithTermination(
-                    org.javai.punit.api.typed.spec.TerminationReason.TOKEN_BUDGET));
+                    org.javai.punit.api.spec.TerminationReason.TOKEN_BUDGET));
             assertThat(verdict.termination().reason())
                     .isEqualTo(TerminationReason.METHOD_TOKEN_BUDGET_EXHAUSTED);
         }
@@ -325,7 +324,7 @@ class TypedVerdictAdapterTest {
                     new EngineRunSummary(
                             10, 10, 10, 0, 100L, 1234L, 0,
                             LatencyResult.empty(),
-                            org.javai.punit.api.typed.spec.TerminationReason.COMPLETED,
+                            org.javai.punit.api.spec.TerminationReason.COMPLETED,
                             0.95,
                             Optional.empty()));
 
@@ -378,7 +377,7 @@ class TypedVerdictAdapterTest {
     }
 
     private static ProbabilisticTestResult resultWithTermination(
-            org.javai.punit.api.typed.spec.TerminationReason reason) {
+            org.javai.punit.api.spec.TerminationReason reason) {
         return resultWithEngineSummary(
                 Verdict.PASS,
                 new EngineRunSummary(

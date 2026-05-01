@@ -2,11 +2,11 @@ package org.javai.punit.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.javai.punit.api.typed.Contract;
-import org.javai.punit.api.typed.ContractBuilder;
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.TokenTracker;
-import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.Contract;
+import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.TokenTracker;
+import org.javai.punit.api.UseCaseOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

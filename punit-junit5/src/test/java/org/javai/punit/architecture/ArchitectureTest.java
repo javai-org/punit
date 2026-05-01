@@ -64,25 +64,6 @@ class ArchitectureTest {
         }
 
         /**
-         * Strategy classes orchestrate test execution. They receive
-         * reporters via injection, not by instantiating them directly.
-         * This prevents strategies from being coupled to specific
-         * reporter implementations.
-         */
-        @Test
-        @DisplayName("Strategies must not instantiate PUnitReporter")
-        void strategiesMustNotInstantiatePUnitReporter() {
-            ArchRule rule = noClasses()
-                    .that().haveSimpleNameEndingWith("Strategy")
-                    .should().dependOnClassesThat()
-                    .haveSimpleName("PUnitReporter")
-                    .because("strategies receive reporters via injection, "
-                            + "not by instantiating them directly");
-
-            rule.check(classes);
-        }
-
-        /**
          * Renderers format pre-computed data for display. They must not
          * perform statistical computation themselves — that belongs in
          * estimators and derivers.

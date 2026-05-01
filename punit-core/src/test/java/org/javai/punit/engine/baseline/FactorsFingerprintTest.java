@@ -3,7 +3,7 @@ package org.javai.punit.engine.baseline;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.FactorBundle;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

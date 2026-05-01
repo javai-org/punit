@@ -9,9 +9,8 @@ import java.util.UUID;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.model.UseCaseAttributes;
-import org.javai.punit.controls.budget.CostBudgetMonitor;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
 import org.javai.punit.controls.pacing.PacingConfiguration;

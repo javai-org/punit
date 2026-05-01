@@ -7,16 +7,15 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.covariate.CovariateAlignment;
-import org.javai.punit.api.typed.spec.CriterionResult;
-import org.javai.punit.api.typed.spec.CriterionRole;
-import org.javai.punit.api.typed.spec.EvaluatedCriterion;
-import org.javai.punit.api.typed.spec.FailureCount;
-import org.javai.punit.api.typed.spec.FailureExemplar;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Verdict;
-import org.javai.punit.runtime.PUnit;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.covariate.CovariateAlignment;
+import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.CriterionRole;
+import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

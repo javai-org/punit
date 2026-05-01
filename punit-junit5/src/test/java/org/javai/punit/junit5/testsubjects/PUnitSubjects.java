@@ -4,10 +4,10 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.ContractBuilder;
-import org.javai.punit.api.typed.Sampling;
-import org.javai.punit.api.typed.TokenTracker;
-import org.javai.punit.api.typed.UseCase;
+import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.Sampling;
+import org.javai.punit.api.TokenTracker;
+import org.javai.punit.api.UseCase;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
 import org.javai.punit.runtime.PUnit;
 
@@ -177,13 +177,13 @@ public final class PUnitSubjects {
 
     /**
      * The baseline supplier — a non-test method returning a built
-     * {@link org.javai.punit.api.typed.spec.Experiment} for the
+     * {@link org.javai.punit.api.spec.Experiment} for the
      * {@link PUnit#testing(java.util.function.Supplier)} entry point.
      * The same builder produces both a baseline-running
      * {@code @Experiment} method and the supplier the test consumes.
      */
     public static final class EmpiricalSupplierTest {
-        private org.javai.punit.api.typed.spec.Experiment baseline() {
+        private org.javai.punit.api.spec.Experiment baseline() {
             return PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).build();
         }
 
@@ -205,7 +205,7 @@ public final class PUnitSubjects {
      * with an IllegalArgumentException at compose time.
      */
     public static final class EmpiricalSupplierBadKindTest {
-        private org.javai.punit.api.typed.spec.Experiment exploreBaseline() {
+        private org.javai.punit.api.spec.Experiment exploreBaseline() {
             return PUnit.exploring(sampling(PUnitSubjects.<GridPoint>alwaysPasses(), 5))
                     .grid(new GridPoint("alt"))
                     .build();

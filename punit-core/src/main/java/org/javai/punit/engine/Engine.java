@@ -10,24 +10,23 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.MatchResult;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
-import org.javai.punit.api.typed.ValueMatcher;
-import org.javai.punit.api.typed.spec.BaselineProvider;
-import org.javai.punit.api.typed.spec.Configuration;
-import org.javai.punit.api.typed.spec.EngineResult;
-import org.javai.punit.api.typed.spec.ExceptionPolicy;
-import org.javai.punit.api.typed.spec.FailureCount;
-import org.javai.punit.api.typed.spec.FailureExemplar;
-import org.javai.punit.api.typed.spec.SampleClassification;
-import org.javai.punit.api.typed.spec.SampleExecutor;
-import org.javai.punit.api.typed.spec.SampleObserver;
-import org.javai.punit.api.typed.spec.SampleSummary;
-import org.javai.punit.api.typed.spec.Trial;
-import org.javai.punit.api.typed.spec.Spec;
-import org.javai.punit.api.typed.spec.TypedSpec;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.MatchResult;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.spec.BaselineProvider;
+import org.javai.punit.api.spec.Configuration;
+import org.javai.punit.api.spec.EngineResult;
+import org.javai.punit.api.spec.ExceptionPolicy;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.SampleClassification;
+import org.javai.punit.api.spec.SampleExecutor;
+import org.javai.punit.api.spec.SampleObserver;
+import org.javai.punit.api.spec.SampleSummary;
+import org.javai.punit.api.spec.Trial;
+import org.javai.punit.api.spec.Spec;
+import org.javai.punit.api.spec.TypedSpec;
 
 /**
  * The one engine, shared by every spec flavour.

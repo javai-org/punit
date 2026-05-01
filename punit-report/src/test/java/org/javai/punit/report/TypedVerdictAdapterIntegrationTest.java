@@ -19,18 +19,19 @@ import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.covariate.CovariateAlignment;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.CriterionResult;
-import org.javai.punit.api.typed.spec.CriterionRole;
-import org.javai.punit.api.typed.spec.EngineRunSummary;
-import org.javai.punit.api.typed.spec.EvaluatedCriterion;
-import org.javai.punit.api.typed.spec.FailureCount;
-import org.javai.punit.api.typed.spec.FailureExemplar;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.spec.TerminationReason;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.covariate.CovariateAlignment;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.CriterionRole;
+import org.javai.punit.api.spec.EngineRunSummary;
+import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.TypedRunMetadata;
 import org.javai.punit.verdict.TypedVerdictAdapter;
@@ -149,7 +150,7 @@ class TypedVerdictAdapterIntegrationTest {
                                 Duration.ofMillis(120), Duration.ofMillis(340),
                                 Duration.ofMillis(420), Duration.ofMillis(810),
                                 100),
-                        org.javai.punit.api.typed.spec.TerminationReason.COMPLETED,
+                        TerminationReason.COMPLETED,
                         0.95,
                         Optional.of("payment-gateway.yaml")));
     }

@@ -8,14 +8,16 @@ import java.util.Map;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.covariate.CovariateAlignment;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.CriterionResult;
-import org.javai.punit.api.typed.spec.CriterionRole;
-import org.javai.punit.api.typed.spec.EvaluatedCriterion;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.covariate.CovariateAlignment;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.CriterionRole;
+import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -307,7 +309,7 @@ class TypedTransparentStatsRendererTest {
     class PostconditionFailures {
 
         private ProbabilisticTestResult resultWithHistogram(
-                Map<String, org.javai.punit.api.typed.spec.FailureCount> hist) {
+                Map<String, FailureCount> hist) {
             return new ProbabilisticTestResult(
                     Verdict.FAIL, FactorBundle.empty(),
                     List.of(criterion("bernoulli-pass-rate", Verdict.FAIL,
@@ -332,12 +334,12 @@ class TypedTransparentStatsRendererTest {
         @DisplayName("non-empty histogram renders section with all retained exemplars")
         void rendersSection() {
             var hist = Map.of(
-                    "Valid JSON", new org.javai.punit.api.typed.spec.FailureCount(8, List.of(
-                            new org.javai.punit.api.typed.spec.FailureExemplar(
+                    "Valid JSON", new FailureCount(8, List.of(
+                            new FailureExemplar(
                                     "Add 2 apples", "trailing commentary"),
-                            new org.javai.punit.api.typed.spec.FailureExemplar(
+                            new FailureExemplar(
                                     "Clear the basket", "unexpected end of input"),
-                            new org.javai.punit.api.typed.spec.FailureExemplar(
+                            new FailureExemplar(
                                     "Remove the milk", "malformed brace"))));
 
             String rendered = TypedTransparentStatsRenderer.render(
@@ -356,9 +358,9 @@ class TypedTransparentStatsRendererTest {
         @DisplayName("clauses sorted by descending count")
         void sortedByDescendingCount() {
             var hist = Map.of(
-                    "Less common", new org.javai.punit.api.typed.spec.FailureCount(2, List.of()),
-                    "Most common", new org.javai.punit.api.typed.spec.FailureCount(10, List.of()),
-                    "Middle", new org.javai.punit.api.typed.spec.FailureCount(5, List.of()));
+                    "Less common", new FailureCount(2, List.of()),
+                    "Most common", new FailureCount(10, List.of()),
+                    "Middle", new FailureCount(5, List.of()));
 
             String rendered = TypedTransparentStatsRenderer.render(
                     "test", resultWithHistogram(hist));
@@ -376,8 +378,8 @@ class TypedTransparentStatsRendererTest {
         @DisplayName("count of 1 uses singular 'failure', > 1 uses plural")
         void singularPluralAgreement() {
             var hist = Map.of(
-                    "Single trip", new org.javai.punit.api.typed.spec.FailureCount(1, List.of()),
-                    "Multi trip", new org.javai.punit.api.typed.spec.FailureCount(5, List.of()));
+                    "Single trip", new FailureCount(1, List.of()),
+                    "Multi trip", new FailureCount(5, List.of()));
 
             String rendered = TypedTransparentStatsRenderer.render(
                     "test", resultWithHistogram(hist));
