@@ -6,8 +6,6 @@ import java.util.Objects;
 import org.javai.punit.reporting.CompositeVerdictSink;
 import org.javai.punit.reporting.LogVerdictSink;
 import org.javai.punit.verdict.VerdictSink;
-import org.javai.punit.spec.registry.LayeredSpecRepository;
-import org.javai.punit.spec.registry.SpecRepository;
 
 /**
  * Configuration for a {@code SentinelRunner} execution.
@@ -26,18 +24,14 @@ import org.javai.punit.spec.registry.SpecRepository;
 public final class SentinelConfiguration {
 
     private final List<Class<?>> sentinelClasses;
-    private final SpecRepository specRepository;
     private final VerdictSink verdictSink;
     private final EnvironmentMetadata environmentMetadata;
 
     private SentinelConfiguration(Builder builder) {
         if (builder.sentinelClasses.isEmpty()) {
-            throw new IllegalArgumentException("At least one @Sentinel class must be registered");
+            throw new IllegalArgumentException("At least one registered class is required");
         }
         this.sentinelClasses = List.copyOf(builder.sentinelClasses);
-        this.specRepository = builder.specRepository != null
-                ? builder.specRepository
-                : LayeredSpecRepository.createDefault();
         this.verdictSink = buildVerdictSink(builder.verdictSinks);
         this.environmentMetadata = builder.environmentMetadata != null
                 ? builder.environmentMetadata
@@ -46,10 +40,6 @@ public final class SentinelConfiguration {
 
     public List<Class<?>> sentinelClasses() {
         return sentinelClasses;
-    }
-
-    public SpecRepository specRepository() {
-        return specRepository;
     }
 
     public VerdictSink verdictSink() {
@@ -78,13 +68,15 @@ public final class SentinelConfiguration {
 
         private final List<Class<?>> sentinelClasses = new ArrayList<>();
         private final List<VerdictSink> verdictSinks = new ArrayList<>();
-        private SpecRepository specRepository;
         private EnvironmentMetadata environmentMetadata;
 
         private Builder() {}
 
         /**
-         * Registers a {@code @Sentinel}-annotated class for execution.
+         * Registers a class for Sentinel execution. The class must
+         * declare a public no-arg constructor and one or more methods
+         * annotated with the typed {@code @ProbabilisticTest} or
+         * {@code @Experiment}.
          */
         public Builder sentinelClass(Class<?> sentinelClass) {
             Objects.requireNonNull(sentinelClass, "sentinelClass must not be null");
@@ -93,20 +85,11 @@ public final class SentinelConfiguration {
         }
 
         /**
-         * Registers multiple {@code @Sentinel}-annotated classes.
+         * Registers multiple classes for Sentinel execution.
          */
         public Builder sentinelClasses(List<Class<?>> classes) {
             Objects.requireNonNull(classes, "classes must not be null");
             this.sentinelClasses.addAll(classes);
-            return this;
-        }
-
-        /**
-         * Sets the spec repository for baseline resolution.
-         * Defaults to {@link LayeredSpecRepository#createDefault()}.
-         */
-        public Builder specRepository(SpecRepository specRepository) {
-            this.specRepository = specRepository;
             return this;
         }
 

@@ -1,65 +1,35 @@
 package org.javai.punit.sentinel;
 
 import java.io.PrintStream;
-import java.util.Comparator;
-import java.util.List;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 
 /**
- * Owns all console output for the Sentinel CLI.
+ * Owns the console output for the Sentinel CLI summary.
  *
- * <p>This class is the single point of control for the shape and content of
- * sentinel output — both real-time progress (verbose mode) and the final
- * summary. Extracting it from {@link SentinelMain} makes the output format
- * transparent, testable, and easy to iterate on.
- *
- * <h2>Experiment output</h2>
- * <p>Experiments collect data — they do not deliver verdicts. Progress output
- * shows per-sample pass/fail and a completion line with sample totals. The
- * summary shows aggregate sample counts and {@code Result: COMPLETE}.
+ * <p>Sentinel runs to completion before producing any output;
+ * per-method progress is not surfaced in the typed-pipeline model
+ * (each verdict is dispatched to the configured
+ * {@link SentinelConfiguration#verdictSink()} as it lands, which is
+ * the user-controllable per-event channel). This class only owns
+ * the suite-level summary printed at the end of a run.
  *
  * <h2>Test output</h2>
- * <p>Tests deliver verdicts. Progress output shows per-sample pass/fail and
- * the test verdict. The summary shows test-level pass/fail counts and the
- * overall result.
+ * <p>Tests deliver verdicts. The summary shows test-level pass / fail
+ * counts and the overall result.
+ *
+ * <h2>Experiment output</h2>
+ * <p>Experiments collect data — they do not deliver verdicts. The
+ * summary lists each experiment with its sample counts.
  */
-class SentinelConsoleReporter implements SentinelProgressListener {
+class SentinelConsoleReporter {
 
-    private static final String SEPARATOR = "\u2500".repeat(40);
+    private static final String SEPARATOR = "─".repeat(40);
 
     private final PrintStream out;
 
     SentinelConsoleReporter(PrintStream out) {
         this.out = out;
     }
-
-    // ── Progress callbacks (verbose mode) ────────────────────────────────
-
-    @Override
-    public void onMethodStart(String name, int totalSamples) {
-        out.println(name + " (" + totalSamples + " samples)");
-    }
-
-    @Override
-    public void onSampleComplete(int sampleNumber, int totalSamples, boolean passed) {
-        String status = passed ? "pass" : "FAIL";
-        out.printf("  sample %d/%d %s%n", sampleNumber, totalSamples, status);
-    }
-
-    @Override
-    public void onTestComplete(String testName, boolean passed) {
-        String verdict = passed ? "PASS" : "FAIL";
-        out.println("  -> " + verdict);
-        out.println();
-    }
-
-    @Override
-    public void onExperimentComplete(String experimentName, int samples, int successes) {
-        out.printf("  -> done (%d/%d samples passed)%n", successes, samples);
-        out.println();
-    }
-
-    // ── Summary output ───────────────────────────────────────────────────
 
     void printTestSummary(SentinelResult result) {
         out.println();
@@ -105,40 +75,5 @@ class SentinelConsoleReporter implements SentinelProgressListener {
         out.println();
         out.println("Duration: " + result.totalDuration().toMillis() + "ms");
         out.println("Result: COMPLETE");
-    }
-
-    // ── Use case listing ───────────────────────────────────────────────
-
-    void printUseCaseCatalog(SentinelRunner.UseCaseCatalog catalog) {
-        if (catalog.isEmpty()) {
-            out.println("No use cases found.");
-            return;
-        }
-
-        List<SentinelRunner.UseCaseCatalog.Entry> sorted = catalog.entries().stream()
-                .sorted(Comparator.comparing(SentinelRunner.UseCaseCatalog.Entry::useCaseId)
-                        .thenComparing(SentinelRunner.UseCaseCatalog.Entry::type)
-                        .thenComparing(SentinelRunner.UseCaseCatalog.Entry::name)
-                        .thenComparing(SentinelRunner.UseCaseCatalog.Entry::samples))
-                .toList();
-
-        // Compute column widths
-        int idWidth = "Use Case Id".length();
-        int typeWidth = "Type".length();
-        int nameWidth = "Name".length();
-        for (var entry : sorted) {
-            idWidth = Math.max(idWidth, entry.useCaseId().length());
-            typeWidth = Math.max(typeWidth, entry.type().length());
-            nameWidth = Math.max(nameWidth, entry.name().length());
-        }
-
-        String format = "%-" + idWidth + "s  %-" + typeWidth + "s  %-" + nameWidth + "s  %s%n";
-        out.printf(format, "Use Case Id", "Type", "Name", "Samples");
-        out.println("\u2500".repeat(idWidth + typeWidth + nameWidth + "Samples".length() + 6));
-
-        for (var entry : sorted) {
-            out.printf(format, entry.useCaseId(), entry.type(), entry.name(),
-                    String.valueOf(entry.samples()));
-        }
     }
 }

@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.javai.punit.reporting.CompositeVerdictSink;
 import org.javai.punit.reporting.LogVerdictSink;
 import org.javai.punit.verdict.VerdictSink;
-import org.javai.punit.spec.registry.SpecRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,7 +20,7 @@ class SentinelConfigurationTest {
         void throwsWhenNoSentinelClasses() {
             assertThatThrownBy(() -> SentinelConfiguration.builder().build())
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("At least one @Sentinel class");
+                    .hasMessageContaining("At least one registered class");
         }
 
         @Test
@@ -58,16 +57,6 @@ class SentinelConfigurationTest {
                     .build();
 
             assertThat(config.verdictSink()).isInstanceOf(LogVerdictSink.class);
-        }
-
-        @Test
-        @DisplayName("defaults to LayeredSpecRepository")
-        void defaultsToLayeredSpecRepository() {
-            var config = SentinelConfiguration.builder()
-                    .sentinelClass(Object.class)
-                    .build();
-
-            assertThat(config.specRepository()).isNotNull();
         }
 
         @Test
@@ -141,18 +130,6 @@ class SentinelConfigurationTest {
                     .build();
 
             assertThat(config.verdictSink()).isInstanceOf(CompositeVerdictSink.class);
-        }
-
-        @Test
-        @DisplayName("uses custom spec repository when provided")
-        void usesCustomSpecRepository() {
-            SpecRepository custom = specId -> java.util.Optional.empty();
-            var config = SentinelConfiguration.builder()
-                    .sentinelClass(Object.class)
-                    .specRepository(custom)
-                    .build();
-
-            assertThat(config.specRepository()).isSameAs(custom);
         }
 
         @Test
