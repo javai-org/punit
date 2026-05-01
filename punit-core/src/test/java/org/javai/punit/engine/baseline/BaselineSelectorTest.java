@@ -9,10 +9,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.api.typed.covariate.Covariate;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

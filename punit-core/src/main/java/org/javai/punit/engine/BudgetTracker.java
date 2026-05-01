@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.OptionalLong;
 
-import org.javai.punit.api.typed.spec.TerminationReason;
+import org.javai.punit.api.spec.TerminationReason;
 
 /**
  * Per-configuration tracker that enforces wall-clock and token

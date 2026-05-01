@@ -5,14 +5,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import org.javai.punit.api.typed.covariate.CovariateAlignment;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.CriterionResult;
-import org.javai.punit.api.typed.spec.EvaluatedCriterion;
-import org.javai.punit.api.typed.spec.FailureCount;
-import org.javai.punit.api.typed.spec.FailureExemplar;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.covariate.CovariateAlignment;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.Verdict;
 
 /**
  * Verbose statistical breakdown of a typed

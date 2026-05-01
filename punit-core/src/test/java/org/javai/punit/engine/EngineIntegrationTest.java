@@ -7,23 +7,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.javai.outcome.Outcome;
+import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.ContractBuilder;
-import org.javai.punit.api.typed.Sampling;
-import org.javai.punit.api.typed.TokenTracker;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.ValueMatcher;
+import org.javai.punit.api.spec.TerminationReason;
+import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.Sampling;
+import org.javai.punit.api.TokenTracker;
+import org.javai.punit.api.UseCase;
 import org.javai.punit.engine.criteria.BernoulliPassRate;
-import org.javai.punit.api.typed.spec.EngineResult;
-import org.javai.punit.api.typed.spec.ExperimentResult;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.FactorsStepper;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.ProbabilisticTest;
-import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.spec.EngineResult;
+import org.javai.punit.api.spec.ExperimentResult;
+import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.FactorsStepper;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.ProbabilisticTest;
+import org.javai.punit.api.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -117,7 +117,7 @@ class EngineIntegrationTest {
         assertThat(summary.failures()).isZero();
         assertThat(summary.elapsedMs()).isGreaterThanOrEqualTo(0L);
         assertThat(summary.terminationReason())
-                .isEqualTo(org.javai.punit.api.typed.spec.TerminationReason.COMPLETED);
+                .isEqualTo(TerminationReason.COMPLETED);
         // Contractual mode: confidence falls back to default 0.95 since
         // BernoulliPassRate's contractual path doesn't surface confidence
         // in detail map.
@@ -228,10 +228,10 @@ class EngineIntegrationTest {
         };
 
         // Custom matcher: case-insensitive comparison.
-        org.javai.punit.api.typed.ValueMatcher<String> caseInsensitive =
+        ValueMatcher<String> caseInsensitive =
                 (exp, act) -> exp.equalsIgnoreCase(act)
-                        ? org.javai.punit.api.typed.MatchResult.pass("equalsIgnoreCase", exp, act)
-                        : org.javai.punit.api.typed.MatchResult.fail("equalsIgnoreCase", exp, act,
+                        ? MatchResult.pass("equalsIgnoreCase", exp, act)
+                        : MatchResult.fail("equalsIgnoreCase", exp, act,
                                 "case-insensitive comparison failed");
 
         Sampling<LlmFactors, String, String> sampling = Sampling

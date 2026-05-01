@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.javai.punit.api.typed.covariate.CovariateProfile;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.util.HashUtils;
 
 /**
@@ -21,7 +22,7 @@ import org.javai.punit.util.HashUtils;
  *
  * <ul>
  *   <li>{@code {key}} is the covariate name exactly as
- *       {@link org.javai.punit.api.typed.covariate.Covariate#name()}
+ *       {@link Covariate#name()}
  *       returns it (snake_case for built-ins).</li>
  *   <li>{@code {canonical_value}} is the resolved label produced by
  *       the {@code CovariateResolver}'s contract (UC04). For

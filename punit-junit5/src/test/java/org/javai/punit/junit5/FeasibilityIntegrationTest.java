@@ -8,10 +8,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.InputSupplier;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.InputSupplier;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.engine.baseline.BaselineRecord;
 import org.javai.punit.engine.baseline.BaselineWriter;
 import org.javai.punit.engine.baseline.FactorsFingerprint;

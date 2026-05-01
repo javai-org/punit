@@ -3,8 +3,8 @@ package org.javai.punit.engine;
 import java.time.Duration;
 import java.util.List;
 
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.UseCaseOutcome;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.UseCaseOutcome;
 import org.javai.punit.statistics.LatencyStatistics;
 
 /**

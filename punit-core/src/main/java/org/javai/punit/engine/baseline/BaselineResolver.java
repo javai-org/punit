@@ -10,10 +10,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.javai.punit.api.typed.covariate.Covariate;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.BaselineLookup;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.BaselineLookup;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
 
 /**
  * Exact-match baseline resolver. Looks up a baseline by
@@ -126,7 +127,7 @@ public final class BaselineResolver {
      * Like {@link #resolve} but additionally returns selection notes
      * (one per rejected candidate, plus partial-match / fallback
      * announcements) for surfacing through
-     * {@link org.javai.punit.api.typed.spec.ProbabilisticTestResult#warnings()}.
+     * {@link ProbabilisticTestResult#warnings()}.
      */
     public <S extends BaselineStatistics> BaselineLookup<S> lookup(
             String useCaseId,

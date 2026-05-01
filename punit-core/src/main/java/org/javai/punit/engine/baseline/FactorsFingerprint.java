@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Objects;
 
-import org.javai.punit.api.typed.FactorBundle;
+import org.javai.punit.api.FactorBundle;
 
 /**
  * Computes the {@code factorsFingerprint} field carried by every

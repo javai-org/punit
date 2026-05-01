@@ -18,13 +18,13 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.javai.punit.api.typed.covariate.Covariate;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.covariate.CustomCovariate;
-import org.javai.punit.api.typed.covariate.DayOfWeekCovariate;
-import org.javai.punit.api.typed.covariate.RegionCovariate;
-import org.javai.punit.api.typed.covariate.TimeOfDayCovariate;
-import org.javai.punit.api.typed.covariate.TimezoneCovariate;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.covariate.CustomCovariate;
+import org.javai.punit.api.covariate.DayOfWeekCovariate;
+import org.javai.punit.api.covariate.RegionCovariate;
+import org.javai.punit.api.covariate.TimeOfDayCovariate;
+import org.javai.punit.api.covariate.TimezoneCovariate;
 
 /**
  * Resolves a use case's declared covariates into a

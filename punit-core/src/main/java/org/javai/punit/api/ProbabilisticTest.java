@@ -5,6 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.javai.punit.api.spec.Verdict;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +30,7 @@ import org.junit.jupiter.api.Test;
  * <p>The framework runs the spec exactly once through its sampling
  * loop (the spec's {@code samples} count drives how many invocations
  * the engine performs internally — JUnit sees a single test). The
- * resulting {@link org.javai.punit.api.typed.spec.Verdict} translates:
+ * resulting {@link Verdict} translates:
  *
  * <ul>
  *   <li>{@code PASS} → JUnit pass.</li>

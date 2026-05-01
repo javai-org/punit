@@ -3,14 +3,14 @@ package org.javai.punit.runtime;
 import java.util.Iterator;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.typed.InputSupplier;
-import org.javai.punit.api.typed.Sampling;
-import org.javai.punit.api.typed.spec.Configuration;
-import org.javai.punit.api.typed.spec.Criterion;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.ProbabilisticTest;
-import org.javai.punit.api.typed.spec.Spec;
-import org.javai.punit.api.typed.spec.TypedSpec;
+import org.javai.punit.api.InputSupplier;
+import org.javai.punit.api.Sampling;
+import org.javai.punit.api.spec.Configuration;
+import org.javai.punit.api.spec.Criterion;
+import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.ProbabilisticTest;
+import org.javai.punit.api.spec.Spec;
+import org.javai.punit.api.spec.TypedSpec;
 
 /**
  * Translates a baseline {@link Experiment} value plus a test-side

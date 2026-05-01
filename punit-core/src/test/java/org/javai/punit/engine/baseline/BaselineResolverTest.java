@@ -8,10 +8,12 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
 
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.LatencyStatistics;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.LatencyStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -150,7 +152,7 @@ class BaselineResolverTest {
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
-                org.javai.punit.api.typed.covariate.CovariateProfile.of(profile));
+                CovariateProfile.of(profile));
         writer.write(record, dir);
 
         var resolver = new BaselineResolver(dir);
@@ -192,9 +194,9 @@ class BaselineResolverTest {
         var resolver = new BaselineResolver(dir);
 
         var declarations = java.util.List.of(
-                org.javai.punit.api.typed.covariate.Covariate.region(
+                Covariate.region(
                         java.util.List.of(java.util.Set.of("FR", "DE"))));
-        var current = org.javai.punit.api.typed.covariate.CovariateProfile.of(
+        var current = CovariateProfile.of(
                 Map.of("region", "DE_FR"));
 
         var resolved = resolver.resolve(
@@ -217,9 +219,9 @@ class BaselineResolverTest {
         var resolver = new BaselineResolver(dir);
 
         var declarations = java.util.List.of(
-                org.javai.punit.api.typed.covariate.Covariate.region(
+                Covariate.region(
                         java.util.List.of(java.util.Set.of("FR"))));
-        var current = org.javai.punit.api.typed.covariate.CovariateProfile.of(
+        var current = CovariateProfile.of(
                 Map.of("region", "FR"));
 
         var resolved = resolver.resolve(
@@ -233,8 +235,8 @@ class BaselineResolverTest {
     private void writeBaselineWithProfile(
             Path dir, String regionLabel, PassRateStatistics stats) throws IOException {
         var profile = regionLabel == null
-                ? org.javai.punit.api.typed.covariate.CovariateProfile.empty()
-                : org.javai.punit.api.typed.covariate.CovariateProfile.of(
+                ? CovariateProfile.empty()
+                : CovariateProfile.of(
                         Map.of("region", regionLabel));
         BaselineRecord record = new BaselineRecord(
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",

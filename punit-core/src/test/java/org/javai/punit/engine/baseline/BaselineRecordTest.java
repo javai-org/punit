@@ -7,8 +7,9 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import java.time.Instant;
 import java.util.Map;
 
-import org.javai.punit.api.typed.spec.BaselineStatistics;
-import org.javai.punit.api.typed.spec.PassRateStatistics;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -103,7 +104,7 @@ class BaselineRecordTest {
                 "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 ONE_ENTRY,
-                org.javai.punit.api.typed.covariate.CovariateProfile.of(profile));
+                CovariateProfile.of(profile));
 
         String dowHash = CovariateHashing.hashOne("day_of_week", "WEEKDAY");
         String regionHash = CovariateHashing.hashOne("region", "DE_FR");
@@ -120,7 +121,7 @@ class BaselineRecordTest {
                 "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 ONE_ENTRY,
-                org.javai.punit.api.typed.covariate.CovariateProfile.empty());
+                CovariateProfile.empty());
 
         assertThat(record.filename())
                 .isEqualTo("ShoppingBasketUseCase.measureBaseline-a1b2c3d4.yaml");

@@ -1,16 +1,14 @@
 package org.javai.punit.verdict;
 
 import java.util.List;
-import java.util.Map;
 
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.LatencyResult;
-import org.javai.punit.api.typed.covariate.CovariateAlignment;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.EngineRunSummary;
-import org.javai.punit.api.typed.spec.EvaluatedCriterion;
-import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
-import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.api.LatencyResult;
+import org.javai.punit.api.covariate.CovariateAlignment;
+import org.javai.punit.api.spec.EngineRunSummary;
+import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.LatencyInput;
@@ -56,7 +54,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  *       {@link ProbabilisticTestResult#contractRef()}; spec filename
  *       from {@code engineSummary.baselineFilename()}.</li>
  *   <li><b>Termination</b> — typed
- *       {@link org.javai.punit.api.typed.spec.TerminationReason} mapped
+ *       {@link org.javai.punit.api.spec.TerminationReason} mapped
  *       to the richer core enum; details kept null.</li>
  *   <li><b>Postcondition failures</b> — pass-through from
  *       {@link ProbabilisticTestResult#failuresByPostcondition()}.</li>
@@ -230,7 +228,7 @@ public final class TypedVerdictAdapter {
     }
 
     private static TerminationReason mapTerminationReason(
-            org.javai.punit.api.typed.spec.TerminationReason typed) {
+            org.javai.punit.api.spec.TerminationReason typed) {
         return switch (typed) {
             case COMPLETED -> TerminationReason.COMPLETED;
             case TIME_BUDGET -> TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED;

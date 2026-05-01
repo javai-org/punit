@@ -4,12 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import org.javai.outcome.Outcome;
+import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.typed.ContractBuilder;
-import org.javai.punit.api.typed.TokenTracker;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.ProbabilisticTest;
+import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.TokenTracker;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.ProbabilisticTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -130,7 +131,7 @@ class InlineSamplingFormTest {
     @Test
     @DisplayName("Sampling-bound ProbabilisticTest path still accepts empirical criteria — the guard is inline-only")
     void samplingBoundEmpiricalIsAccepted() {
-        var sampling = org.javai.punit.api.typed.Sampling.of(
+        var sampling = Sampling.of(
                 (Factors f) -> ECHO, 20, "a", "b");
         ProbabilisticTest spec = ProbabilisticTest.testing(sampling, new Factors("m"))
                 .criterion(BernoulliPassRate.<String>empirical())

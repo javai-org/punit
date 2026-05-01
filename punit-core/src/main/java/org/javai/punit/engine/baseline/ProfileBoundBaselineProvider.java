@@ -4,12 +4,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.javai.punit.api.typed.FactorBundle;
-import org.javai.punit.api.typed.covariate.Covariate;
-import org.javai.punit.api.typed.covariate.CovariateProfile;
-import org.javai.punit.api.typed.spec.BaselineLookup;
-import org.javai.punit.api.typed.spec.BaselineProvider;
-import org.javai.punit.api.typed.spec.BaselineStatistics;
+import org.javai.punit.api.spec.ProbabilisticTest;
+import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
+import org.javai.punit.api.spec.BaselineLookup;
+import org.javai.punit.api.spec.BaselineProvider;
+import org.javai.punit.api.spec.BaselineStatistics;
 
 /**
  * Wraps a {@link BaselineProvider} with a captured covariate profile
@@ -19,7 +20,7 @@ import org.javai.punit.api.typed.spec.BaselineStatistics;
  *
  * <p>The framework constructs one of these per probabilistic-test run
  * after resolving the run's covariate profile from the use case, so
- * that {@link org.javai.punit.api.typed.spec.ProbabilisticTest#dispatch}
+ * that {@link ProbabilisticTest#dispatch}
  * implementations can call the convenience overloads on
  * {@code BaselineProvider} and still exercise covariate-aware
  * selection.

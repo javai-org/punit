@@ -5,13 +5,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.typed.ContractBuilder;
-import org.javai.punit.api.typed.Sampling;
-import org.javai.punit.api.typed.TokenTracker;
-import org.javai.punit.api.typed.UseCase;
-import org.javai.punit.api.typed.spec.Experiment;
-import org.javai.punit.api.typed.spec.ExperimentResult;
-import org.javai.punit.api.typed.spec.FailureCount;
+import org.javai.punit.api.spec.FactorsStepper;
+import org.javai.punit.api.spec.ProbabilisticTest;
+import org.javai.punit.api.spec.ProbabilisticTestResult;
+import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.Sampling;
+import org.javai.punit.api.TokenTracker;
+import org.javai.punit.api.UseCase;
+import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.ExperimentResult;
+import org.javai.punit.api.spec.FailureCount;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -143,14 +146,14 @@ class PostconditionFailureHistogramTest {
                 .inputs(1, 2, 3, 4)
                 .samples(4)
                 .build();
-        org.javai.punit.api.typed.spec.ProbabilisticTest spec =
-                org.javai.punit.api.typed.spec.ProbabilisticTest
+        ProbabilisticTest spec =
+                ProbabilisticTest
                         .testing(sampling, new Factors())
                         .criterion(org.javai.punit.engine.criteria.BernoulliPassRate.<Integer>meeting(
                                 0.5, org.javai.punit.api.ThresholdOrigin.SLA))
                         .build();
 
-        var result = (org.javai.punit.api.typed.spec.ProbabilisticTestResult) new Engine().run(spec);
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
 
         assertThat(result.failuresByPostcondition()).containsKeys("alwaysFails", "evenFails");
         assertThat(result.failuresByPostcondition().get("alwaysFails").count()).isEqualTo(4);
@@ -169,7 +172,7 @@ class PostconditionFailureHistogramTest {
 
         // Minimal stepper: produce one more candidate, then stop.
         var seenHistograms = new java.util.ArrayList<java.util.Map<String, FailureCount>>();
-        org.javai.punit.api.typed.spec.FactorsStepper<Factors> stepper =
+        FactorsStepper<Factors> stepper =
                 (current, history) -> {
                     history.forEach(h -> seenHistograms.add(h.failuresByPostcondition()));
                     return history.size() >= 2 ? null : current;
