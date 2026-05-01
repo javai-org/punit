@@ -1,4 +1,4 @@
-package org.javai.punit.junit5;
+package org.javai.punit.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,6 +16,7 @@ import org.javai.punit.api.typed.spec.FailureCount;
 import org.javai.punit.api.typed.spec.FailureExemplar;
 import org.javai.punit.api.typed.spec.ProbabilisticTestResult;
 import org.javai.punit.api.typed.spec.Verdict;
+import org.javai.punit.runtime.PUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

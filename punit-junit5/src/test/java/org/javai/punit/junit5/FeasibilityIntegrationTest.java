@@ -16,6 +16,7 @@ import org.javai.punit.engine.baseline.BaselineRecord;
 import org.javai.punit.engine.baseline.BaselineWriter;
 import org.javai.punit.engine.baseline.FactorsFingerprint;
 import org.javai.punit.junit5.testsubjects.FeasibilitySubjects;
+import org.javai.punit.engine.baseline.BaselineResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,16 +36,16 @@ class FeasibilityIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        savedProperty = System.getProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
+        savedProperty = System.getProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
     }
 
     @AfterEach
     void tearDown() {
         if (savedProperty == null) {
-            System.clearProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
+            System.clearProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
         } else {
-            System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, savedProperty);
+            System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, savedProperty);
         }
     }
 

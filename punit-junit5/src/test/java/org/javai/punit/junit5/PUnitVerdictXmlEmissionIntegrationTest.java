@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 
 import org.javai.punit.junit5.testsubjects.PUnitSubjects;
+import org.javai.punit.engine.baseline.BaselineResolver;
 import org.javai.punit.verdict.TypedVerdictSinkBus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +28,7 @@ class PUnitVerdictXmlEmissionIntegrationTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
     private static final String DIR_PROPERTY = "punit.report.dir";
-    private static final String BASELINE_DIR_PROPERTY = BaselineProviderResolver.BASELINE_DIR_PROPERTY;
+    private static final String BASELINE_DIR_PROPERTY = BaselineResolver.BASELINE_DIR_PROPERTY;
 
     @TempDir Path reportDir;
     @TempDir Path baselineDir;

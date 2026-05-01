@@ -1,4 +1,4 @@
-package org.javai.punit.junit5;
+package org.javai.punit.runtime;
 
 import java.nio.file.Path;
 
@@ -36,14 +36,6 @@ import org.javai.punit.engine.baseline.YamlBaselineProvider;
  * (see {@link PUnit.MeasureBuilder#run}).
  */
 final class BaselineProviderResolver {
-
-    /**
-     * Re-exposed for tests that want to set the system property
-     * deterministically; the canonical declaration is on
-     * {@link BaselineResolver}.
-     */
-    static final String BASELINE_DIR_PROPERTY =
-            BaselineResolver.BASELINE_DIR_PROPERTY;
 
     private BaselineProviderResolver() { }
 

@@ -1,4 +1,4 @@
-package org.javai.punit.junit5;
+package org.javai.punit.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.javai.punit.engine.baseline.YamlBaselineProvider;
+import org.javai.punit.engine.baseline.BaselineResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,16 +21,16 @@ class BaselineProviderResolverTest {
 
     @BeforeEach
     void clearProperty() {
-        savedProperty = System.getProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
-        System.clearProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
+        savedProperty = System.getProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
+        System.clearProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
     }
 
     @AfterEach
     void restoreProperty() {
         if (savedProperty == null) {
-            System.clearProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY);
+            System.clearProperty(BaselineResolver.BASELINE_DIR_PROPERTY);
         } else {
-            System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, savedProperty);
+            System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, savedProperty);
         }
     }
 
@@ -37,7 +38,7 @@ class BaselineProviderResolverTest {
     @DisplayName("system property takes precedence over the convention default")
     void systemPropertyTakesPrecedence(@TempDir Path tempDir) {
         Files.exists(tempDir);
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, tempDir.toString());
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, tempDir.toString());
 
         assertThat(BaselineProviderResolver.resolveDir()).isEqualTo(tempDir);
         assertThat(BaselineProviderResolver.resolve()).isInstanceOf(YamlBaselineProvider.class);
@@ -55,7 +56,7 @@ class BaselineProviderResolverTest {
     @DisplayName("returns the configured directory regardless of whether it currently exists")
     void returnsDirWhenMissing(@TempDir Path tempDir) {
         Path missing = tempDir.resolve("does-not-exist-yet");
-        System.setProperty(BaselineProviderResolver.BASELINE_DIR_PROPERTY, missing.toString());
+        System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, missing.toString());
 
         assertThat(BaselineProviderResolver.resolveDir()).isEqualTo(missing);
         // Provider is constructed unconditionally; underlying lookups
