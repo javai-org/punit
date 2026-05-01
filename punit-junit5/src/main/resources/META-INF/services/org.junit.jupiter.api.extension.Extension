@@ -1,3 +1,0 @@
-org.javai.punit.ptest.engine.ProbabilisticTestExtension
-org.javai.punit.experiment.engine.ExperimentExtension
-org.javai.punit.controls.budget.ProbabilisticTestBudgetExtension

@@ -40,14 +40,10 @@ import org.junit.jupiter.api.Test;
  *       mismatch, …), not a service degradation.</li>
  * </ul>
  *
- * <p>Distinct from the legacy
- * {@link org.javai.punit.api.legacy.ProbabilisticTest @ProbabilisticTest}
- * which carries attributes (samples, confidence, threshold) the legacy
- * extension reads. This annotation is attribute-free; every parameter
- * lives on the typed spec the method body builds and runs.
+ * <p>The annotation is attribute-free; every parameter lives on the
+ * typed spec the method body builds and runs.
  *
- * <p>Tagged {@code "punit"} so suite-level filtering rules can pick
- * up both legacy and typed tests with one tag query.
+ * <p>Tagged {@code "punit"} for suite-level filtering.
  */
 @Test
 @Tag("punit")
