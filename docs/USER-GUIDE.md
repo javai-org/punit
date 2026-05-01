@@ -39,14 +39,12 @@ All attribution licensing is ARL.
   - [Baseline Expiration](#baseline-expiration)
 - [Part 3: The Use Case](#part-3-the-use-case)
   - [Why Experiments and Tests Must Share the Same Target](#why-experiments-and-tests-must-share-the-same-target)
-  - [The Service Contract](#the-service-contract)
-  - [The UseCaseOutcome](#the-usecaseoutcome)
-  - [Instance Conformance](#instance-conformance)
-  - [Duration Constraints](#duration-constraints)
-  - [Dimension-Scoped Assertions](#dimension-scoped-assertions)
-  - [The UseCaseProvider Pattern](#the-usecaseprovider-pattern)
-  - [Input Sources](#input-sources)
-  - [The Use Case in Full](#the-use-case-in-full)
+  - [The UseCase Interface](#the-usecase-interface)
+  - [Postconditions: Defining the Contract](#postconditions-defining-the-contract)
+  - [TokenTracker: The Cost Channel](#tokentracker-the-cost-channel)
+  - [UseCaseOutcome: What the Framework Assembles](#usecaseoutcome-what-the-framework-assembles)
+  - [Use Case Metadata](#use-case-metadata)
+  - [Per-Sample Latency Bounds](#per-sample-latency-bounds)
   - [Warmup: Achieving Statistical Stationarity](#warmup-achieving-statistical-stationarity)
 - [Part 4: The EXPLORE Experiment](#part-4-the-explore-experiment)
   - [When to Use EXPLORE](#when-to-use-explore)
@@ -688,370 +686,194 @@ In the examples so far, we have seen probabilistic tests with inline assertions 
 
 If your MEASURE experiment measures "valid JSON with correct fields" but your probabilistic test only checks "non-empty response," you have learned nothing about whether the system meets its actual requirements. You would be measuring one thing and testing another.
 
-PUnit therefore encourages the creation of an artifact called a **Use Case**. A Use Case wraps your application's functionality and defines, via a **Service Contract**, what "success" means. Both experiments and tests exercise the same Use Case, ensuring that what you measure is exactly what you test.
+PUnit therefore centres on an artefact called a **Use Case**. A use case wraps your application's functionality and declares — in one place — what to invoke, what counts as success, what the operational constraints are, and what environmental factors influence the outcome. Both experiments and tests exercise the same use case, ensuring that what you measure is exactly what you test.
 
 This is the shared expression of correctness in PUnit:
-- **Experiments** use the Use Case to observe and record behaviour
-- **Probabilistic Tests** use the same Use Case to verify that behaviour meets the threshold
+- **Experiments** use the use case to observe and record behaviour.
+- **Probabilistic Tests** use the same use case to verify that behaviour meets the threshold.
 
-### The Service Contract
+### The UseCase Interface
 
-At the heart of every PUnit Use Case is a **Service Contract** — a formal specification of what the service must do. The contract defines postconditions that must be satisfied for an invocation to be considered successful.
+A use case is a Java class implementing `UseCase<FT, IT, OT>`. Three type parameters fix what the use case does:
 
-Here is a contract for a shopping basket use case that translates natural language instructions into structured JSON actions:
+| Parameter | Carries                                                                                       |
+|-----------|-----------------------------------------------------------------------------------------------|
+| `FT`      | The **factor record** — configuration the author has chosen to vary (model, temperature, …). Typically a `record`. |
+| `IT`      | The **per-sample input** — data the engine cycles through across samples.                     |
+| `OT`      | The **per-sample output value** — what the service returns when it succeeds.                  |
 
-```java
-private static final ServiceContract<ServiceInput, ChatResponse> CONTRACT =
-        ServiceContract.<ServiceInput, ChatResponse>define()
-                .ensure("Response has content", response ->
-                        response.content() != null && !response.content().isBlank()
-                                ? Outcome.ok()
-                                : Outcome.fail("check", "content was null or blank"))
-                .derive("Valid shopping action", ShoppingActionValidator::validate)
-                .ensure("Contains valid actions", result -> {
-                    if (result.actions().isEmpty()) {
-                        return Outcome.fail("check", "No actions in result");
-                    }
-                    for (ShoppingAction action : result.actions()) {
-                        if (!action.context().isValidAction(action.name())) {
-                            return Outcome.fail("check",
-                                    "Invalid action '%s' for context %s"
-                                            .formatted(action.name(), action.context()));
-                        }
-                    }
-                    return Outcome.ok();
-                })
-                .build();
-```
+`UseCase<FT, IT, OT>` extends `Contract<IT, OT>`. The `Contract` half is operational — it carries the service call and the acceptance criteria. The `UseCase` half adds metadata — identity, covariate declarations, pacing, warmup. An author writing one use case implements one interface and overrides three methods (plus whichever metadata methods diverge from the framework defaults):
 
-The contract has three types of clauses:
+- **`invoke(IT input, TokenTracker tracker)`** — calls the service, records cost, returns the value wrapped in an `Outcome<OT>`. This is the only place the SUT is touched.
+- **`postconditions(ContractBuilder<OT> b)`** — declares what counts as success. Called once per run; the resulting clause list is evaluated against every sample's output.
+- Metadata methods (`id`, `description`, `warmup`, `pacing`, `covariates`, `customCovariateResolvers`, `maxLatency`) — describe the use case's identity and operational shape.
 
-- **`ensure`** — A postcondition that must hold. Returns `Outcome.ok()` on success or `Outcome.fail(...)` with a reason.
-- **`derive`** — Transforms the result (e.g., parsing JSON into domain objects) and can define nested postconditions on the derived value.
-- **`ensureDurationBelow`** — A timing constraint specifying the maximum allowed execution duration.
-
-Postconditions are evaluated in order. If any fails, subsequent ones are skipped. This creates a **fail-fast hierarchy**:
-
-1. "Response has content" — Is there a response at all?
-2. "Valid shopping action" — Can it be parsed into domain objects?
-3. "Contains valid actions" — Are the parsed actions semantically valid?
-
-**Why not just use assertions?** In traditional TDD, validation logic lives inside tests. This works for deterministic systems where we expect 100% success. But for non-deterministic systems, we need validation logic that is **non-judgmental** — logic that observes and records outcomes without immediately aborting. The Service Contract provides exactly this. One might call it **Contract-Driven Development**.
-
-### The UseCaseOutcome
-
-The `UseCaseOutcome` is a statement detailing how well a service performed against the postconditions defined in its contract. It captures the result, evaluates each postcondition, and records what passed, what failed, and why.
+The framework constructs the use case once per factor configuration via the factory closure declared on the spec, then drives the sampling loop:
 
 ```java
-public UseCaseOutcome<ChatResponse> translateInstruction(String instruction) {
-    return UseCaseOutcome
-            .withContract(CONTRACT)
-            .input(new ServiceInput(systemPrompt, instruction, model, temperature))
-            .execute(in -> llm.chat(in.prompt(), in.instruction(), in.model(), in.temperature()))
-            .build();
-}
-```
+public final class ShoppingBasketUseCase
+        implements UseCase<ShoppingBasketUseCase.LlmTuning, String, String> {
 
-This single artifact serves both experiments and tests:
-
-**In experiments**, the outcome is used to:
-- Establish **baseline specifications** that later power probabilistic tests (MEASURE)
-- Create **diffable documents** comparing configurations (EXPLORE)
-- Provide the **basis for optimization runs** where the mutator learns from failures (OPTIMIZE)
-
-**In probabilistic tests**, the outcome is used in the simplest way possible: to assert that the contract's postconditions were met, and to fail the sample if they were not. PUnit then counts successes across many samples to determine whether the observed rate meets the required threshold.
-
-### Instance Conformance
-
-Beyond postconditions, use cases can validate against **expected values** — specific instances the result should match. This enables instance conformance testing:
-
-```java
-public UseCaseOutcome<ChatResponse> translateInstruction(String instruction, String expectedJson) {
-    return UseCaseOutcome
-            .withContract(CONTRACT)
-            .input(new ServiceInput(systemPrompt, instruction, model, temperature))
-            .execute(in -> llm.chat(in.prompt(), in.instruction(), in.model(), in.temperature()))
-            .expecting(expectedJson, ChatResponse::content, JsonMatcher.semanticEquality())
-            .build();
-}
-```
-
-The outcome tracks multiple dimensions:
-- `allPostconditionsSatisfied()` — Did the result meet all contract postconditions?
-- `matchesExpected()` — Did the result match the expected value?
-- `withinDurationLimit()` — Did execution complete within the time constraint?
-- `fullySatisfied()` — All of the above
-
-### Duration Constraints
-
-Contracts can include timing requirements via `ensureDurationBelow`. Unlike postconditions, duration constraints are evaluated **independently** — you always learn both "was it correct?" and "was it fast enough?" regardless of which (if either) fails.
-
-```java
-private static final ServiceContract<ServiceInput, ChatResponse> CONTRACT =
-        ServiceContract.<ServiceInput, ChatResponse>define()
-                .ensure("Response has content", response -> ...)
-                .derive("Valid JSON", JsonParser::parse)
-                    .ensure("Has required fields", json -> ...)
-                .ensureDurationBelow(Duration.ofMillis(500))
-                .build();
-```
-
-This independence is deliberate. A slow-but-correct response and a fast-but-wrong response fail for different reasons — diagnostics should show both dimensions:
-
-```
-Sample 47: FAIL
-  ✓ Response has content
-  ✓ Valid JSON
-  ✓ Has required fields
-  ✗ Duration: 847ms exceeded limit of 500ms
-```
-
-### Dimension-Scoped Assertions
-
-`UseCaseOutcome` provides three assertion methods that control which dimensions of stochasticity a probabilistic test exercises:
-
-| Method             | Asserts                                           | Use when                                                          |
-|--------------------|---------------------------------------------------|-------------------------------------------------------------------|
-| `assertContract()` | Functional postconditions and expected value only | You care about correctness but not latency                        |
-| `assertLatency()`  | Duration constraint only                          | You care about response time but not functional correctness       |
-| `assertAll()`      | Both dimensions (adaptive)                        | You want a combined verdict — whichever dimensions are configured |
-
-```java
-// Assert functional correctness only — latency is not part of this verdict
-@ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
-void testFunctionalCorrectness(ShoppingBasketUseCase useCase, String instruction) {
-    useCase.translateInstruction(instruction).assertContract();
-}
-
-// Assert latency only — functional failures do not affect this verdict
-@ProbabilisticTest(useCase = PaymentGatewayUseCase.class, samples = 200)
-void testLatencySla(PaymentGatewayUseCase useCase) {
-    useCase.processPayment(testPayment()).assertLatency();
-}
-
-// Assert both — a sample passes only if both dimensions pass
-@ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
-void testReliability(ShoppingBasketUseCase useCase, String instruction) {
-    useCase.translateInstruction(instruction).assertAll();
-}
-```
-
-`assertAll()` is **adaptive**: it asserts whichever dimensions are configured on the `UseCaseOutcome`. If only a service contract is present (no duration constraint), it behaves like `assertContract()`. If only a duration constraint is present, it behaves like `assertLatency()`. If both are present, both must pass for the sample to succeed.
-
-**Misconfiguration errors.** Each method validates that the relevant criteria are actually configured:
-
-- `assertContract()` with no postconditions and no expected value throws `IllegalStateException`
-- `assertLatency()` with no duration constraint throws `IllegalStateException`
-- `assertAll()` with neither configured throws `IllegalStateException`
-
-These are authoring errors, not SUT failures — they indicate that the test is asking to assert something that the use case doesn't measure.
-
-**Per-dimension verdicts.** When both dimensions are asserted, PUnit tracks functional and latency results independently. The verdict shows a per-dimension breakdown, making it clear whether a failure is a correctness problem, a latency problem, or both.
-
-### The UseCaseProvider Pattern
-
-Use cases are registered and injected via `UseCaseProvider`, which handles JUnit parameter resolution:
-
-```java
-public class ShoppingBasketTest {
-
-    @RegisterExtension
-    UseCaseProvider provider = new UseCaseProvider();
-
-    @BeforeEach
-    void setUp() {
-        provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
+    public record LlmTuning(String model, double temperature, String systemPrompt) {
+        public static final LlmTuning DEFAULT = new LlmTuning("gpt-4o-mini", 0.3, "...");
     }
 
-    @ProbabilisticTest(useCase = ShoppingBasketUseCase.class, samples = 100)
-    void testInstructionTranslation(ShoppingBasketUseCase useCase, ...) {
-        // useCase is automatically injected
-    }
-}
-```
+    private final ChatLlm llm;
+    private final LlmTuning tuning;
 
-`UseCaseProvider` extends `UseCaseFactory` (from `punit-core`), adding JUnit's `ParameterResolver` integration. The underlying `UseCaseFactory` is a plain Java class with no JUnit dependency — it handles factory registration, instance resolution, and singleton management. `UseCaseProvider` inherits all of this and adds the ability to inject use case instances into JUnit test method parameters.
-
-For traditional JUnit test classes, always use `UseCaseProvider` with `@RegisterExtension`. For `@Sentinel` reliability specifications (see [Part 10: The Sentinel](#part-10-the-sentinel)), use `UseCaseFactory` directly — no JUnit types involved.
-
-### Input Sources
-
-The `@InputSource` annotation provides test inputs for experiments and probabilistic tests. Inputs are cycled across samples, ensuring coverage of the input space.
-
-**Method Source:**
-
-```java
-@ProbabilisticTest(samples = 100)
-@InputSource("testInstructions")
-void myTest(ShoppingBasketUseCase useCase, String instruction) {
-    useCase.translateInstruction(instruction).assertAll();
-}
-
-static Stream<String> testInstructions() {
-    return Stream.of("Add milk", "Remove bread", "Clear cart");
-}
-```
-
-**File Source (JSON):**
-
-```java
-record TestInput(String instruction, String expected) {}
-
-@ProbabilisticTest(samples = 100)
-@InputSource(file = "fixtures/inputs.json")
-void myTest(ShoppingBasketUseCase useCase, TestInput input) {
-    useCase.translateInstruction(input.instruction(), input.expected()).assertAll();
-}
-```
-
-The JSON file contains an array matching the record structure:
-```json
-[
-  {"instruction": "Add 2 apples", "expected": "{...}"},
-  {"instruction": "Clear the basket", "expected": "{...}"}
-]
-```
-
-**Explicit Input Parameter with `@Input`:**
-
-When a method has multiple parameters that could receive the input value, use `@Input` to explicitly mark the target parameter:
-
-```java
-@ExploreExperiment(useCase = ShoppingBasketUseCase.class, samplesPerConfig = 10)
-@InputSource(file = "fixtures/shopping-instructions.json")
-void exploreInputVariations(
-        ShoppingBasketUseCase useCase,
-        @Input InputData inputData,    // Explicitly marked as input target
-        OutcomeCaptor captor
-) {
-    captor.record(useCase.translateInstruction(inputData.instruction()));
-}
-```
-
-Without `@Input`, the framework auto-detects the input parameter by excluding framework types (UseCase, OutcomeCaptor, TokenChargeRecorder) and `@Factor`/`@ControlFactor`-annotated parameters. Use `@Input` when:
-- The method has multiple candidate parameters
-- You want to be explicit for clarity
-- Auto-detection picks the wrong parameter
-
-**Round-Robin Input Cycling:**
-
-All artifact types (`@ProbabilisticTest`, `@MeasureExperiment`, `@ExploreExperiment`, `@OptimizeExperiment`) use the same round-robin strategy for `@InputSource`: inputs are cycled in order across samples.
-
-With 100 samples and 3 inputs:
-
-```
-Sample 1  → "Add 2 apples"
-Sample 2  → "Remove the milk"
-Sample 3  → "Clear the basket"
-Sample 4  → "Add 2 apples"      (cycles back)
-Sample 5  → "Remove the milk"
-...
-Sample 99 → "Clear the basket"
-Sample 100→ "Add 2 apples"
-```
-
-Each input receives an equal share of samples (34, 33, 33 in this case). The total number of samples is always controlled by the artifact's own sample count attribute (`samples`, `samplesPerConfig`, or `samplesPerIteration`) — `@InputSource` provides the test data, not the sample count.
-
-**Choosing Method vs File Source:**
-
-| Use Case                     | Recommendation                             |
-|------------------------------|--------------------------------------------|
-| Simple string inputs         | Method source (inline, version-controlled) |
-| Dataset with expected values | File source (easier to maintain, share)    |
-| Generated/computed inputs    | Method source (programmatic)               |
-| Large input sets             | File source (cleaner code)                 |
-
-### The Use Case in Full
-
-The full implementation demonstrates how all PUnit concepts come together in a single class. Note that factor fields are `final` — the use case is immutable once constructed:
-
-```java
-@UseCase(
-    description = "Translate natural language shopping instructions to structured actions",
-    warmup = 3,
-    covariateDayOfWeek = {@DayGroup({SATURDAY, SUNDAY})},
-    covariateTimeOfDay = {"08:00/4h", "16:00/4h"},
-    covariates = {
-        @Covariate(key = "llm_model", category = CovariateCategory.CONFIGURATION),
-        @Covariate(key = "temperature", category = CovariateCategory.CONFIGURATION)
-    }
-)
-public class ShoppingBasketUseCase {
-
-    private final String model;
-    private final double temperature;
-    private final String systemPrompt;
-
-    public ShoppingBasketUseCase(ChatLlm llm, String model, double temperature, String systemPrompt) {
+    public ShoppingBasketUseCase(ChatLlm llm, LlmTuning tuning) {
         this.llm = llm;
-        this.model = model;
-        this.temperature = temperature;
-        this.systemPrompt = systemPrompt;
+        this.tuning = tuning;
     }
 
-    @CovariateSource("llm_model")
-    public String getModel() { return model; }
-
-    @CovariateSource
-    public double getTemperature() { return temperature; }
-
-    public UseCaseOutcome translateInstruction(String instruction) {
-        // Call LLM, validate response, return outcome with criteria
+    @Override
+    public Outcome<String> invoke(String instruction, TokenTracker tracker) {
+        try {
+            ChatResponse response = llm.chatWithMetadata(
+                    tuning.systemPrompt(), instruction,
+                    tuning.model(), tuning.temperature());
+            tracker.recordTokens(response.totalTokens());
+            return Outcome.ok(response.content());
+        } catch (ChatLlmException e) {
+            return Outcome.fail("llm-error", e.getMessage());
+        }
     }
+
+    @Override
+    public void postconditions(ContractBuilder<String> b) {
+        // see "Postconditions: Defining the Contract" below
+    }
+
+    @Override
+    public String id() { return "shopping-basket"; }
 }
 ```
 
-Key elements:
+The use case is immutable for the duration of sampling. Internal caches and connection handles are fine; live reconfiguration in response to sample outcomes is not. Mutating internal state mid-run violates the i.i.d. assumption that statistical inference depends on.
 
-- **`@UseCase`** — Declares the use case, its covariates, and operational attributes such as `warmup`
-- **`warmup = 3`** — Discards the first 3 invocations to achieve statistical stationarity (see [Warmup](#warmup-achieving-statistical-stationarity))
-- **`final` factor fields** — Use case configuration is immutable after construction (see [Immutable Use Cases](#immutable-use-cases-and-the-iid-assumption))
-- **`@CovariateSource`** — Links factors to covariate tracking for baseline selection
-- **`UseCaseOutcome`** — Bundles result data with success criteria
+### Postconditions: Defining the Contract
 
-*Source: `org.javai.punit.examples.usecases.ShoppingBasketUseCase`*
+`postconditions(ContractBuilder<OT> b)` declares what makes a sample a success. The framework calls it once per run, evaluates every clause it adds against each sample's output, and surfaces the per-clause pass/fail counts on the verdict.
 
-### Immutable Use Cases and the i.i.d. Assumption
+A clause is one of two shapes:
 
-A probabilistic test models repeated service invocations as independent, identically distributed (i.i.d.) Bernoulli trials. The "identically distributed" part requires that the experimental condition — the use case configuration — is **fixed during sampling**. If the configuration changes between trials, the samples are drawn from different distributions, and the confidence intervals, p-values, and verdicts computed from them are invalid.
-
-This principle has a direct consequence for use case design: **factor fields should be `final`, and the use case should be fully configured at construction time.**
-
-#### The `registerWithFactors` pattern
-
-When a use case has factors that vary across configurations (in EXPLORE or OPTIMIZE experiments), use `registerWithFactors` to create a fully configured instance per configuration:
+- **Leaf** (`b.ensure`) — a check on the output value. The check returns `Outcome.ok()` or `Outcome.fail(name, reason)`.
+- **Derived** (`b.deriving`) — a transformation of the output (e.g., parsing JSON) followed by nested clauses on the derived value. If the transformation itself fails, the nested clauses are skipped and recorded as such.
 
 ```java
-provider.registerWithFactors(ShoppingBasketUseCase.class, factors -> {
-    String model = factors.getString("model");
-    double temp = factors.getDouble("temperature");
-    return new ShoppingBasketUseCase(createAssistant(model, temp), model, temp);
-});
+@Override
+public void postconditions(ContractBuilder<String> b) {
+    b.ensure("Response not empty",
+            response -> response == null || response.isBlank()
+                    ? Outcome.fail("empty-response", "LLM returned no content")
+                    : Outcome.ok());
+
+    b.deriving("Valid JSON",
+            ShoppingActionValidator::parse,
+            sub -> sub.ensure("All actions valid for context", translation -> {
+                for (ShoppingAction action : translation.actions()) {
+                    if (!action.context().isValidAction(action.name())) {
+                        return Outcome.fail("invalid-action",
+                                "Invalid action '%s' for context %s"
+                                        .formatted(action.name(), action.context()));
+                    }
+                }
+                return Outcome.ok();
+            }));
+}
 ```
 
-PUnit calls this factory once per configuration, producing a fresh, immutable instance. All samples within that configuration run against the same instance — satisfying the i.i.d. requirement.
+Every clause has a stable description (the first argument) — these strings are the keys in the per-clause failure histogram on `SampleSummary.failuresByPostcondition()`. Diagnostic output, the verdict XML's `<postcondition-failures>` block, and the OPTIMIZE meta-prompt all read those keys, so descriptions should be specific enough to act on.
 
-For fixed-configuration use cases (no factors), the standard `register` pattern is appropriate:
+**Why clauses, not assertions.** Traditional unit tests fail fast — the first assertion that doesn't hold aborts the test. That is exactly wrong for probabilistic testing. A single sample's failure is not a verdict; the verdict comes from the population. Clauses observe and record without aborting, so the framework can count successes across the whole sample population and apply the statistical test that decides PASS, FAIL, or INCONCLUSIVE.
+
+**Why pass-failure-as-data.** The contract returns an `Outcome.Fail(name, reason)` for an anticipated failure rather than throwing. Anticipated failures (postcondition violations, validation errors, refusals) flow through the data channel; thrown exceptions are reserved for genuine defects (programming mistakes, misconfiguration, JVM-level catastrophe). The engine treats a thrown exception from `invoke` as a defect by default — see `ExceptionPolicy.ABORT_TEST` — because silently counting it as a sample failure would hide bugs.
+
+### TokenTracker: The Cost Channel
+
+Token cost — LLM provider tokens, payment-API call cost, or any per-sample cost — flows through the `TokenTracker` argument to `invoke`. The use case calls `tracker.recordTokens(n)` after each invocation; the framework accumulates those across samples, enforces token budgets when configured, and surfaces the total on the verdict.
 
 ```java
-provider.register(ShoppingBasketUseCase.class, ShoppingBasketUseCase::new);
+@Override
+public Outcome<String> invoke(String instruction, TokenTracker tracker) {
+    ChatResponse response = llm.chatWithMetadata(...);
+    tracker.recordTokens(response.totalTokens());
+    return Outcome.ok(response.content());
+}
 ```
 
-#### Design guidance
+The token abstraction is open. LLM tokens are the canonical case, but the channel can carry any unit-of-cost: vendor-API credits, third-party service calls, an arbitrary "compute cost" your team has agreed on. Use cases that have no per-sample cost simply ignore the tracker.
 
-- Make factor fields `final` and set them via the constructor.
-- Provide standard getters — no setters needed.
-- Annotate getters with `@CovariateSource` where covariate tracking is required; the covariate system reads values from getters, not from `@FactorGetter`.
+### UseCaseOutcome: What the Framework Assembles
 
-#### Deprecated: `@FactorSetter`, `@FactorGetter`, and `registerAutoWired`
+`UseCaseOutcome<IT, OT>` is the per-sample artefact the framework builds for every invocation. Authors do not construct it directly — `invoke` returns an `Outcome<OT>`, and the framework's `apply` dispatch wraps that with timing, cost diff, postcondition evaluation, and (where the test or experiment configures matching) instance comparison.
 
-Prior to 0.6.0, PUnit supported mutable use case patterns where factors were injected via `@FactorSetter` methods after construction. These patterns are **deprecated** because they allow the use case configuration to change during sampling, violating the i.i.d. assumption:
+Recipients (the probabilistic test asserter, the baseline writer, the OPTIMIZE meta-prompt builder, the EXPLORE diff renderer) consume the outcome without reaching back to the use case for additional state. It carries:
 
-- **`@FactorSetter`** — Deprecated. Use constructor parameters instead.
-- **`@FactorGetter`** — Deprecated. Use standard getters instead.
-- **`UseCaseProvider.registerAutoWired()`** — Deprecated. Use `registerWithFactors()` instead.
+- `result` — the outcome `invoke` returned (`Outcome.Ok<OT>` or `Outcome.Fail<OT>`).
+- `contract` — the `Contract<IT, OT>` instance that judged this sample.
+- `postconditionResults` — per-clause results from evaluating the contract; empty when `result` is `Outcome.Fail` (no value to evaluate).
+- `match` — the optional instance-conformance result (when matching was configured on the spec).
+- `tokens` — the per-sample token diff via `TokenTracker`.
+- `duration` — wall-clock time of the `invoke` call.
 
-These annotations and methods will be removed in a future release. Existing code that uses them will compile with deprecation warnings during the transition period.
+The framework aggregates these into `SampleSummary` and `ProbabilisticTestResult` for the verdict pipeline; experiment-side consumers read the same shape.
+
+### Use Case Metadata
+
+Beyond the operational core, the `UseCase` interface exposes metadata that lives on the use case rather than on the spec — properties of the SUT itself, not of any one experiment or test:
+
+| Method                      | Purpose                                                                                                                                              | Default                |
+|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|
+| `id()`                      | Stable identifier used in baseline filenames, logs, and diagnostics.                                                                                 | kebab-cased class name |
+| `description()`             | Human-readable description for reports and logs.                                                                                                     | empty string           |
+| `warmup()`                  | Number of warmup invocations to discard before counted samples begin (see [Warmup](#warmup-achieving-statistical-stationarity)).                     | `0`                    |
+| `pacing()`                  | Rate and concurrency limits the engine must respect. Pacing belongs to the SUT — every test against the same service should respect the same limit. | `Pacing.unlimited()`   |
+| `covariates()`              | Environmental variables outside developer control that influence outcomes (region, day-of-week, model version, …).                                   | empty list             |
+| `customCovariateResolvers()`| Suppliers for any `CustomCovariate` declared by `covariates()`. Called once per run.                                                                 | empty map              |
+| `maxLatency()`              | Optional per-sample wall-clock bound (see [Per-Sample Latency Bounds](#per-sample-latency-bounds)).                                                   | `Optional.empty()`     |
+
+Each method is `default` on the interface — override only the ones whose default does not fit. A pure-Java use case with no factors, no covariates, and no rate limits implements just `invoke`, `postconditions`, and (optionally) `id`.
+
+```java
+@Override public String id() { return "shopping-basket"; }
+
+@Override
+public List<Covariate> covariates() {
+    return List.of(
+            Covariate.custom("llm_model", CovariateCategory.CONFIGURATION),
+            Covariate.custom("temperature", CovariateCategory.CONFIGURATION));
+}
+
+@Override
+public Map<String, Supplier<String>> customCovariateResolvers() {
+    return Map.of(
+            "llm_model", () -> tuning.model(),
+            "temperature", () -> Double.toString(tuning.temperature()));
+}
+
+@Override public Pacing pacing() { return Pacing.unlimited(); }
+```
+
+Because metadata is a property of the SUT, it cannot be overridden per-test by system property or environment variable. Different SUTs have different operational characteristics; a global override would be incoherent.
+
+### Per-Sample Latency Bounds
+
+A use case may declare a per-sample wall-clock bound through `maxLatency()`. When set, the engine records a duration violation for any sample whose `invoke` call exceeds the bound. The sample's postcondition results are still collected — the violation is an additional facet, not a short-circuit — and the bound surfaces on the verdict alongside the postcondition histogram.
+
+```java
+@Override
+public Optional<Duration> maxLatency() {
+    return Optional.of(Duration.ofMillis(500));
+}
+```
+
+Most use cases do *not* set a per-sample bound. Aggregate latency claims — "the 95th percentile must be under 200 ms" — belong on the test or experiment side via the `PercentileLatency` criterion (see Part 1). Per-sample bounds and percentile bounds answer two distinct questions:
+
+- A **per-sample bound** says "every individual call must be fast enough." A use case where any single slow call is unacceptable (a payment authorisation that mustn't time out, a hard real-time path) declares it on the use case.
+- A **percentile criterion** says "the population as a whole must be fast enough." This is the typical SLA shape — a few outliers are tolerable as long as the bulk of calls hit the target.
+
+The two compose. A test exercising a use case with `maxLatency = 500ms` and a `PercentileLatency.empirical(P95)` criterion verifies both that no single call broke the per-sample ceiling *and* that the population's 95th percentile cleared the empirical baseline.
 
 ### Warmup: Achieving Statistical Stationarity
 
@@ -1059,28 +881,31 @@ Statistical inference assumes that each sample is drawn from the same distributi
 
 This is a **stationarity** problem. Probabilistic testing requires that the process generating outcomes is stationary — that is, its statistical properties do not change over the observation window. Cold-start effects violate this assumption.
 
-The `warmup` attribute on `@UseCase` addresses this directly:
+The `warmup()` metadata method addresses this directly:
 
 ```java
-@UseCase(warmup = 5)
-public class PaymentGatewayUseCase {
-    // First 5 invocations are discarded before counting begins
+public final class PaymentGatewayUseCase
+        implements UseCase<Tier, Charge, PaymentResult> {
+
+    @Override public int warmup() { return 5; }
+
+    // First 5 invocations are discarded before counting begins.
 }
 ```
 
-When `warmup` is greater than zero, the framework executes that many additional invocations before the counted samples begin. Results from warmup invocations are silently discarded — they are not recorded to the aggregator and do not contribute to the observed pass rate, failure counts, latency percentiles, or any statistical analysis.
+When `warmup()` returns a value greater than zero, the framework executes that many additional invocations before the counted samples begin. Results from warmup invocations are silently discarded — they are not recorded to the aggregator and do not contribute to the observed pass rate, failure counts, latency percentiles, or any statistical analysis.
 
-**Warmup is additive.** A test configured with `samples = 100` and `warmup = 5` executes 105 total invocations: 5 discarded, then 100 counted. The sample count in verdicts, specs, and reports reflects only the counted invocations.
+**Warmup is additive.** A test configured with 100 samples and `warmup = 5` executes 105 total invocations: 5 discarded, then 100 counted. The sample count in verdicts, specs, and reports reflects only the counted invocations.
 
-#### Why warmup lives on `@UseCase`
+#### Why warmup lives on the use case
 
-Warmup is a property of the system under test, not the statistical method. A payment gateway that initialises a connection pool on first use needs warmup regardless of whether you are measuring, exploring, or running a regression test. Placing `warmup` on `@UseCase` ensures that:
+Warmup is a property of the system under test, not the statistical method. A payment gateway that initialises a connection pool on first use needs warmup regardless of whether you are measuring, exploring, or running a regression test. Placing `warmup` on the use case ensures that:
 
-1. **Spec coherence** — The MEASURE experiment and the probabilistic test that consumes its spec both discard the same number of invocations. If the experiment warms up but the test does not (or vice versa), the baseline and the test are observing different distributions, and the threshold is meaningless.
+1. **Spec coherence.** The MEASURE experiment and the probabilistic test that consumes its spec both discard the same number of invocations. If the experiment warms up but the test does not (or vice versa), the baseline and the test are observing different distributions, and the threshold is meaningless.
 
-2. **Single source of truth** — There is one place to change the warmup count, and every experiment and test that references the use case inherits it automatically.
+2. **Single source of truth.** There is one place to change the warmup count, and every experiment and test that references the use case inherits it automatically.
 
-Because warmup reflects the SUT's architecture rather than a testing preference, there is deliberately no system property or environment variable override. Different SUTs have different caching characteristics; a global override would be incoherent.
+Because warmup reflects the SUT's architecture rather than a testing preference, there is deliberately no system property or environment variable override.
 
 #### How warmup interacts with other features
 
@@ -1096,16 +921,14 @@ Because warmup reflects the SUT's architecture rather than a testing preference,
 
 There is no universal formula. The right value depends on what the system needs to reach steady state:
 
-- **Connection pool initialisation** — typically 1-3 invocations
-- **JIT compilation** — for JVM-based SUTs, may require 10-50+ invocations depending on the critical path
-- **LLM provider stabilisation** — usually 1-5 invocations to fill rate-limit windows and establish session routing
-- **Cache warming** — depends on cache topology; a single pass through the input space may suffice
+- **Connection pool initialisation** — typically 1–3 invocations.
+- **JIT compilation** — for JVM-based SUTs, 10–50+ invocations depending on the critical path.
+- **LLM provider stabilisation** — usually 1–5 invocations to fill rate-limit windows and establish session routing.
+- **Cache warming** — depends on cache topology; a single pass through the input space may suffice.
 
 When in doubt, run a MEASURE experiment with `warmup = 0` and examine the latency profile. If the first few samples show conspicuously higher latency or lower pass rates, increase the warmup count until the distribution stabilises. The EXPLORE experiment can also be used to compare warmup values side by side.
 
-#### Default behaviour
-
-The default is `warmup = 0` — no warmup invocations, fully backwards-compatible. Only add warmup when you have evidence of cold-start non-stationarity.
+The default is `warmup = 0` — no warmup invocations. Only add warmup when you have evidence of cold-start non-stationarity.
 
 ---
 
