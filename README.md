@@ -142,7 +142,7 @@ class GreetingServiceTest {
                 Sampling.of(v -> new GreetingService(), 100,
                         List.of("Alice", "Bob", "Charlie")),
                 null)
-            .criterion(BernoulliPassRate.meeting(0.95, ThresholdOrigin.SLA))
+            .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
             .contractRef("Service Agreement §4.2")
             .assertPasses();
     }

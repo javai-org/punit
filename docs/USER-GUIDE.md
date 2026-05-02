@@ -322,7 +322,7 @@ Three operational modes for a probabilistic test, distinguished by which knob th
 void sampleSizeFirst() {
     PUnit.testing(this::baseline)
             .samples(100)
-            .criterion(BernoulliPassRate.empirical())
+            .criterion(PassRate.empirical())
             .assertPasses();
 }
 ```
@@ -343,7 +343,7 @@ void confidenceFirst() {
 
     PUnit.testing(this::baseline)
             .samples(n)
-            .criterion(BernoulliPassRate.empirical().atConfidence(0.95))
+            .criterion(PassRate.empirical().atConfidence(0.95))
             .assertPasses();
 }
 ```
@@ -359,12 +359,12 @@ void confidenceFirst() {
 @ProbabilisticTest
 void thresholdFirst() {
     PUnit.testing(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 100), LlmTuning.DEFAULT)
-            .criterion(BernoulliPassRate.meeting(0.90, ThresholdOrigin.SLA))
+            .criterion(PassRate.meeting(0.90, ThresholdOrigin.SLA))
             .assertPasses();
 }
 ```
 
-> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `BernoulliPassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: a roughly coin-flip false-fail rate. The proper baseline-comparison path is `BernoulliPassRate.empirical()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
+> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `PassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: a roughly coin-flip false-fail rate. The proper baseline-comparison path is `PassRate.empirical()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
 
 *Source: `org.javai.punit.examples.probabilistictests.ShoppingBasketThresholdApproachesTest`.*
 
@@ -953,7 +953,7 @@ class ProductSearchTest {
                         .samples(100)
                         .build(),
                 Tuning.DEFAULT)
-            .criterion(BernoulliPassRate.empirical())
+            .criterion(PassRate.empirical())
             .assertPasses();
     }
 }
@@ -976,7 +976,7 @@ class ProductSearchTest {
                         .samples(100)
                         .build(),
                 Tuning.DEFAULT)
-            .criterion(BernoulliPassRate.empirical())
+            .criterion(PassRate.empirical())
             .assertPasses();
     }
 }

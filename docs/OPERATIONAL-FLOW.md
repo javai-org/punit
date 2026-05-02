@@ -68,10 +68,10 @@ Both paradigms use the same `@ProbabilisticTest` annotation. The difference is w
 
 Regardless of which paradigm you use, you must decide **how to parameterize** your test.
 
-> **Where the threshold comes from, and how the comparison is decided.** PUnit's `BernoulliPassRate` criterion has two modes:
+> **Where the threshold comes from, and how the comparison is decided.** PUnit's `PassRate` criterion has two modes:
 >
-> - **Empirical** (`BernoulliPassRate.empirical()`) — the threshold is the observed pass rate read at runtime from the matched baseline spec (produced by a prior MEASURE experiment). The verdict applies a one-sided **Wilson score lower bound** to the run's observed rate at the configured confidence (default 0.95) and passes iff that lower bound clears the baseline rate. Approaches 1 and 2 below use this mode.
-> - **Contractual** (`BernoulliPassRate.meeting(threshold, origin)`) — the threshold is an externally-fixed number declared in code (an SLA, SLO, or policy figure). The verdict is a **deterministic** `observed >= threshold` comparison. No Wilson margin: an SLA is an external commitment to a specific number, not a statistical claim against a baseline. Approach 3 uses this mode.
+> - **Empirical** (`PassRate.empirical()`) — the threshold is the observed pass rate read at runtime from the matched baseline spec (produced by a prior MEASURE experiment). The verdict applies a one-sided **Wilson score lower bound** to the run's observed rate at the configured confidence (default 0.95) and passes iff that lower bound clears the baseline rate. Approaches 1 and 2 below use this mode.
+> - **Contractual** (`PassRate.meeting(threshold, origin)`) — the threshold is an externally-fixed number declared in code (an SLA, SLO, or policy figure). The verdict is a **deterministic** `observed >= threshold` comparison. No Wilson margin: an SLA is an external commitment to a specific number, not a statistical claim against a baseline. Approach 3 uses this mode.
 >
 > What the three approaches differ in is which knob the author fixes first.
 
@@ -84,7 +84,7 @@ Regardless of which paradigm you use, you must decide **how to parameterize** yo
 void sampleSizeFirst() {
     PUnit.testing(this::baseline)
             .samples(100)
-            .criterion(BernoulliPassRate.empirical())
+            .criterion(PassRate.empirical())
             .assertPasses();
 }
 ```
@@ -110,7 +110,7 @@ void confidenceFirst() {
 
     PUnit.testing(this::baseline)
             .samples(n)
-            .criterion(BernoulliPassRate.empirical().atConfidence(0.95))
+            .criterion(PassRate.empirical().atConfidence(0.95))
             .assertPasses();
 }
 ```
@@ -132,7 +132,7 @@ void confidenceFirst() {
 @ProbabilisticTest
 void thresholdFirst() {
     PUnit.testing(MyUseCase.sampling(INPUTS, 100), MyFactors.DEFAULT)
-            .criterion(BernoulliPassRate.meeting(0.90, ThresholdOrigin.SLA))
+            .criterion(PassRate.meeting(0.90, ThresholdOrigin.SLA))
             .contractRef("Customer API SLA §3.1")
             .assertPasses();
 }
@@ -147,7 +147,7 @@ void thresholdFirst() {
 
 **Best for:** SLA-style verification of services with externally-committed reliability targets.
 
-> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `BernoulliPassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: ~50% false-fail rate. The proper baseline-comparison path is `BernoulliPassRate.empirical()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
+> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `PassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: ~50% false-fail rate. The proper baseline-comparison path is `PassRate.empirical()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
 
 ### Choosing Your Approach
 
