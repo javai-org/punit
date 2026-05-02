@@ -92,7 +92,7 @@ class InlineSamplingFormTest {
         ProbabilisticTest spec = ProbabilisticTest.testing((Factors f) -> ECHO, new Factors("m"))
                 .inputs("a", "b")
                 .samples(20)
-                .criterion(BernoulliPassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         assertThat(spec.samples()).isEqualTo(20);
@@ -104,7 +104,7 @@ class InlineSamplingFormTest {
         var builder = ProbabilisticTest.testing((Factors f) -> ECHO, new Factors("m"))
                 .inputs("a", "b")
                 .samples(20)
-                .criterion(BernoulliPassRate.<String>empirical());
+                .criterion(PassRate.<String>empirical());
 
         assertThatExceptionOfType(IllegalStateException.class)
                 .isThrownBy(builder::build)
@@ -120,8 +120,8 @@ class InlineSamplingFormTest {
         var builder = ProbabilisticTest.testing((Factors f) -> ECHO, new Factors("m"))
                 .inputs("a", "b")
                 .samples(20)
-                .criterion(BernoulliPassRate.<String>meeting(0.5, ThresholdOrigin.SLA))
-                .reportOnly(BernoulliPassRate.<String>empirical());
+                .criterion(PassRate.<String>meeting(0.5, ThresholdOrigin.SLA))
+                .reportOnly(PassRate.<String>empirical());
 
         assertThatExceptionOfType(IllegalStateException.class)
                 .isThrownBy(builder::build)
@@ -134,7 +134,7 @@ class InlineSamplingFormTest {
         var sampling = Sampling.of(
                 (Factors f) -> ECHO, 20, "a", "b");
         ProbabilisticTest spec = ProbabilisticTest.testing(sampling, new Factors("m"))
-                .criterion(BernoulliPassRate.<String>empirical())
+                .criterion(PassRate.<String>empirical())
                 .build();
 
         assertThat(spec.samples()).isEqualTo(20);

@@ -25,7 +25,7 @@ final class BaselineSchema {
     static final String FIELD_STATISTICS = "statistics";
     static final String FIELD_COVARIATES = "covariates";
 
-    // BernoulliPassRate / PassRateStatistics
+    // PassRate / PassRateStatistics
     static final String FIELD_OBSERVED_PASS_RATE = "observedPassRate";
 
     // PercentileLatency / LatencyStatistics

@@ -33,7 +33,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  *   <li><b>Identity</b> — from {@code RunMetadata}.</li>
  *   <li><b>Execution</b> — from {@code result.engineSummary()}; the
  *       observed pass rate is computed from successes/total. The
- *       threshold is lifted from the first {@code BernoulliPassRate}
+ *       threshold is lifted from the first {@code PassRate}
  *       criterion's detail map (key {@code "threshold"}); falls back
  *       to 0.0 when no such criterion exists.</li>
  *   <li><b>Functional dimension</b> — from
@@ -49,7 +49,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  *       because per-method budgets are not surfaced on the result
  *       today.</li>
  *   <li><b>Provenance</b> — threshold origin from the first
- *       {@code BernoulliPassRate} criterion's {@code "origin"} detail
+ *       {@code PassRate} criterion's {@code "origin"} detail
  *       key; contract reference from
  *       {@link ProbabilisticTestResult#contractRef()}; spec filename
  *       from {@code engineSummary.baselineFilename()}.</li>

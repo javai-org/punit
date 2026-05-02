@@ -33,7 +33,7 @@ import org.javai.punit.statistics.SampleSizeCalculator;
  * int n = PowerAnalysis.sampleSize(BASELINES, this::shoppingBaseline, 0.02, 0.80);
  * var sampling = samplingTemplate().samples(n);
  * return ProbabilisticTest.testing(sampling, factors)
- *         .criterion(BernoulliPassRate.empirical())
+ *         .criterion(PassRate.empirical())
  *         .build();
  * }</pre>
  *

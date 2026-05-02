@@ -37,7 +37,7 @@ class EngineArchitectureTest {
         // org.javai.punit.engine (Engine.java, BudgetTracker.java,
         // SerialSampleExecutor.java, …) — not the subpackages that
         // host genuinely Experiment-aware machinery (engine.criteria
-        // holds BernoulliPassRate, which references Experiment via
+        // holds PassRate, which references Experiment via
         // its empiricalFrom(Supplier<Experiment>) pinning API; that's
         // value-shaped reference, not subtype-discrimination).
         ArchRule rule = noClasses()

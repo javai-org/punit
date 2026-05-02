@@ -33,6 +33,7 @@ import org.javai.punit.engine.Engine;
 import org.javai.punit.engine.baseline.ProfileBoundBaselineProvider;
 import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.engine.criteria.Feasibility;
+import org.javai.punit.engine.criteria.PassRate;
 import org.javai.punit.reporting.TransparentStatsRenderer;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
@@ -73,7 +74,7 @@ import org.opentest4j.TestAbortedException;
  *
  * <p>A {@code .build()} terminal is also available on every builder
  * — used for the
- * {@link org.javai.punit.engine.criteria.BernoulliPassRate#empiricalFrom
+ * {@link PassRate#empiricalFrom
  * empiricalFrom(supplier)} pattern, where a method returning a built
  * {@link Experiment} value supplies the baseline a probabilistic
  * test compares against.
@@ -718,7 +719,7 @@ public final class PUnit {
             }
             if (criterion == null) {
                 throw new IllegalStateException(
-                        "criterion is required — call .criterion(BernoulliPassRate.empirical()) "
+                        "criterion is required — call .criterion(PassRate.empirical()) "
                                 + "or similar before .build() / .assertPasses()");
             }
             Experiment baseline = Objects.requireNonNull(

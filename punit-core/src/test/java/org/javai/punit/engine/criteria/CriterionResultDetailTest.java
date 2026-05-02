@@ -87,7 +87,7 @@ class CriterionResultDetailTest {
     @Test
     @DisplayName("both criteria record the threshold origin under the key 'origin' as the enum's name()")
     void originKeyIsStableAcrossCriteria() {
-        var bernoulli = BernoulliPassRate.<Integer>meeting(0.5, ThresholdOrigin.SLA)
+        var bernoulli = PassRate.<Integer>meeting(0.5, ThresholdOrigin.SLA)
                 .evaluate(ctx(summaryWithLatency(LatencyResult.empty()), Optional.empty()));
         var percentile = PercentileLatency.<Integer>meeting(
                 LatencySpec.builder().p95Millis(500).build(), ThresholdOrigin.SLO)
@@ -102,7 +102,7 @@ class CriterionResultDetailTest {
     @Test
     @DisplayName("both criteria record baselineSampleCount under that key when in an empirical mode")
     void baselineSampleCountKeyIsStable() {
-        var passRate = BernoulliPassRate.<Integer>empirical().evaluate(
+        var passRate = PassRate.<Integer>empirical().evaluate(
                 ctx(summaryWithLatency(LatencyResult.empty()),
                         Optional.of(new PassRateStatistics(0.9, 1234))));
         var latency = PercentileLatency.<Integer>empirical(PercentileKey.P95).evaluate(
@@ -114,9 +114,9 @@ class CriterionResultDetailTest {
     }
 
     @Test
-    @DisplayName("BernoulliPassRate's contractual detail carries observed/threshold/origin/successes/failures/total")
+    @DisplayName("PassRate's contractual detail carries observed/threshold/origin/successes/failures/total")
     void bernoulliContractualDetailKeys() {
-        var result = BernoulliPassRate.<Integer>meeting(0.5, ThresholdOrigin.SLA)
+        var result = PassRate.<Integer>meeting(0.5, ThresholdOrigin.SLA)
                 .evaluate(ctx(summaryWithLatency(LatencyResult.empty()), Optional.empty()));
 
         assertThat(result.detail()).containsKeys(
@@ -127,9 +127,9 @@ class CriterionResultDetailTest {
     }
 
     @Test
-    @DisplayName("BernoulliPassRate's empirical detail also carries confidence and baselineSampleCount")
+    @DisplayName("PassRate's empirical detail also carries confidence and baselineSampleCount")
     void bernoulliEmpiricalDetailKeys() {
-        var result = BernoulliPassRate.<Integer>empirical().evaluate(
+        var result = PassRate.<Integer>empirical().evaluate(
                 ctx(summaryWithLatency(LatencyResult.empty()),
                         Optional.of(new PassRateStatistics(0.9, 1234))));
 

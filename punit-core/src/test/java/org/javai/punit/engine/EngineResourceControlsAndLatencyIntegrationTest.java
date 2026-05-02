@@ -14,7 +14,7 @@ import org.javai.punit.api.Pacing;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.engine.criteria.PassRate;
 import org.javai.punit.api.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.spec.CriterionRole;
 import org.javai.punit.api.spec.EvaluatedCriterion;
@@ -411,7 +411,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
 
         ProbabilisticTest both = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
-                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(10L).build(),
                         ThresholdOrigin.SLA))
@@ -439,7 +439,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
-                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .reportOnly(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(10L).build(),
                         ThresholdOrigin.SLA))
@@ -475,7 +475,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(100L).build(),
                         ThresholdOrigin.SLA))
-                .reportOnly(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .reportOnly(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var r = (ProbabilisticTestResult) new Engine().run(spec);

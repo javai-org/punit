@@ -53,7 +53,7 @@ import org.javai.punit.statistics.BinomialProportionEstimator;
  * dependencies. The {@link Criterion} interface itself stays in
  * {@code api package}; only this implementation moved.
  */
-public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatistics> {
+public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
 
     private static final String NAME = "bernoulli-pass-rate";
     private static final double DEFAULT_CONFIDENCE = 0.95;
@@ -67,7 +67,7 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
     private final double confidence;
     private final Supplier<Experiment> baselineSupplier;
 
-    private BernoulliPassRate(
+    private PassRate(
             Mode mode,
             double threshold,
             ThresholdOrigin origin,
@@ -80,7 +80,7 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         this.baselineSupplier = baselineSupplier;
     }
 
-    public static <OT> BernoulliPassRate<OT> meeting(double threshold, ThresholdOrigin origin) {
+    public static <OT> PassRate<OT> meeting(double threshold, ThresholdOrigin origin) {
         Objects.requireNonNull(origin, "origin");
         if (threshold < 0.0 || threshold > 1.0 || Double.isNaN(threshold)) {
             throw new IllegalArgumentException(
@@ -89,37 +89,33 @@ public final class BernoulliPassRate<OT> implements Criterion<OT, PassRateStatis
         if (origin == ThresholdOrigin.EMPIRICAL) {
             throw new IllegalArgumentException(
                     "ThresholdOrigin.EMPIRICAL is reserved for the empirical factories; "
-                            + "call BernoulliPassRate.empirical() or .empiricalFrom(...) instead");
+                            + "call PassRate.empirical() or .empiricalFrom(...) instead");
         }
-        return new BernoulliPassRate<>(
+        return new PassRate<>(
                 Mode.CONTRACTUAL, threshold, origin, DEFAULT_CONFIDENCE, null);
     }
 
-    public static <OT> BernoulliPassRate<OT> empirical() {
-        return new BernoulliPassRate<>(
-                Mode.EMPIRICAL_DEFAULT, Double.NaN, ThresholdOrigin.EMPIRICAL,
-                DEFAULT_CONFIDENCE, null);
+    public static <OT> PassRate<OT> empirical() {
+        return new PassRate<>(
+                Mode.EMPIRICAL_DEFAULT, Double.NaN, ThresholdOrigin.EMPIRICAL, DEFAULT_CONFIDENCE, null);
     }
 
-    public static <OT> BernoulliPassRate<OT> empiricalFrom(
-            Supplier<Experiment> baseline) {
+    public static <OT> PassRate<OT> empiricalFrom(Supplier<Experiment> baseline) {
         Objects.requireNonNull(baseline, "baseline");
-        return new BernoulliPassRate<>(
-                Mode.EMPIRICAL_PINNED, Double.NaN, ThresholdOrigin.EMPIRICAL,
-                DEFAULT_CONFIDENCE, baseline);
+        return new PassRate<>(
+                Mode.EMPIRICAL_PINNED, Double.NaN, ThresholdOrigin.EMPIRICAL, DEFAULT_CONFIDENCE, baseline);
     }
 
     /**
      * Returns a new criterion with the declared confidence — used for
      * the empirical path's Wilson-score lower-bound comparison.
      */
-    public BernoulliPassRate<OT> atConfidence(double confidence) {
+    public PassRate<OT> atConfidence(double confidence) {
         if (Double.isNaN(confidence) || confidence <= 0.0 || confidence >= 1.0) {
             throw new IllegalArgumentException(
                     "confidence must be in (0, 1), got " + confidence);
         }
-        return new BernoulliPassRate<>(
-                mode, threshold, origin, confidence, baselineSupplier);
+        return new PassRate<>(mode, threshold, origin, confidence, baselineSupplier);
     }
 
     /**

@@ -56,7 +56,7 @@ import org.javai.punit.api.spec.ExceptionPolicy;
  * }
  * @PUnitTest ProbabilisticTest meets() {
  *     return ProbabilisticTest.testing(sampling(100), factors)
- *             .criterion(BernoulliPassRate.empirical())
+ *             .criterion(PassRate.empirical())
  *             .build();
  * }
  * }</pre>

@@ -16,7 +16,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.engine.criteria.PassRate;
 import org.javai.punit.api.spec.EngineResult;
 import org.javai.punit.api.spec.ExperimentResult;
 import org.javai.punit.api.spec.Experiment;
@@ -67,7 +67,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("ProbabilisticTest with BernoulliPassRate.meeting() produces PASS when observed beats threshold")
+    @DisplayName("ProbabilisticTest with PassRate.meeting() produces PASS when observed beats threshold")
     void contractualProducesPass() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
@@ -77,7 +77,7 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -103,7 +103,7 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -117,14 +117,14 @@ class EngineIntegrationTest {
         assertThat(summary.terminationReason())
                 .isEqualTo(TerminationReason.COMPLETED);
         // Contractual mode: confidence falls back to default 0.95 since
-        // BernoulliPassRate's contractual path doesn't surface confidence
+        // PassRate's contractual path doesn't surface confidence
         // in detail map.
         assertThat(summary.confidence()).isEqualTo(0.95);
         assertThat(summary.baselineFilename()).isEmpty();
     }
 
     @Test
-    @DisplayName("ProbabilisticTest with BernoulliPassRate.meeting() produces FAIL when observed below threshold")
+    @DisplayName("ProbabilisticTest with PassRate.meeting() produces FAIL when observed below threshold")
     void contractualProducesFail() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
@@ -134,7 +134,7 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
+                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -146,7 +146,7 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("BernoulliPassRate.empirical() yields INCONCLUSIVE under the Stage-3.5 stub baseline resolver")
+    @DisplayName("PassRate.empirical() yields INCONCLUSIVE under the Stage-3.5 stub baseline resolver")
     void empiricalYieldsInconclusiveUnderStubResolver() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
@@ -156,7 +156,7 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(BernoulliPassRate.<Boolean>empirical())
+                .criterion(PassRate.<Boolean>empirical())
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -377,11 +377,11 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest verification = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
-                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
         ProbabilisticTest smoke = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
-                .criterion(BernoulliPassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .intent(TestIntent.SMOKE)
                 .build();
 

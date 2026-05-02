@@ -8,7 +8,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**
@@ -80,7 +80,7 @@ public final class PUnitSubjects {
         @ProbabilisticTest
         void passes() {
             PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
     }
@@ -90,7 +90,7 @@ public final class PUnitSubjects {
         @ProbabilisticTest
         void passesWithTransparentStats() {
             PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .transparentStats()
                     .assertPasses();
         }
@@ -106,7 +106,7 @@ public final class PUnitSubjects {
         @ProbabilisticTest
         void passesWithContractRef() {
             PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .contractRef("Acme API SLA v3.2 §2.1")
                     .transparentStats()
                     .assertPasses();
@@ -123,7 +123,7 @@ public final class PUnitSubjects {
         @ProbabilisticTest
         void failsWithContractRef() {
             PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .contractRef("Acme API SLA v3.2 §2.1")
                     .assertPasses();
         }
@@ -134,7 +134,7 @@ public final class PUnitSubjects {
         @ProbabilisticTest
         void fails() {
             PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
+                    .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
     }
@@ -148,7 +148,7 @@ public final class PUnitSubjects {
         @ProbabilisticTest
         void inconclusive() {
             PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>empirical())
+                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -195,7 +195,7 @@ public final class PUnitSubjects {
             // specified at the test side.
             PUnit.testing(this::baseline)
                     .samples(20)
-                    .criterion(BernoulliPassRate.<Boolean>empirical())
+                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -215,7 +215,7 @@ public final class PUnitSubjects {
         void rejectsNonMeasureSupplier() {
             PUnit.testing(this::exploreBaseline)
                     .samples(20)
-                    .criterion(BernoulliPassRate.<Boolean>empirical())
+                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }

@@ -47,7 +47,7 @@ public final class ProbabilisticTest implements Spec {
      * {@link Sampling} and the factors it should run against.
      *
      * <p>For an empirical test (criterion built via
-     * {@code BernoulliPassRate.empirical()} or {@code .empiricalFrom(...)}),
+     * {@code PassRate.empirical()} or {@code .empiricalFrom(...)}),
      * the {@code Sampling} passed here must be the <em>same value</em>
      * passed to the paired measure's
      * {@link Experiment#measuring(Sampling, Object) Experiment.measuring(...)}.
@@ -68,7 +68,7 @@ public final class ProbabilisticTest implements Spec {
      * }
      * @PUnitTest ProbabilisticTest meets() {
      *     return ProbabilisticTest.testing(sampling(100), factors)
-     *             .criterion(BernoulliPassRate.empirical())
+     *             .criterion(PassRate.empirical())
      *             .build();
      * }
      * }</pre>
@@ -89,13 +89,13 @@ public final class ProbabilisticTest implements Spec {
      * Sampling parameters are supplied through the returned builder.
      *
      * <p>For a probabilistic test with a <strong>contractual</strong>
-     * criterion (e.g., {@code BernoulliPassRate.meeting(threshold, origin)}),
+     * criterion (e.g., {@code PassRate.meeting(threshold, origin)}),
      * the inline form is equivalent to constructing a fresh
      * {@link Sampling} per spec — there is no baseline pairing to
      * preserve, so no integrity guarantee at risk.
      *
      * <p>For a probabilistic test with an <strong>empirical</strong>
-     * criterion ({@code BernoulliPassRate.empirical()} /
+     * criterion ({@code PassRate.empirical()} /
      * {@code .empiricalFrom(...)}), the inline form is rejected at
      * {@code .build()} time. An empirical comparison requires the
      * test and the baseline measure to draw from the same sampling
@@ -228,7 +228,7 @@ public final class ProbabilisticTest implements Spec {
          * {@link SampleSummary}, the evaluated criteria, and the
          * matched-baseline source file. Confidence is lifted from the
          * first criterion whose detail map carries a "confidence" entry
-         * (BernoulliPassRate); falls back to 0.95.
+         * (PassRate); falls back to 0.95.
          */
         private EngineRunSummary buildEngineSummary(
                 SampleSummary<OT> s,
@@ -495,7 +495,7 @@ public final class ProbabilisticTest implements Spec {
                                     + "    }\n"
                                     + "    @PUnitTest ProbabilisticTest meets() {\n"
                                     + "        return ProbabilisticTest.testing(sampling(100), factors)\n"
-                                    + "                .criterion(BernoulliPassRate.empirical())\n"
+                                    + "                .criterion(PassRate.empirical())\n"
                                     + "                .build();\n"
                                     + "    }");
                 }

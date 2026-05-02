@@ -2,7 +2,7 @@ package org.javai.punit.api.spec;
 
 /**
  * Pass-rate baseline, read by empirical variants of
- * {@code BernoulliPassRate}.
+ * {@code PassRate}.
  *
  * @param observedPassRate the baseline's successes / total
  * @param sampleCount      the baseline's total invocation count

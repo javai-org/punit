@@ -13,7 +13,7 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.covariate.Covariate;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**
@@ -96,7 +96,7 @@ public final class CovariateSubjects {
             // matches we get a real verdict (not INCONCLUSIVE), and
             // when it doesn't we get INCONCLUSIVE.
             PUnit.testing(sampling(20), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>empirical()
+                    .criterion(PassRate.<Boolean>empirical()
                             .atConfidence(0.50))
                     .assertPasses();
         }

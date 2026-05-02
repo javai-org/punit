@@ -4,7 +4,7 @@ package org.javai.punit.api.spec;
  * A spec-level claim evaluated against the observed sample aggregate.
  *
  * <p>A criterion is concerned with one statistical model and therefore
- * one kind of baseline statistics. {@code BernoulliPassRate} reads
+ * one kind of baseline statistics. {@code PassRate} reads
  * pass-rate statistics; {@code PercentileLatency} reads latency
  * percentiles. Future criterion kinds add new {@link BaselineStatistics}
  * implementations without touching existing types.

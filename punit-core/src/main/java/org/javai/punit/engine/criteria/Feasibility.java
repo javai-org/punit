@@ -28,11 +28,11 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  *       allowed; a warning is returned for the caller to surface.</li>
  * </ul>
  *
- * <p>The check applies only to <em>empirical</em> {@link BernoulliPassRate}
+ * <p>The check applies only to <em>empirical</em> {@link PassRate}
  * criteria — the only place the engine makes a confidence-backed
  * statistical claim today. Contractual {@code .meeting(threshold, origin)}
  * paths use a deterministic {@code observed >= threshold} comparison and
- * have no feasibility concern. Non-{@code BernoulliPassRate} criteria
+ * have no feasibility concern. Non-{@code PassRate} criteria
  * (e.g. {@code PercentileLatency}) are skipped pending their own
  * feasibility model.
  *
@@ -51,7 +51,7 @@ public final class Feasibility {
     private Feasibility() { }
 
     /**
-     * Check feasibility of a single {@code BernoulliPassRate} criterion
+     * Check feasibility of a single {@code PassRate} criterion
      * against a resolved baseline.
      *
      * @return a list of warnings (one per infeasible-but-tolerated
@@ -66,7 +66,7 @@ public final class Feasibility {
             FactorBundle factors,
             TestIntent intent,
             BaselineProvider provider) {
-        if (!(criterion instanceof BernoulliPassRate<?> bernoulli) || !criterion.isEmpirical()) {
+        if (!(criterion instanceof PassRate<?> bernoulli) || !criterion.isEmpirical()) {
             return List.of();
         }
         Optional<PassRateStatistics> baseline = provider.baselineFor(

@@ -94,7 +94,7 @@ class VerdictAdapterTest {
         }
 
         @Test
-        @DisplayName("threshold pulled from BernoulliPassRate criterion's detail map")
+        @DisplayName("threshold pulled from PassRate criterion's detail map")
         void thresholdFromCriterionDetail() {
             ProbabilisticTestResult result = resultWithCriteria(
                     Verdict.PASS,

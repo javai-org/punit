@@ -25,8 +25,8 @@ import org.javai.punit.api.spec.Verdict;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("BernoulliPassRate")
-class BernoulliPassRateTest {
+@DisplayName("PassRate")
+class PassRateTest {
 
     record Factors(String label) {}
 
@@ -85,7 +85,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("meeting() returns PASS when observed meets threshold")
     void contractualPass() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> criterion = PassRate.meeting(0.9, ThresholdOrigin.SLA);
 
         CriterionResult result = criterion.evaluate(ctx(summary(95, 5), Optional.empty()));
 
@@ -100,7 +100,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("meeting() returns FAIL when observed below threshold")
     void contractualFail() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> criterion = PassRate.meeting(0.9, ThresholdOrigin.SLA);
 
         CriterionResult result = criterion.evaluate(ctx(summary(80, 20), Optional.empty()));
 
@@ -112,18 +112,18 @@ class BernoulliPassRateTest {
     @DisplayName("meeting() rejects threshold outside [0, 1]")
     void meetingRejectsOutOfRange() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> BernoulliPassRate.meeting(-0.1, ThresholdOrigin.SLA));
+                .isThrownBy(() -> PassRate.meeting(-0.1, ThresholdOrigin.SLA));
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> BernoulliPassRate.meeting(1.1, ThresholdOrigin.SLA));
+                .isThrownBy(() -> PassRate.meeting(1.1, ThresholdOrigin.SLA));
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> BernoulliPassRate.meeting(Double.NaN, ThresholdOrigin.SLA));
+                .isThrownBy(() -> PassRate.meeting(Double.NaN, ThresholdOrigin.SLA));
     }
 
     @Test
     @DisplayName("meeting() rejects ThresholdOrigin.EMPIRICAL")
     void meetingRejectsEmpiricalOrigin() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> BernoulliPassRate.meeting(0.9, ThresholdOrigin.EMPIRICAL))
+                .isThrownBy(() -> PassRate.meeting(0.9, ThresholdOrigin.EMPIRICAL))
                 .withMessageContaining("empirical");
     }
 
@@ -132,7 +132,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() with no baseline returns INCONCLUSIVE")
     void empiricalNoBaselineInconclusive() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
 
         CriterionResult result = criterion.evaluate(ctx(summary(90, 10), Optional.empty()));
 
@@ -143,7 +143,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() PASS when Wilson lower bound clears the baseline threshold")
     void empiricalWithBaselinePass() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
         // p=0.95, n=1000, c=0.95 → Wilson lower ≈ 0.934 ≥ 0.88 → PASS
@@ -160,7 +160,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() FAIL when Wilson lower bound dips below the baseline threshold")
     void empiricalWithBaselineFail() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
         // p=0.85, n=1000, c=0.95 → Wilson lower ≈ 0.827 < 0.88 → FAIL
@@ -174,7 +174,7 @@ class BernoulliPassRateTest {
     @DisplayName("empirical() Wilson-score wrap: small n + observed-just-above-threshold → FAIL "
             + "(this was an incorrect PASS under the Stage-3.5 placeholder)")
     void empiricalWilsonRejectsSmallSampleNearThreshold() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
 
         // p=0.90, n=50, c=0.95 → Wilson lower ≈ 0.788 — below the 0.88 threshold.
@@ -191,7 +191,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() detail map carries confidence and wilsonLowerBound")
     void empiricalDetailMapCarriesWilsonFields() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
         CriterionResult result = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
@@ -207,7 +207,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() explanation names the Wilson lower bound at the configured confidence")
     void empiricalExplanationMentionsWilsonBound() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
         CriterionResult result = criterion.evaluate(ctx(summary(950, 50), Optional.of(baseline)));
@@ -222,8 +222,8 @@ class BernoulliPassRateTest {
     void higherConfidenceWidensInterval() {
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
         // p=0.92, n=1000 — passes at 95% (wilson lower ≈ 0.901), fails at 99.9%
-        BernoulliPassRate<String> at95 = BernoulliPassRate.<String>empirical().atConfidence(0.95);
-        BernoulliPassRate<String> at999 = BernoulliPassRate.<String>empirical().atConfidence(0.999);
+        PassRate<String> at95 = PassRate.<String>empirical().atConfidence(0.95);
+        PassRate<String> at999 = PassRate.<String>empirical().atConfidence(0.999);
 
         CriterionResult r95 = at95.evaluate(ctx(summary(920, 80), Optional.of(baseline)));
         CriterionResult r999 = at999.evaluate(ctx(summary(920, 80), Optional.of(baseline)));
@@ -238,7 +238,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() with test sample count > baseline returns INCONCLUSIVE")
     void empiricalRejectsTestLargerThanBaseline() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 100);
 
         // 200 test samples > 100 baseline samples
@@ -256,7 +256,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() with test sample count == baseline proceeds to verdict")
     void empiricalAcceptsEqualSampleCount() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
 
         // Equal sample counts (1000 each); observed 0.95 well above baseline 0.88
@@ -270,7 +270,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() with test sample count < baseline proceeds to verdict")
     void empiricalAcceptsSmallerTestSampleCount() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 5000);
 
         // Test 1000 ≪ baseline 5000; observed 0.95 → Wilson lower clears threshold.
@@ -284,7 +284,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() with mismatched test/baseline inputs identity returns INCONCLUSIVE")
     void empiricalRejectsIdentityMismatch() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 1000);
 
         CriterionResult result = criterion.evaluate(ctx(
@@ -304,7 +304,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() with matching test/baseline identity proceeds to verdict")
     void empiricalAcceptsMatchingIdentity() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 2000);
 
         // Sample size large enough that Wilson lower bound clears 0.88 threshold.
@@ -319,7 +319,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("empirical() identity-mismatch fires before sample-size — identity is the more fundamental violation")
     void identityMismatchPrecedesSampleSize() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.88, 100);
 
         // Both rules would fire: 200 test samples > 100 baseline AND identities differ.
@@ -334,7 +334,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("contractual meeting() does not impose sample-size constraint — no baseline involved")
     void contractualIgnoresSampleSize() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> criterion = PassRate.meeting(0.9, ThresholdOrigin.SLA);
 
         // Test has 10000 samples; no baseline, so the constraint doesn't apply.
         CriterionResult result = criterion.evaluate(ctx(summary(9500, 500), Optional.empty()));
@@ -347,7 +347,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("atConfidence() returns a new criterion carrying the confidence")
     void atConfidenceRecordedInDetail() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.<String>empirical().atConfidence(0.99);
+        PassRate<String> criterion = PassRate.<String>empirical().atConfidence(0.99);
         PassRateStatistics baseline = new PassRateStatistics(0.9, 1000);
 
         CriterionResult result = criterion.evaluate(ctx(summary(95, 5), Optional.of(baseline)));
@@ -358,7 +358,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("atConfidence() default is 0.95 on the empirical variant")
     void atConfidenceDefaultEmpirical() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         PassRateStatistics baseline = new PassRateStatistics(0.9, 1000);
 
         CriterionResult result = criterion.evaluate(ctx(summary(95, 5), Optional.of(baseline)));
@@ -369,7 +369,7 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("atConfidence() rejects values outside (0, 1)")
     void atConfidenceRejectsOutOfRange() {
-        BernoulliPassRate<String> c = BernoulliPassRate.empirical();
+        PassRate<String> c = PassRate.empirical();
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> c.atConfidence(0.0));
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> c.atConfidence(1.0));
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> c.atConfidence(-0.5));
@@ -383,7 +383,7 @@ class BernoulliPassRateTest {
     void empiricalFromExposesSupplier() {
         java.util.function.Supplier<Experiment> supplier = () -> null;
 
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empiricalFrom(supplier);
+        PassRate<String> criterion = PassRate.empiricalFrom(supplier);
 
         assertThat(criterion.baselineSupplier()).contains(supplier);
     }
@@ -392,14 +392,14 @@ class BernoulliPassRateTest {
     @DisplayName("empiricalFrom() rejects null supplier")
     void empiricalFromRejectsNull() {
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> BernoulliPassRate.empiricalFrom(null));
+                .isThrownBy(() -> PassRate.empiricalFrom(null));
     }
 
     @Test
     @DisplayName("non-empirical variants expose empty baselineSupplier")
     void nonEmpiricalHasEmptySupplier() {
-        assertThat(BernoulliPassRate.meeting(0.9, ThresholdOrigin.SLA).baselineSupplier()).isEmpty();
-        assertThat(BernoulliPassRate.empirical().baselineSupplier()).isEmpty();
+        assertThat(PassRate.meeting(0.9, ThresholdOrigin.SLA).baselineSupplier()).isEmpty();
+        assertThat(PassRate.empirical().baselineSupplier()).isEmpty();
     }
 
     // ── zero samples ─────────────────────────────────────────────────
@@ -407,8 +407,8 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("zero samples → INCONCLUSIVE regardless of mode")
     void zeroSamplesInconclusive() {
-        BernoulliPassRate<String> c1 = BernoulliPassRate.meeting(0.9, ThresholdOrigin.SLA);
-        BernoulliPassRate<String> c2 = BernoulliPassRate.empirical();
+        PassRate<String> c1 = PassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> c2 = PassRate.empirical();
 
         var empty = summary(0, 0);
         assertThat(c1.evaluate(ctx(empty, Optional.empty())).verdict()).isEqualTo(Verdict.INCONCLUSIVE);
@@ -421,13 +421,13 @@ class BernoulliPassRateTest {
     @Test
     @DisplayName("criterion exposes PassRateStatistics.class as its statistics type")
     void statisticsTypeIsPassRateStatistics() {
-        BernoulliPassRate<String> criterion = BernoulliPassRate.empirical();
+        PassRate<String> criterion = PassRate.empirical();
         assertThat(criterion.statisticsType()).isEqualTo(PassRateStatistics.class);
     }
 
     @Test
     @DisplayName("name() is 'bernoulli-pass-rate'")
     void name() {
-        assertThat(BernoulliPassRate.empirical().name()).isEqualTo("bernoulli-pass-rate");
+        assertThat(PassRate.empirical().name()).isEqualTo("bernoulli-pass-rate");
     }
 }

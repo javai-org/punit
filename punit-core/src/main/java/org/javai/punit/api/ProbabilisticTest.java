@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
  * void shoppingMeetsBaseline() {
  *     PUnit.testing(this::shoppingBaseline)
  *             .samples(100)
- *             .criterion(BernoulliPassRate.empirical())
+ *             .criterion(PassRate.empirical())
  *             .assertPasses();
  * }
  * }</pre>

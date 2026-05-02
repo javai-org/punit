@@ -15,6 +15,7 @@ import org.javai.punit.api.UseCase;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.ExperimentResult;
 import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.engine.criteria.PassRate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -149,7 +150,7 @@ class PostconditionFailureHistogramTest {
         ProbabilisticTest spec =
                 ProbabilisticTest
                         .testing(sampling, new Factors())
-                        .criterion(org.javai.punit.engine.criteria.BernoulliPassRate.<Integer>meeting(
+                        .criterion(PassRate.<Integer>meeting(
                                 0.5, org.javai.punit.api.ThresholdOrigin.SLA))
                         .build();
 

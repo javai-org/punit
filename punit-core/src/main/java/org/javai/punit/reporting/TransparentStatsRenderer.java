@@ -48,7 +48,7 @@ import org.javai.punit.api.spec.Verdict;
  *       Reasoning:           0.8730 ≥ 0.8500  ✓
  * </pre>
  *
- * <p>Empirical {@code BernoulliPassRate} runs get the full
+ * <p>Empirical {@code PassRate} runs get the full
  * hypothesis + Wilson-bound rendering; contractual runs get the
  * simpler {@code observed ≥ threshold} comparison; criteria the
  * renderer doesn't yet know about (latency, future kinds) fall

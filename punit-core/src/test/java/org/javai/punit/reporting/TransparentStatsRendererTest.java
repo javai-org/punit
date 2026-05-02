@@ -42,7 +42,7 @@ class TransparentStatsRendererTest {
     }
 
     @Nested
-    @DisplayName("BernoulliPassRate empirical path")
+    @DisplayName("PassRate empirical path")
     class BernoulliEmpirical {
 
         @Test
@@ -118,7 +118,7 @@ class TransparentStatsRendererTest {
     }
 
     @Nested
-    @DisplayName("BernoulliPassRate contractual path")
+    @DisplayName("PassRate contractual path")
     class BernoulliContractual {
 
         @Test

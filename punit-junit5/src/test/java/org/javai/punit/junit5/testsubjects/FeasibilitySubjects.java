@@ -7,7 +7,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**
@@ -54,7 +54,7 @@ public final class FeasibilitySubjects {
             // Baseline rate 0.50; n=50 against rate 0.50 has min Wilson
             // lower bound at observed=1.0 ≈ 0.949 — well above 0.50 → feasible.
             PUnit.testing(sampling(50), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>empirical())
+                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -70,7 +70,7 @@ public final class FeasibilitySubjects {
             // lower bound at observed=1.0 ≈ 0.787 — below 0.95 → infeasible.
             // Default intent is VERIFICATION → throw IllegalStateException.
             PUnit.testing(sampling(10), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>empirical())
+                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -86,7 +86,7 @@ public final class FeasibilitySubjects {
             // baseline 0.95 — but explicitly SMOKE intent. Run proceeds;
             // a warning is printed to stderr.
             PUnit.testing(sampling(10), new NoFactors())
-                    .criterion(BernoulliPassRate.<Boolean>empirical())
+                    .criterion(PassRate.<Boolean>empirical())
                     .intent(TestIntent.SMOKE)
                     .assertPasses();
         }

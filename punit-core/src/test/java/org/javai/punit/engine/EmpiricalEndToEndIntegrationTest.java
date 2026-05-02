@@ -15,7 +15,7 @@ import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.BaselineStatistics;
-import org.javai.punit.engine.criteria.BernoulliPassRate;
+import org.javai.punit.engine.criteria.PassRate;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-@DisplayName("Empirical criterion end-to-end — Engine + YamlBaselineProvider + BernoulliPassRate.empirical()")
+@DisplayName("Empirical criterion end-to-end — Engine + YamlBaselineProvider + PassRate.empirical()")
 class EmpiricalEndToEndIntegrationTest {
 
     record Factors(String model, double temperature) { }
@@ -55,7 +55,7 @@ class EmpiricalEndToEndIntegrationTest {
     private static ProbabilisticTest empiricalTest(Sampling<Factors, Integer, Boolean> sampling) {
         return ProbabilisticTest
                 .testing(sampling, FACTORS)
-                .criterion(BernoulliPassRate.<Boolean>empirical())
+                .criterion(PassRate.<Boolean>empirical())
                 .build();
     }
 
