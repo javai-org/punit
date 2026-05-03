@@ -32,17 +32,17 @@ However, we must distinguish between **compliance** and a **smoke test**. A true
 If you want an early-warning check without the cost of a full compliance audit, declare your intent as `SMOKE`.
 
 ```java
-@ProbabilisticTest(
-    samples = 100,
-    minPassRate = 0.999,        // From SLA: "99.9% success rate"
-    thresholdOrigin = ThresholdOrigin.SLA,
-    intent = TestIntent.SMOKE,  // Acknowledge this is a smoke test, not a full compliance audit
-    contractRef = "Customer API SLA §3.1"
-)
-void apiMeetsSla() { ... }
+@ProbabilisticTest
+void apiMeetsSla() {
+    PUnit.testing(JsonGenerationUseCase.sampling(PROMPTS, 100), Tuning.DEFAULT)
+            .criterion(PassRate.meeting(0.999, ThresholdOrigin.SLA))
+            .intent(TestIntent.SMOKE)               // smoke, not full compliance audit
+            .contractRef("Customer API SLA §3.1")
+            .assertPasses();
+}
 ```
 
-**Verification Enforcement:** If you use `intent = TestIntent.VERIFICATION` (the default) with a normative threshold origin like `SLA`, PUnit will reject the test configuration if the sample size is too low to provide a statistically sound result.
+**Verification Enforcement:** If you use `.intent(TestIntent.VERIFICATION)` (the default) with a normative threshold origin like `SLA`, PUnit will reject the test configuration if the sample size is too low to provide a statistically sound result.
 
 **Workflow:** Requirement → Declare Intent → Test → Verify
 
@@ -143,7 +143,7 @@ void thresholdFirst() {
 - PUnit runs the chosen samples and applies a **deterministic** `observed >= threshold` comparison — no Wilson margin.
 - The threshold's provenance and the optional `contractRef` are recorded on the verdict for audit traceability.
 
-**Trade-off:** No statistical buffer. With a small N relative to a strict threshold, declare `intent = TestIntent.SMOKE` to mark the run as a sentinel rather than a verification claim; otherwise PUnit's pre-flight feasibility gate may reject the configuration as undersized for verification.
+**Trade-off:** No statistical buffer. With a small N relative to a strict threshold, declare `.intent(TestIntent.SMOKE)` to mark the run as a sentinel rather than a verification claim; otherwise PUnit's pre-flight feasibility gate may reject the configuration as undersized for verification.
 
 **Best for:** SLA-style verification of services with externally-committed reliability targets.
 
@@ -225,13 +225,10 @@ The use case is **reused** across experiments AND tests. You define it once.
 Run the use case many times (typically 1000+) to gather empirical data:
 
 ```java
-@Experiment(
-    mode = ExperimentMode.MEASURE,
-    useCase = JsonGenerationUseCase.class,
-    samples = 1000
-)
-void measureBaseline(JsonGenerationUseCase useCase, ResultCaptor captor) {
-    captor.record(useCase.generateJson("Generate a user profile"));
+@Experiment
+void measureBaseline() {
+    PUnit.measuring(JsonGenerationUseCase.sampling(PROMPTS, 1000), Tuning.DEFAULT)
+            .run();
 }
 ```
 
@@ -239,9 +236,9 @@ void measureBaseline(JsonGenerationUseCase useCase, ResultCaptor captor) {
 ./gradlew measure --tests "JsonGenerationExperiment"
 ```
 
-### Stage 3: Commit the Spec
+### Stage 3: Commit the Baseline
 
-The experiment writes a spec file to `src/test/resources/punit/specs/`:
+The experiment writes a baseline file to `src/test/resources/punit/baselines/`:
 
 ```yaml
 schemaVersion: punit-spec-2
@@ -263,7 +260,7 @@ extendedStatistics:
 **Review and commit:**
 
 ```bash
-git add src/test/resources/punit/specs/
+git add src/test/resources/punit/baselines/
 git commit -m "Add baseline for JSON generation (93.5% @ N=1000)"
 ```
 
@@ -271,17 +268,14 @@ The approval step IS the commit. If your organization uses pull requests, that's
 
 ### Stage 4: Create a Probabilistic Test
 
-The test references the spec. The threshold is derived at runtime:
+The test references the baseline. The threshold is derived at runtime:
 
 ```java
-@ProbabilisticTest(
-    useCase = JsonGenerationUseCase.class,
-    samples = 100,
-    confidence = 0.95
-)
+@ProbabilisticTest
 void jsonGenerationMeetsBaseline() {
-    LlmResponse response = llmClient.complete("Generate a user profile");
-    assertThat(JsonValidator.isValid(response.getContent())).isTrue();
+    PUnit.testing(JsonGenerationUseCase.sampling(PROMPTS, 100), Tuning.DEFAULT)
+            .criterion(PassRate.empirical())
+            .assertPasses();
 }
 ```
 
@@ -355,7 +349,7 @@ Update your spec when:
 ./gradlew measure --tests "JsonGenerationExperiment"
 
 # Review changes
-git diff src/test/resources/punit/specs/
+git diff src/test/resources/punit/baselines/
 
 # Commit updated spec
 git commit -am "Update JSON generation baseline after prompt improvements"
@@ -368,26 +362,14 @@ git commit -am "Update JSON generation baseline after prompt improvements"
 When you have choices about how to configure a non-deterministic system (model, temperature, prompt), use EXPLORE mode to compare options:
 
 ```java
-@TestTemplate
-@ExploreExperiment(
-    useCase = JsonGenerationUseCase.class,
-    samplesPerConfig = 20,
-    experimentId = "model-comparison-v1"
-)
-@FactorSource(value = "modelConfigs", factors = {"model"})
-void explore(
-        JsonGenerationUseCase useCase,
-        @Factor("model") String model,
-        ResultCaptor captor) {
-    captor.record(useCase.generateJson("Generate a profile"));
-}
-
-static List<FactorArguments> modelConfigs() {
-    return FactorArguments.configurations()
-        .names("model")
-        .values("gpt-4")
-        .values("gpt-3.5-turbo")
-        .stream().toList();
+@Experiment
+void compareModels() {
+    PUnit.exploring(JsonGenerationUseCase.sampling(PROMPTS, 20))
+            .grid(
+                    new Tuning("gpt-4o",       0.3),
+                    new Tuning("gpt-4o-mini",  0.3))
+            .experimentId("model-comparison-v1")
+            .run();
 }
 ```
 
@@ -404,27 +386,18 @@ EXPLORE is for **rapid feedback** before committing to expensive measurements. C
 After EXPLORE identifies a promising configuration, use OPTIMIZE to fine-tune a specific factor:
 
 ```java
-@TestTemplate
-@OptimizeExperiment(
-    useCase = JsonGenerationUseCase.class,
-    controlFactor = "temperature",
-    initialControlFactorSource = "startingTemperature",
-    scorer = SuccessRateScorer.class,
-    mutator = TemperatureMutator.class,
-    objective = OptimizationObjective.MAXIMIZE,
-    samplesPerIteration = 20,
-    maxIterations = 10,
-    noImprovementWindow = 3
-)
-void optimizeTemperature(
-        JsonGenerationUseCase useCase,
-        @ControlFactor("temperature") Double temperature,
-        ResultCaptor captor) {
-    captor.record(useCase.generateJson("Generate a profile"));
-}
-
-static Double startingTemperature() {
-    return 1.0;  // Start high, optimize down
+@Experiment
+void optimizeTemperature() {
+    PUnit.optimizing(JsonGenerationUseCase.sampling(PROMPTS, 20))
+            .initialFactors(new Tuning("gpt-4o-mini", 1.0))   // start high, optimize down
+            .stepper((current, history) ->
+                    current.temperature() <= 0.05
+                            ? null
+                            : current.temperature(current.temperature() - 0.1))
+            .maximize(summary -> summary.passRate())
+            .maxIterations(10)
+            .noImprovementWindow(3)
+            .run();
 }
 ```
 
@@ -441,8 +414,8 @@ OPTIMIZE iteratively refines a **control factor** through mutation and evaluatio
 | Step            | Command             | Output                                  |
 |-----------------|---------------------|-----------------------------------------|
 | Define use case | —                   | `UseCase<F, I, O>` class                |
-| Run experiment  | `./gradlew measure` | Spec file                               |
-| Commit spec     | `git commit`        | Version-controlled baseline             |
+| Run experiment  | `./gradlew exp`     | Baseline file                           |
+| Commit baseline | `git commit`        | Version-controlled baseline             |
 | Run tests       | `./gradlew test`    | Qualified verdicts (VERIFICATION/SMOKE) |
 
 **The key insight:** PUnit doesn't eliminate uncertainty—it quantifies it. Every verdict comes with statistical context and a clear statement of intent, enabling informed decisions about whether to act on test results.

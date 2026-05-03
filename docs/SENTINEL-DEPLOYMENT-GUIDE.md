@@ -69,7 +69,7 @@ Contains `UseCase` implementations and the sentinel-deployable classes that exer
 // app-usecases/build.gradle.kts
 dependencies {
     api(project(":app-stochastic"))
-    api("org.javai:punit-core:0.7.0")  // Production dependency
+    api("org.javai:punit-core:0.6.0")  // Production dependency
 }
 ```
 
@@ -100,7 +100,7 @@ The JUnit test source set. Contains standalone `@ProbabilisticTest` and `@Experi
 // In app-usecases/build.gradle.kts or a dedicated app-tests module
 dependencies {
     testImplementation(project(":app-usecases"))
-    testImplementation("org.javai:punit-junit5:0.7.0")  // Transitively includes punit-core
+    testImplementation("org.javai:punit-junit5:0.6.0")  // Transitively includes punit-core
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 ```
@@ -168,17 +168,17 @@ The output groups discovered methods by use case, distinguishing `@Experiment` m
 
 ### 2. Establish Baselines (Experiment Mode)
 
-Run measure experiments in the target environment to produce environment-local baseline specs:
+Run measure experiments in the target environment to produce environment-local baselines:
 
 ```bash
 # Run all experiments
-java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp
+java -Dpunit.spec.dir=/opt/sentinel/baselines -jar sentinel.jar exp
 
 # Run experiments for a specific class
-java -Dpunit.spec.dir=/opt/sentinel/specs -jar sentinel.jar exp --class ShoppingBasketSentinel
+java -Dpunit.spec.dir=/opt/sentinel/baselines -jar sentinel.jar exp --class ShoppingBasketSentinel
 ```
 
-This scans `@Experiment` methods on each registered class, executes the bodies (which call `PUnit.measuring(...).run()` to produce baselines, or `PUnit.exploring(...) / .optimizing(...)` for exploration / optimisation runs), and writes outputs to the configured directories. The spec directory is required for measure experiments and can be set via `-Dpunit.spec.dir` or the `PUNIT_SPEC_DIR` environment variable.
+This scans `@Experiment` methods on each registered class, executes the bodies (which call `PUnit.measuring(...).run()` to produce baselines, or `PUnit.exploring(...) / .optimizing(...)` for exploration / optimisation runs), and writes outputs to the configured directories. The baseline output directory is required for measure experiments and can be set via `-Dpunit.spec.dir` or the `PUNIT_SPEC_DIR` environment variable.
 
 ### 3. Verify Against Baselines (Test Mode)
 
