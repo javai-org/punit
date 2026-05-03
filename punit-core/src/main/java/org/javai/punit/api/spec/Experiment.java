@@ -620,6 +620,18 @@ public final class Experiment implements Spec {
             return this;
         }
 
+        /**
+         * Run the full {@code maxIterations} regardless of score progress.
+         * Use when the iteration count itself is the iteration plan
+         * (a fixed numeric sweep, a stepper that exhausts a finite set
+         * of values) and the no-improvement heuristic is not the right
+         * stopping signal.
+         */
+        public OptimizeBuilder<FT, IT, OT> disableEarlyTermination() {
+            this.noImprovementWindow = Integer.MAX_VALUE;
+            return this;
+        }
+
         public OptimizeBuilder<FT, IT, OT> experimentId(String id) {
             this.experimentId = Objects.requireNonNull(id, "experimentId");
             return this;
@@ -999,6 +1011,12 @@ public final class Experiment implements Spec {
                 throw new IllegalArgumentException("noImprovementWindow must be >= 1");
             }
             this.noImprovementWindow = n;
+            return this;
+        }
+
+        /** See {@link OptimizeBuilder#disableEarlyTermination()}. */
+        public InlineOptimizeBuilder<FT, IT, OT> disableEarlyTermination() {
+            this.noImprovementWindow = Integer.MAX_VALUE;
             return this;
         }
 

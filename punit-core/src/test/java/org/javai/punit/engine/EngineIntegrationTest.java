@@ -367,6 +367,37 @@ class EngineIntegrationTest {
     }
 
     @Test
+    @DisplayName("disableEarlyTermination() runs to maxIterations even when scores are flat")
+    void disableEarlyTerminationRunsToMaxIterations() {
+        UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input.length());
+            }
+        };
+        Sampling<LlmFactors, String, Integer> shape = Sampling
+                .<LlmFactors, String, Integer>builder()
+                .useCaseFactory(f -> echo)
+                .inputs("a")
+                .samples(1)
+                .build();
+        FactorsStepper<LlmFactors> alwaysAdvance = (current, history) ->
+                new LlmFactors(current.model(), current.temperature() + 0.01);
+        // Constant scorer: every iteration ties the previous, so the
+        // default no-improvement window would terminate the run early.
+        Experiment spec = Experiment.optimizing(shape)
+                .initialFactors(new LlmFactors("gpt-4o", 0.0))
+                .stepper(alwaysAdvance)
+                .maximize(s -> 0.5)
+                .maxIterations(8)
+                .disableEarlyTermination()
+                .build();
+
+        new Engine().run(spec);
+        assertThat(spec.history()).hasSize(8);
+    }
+
+    @Test
     @DisplayName("ProbabilisticTest threads its declared intent through to the result")
     void intentThreadsThroughToResult() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling

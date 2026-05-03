@@ -496,6 +496,12 @@ public final class PUnit {
             return this;
         }
 
+        /** See {@link Experiment.OptimizeBuilder#disableEarlyTermination()}. */
+        public OptimizeBuilder<FT, IT, OT> disableEarlyTermination() {
+            delegate.disableEarlyTermination();
+            return this;
+        }
+
         public OptimizeBuilder<FT, IT, OT> experimentId(String id) {
             delegate.experimentId(id);
             return this;
