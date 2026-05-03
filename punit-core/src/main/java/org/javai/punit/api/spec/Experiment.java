@@ -620,6 +620,28 @@ public final class Experiment implements Spec {
             return this;
         }
 
+        /**
+         * Run the full {@code maxIterations} regardless of score
+         * progress. Disables the optimize loop's no-improvement-window
+         * heuristic so the run continues even when consecutive
+         * iterations fail to improve the score.
+         *
+         * <p>Use when the iteration count itself is the iteration plan
+         * (a fixed numeric sweep, a stepper that exhausts a finite set
+         * of values) and the heuristic is not the right stopping
+         * signal.
+         *
+         * <p>Unrelated to the statistical early-termination of
+         * probabilistic tests, which short-circuits a sample loop
+         * once the verdict is mathematically determined. That
+         * mechanism lives on a different builder and is not affected
+         * by this method.
+         */
+        public OptimizeBuilder<FT, IT, OT> disableEarlyTermination() {
+            this.noImprovementWindow = Integer.MAX_VALUE;
+            return this;
+        }
+
         public OptimizeBuilder<FT, IT, OT> experimentId(String id) {
             this.experimentId = Objects.requireNonNull(id, "experimentId");
             return this;
@@ -999,6 +1021,12 @@ public final class Experiment implements Spec {
                 throw new IllegalArgumentException("noImprovementWindow must be >= 1");
             }
             this.noImprovementWindow = n;
+            return this;
+        }
+
+        /** See {@link OptimizeBuilder#disableEarlyTermination()}. */
+        public InlineOptimizeBuilder<FT, IT, OT> disableEarlyTermination() {
+            this.noImprovementWindow = Integer.MAX_VALUE;
             return this;
         }
 
