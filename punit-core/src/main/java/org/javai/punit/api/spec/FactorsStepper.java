@@ -23,10 +23,11 @@ public interface FactorsStepper<FT> {
     /**
      * @param current the last factors evaluated
      * @param history the full iteration history in execution order
-     * @return the next factors to evaluate, or {@code null} to
+     * @return {@link NextFactor#next(Object)} carrying the next
+     *         factors to evaluate, or {@link NextFactor#stop()} to
      *         signal "no more candidates" (the optimiser will stop)
      */
-    FT next(FT current, List<IterationResult<FT>> history);
+    NextFactor<FT> next(FT current, List<IterationResult<FT>> history);
 
     /**
      * One entry in the optimize history fed to {@link #next}.

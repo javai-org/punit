@@ -10,6 +10,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,7 +61,7 @@ class InlineSamplingFormTest {
                 .inputs("a")
                 .samples(5)
                 .initialFactors(new Factors("seed"))
-                .stepper((current, history) -> history.size() >= 3 ? null : new Factors(current.label() + "+"))
+                .stepper((current, history) -> history.size() >= 3 ? NextFactor.stop() : NextFactor.next(new Factors(current.label() + "+")))
                 .maximize(s -> 1.0)
                 .maxIterations(5)
                 .build();
