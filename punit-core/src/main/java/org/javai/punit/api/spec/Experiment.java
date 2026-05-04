@@ -544,9 +544,12 @@ public final class Experiment implements Spec {
                         return;
                     }
                     FT current = last.factors();
-                    FT candidate = stepper.next(current,
+                    NextFactor<FT> candidate = stepper.next(current,
                             Collections.unmodifiableList(history));
-                    next = candidate;
+                    switch (candidate) {
+                        case NextFactor.Continue<FT> c -> next = c.factor();
+                        case NextFactor.Stop<FT> s -> { /* leave next null; loop ends */ }
+                    }
                 }
             }
         }

@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.spec.FactorsStepper;
+import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.ContractBuilder;
@@ -176,7 +177,7 @@ class PostconditionFailureHistogramTest {
         FactorsStepper<Factors> stepper =
                 (current, history) -> {
                     history.forEach(h -> seenHistograms.add(h.failuresByPostcondition()));
-                    return history.size() >= 2 ? null : current;
+                    return history.size() >= 2 ? NextFactor.stop() : NextFactor.next(current);
                 };
 
         Experiment spec = Experiment.optimizing(sampling)

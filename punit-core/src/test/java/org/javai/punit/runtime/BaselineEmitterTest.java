@@ -10,6 +10,7 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.NextFactor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,7 +53,7 @@ class BaselineEmitterTest {
     void rejectsOptimize(@TempDir Path dir) {
         Experiment optimize = Experiment.optimizing(sampling())
                 .initialFactors(new NoFactors())
-                .stepper((current, history) -> history.size() >= 1 ? null : new NoFactors())
+                .stepper((current, history) -> history.size() >= 1 ? NextFactor.stop() : NextFactor.next(new NoFactors()))
                 .maximize(s -> 0.0)
                 .maxIterations(1)
                 .build();

@@ -21,6 +21,7 @@ import org.javai.punit.api.spec.EngineResult;
 import org.javai.punit.api.spec.ExperimentResult;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.FactorsStepper;
+import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.Verdict;
@@ -352,8 +353,8 @@ class EngineIntegrationTest {
         // Stepper that walks temperature up by 0.1 each iteration, capping at 1.0.
         FactorsStepper<LlmFactors> stepper = (current, history) ->
                 current.temperature() >= 0.95
-                        ? null
-                        : new LlmFactors(current.model(), current.temperature() + 0.1);
+                        ? NextFactor.stop()
+                        : NextFactor.next(new LlmFactors(current.model(), current.temperature() + 0.1));
         Experiment spec = Experiment.optimizing(shape)
                 .initialFactors(new LlmFactors("gpt-4o", 0.0))
                 .stepper(stepper)
@@ -382,7 +383,7 @@ class EngineIntegrationTest {
                 .samples(1)
                 .build();
         FactorsStepper<LlmFactors> alwaysAdvance = (current, history) ->
-                new LlmFactors(current.model(), current.temperature() + 0.01);
+                NextFactor.next(new LlmFactors(current.model(), current.temperature() + 0.01));
         // Constant scorer: every iteration ties the previous, so the
         // default no-improvement window would terminate the run early.
         Experiment spec = Experiment.optimizing(shape)
@@ -395,6 +396,41 @@ class EngineIntegrationTest {
 
         new Engine().run(spec);
         assertThat(spec.history()).hasSize(8);
+    }
+
+    @Test
+    @DisplayName("NextFactor.stop() ends the optimize loop after the iteration that returned it — no final-iteration sample")
+    void nextFactorStopEndsRunCleanly() {
+        UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input.length());
+            }
+        };
+        Sampling<LlmFactors, String, Integer> shape = Sampling
+                .<LlmFactors, String, Integer>builder()
+                .useCaseFactory(f -> echo)
+                .inputs("a")
+                .samples(1)
+                .build();
+        // Stop after exactly 3 iterations so we can pin the count precisely.
+        FactorsStepper<LlmFactors> stopAfterThree = (current, history) ->
+                history.size() >= 3
+                        ? NextFactor.stop()
+                        : NextFactor.next(new LlmFactors(current.model(), current.temperature() + 0.1));
+
+        Experiment spec = Experiment.optimizing(shape)
+                .initialFactors(new LlmFactors("gpt-4o", 0.0))
+                .stepper(stopAfterThree)
+                .maximize(s -> 0.5)
+                .maxIterations(20)             // headroom — Stop must take effect first
+                .disableEarlyTermination()     // rule out the no-improvement window as the cause
+                .build();
+
+        new Engine().run(spec);
+        // Initial factors + 2 stepper-produced advances = 3 iterations, then Stop.
+        // No 4th iteration is sampled even though maxIterations(20) would otherwise allow it.
+        assertThat(spec.history()).hasSize(3);
     }
 
     @Test
