@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.InputSupplier;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.engine.baseline.BaselineRecord;
@@ -118,7 +119,7 @@ class MeasureToTestRoundTripTest {
         BaselineRecord record = new BaselineRecord(
                 USE_CASE_ID,
                 "hand-written",
-                FactorsFingerprint.of(FactorBundle.of(new RoundTripSubjects.NoFactors())),
+                FactorsFingerprint.of(FactorBundle.of(new NoFactors())),
                 InputSupplier.from(() -> List.of(1, 2, 3)).identity(),
                 sampleCount,
                 Instant.parse("2026-04-28T12:00:00Z"),

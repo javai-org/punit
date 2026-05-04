@@ -4,6 +4,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
@@ -23,8 +24,6 @@ public final class FeasibilitySubjects {
     private FeasibilitySubjects() { }
 
     public static final String USE_CASE_ID = "feasibility-use-case";
-
-    public record NoFactors() { }
 
     private static UseCase<NoFactors, Integer, Boolean> alwaysPasses() {
         return new UseCase<>() {
@@ -53,7 +52,7 @@ public final class FeasibilitySubjects {
         void shouldPass() {
             // Baseline rate 0.50; n=50 against rate 0.50 has min Wilson
             // lower bound at observed=1.0 ≈ 0.949 — well above 0.50 → feasible.
-            PUnit.testing(sampling(50), new NoFactors())
+            PUnit.testing(sampling(50))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -69,7 +68,7 @@ public final class FeasibilitySubjects {
             // Baseline rate 0.95; n=10 against rate 0.95 has max Wilson
             // lower bound at observed=1.0 ≈ 0.787 — below 0.95 → infeasible.
             // Default intent is VERIFICATION → throw IllegalStateException.
-            PUnit.testing(sampling(10), new NoFactors())
+            PUnit.testing(sampling(10))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -85,7 +84,7 @@ public final class FeasibilitySubjects {
             // Same configuration as VerificationInfeasible — n=10 against
             // baseline 0.95 — but explicitly SMOKE intent. Run proceeds;
             // a warning is printed to stderr.
-            PUnit.testing(sampling(10), new NoFactors())
+            PUnit.testing(sampling(10))
                     .criterion(PassRate.<Boolean>empirical())
                     .intent(TestIntent.SMOKE)
                     .assertPasses();

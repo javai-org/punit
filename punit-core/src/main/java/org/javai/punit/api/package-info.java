@@ -29,6 +29,10 @@
  *       ({@code FT}) to a canonical, content-addressable
  *       representation used by baseline-spec filenames and the YAML
  *       factor block.</li>
+ *   <li>{@link org.javai.punit.api.NoFactors} — empty factor record
+ *       for use cases whose behaviour does not depend on factor
+ *       values; pairs with the factor-less {@code PUnit.measuring} /
+ *       {@code PUnit.testing} overloads.</li>
  * </ul>
  *
  * <h2>Supporting types</h2>

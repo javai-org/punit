@@ -11,6 +11,7 @@ import org.javai.punit.api.covariate.CovariateAlignment;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.ValueMatcher;
@@ -94,6 +95,17 @@ public final class PUnit {
     }
 
     /**
+     * Factor-less form of {@link #testing(Sampling, Object)} — for
+     * use cases whose behaviour does not depend on factor values.
+     * Equivalent to {@code testing(sampling, NoFactors.INSTANCE)}.
+     * The sampling's {@code FT} must be {@link NoFactors}.
+     */
+    public static <IT, OT> TestBuilder<NoFactors, IT, OT> testing(
+            Sampling<NoFactors, IT, OT> sampling) {
+        return testing(sampling, NoFactors.INSTANCE);
+    }
+
+    /**
      * Compose an empirical probabilistic test that derives its sampling
      * and factors from a baseline {@link Experiment} supplier. The
      * author specifies only the (typically smaller) sample count and
@@ -108,6 +120,17 @@ public final class PUnit {
     public static <FT, IT, OT> MeasureBuilder<FT, IT, OT> measuring(
             Sampling<FT, IT, OT> sampling, FT factors) {
         return new MeasureBuilder<>(Experiment.measuring(sampling, factors));
+    }
+
+    /**
+     * Factor-less form of {@link #measuring(Sampling, Object)} — for
+     * use cases whose behaviour does not depend on factor values.
+     * Equivalent to {@code measuring(sampling, NoFactors.INSTANCE)}.
+     * The sampling's {@code FT} must be {@link NoFactors}.
+     */
+    public static <IT, OT> MeasureBuilder<NoFactors, IT, OT> measuring(
+            Sampling<NoFactors, IT, OT> sampling) {
+        return measuring(sampling, NoFactors.INSTANCE);
     }
 
     /** Compose an explore experiment over a sampling; supply the grid via the builder. */

@@ -5,6 +5,7 @@ import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
@@ -26,15 +27,6 @@ import org.javai.punit.runtime.PUnit;
 public final class PUnitSubjects {
 
     private PUnitSubjects() { }
-
-    /**
-     * Empty factors record for subjects that don't exercise factors-
-     * dependent behaviour. There is one possible value
-     * ({@code new NoFactors()}); records' structural equality makes
-     * all instances equal, so the type itself documents the
-     * "factors irrelevant" intent.
-     */
-    public record NoFactors() { }
 
     /**
      * Parameterised factors record for the explore subject — distinct
@@ -79,7 +71,7 @@ public final class PUnitSubjects {
     public static final class PassingContractualTest {
         @ProbabilisticTest
         void passes() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -89,7 +81,7 @@ public final class PUnitSubjects {
     public static final class TransparentStatsTest {
         @ProbabilisticTest
         void passesWithTransparentStats() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .transparentStats()
                     .assertPasses();
@@ -105,7 +97,7 @@ public final class PUnitSubjects {
     public static final class ContractRefPassingTest {
         @ProbabilisticTest
         void passesWithContractRef() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .contractRef("Acme API SLA v3.2 §2.1")
                     .transparentStats()
@@ -122,7 +114,7 @@ public final class PUnitSubjects {
     public static final class ContractRefFailingTest {
         @ProbabilisticTest
         void failsWithContractRef() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .contractRef("Acme API SLA v3.2 §2.1")
                     .assertPasses();
@@ -133,7 +125,7 @@ public final class PUnitSubjects {
     public static final class FailingContractualTest {
         @ProbabilisticTest
         void fails() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -147,7 +139,7 @@ public final class PUnitSubjects {
     public static final class InconclusiveEmpiricalTest {
         @ProbabilisticTest
         void inconclusive() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20), new NoFactors())
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -159,7 +151,7 @@ public final class PUnitSubjects {
     public static final class PassingMeasureExperiment {
         @Experiment
         void measure() {
-            PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).run();
+            PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100)).run();
         }
     }
 
@@ -184,7 +176,7 @@ public final class PUnitSubjects {
      */
     public static final class EmpiricalSupplierTest {
         private org.javai.punit.api.spec.Experiment baseline() {
-            return PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100), new NoFactors()).build();
+            return PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100)).build();
         }
 
         @ProbabilisticTest

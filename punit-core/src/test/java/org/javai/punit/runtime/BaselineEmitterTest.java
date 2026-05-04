@@ -6,6 +6,7 @@ import java.nio.file.Path;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
@@ -17,8 +18,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 @DisplayName("BaselineEmitter — defect-on-misuse contract")
 class BaselineEmitterTest {
-
-    record NoFactors() { }
 
     private static final UseCase<NoFactors, Integer, Boolean> ALWAYS_PASSES = new UseCase<>() {
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }

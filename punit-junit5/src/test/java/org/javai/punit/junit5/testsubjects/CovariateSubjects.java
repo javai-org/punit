@@ -9,6 +9,7 @@ import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
@@ -31,8 +32,6 @@ public final class CovariateSubjects {
     public static final String REGION_PROPERTY = "punit.test.region";
 
     private CovariateSubjects() { }
-
-    public record NoFactors() { }
 
     /**
      * A use case that always passes and declares a single CONFIGURATION
@@ -74,7 +73,7 @@ public final class CovariateSubjects {
     public static final class MeasureWithCovariate {
         @Experiment
         void measureBaseline() {
-            PUnit.measuring(sampling(100), new NoFactors())
+            PUnit.measuring(sampling(100))
                     .experimentId("measureBaseline")
                     .run();
         }
@@ -95,7 +94,7 @@ public final class CovariateSubjects {
             // assert resolution-time correctness: when the baseline
             // matches we get a real verdict (not INCONCLUSIVE), and
             // when it doesn't we get INCONCLUSIVE.
-            PUnit.testing(sampling(20), new NoFactors())
+            PUnit.testing(sampling(20))
                     .criterion(PassRate.<Boolean>empirical()
                             .atConfidence(0.50))
                     .assertPasses();

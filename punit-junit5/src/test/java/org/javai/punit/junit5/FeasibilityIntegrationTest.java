@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.InputSupplier;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.engine.baseline.BaselineRecord;
@@ -109,7 +110,7 @@ class FeasibilityIntegrationTest {
         BaselineRecord record = new BaselineRecord(
                 FeasibilitySubjects.USE_CASE_ID,
                 "hand-written",
-                FactorsFingerprint.of(FactorBundle.of(new FeasibilitySubjects.NoFactors())),
+                FactorsFingerprint.of(FactorBundle.of(new NoFactors())),
                 InputSupplier.from(() -> List.of(1, 2, 3)).identity(),
                 sampleCount,
                 Instant.parse("2026-04-28T15:00:00Z"),

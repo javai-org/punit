@@ -4,6 +4,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
@@ -24,8 +25,6 @@ public final class RoundTripSubjects {
     private RoundTripSubjects() { }
 
     public static final String USE_CASE_ID = "round-trip-use-case";
-
-    public record NoFactors() { }
 
     private static UseCase<NoFactors, Integer, Boolean> useCase() {
         return new UseCase<>() {
@@ -48,7 +47,7 @@ public final class RoundTripSubjects {
     public static final class PassingMeasure {
         @Experiment
         void measure() {
-            PUnit.measuring(sampling(50), new NoFactors())
+            PUnit.measuring(sampling(50))
                     .experimentId("baseline-v1")
                     .run();
         }
@@ -57,7 +56,7 @@ public final class RoundTripSubjects {
     public static final class EmpiricalAgainstBaseline {
         @ProbabilisticTest
         void shouldPass() {
-            PUnit.testing(sampling(20), new NoFactors())
+            PUnit.testing(sampling(20))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
