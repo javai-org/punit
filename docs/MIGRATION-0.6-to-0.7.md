@@ -291,7 +291,7 @@ In 0.7 a use case is an implementation of the typed interface
   across an experiment. The use case takes the factor record at
   construction time and stores it in a `final` field. Different
   factor values mean different `UseCase` instances; the use case
-  itself is immutable. A factor record allows is to supply a
+  itself is immutable. A factor record allows us to supply a
   use case's construction using a single object, thereby making
   construction uniform for all use cases no matter how many
   factors the use case has.
