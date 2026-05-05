@@ -44,7 +44,7 @@ class ExploreOutputWriterTest {
     }
 
     @Test
-    @DisplayName("writeYaml emits the EX05 schema with factors / execution / statistics / cost blocks")
+    @DisplayName("writeYaml emits the EX05 schema with factors / execution / statistics / cost / resultProjection blocks")
     void writeYamlAndFilenameForOneConfig() {
         // Drive a 1-config explore through the engine to produce a
         // real PerConfigSummary, then feed the writer directly.
@@ -68,7 +68,7 @@ class ExploreOutputWriterTest {
         Map<String, Object> parsed = new Yaml().load(yaml);
         assertThat(parsed).containsKeys(
                 "schemaVersion", "useCaseId", "generatedAt",
-                "factors", "execution", "statistics", "cost");
+                "factors", "execution", "statistics", "cost", "resultProjection");
         assertThat(parsed).containsEntry("schemaVersion", "punit-spec-1");
         assertThat(parsed).containsEntry("useCaseId", "LengthUseCase");
 
@@ -86,6 +86,17 @@ class ExploreOutputWriterTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> statistics = (Map<String, Object>) parsed.get("statistics");
         assertThat(statistics).containsKeys("observed", "successes", "failures", "failureDistribution");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> projection = (Map<String, Object>) parsed.get("resultProjection");
+        // 2 samples — one entry per sample, keyed by sample[N].
+        assertThat(projection).containsKeys("sample[0]", "sample[1]");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sample0 = (Map<String, Object>) projection.get("sample[0]");
+        // EX07 per-sample fields: input, postconditions, executionTimeMs;
+        // content present on success, failureDetail on failure (LengthUseCase
+        // never fails so content is the expected key here).
+        assertThat(sample0).containsKeys("input", "postconditions", "executionTimeMs", "content");
     }
 
     @Test
