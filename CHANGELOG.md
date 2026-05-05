@@ -5,27 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0] - 2026-XX-XX
 
-### Changed (breaking — published artefact set)
-- **`punit-api` and `punit-runtime` artefacts are retired.** Their contents are now part of `punit-core`; the package layout (`org.javai.punit.api.*`, `org.javai.punit.runtime.*`) is unchanged. Downstream consumers depending on `org.javai:punit-api` or `org.javai:punit-runtime` must migrate to `org.javai:punit-core`. `punit-core`, `punit-junit5`, `punit-sentinel`, and `punit-report` keep their existing coordinates. The structural api → engine → runtime layering inside `punit-core` is still enforced — at the package level rather than the module level — by the existing ArchUnit rules.
-- **Default `VerdictSink` discovery via `ServiceLoader`.** `PUnit.assertPasses(...)` now installs the default sink via `ServiceLoader.load(VerdictSink.class).findFirst()` rather than instantiating `VerdictXmlSink` directly. With `punit-report` on the classpath this resolves to its XML sink (registered in `META-INF/services/`); without it, no default sink is installed and verdicts dispatch only to sinks the caller has registered explicitly. This decouples `punit-core` from `punit-report`.
+> **⚠️ Breaking changes** — punit 0.7.0 replaces the annotation-driven authoring style of 0.6.x with a typed, builder-based one. See [MIGRATION-0.6-to-0.7.md](docs/MIGRATION-0.6-to-0.7.md) — it carries a coding-assistant prompt that walks your codebase and applies the migration, plus per-change discussion and FAQ. There is no deprecation cycle and no 0.6.x-compatible shim. Maven coordinates are unchanged.
 
-### Added
-- **RP07 XML verdicts on every test.** Each `@ProbabilisticTest` now produces a `{className}.{methodName}.xml` file under `build/reports/punit/xml/` (configurable via `punit.report.dir` / `PUNIT_REPORT_DIR`, suppressible with `punit.report.enabled=false`). The HTML report (`./gradlew punitReport`) consumes these files. See Part 11 of the user guide for the field reference.
-- **`<postcondition-failures>` element on RP07 verdict XML.** Per-clause failure histograms now surface in verdict XML (each clause shows its description, count, and up to three retained input/reason exemplars) and in the HTML report (nested table per test row).
-- **`EngineRunSummary` on `ProbabilisticTestResult`.** Run-level scalars (planned/executed samples, elapsed, tokens, latency, termination, confidence, matched baseline filename) are now carried on the result.
-- **`BaselineLookup.sourceFile`.** The matched baseline's filename is threaded from `BaselineResolver` through `Spec.conclude` so it can populate the verdict XML's `<provenance spec-filename>` attribute.
+### Changed (breaking)
+- **Annotation attributes move to a typed builder.** Configuration that used to live on `@ProbabilisticTest(...)`, `@MeasureExperiment(...)`, `@ExploreExperiment(...)`, `@OptimizeExperiment(...)` is now expressed via builder calls on `PUnit.testing(...)` / `.measuring(...)` / `.exploring(...)` / `.optimizing(...)` invoked from the method body. The annotations survive as bare markers with no attributes. See [MIGRATION §2.1](docs/MIGRATION-0.6-to-0.7.md#21-parameterised-annotation--unparameterised-annotation--builder).
+- **Three experiment annotations consolidated to one.** `@MeasureExperiment`, `@ExploreExperiment`, `@OptimizeExperiment` → single `@Experiment` marker; experiment kind is selected by the body's `PUnit.*` factory call. See [MIGRATION §2.1](docs/MIGRATION-0.6-to-0.7.md#21-parameterised-annotation--unparameterised-annotation--builder).
+- **`@UseCase` annotation replaced by the typed `UseCase<FT, I, O>` interface.** A use case is now a class implementing the interface; metadata (`description`, `warmup`, `pacing`, `covariates`, …) becomes method overrides; factor variation is expressed via a factor record passed at construction. See [MIGRATION §2.2](docs/MIGRATION-0.6-to-0.7.md#22-use-cases).
+- **Covariate redesign.** `@Covariate`, `@CovariateSource`, `@DayGroup`, `@RegionGroup` annotations are gone. Covariates are now values from the sealed hierarchy under `org.javai.punit.api.covariate` (`DayOfWeekCovariate`, `RegionCovariate`, `TimeOfDayCovariate`, `TimezoneCovariate`, `Covariate.custom(...)`), declared on `UseCase.covariates()` and resolved on `UseCase.customCovariateResolvers()` for project-defined covariates. See [MIGRATION §2.3](docs/MIGRATION-0.6-to-0.7.md#23-covariates).
+- **`org.javai.punit.contract` package gone.** `Postcondition`, `PostconditionCheck`, `PostconditionEvaluator`, `PostconditionResult`, `UseCaseOutcome` relocated to `org.javai.punit.api`; `ServiceContract` replaced by the typed `Contract<I, O>`, typically folded into the `UseCase` rather than kept as a separate type. See [MIGRATION §2.4](docs/MIGRATION-0.6-to-0.7.md#24-imports-moved-from-contract-to-api).
 
 ### Removed (breaking)
-- **`@FactorSetter`, `@FactorGetter` annotations.** Previously deprecated in 0.6.0. Factor values for EXPLORE and OPTIMIZE experiments must be supplied via `UseCaseProvider.registerWithFactors(...)`; mutable-setter patterns are no longer supported.
-- **`UseCaseProvider.registerAutoWired(...)`** (and the parallel `UseCaseFactory.registerAutoWired(...)`). Previously deprecated in 0.6.0. Use `registerWithFactors(...)` instead.
-- **`OptimizeExperiment.initialControlFactorValue`** (inline string attribute). Could not express typed initial values. Use `initialFactor` with a static method returning the typed value.
-- **`OptimizeExperiment.initialControlFactorSource`** (renamed). The attribute is now **`initialFactor`** with identical semantics — a static no-arg method on the experiment class that returns the starting control factor value. `initialFactor` is required.
-- **`@FactorGetter` fallback path** in `OptimizeStrategy`. Initial factor values now come solely from the `initialFactor` method — the reflective fallback that read a `@FactorGetter`-annotated accessor off the use case is gone.
-- **`ExploreExperiment.expiresInDays`**. Baseline expiration is a property of MEASURE-produced baseline specs, not exploration specs. `@MeasureExperiment` keeps the attribute. Exploration spec YAML no longer carries expiration metadata.
+- **`@Sentinel` annotation.** The `punit-sentinel` module scans typed `UseCase` implementations directly; no marker required.
+- **`@FactorSetter`, `@FactorGetter`, `@FactorAnnotations`.** Reflection-based factor accessors retire entirely. Factors are typed records consumed at construction. (Deprecated in 0.6.0.)
+- **`UseCaseProvider.registerAutoWired(...)`** and `UseCaseFactory.registerAutoWired(...)`. Use `registerWithFactors(...)`. (Deprecated in 0.6.0.)
+- **Parameter-level annotations no longer wired by the framework**: `@Factor`, `@FactorSource`, `@Input`, `@InputSource`, `@Config`, `@ConfigSource`, `@ControlFactor`, `@DayGroup`, `@RegionGroup`, `@Latency`, `@ExperimentDesign`, `@ExperimentGoal`. Their `@interface` definitions linger in `api/` for binary compatibility, but the engine reads none of them. Use the typed authoring surface.
+- **Types removed from `api/`**: `AdaptiveFactor`, `UseCaseContext`, `ProbabilisticTestBudget`. Subsumed by the typed pipeline (custom `FactorsStepper` for adaptive factors; covariate metadata + `TokenTracker` for context; builder-level budget calls + `BudgetExhaustionPolicy` for budget).
+- **`OptimizeExperiment.initialControlFactorValue`** (inline string attribute, could not express typed initial values).
+- **`OptimizeExperiment.initialControlFactorSource`** (renamed to **`initialFactor`** with identical semantics — a static no-arg method on the experiment class returning the typed initial value).
+- **`@FactorGetter` fallback path** in `OptimizeStrategy`. Initial factor values come solely from the `initialFactor` method.
+- **`ExploreExperiment.expiresInDays`**. Baseline expiration is a property of MEASURE-produced baseline specs only.
 
-This is the first breaking release of the experiment DX refactor described in `plan/DES-EXPERIMENT-DX.md`. Deeper structural changes (factor-record typing, `@FactorSource` semantics, `@ConfigSource` / `NamedConfig` / `@Factor` / `@ControlFactor` removal) land in a follow-up PR.
+### Added
+- **Typed-builder entry points** in `org.javai.punit.runtime.PUnit`: `testing(...)`, `measuring(...)`, `exploring(...)`, `optimizing(...)`.
+- **Typed pipeline types in `org.javai.punit.api`**: `Contract<I, O>`, `ContractBuilder<O>`, `Sampling`, `MatchResult`, `ValueMatcher`, `Expectation`, `InputSupplier`, `FactorBundle`, `FactorValue`, `LatencyResult`, `LatencySpec`, plus value records (`BooleanValue`, `DecimalValue`, `DurationValue`, `EnumValue`, `InstantValue`, `IntegralValue`, `StringValue`, `UriValue`).
+- **`org.javai.punit.api.spec` subpackage** with spec / verdict / runtime-result types: `Spec`, `TypedSpec`, `Verdict`, `EngineResult`, `EngineRunSummary`, `ProbabilisticTestResult`, `Trial`, `SampleClassification`, `SampleSummary`, `SampleObserver`, `SampleExecutor`, `FactorsStepper`, `NextFactor` (sealed `Continue` / `Stop`), `Scorer`, `ResourceControls` / `ResourceControlsBuilder`, `Criterion`, `EvaluatedCriterion`, `BaselineProvider`, `BudgetExhaustionPolicy`, `FailureCount`, `FailureExemplar`, `LatencyStatistics`, `PassRateStatistics`, `NoStatistics`, `PercentileLatency`, `PercentileKey`, `TerminationReason`, `DurationViolation`, `ExperimentResult`.
+- **`org.javai.punit.api.covariate` subpackage** with the sealed `Covariate` hierarchy.
+- **`OptimizeBuilder.disableEarlyTermination()`** — opts a single optimize run out of statistical early termination.
+- **Postcondition failure histograms** on `SampleSummary`, `ProbabilisticTestResult`, verdict text, verdict XML (`<postcondition-failures>`), and the HTML report. Failures broken down by named clause with bounded exemplars.
+- **`EngineRunSummary` on `ProbabilisticTestResult`** — run-level scalars (planned/executed samples, elapsed, tokens, latency, termination, confidence, matched baseline filename).
+- **Covariate-aware best-match baseline selection.** Baseline filenames carry a covariate hash; the resolver picks the best-aligned baseline.
+- **Feasibility evaluation.** A test that cannot reach its declared minimum detectable effect at the configured sample size yields INCONCLUSIVE rather than misleading PASS / FAIL.
+- **RP07 XML verdict on every test.** Each `@ProbabilisticTest` produces a `{className}.{methodName}.xml` file under `build/reports/punit/xml/` (configurable via `punit.report.dir` / `PUNIT_REPORT_DIR`, suppressible with `punit.report.enabled=false`). The HTML report (`./gradlew punitReport`) consumes these files. See Part 11 of the user guide for the field reference.
+- **`BaselineLookup.sourceFile`.** Matched baseline filename threaded from `BaselineResolver` through `Spec.conclude` to the verdict XML's `<provenance spec-filename>` attribute.
 
 ## [0.6.0] - 2026-04-16
 
