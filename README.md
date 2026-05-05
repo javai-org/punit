@@ -157,6 +157,10 @@ This runs 100 samples, requires a 95% success rate at the configured confidence 
 ./gradlew test
 ```
 
+## Examples
+
+Find many examples in the [punitexamples repository](https://github.com/javai-org/punitexamples).
+
 ## Documentation
 
 The **[User Guide](docs/USER-GUIDE.md)** is the comprehensive reference for PUnit. It covers the full experimentation-to-testing workflow, the use case pattern, latency assertions, budget and pacing control, the statistical core, the Sentinel runtime, and the HTML report.
