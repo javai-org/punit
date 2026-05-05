@@ -150,6 +150,13 @@ class PUnitPlugin : Plugin<Project> {
 
             ignoreFailures = true
 
+            // Experiments are stochastic and side-effecting (they
+            // write spec/exploration/optimization YAML); Gradle's
+            // up-to-date check would otherwise skip a re-run when
+            // only the user's intent changed (e.g. a new --tests
+            // filter or a new PUNIT_LLM_MODE).
+            outputs.upToDateWhen { false }
+
             if (extension.excludeTestSubjects.get()) {
                 exclude("**/testsubjects/**")
             }
