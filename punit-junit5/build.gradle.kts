@@ -27,8 +27,8 @@ dependencies {
     api("org.junit.jupiter:junit-jupiter-api")
 
     // Jackson — needed by InputSourceResolver for JSON/CSV parsing
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.2")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.3")
 
     // Logging
     implementation("org.apache.logging.log4j:log4j-api:2.25.4")
@@ -38,7 +38,7 @@ dependencies {
     // Test
     testImplementation("org.junit.platform:junit-platform-testkit")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.2")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.4")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
 }
