@@ -169,6 +169,76 @@ public final class Experiment implements Spec {
         return List.of();
     }
 
+    /**
+     * Diagnostic accessor returning the per-iteration
+     * {@link SampleSummary} parallel to {@link #history()}, in the
+     * same execution order. Empty for measure and explore. Consumed
+     * by the OPTIMIZE artefact emitter when it needs per-sample
+     * trial detail (the {@code resultProjection:} block of EX06).
+     */
+    public List<SampleSummary<?>> iterationSummaries() {
+        if (internal instanceof OptimizeInternal<?, ?, ?> o) {
+            return List.copyOf(o.iterationSummaries);
+        }
+        return List.of();
+    }
+
+    /**
+     * Diagnostic accessor populated only after an explore experiment
+     * has run. Yields one entry per {@code FT} in the grid, in
+     * iteration order. Empty for measure and optimize, and for
+     * explores that have not yet been executed. Consumed by the
+     * EXPLORE artefact emitter.
+     */
+    public List<PerConfigSummary<?, ?>> perConfigSummaries() {
+        if (internal instanceof ExploreInternal<?, ?, ?> e) {
+            return List.copyOf(e.perConfigSummariesList());
+        }
+        return List.of();
+    }
+
+    /**
+     * Diagnostic accessor populated only after an optimize experiment
+     * has run. Returns the best-scoring iteration per the
+     * optimisation's declared direction (maximise / minimise).
+     * Empty for measure and explore, and for optimizes that have
+     * not yet been executed. Consumed by the OPTIMIZE artefact
+     * emitter.
+     */
+    public Optional<IterationResult<?>> bestOptimizeIteration() {
+        if (internal instanceof OptimizeInternal<?, ?, ?> o) {
+            return Optional.ofNullable(o.bestSoFar());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Diagnostic accessor populated for optimize experiments only.
+     * Returns the optimisation direction declared on the builder —
+     * {@code "MAXIMIZE"} or {@code "MINIMIZE"}. Empty for measure
+     * and explore.
+     */
+    public Optional<String> optimizeObjective() {
+        if (internal instanceof OptimizeInternal<?, ?, ?> o) {
+            return Optional.of(o.maximizing ? "MAXIMIZE" : "MINIMIZE");
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Diagnostic accessor populated for optimize experiments only,
+     * after the run has completed. Reports why the iteration loop
+     * stopped: {@code MAX_ITERATIONS}, {@code NO_IMPROVEMENT}, or
+     * {@code STEPPER_STOP}. Empty for measure and explore, and for
+     * optimizes that have not yet been executed.
+     */
+    public Optional<String> optimizeTerminationReason() {
+        if (internal instanceof OptimizeInternal<?, ?, ?> o) {
+            return Optional.ofNullable(o.terminationReason);
+        }
+        return Optional.empty();
+    }
+
     // ── Spec dispatch ────────────────────────────────────────────────
 
     @Override
@@ -321,6 +391,7 @@ public final class Experiment implements Spec {
 
         private final List<FT> grid;
         private final Map<FT, SampleSummary<OT>> perConfig = new LinkedHashMap<>();
+        private final Map<FT, Integer> perConfigSamplesPlanned = new LinkedHashMap<>();
 
         private ExploreInternal(ExploreBuilder<FT, IT, OT> b) {
             super(b.sampling, b.experimentId != null ? b.experimentId : defaultId("explore"));
@@ -337,6 +408,16 @@ public final class Experiment implements Spec {
 
         @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
             perConfig.put(config.factors(), summary);
+            perConfigSamplesPlanned.put(config.factors(), config.samples());
+        }
+
+        List<PerConfigSummary<FT, OT>> perConfigSummariesList() {
+            return perConfig.entrySet().stream()
+                    .map(entry -> new PerConfigSummary<>(
+                            entry.getKey(),
+                            entry.getValue(),
+                            perConfigSamplesPlanned.getOrDefault(entry.getKey(), 0)))
+                    .toList();
         }
 
         @Override public EngineResult conclude(BaselineProvider provider) {
@@ -445,6 +526,8 @@ public final class Experiment implements Spec {
         private final int noImprovementWindow;
 
         private final List<IterationResult<FT>> history = new ArrayList<>();
+        private final List<SampleSummary<OT>> iterationSummaries = new ArrayList<>();
+        String terminationReason;
 
         private OptimizeInternal(OptimizeBuilder<FT, IT, OT> b) {
             super(b.sampling, b.experimentId != null ? b.experimentId : defaultId("optimize"));
@@ -466,7 +549,11 @@ public final class Experiment implements Spec {
                     config.factors(),
                     score,
                     summary.failuresByPostcondition(),
-                    flattenExemplars(summary.failuresByPostcondition())));
+                    flattenExemplars(summary.failuresByPostcondition()),
+                    summary.successes(),
+                    summary.failures(),
+                    summary.total()));
+            iterationSummaries.add(summary);
         }
 
         private static List<FailureExemplar> flattenExemplars(
@@ -529,6 +616,9 @@ public final class Experiment implements Spec {
                     return;
                 }
                 if (issued >= maxIterations) {
+                    if (terminationReason == null) {
+                        terminationReason = "MAX_ITERATIONS";
+                    }
                     return;
                 }
                 if (!history.isEmpty()) {
@@ -541,6 +631,9 @@ public final class Experiment implements Spec {
                         iterationsSinceImprovement++;
                     }
                     if (iterationsSinceImprovement >= noImprovementWindow) {
+                        if (terminationReason == null) {
+                            terminationReason = "NO_IMPROVEMENT";
+                        }
                         return;
                     }
                     FT current = last.factors();
@@ -548,7 +641,12 @@ public final class Experiment implements Spec {
                             Collections.unmodifiableList(history));
                     switch (candidate) {
                         case NextFactor.Continue<FT> c -> next = c.factor();
-                        case NextFactor.Stop<FT> s -> { /* leave next null; loop ends */ }
+                        case NextFactor.Stop<FT> s -> {
+                            if (terminationReason == null) {
+                                terminationReason = "STEPPER_STOP";
+                            }
+                            /* leave next null; loop ends */
+                        }
                     }
                 }
             }

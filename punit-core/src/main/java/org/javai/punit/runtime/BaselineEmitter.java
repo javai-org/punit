@@ -2,12 +2,16 @@ package org.javai.punit.runtime;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.BiConsumer;
 
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.InputSupplier;
@@ -62,6 +66,28 @@ final class BaselineEmitter {
     private BaselineEmitter() { }
 
     static void emit(Experiment experiment, Path baselineDir) {
+        Objects.requireNonNull(baselineDir, "baselineDir");
+        emit(experiment, (relativePath, content) -> {
+            try {
+                Files.createDirectories(baselineDir);
+                Path target = baselineDir.resolve(relativePath);
+                Files.writeString(target, content, StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new UncheckedIOException(
+                        "Failed to write baseline " + relativePath + " under " + baselineDir, e);
+            }
+        });
+    }
+
+    /**
+     * Test seam — emit the baseline artefact via a sink so tests can
+     * scrutinise the YAML without touching disk. The sink receives a
+     * single {@code (relativePath, yamlContent)} pair where
+     * {@code relativePath} is the canonical baseline filename.
+     */
+    static void emit(Experiment experiment, BiConsumer<String, String> sink) {
+        Objects.requireNonNull(experiment, "experiment");
+        Objects.requireNonNull(sink, "sink");
         if (experiment.kind() != Experiment.Kind.MEASURE) {
             // Only MEASURE produces a baseline. The only caller is
             // PUnit.MeasureBuilder.run(), which by construction passes a
@@ -89,7 +115,7 @@ final class BaselineEmitter {
                 return composeRecord(typed, summary, experiment.experimentId());
             }
         });
-        writeRecord(record, baselineDir);
+        sink.accept(record.filename(), new BaselineWriter().toYaml(record));
     }
 
     @SuppressWarnings("unchecked")
@@ -141,12 +167,4 @@ final class BaselineEmitter {
                 profile);
     }
 
-    private static void writeRecord(BaselineRecord record, Path baselineDir) {
-        try {
-            new BaselineWriter().write(record, baselineDir);
-        } catch (IOException e) {
-            throw new UncheckedIOException(
-                    "Failed to write baseline " + record.filename() + " under " + baselineDir, e);
-        }
-    }
 }

@@ -160,6 +160,18 @@ public final class PUnit {
         BaselineEmitter.emit(experiment, BaselineProviderResolver.resolveDir());
     }
 
+    private static void driveAndEmitExplore(Experiment experiment) {
+        drive(experiment);
+        ExploreEmitter.emit(experiment,
+                org.javai.punit.engine.explore.ExplorationsResolver.resolveDir());
+    }
+
+    private static void driveAndEmitOptimize(Experiment experiment) {
+        drive(experiment);
+        OptimizeEmitter.emit(experiment,
+                org.javai.punit.engine.optimize.OptimizationsResolver.resolveDir());
+    }
+
     /**
      * Resolves the use case's covariate profile from {@code spec}'s
      * first configuration. Returns {@link CovariateProfile#empty()}
@@ -477,7 +489,7 @@ public final class PUnit {
         }
 
         public void run() {
-            drive(build());
+            driveAndEmitExplore(build());
         }
     }
 
@@ -535,7 +547,7 @@ public final class PUnit {
         }
 
         public void run() {
-            drive(build());
+            driveAndEmitOptimize(build());
         }
     }
 
