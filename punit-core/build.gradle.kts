@@ -31,8 +31,8 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.6")
 
     // Jackson — for JSON/CSV parsing in @InputSource
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.2")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.21.3")
 
     // Outcome — result types for contract postconditions
     api("org.javai:outcome:0.2.0")
@@ -44,7 +44,7 @@ dependencies {
 
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.4")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
 }
