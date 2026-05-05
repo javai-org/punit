@@ -9,6 +9,9 @@ import java.util.Map;
 
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.spec.FactorsStepper.IterationResult;
+import org.javai.punit.api.spec.SampleSummary;
+import org.javai.punit.api.spec.Trial;
+import org.javai.punit.engine.output.ResultProjections;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
@@ -54,6 +57,7 @@ public final class OptimizeOutputWriter {
             String experimentId,
             String objective,
             List<? extends IterationResult<?>> history,
+            List<? extends SampleSummary<?>> iterationSummaries,
             IterationResult<?> bestIteration,
             String terminationReason) {
 
@@ -63,15 +67,34 @@ public final class OptimizeOutputWriter {
         root.put("experimentId", experimentId);
         root.put("objective", objective);
         root.put("generatedAt", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
-        root.put("iterations", iterationsBlock(history));
+        root.put("iterations", iterationsBlock(history, iterationSummaries));
         root.put("convergence", convergenceBlock(history, bestIteration, terminationReason));
-        return yaml().dump(root);
+
+        String dump = yaml().dump(root);
+        return ResultProjections.injectAnchorComments(dump, allAnchors(iterationSummaries));
     }
 
-    private static List<Map<String, Object>> iterationsBlock(List<? extends IterationResult<?>> history) {
+    /**
+     * Concatenate every iteration's per-trial anchors in iteration
+     * order. The post-processor consumes them in document order as
+     * it walks the dumped YAML's {@code sample[N]:} lines, so the
+     * concatenated list must mirror that traversal: iteration[0]'s
+     * trials, then iteration[1]'s trials, and so on.
+     */
+    private static List<String> allAnchors(List<? extends SampleSummary<?>> iterationSummaries) {
+        List<String> all = new ArrayList<>();
+        for (SampleSummary<?> summary : iterationSummaries) {
+            all.addAll(ResultProjections.anchorsFor(summary.trials()));
+        }
+        return all;
+    }
+
+    private static List<Map<String, Object>> iterationsBlock(
+            List<? extends IterationResult<?>> history,
+            List<? extends SampleSummary<?>> iterationSummaries) {
         List<Map<String, Object>> out = new ArrayList<>(history.size());
-        int idx = 0;
-        for (IterationResult<?> ir : history) {
+        for (int idx = 0; idx < history.size(); idx++) {
+            IterationResult<?> ir = history.get(idx);
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("iteration", idx);
             entry.put("factors", factorsBlock(FactorBundle.of(ir.factors())));
@@ -79,8 +102,15 @@ public final class OptimizeOutputWriter {
             entry.put("successes", ir.successes());
             entry.put("failures", ir.failures());
             entry.put("samplesExecuted", ir.samplesExecuted());
+            // Per-iteration result projection: one sample[N]: block
+            // per trial, carrying input / postconditions / etc. The
+            // writer leaves anchor-comment injection to the
+            // top-level injectAnchorComments pass.
+            if (idx < iterationSummaries.size()) {
+                List<? extends Trial<?, ?>> trials = iterationSummaries.get(idx).trials();
+                entry.put("resultProjection", ResultProjections.resultProjectionMap(trials));
+            }
             out.add(entry);
-            idx++;
         }
         return out;
     }

@@ -7,16 +7,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
-import org.javai.outcome.Outcome;
 import org.javai.punit.api.FactorBundle;
-import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.PerConfigSummary;
 import org.javai.punit.api.spec.SampleSummary;
-import org.javai.punit.api.spec.Trial;
+import org.javai.punit.engine.output.ResultProjections;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
@@ -70,8 +67,11 @@ public final class ExploreOutputWriter {
         root.put("execution", executionBlock(entry));
         root.put("statistics", statisticsBlock(entry.summary()));
         root.put("cost", costBlock(entry.summary()));
-        root.put("resultProjection", resultProjectionBlock(entry.summary()));
-        return yaml().dump(root);
+        root.put("resultProjection", ResultProjections.resultProjectionMap(entry.summary().trials()));
+
+        String dump = yaml().dump(root);
+        return ResultProjections.injectAnchorComments(
+                dump, ResultProjections.anchorsFor(entry.summary().trials()));
     }
 
     /**
@@ -140,47 +140,6 @@ public final class ExploreOutputWriter {
         return block;
     }
 
-    /**
-     * Per-sample projection block — one entry per trial, keyed by
-     * {@code sample[N]}. Always emitted for EXPLORE: a per-sample
-     * postcondition diff is the central DX of the explore artefact
-     * (compare two configs side-by-side via {@code diff}), so the
-     * block is unconditional rather than opt-in. Aggregate-only
-     * stats live in {@link #statisticsBlock}; this block carries the
-     * granular evaluation each developer wants to scrutinise.
-     */
-    private static Map<String, Object> resultProjectionBlock(SampleSummary<?> summary) {
-        Map<String, Object> block = new LinkedHashMap<>();
-        List<? extends Trial<?, ?>> trials = summary.trials();
-        for (int idx = 0; idx < trials.size(); idx++) {
-            block.put("sample[" + idx + "]", projectionFor(trials.get(idx)));
-        }
-        return block;
-    }
-
-    private static Map<String, Object> projectionFor(Trial<?, ?> trial) {
-        Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put("input", String.valueOf(trial.input()));
-        Map<String, Object> postconds = new LinkedHashMap<>();
-        for (PostconditionResult pr : trial.outcome().postconditionResults()) {
-            postconds.put(pr.description(), pr.passed() ? "passed" : "failed");
-        }
-        entry.put("postconditions", postconds);
-        entry.put("executionTimeMs", trial.duration().toMillis());
-
-        Outcome<?> result = trial.outcome().result();
-        switch (result) {
-            case Outcome.Ok<?> ok -> entry.put("content", String.valueOf(ok.value()));
-            case Outcome.Fail<?> fail -> entry.put("failureDetail",
-                    fail.failure().id().name() + ": " + fail.failure().message());
-        }
-
-        long tokens = trial.outcome().tokens();
-        if (tokens > 0L) {
-            entry.put("tokensUsed", tokens);
-        }
-        return entry;
-    }
 
     static String canonicalValueForFilename(org.javai.punit.api.FactorValue value) {
         Object yaml = value.yamlValue();

@@ -97,6 +97,58 @@ class ExploreOutputWriterTest {
         // content present on success, failureDetail on failure (LengthUseCase
         // never fails so content is the expected key here).
         assertThat(sample0).containsKeys("input", "postconditions", "executionTimeMs", "content");
+
+        // Diff anchor comments must be injected before each sample[N]: line.
+        // Two samples → two anchor comments. snakeyaml strips comments on
+        // re-parse, so we assert against the raw YAML string, not the parsed
+        // map.
+        long anchorCount = yaml.lines()
+                .filter(line -> line.contains("anchor:"))
+                .count();
+        assertThat(anchorCount).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("Two runs of the same explore produce identical anchor comments — diff aligns")
+    void anchorsAreContentDeterministic() {
+        Sampling<LlmFactors, String, Integer> sampling1 = Sampling
+                .<LlmFactors, String, Integer>builder()
+                .useCaseFactory(f -> new LengthUseCase())
+                .inputs("a", "bb")
+                .samples(2)
+                .build();
+        Experiment run1 = Experiment.exploring(sampling1)
+                .grid(List.of(new LlmFactors("gpt-4o", 0.3)))
+                .build();
+        new Engine().run(run1);
+
+        Sampling<LlmFactors, String, Integer> sampling2 = Sampling
+                .<LlmFactors, String, Integer>builder()
+                .useCaseFactory(f -> new LengthUseCase())
+                .inputs("a", "bb")
+                .samples(2)
+                .build();
+        Experiment run2 = Experiment.exploring(sampling2)
+                .grid(List.of(new LlmFactors("gpt-4o", 0.3)))
+                .build();
+        new Engine().run(run2);
+
+        ExploreOutputWriter writer = new ExploreOutputWriter();
+        String yaml1 = writer.writeYaml("LengthUseCase",
+                FactorBundle.of(run1.perConfigSummaries().get(0).factors()),
+                run1.perConfigSummaries().get(0));
+        String yaml2 = writer.writeYaml("LengthUseCase",
+                FactorBundle.of(run2.perConfigSummaries().get(0).factors()),
+                run2.perConfigSummaries().get(0));
+
+        // Strip generatedAt timestamps (run-specific) and compare anchor lines.
+        List<String> anchors1 = yaml1.lines()
+                .filter(line -> line.contains("anchor:"))
+                .toList();
+        List<String> anchors2 = yaml2.lines()
+                .filter(line -> line.contains("anchor:"))
+                .toList();
+        assertThat(anchors1).isEqualTo(anchors2);
     }
 
     @Test

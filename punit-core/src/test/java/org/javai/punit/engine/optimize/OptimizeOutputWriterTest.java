@@ -82,12 +82,30 @@ class OptimizeOutputWriterTest {
         assertThat(iterations).isNotEmpty();
         Map<String, Object> first = iterations.get(0);
         assertThat(first).containsKeys("iteration", "factors", "score",
-                "successes", "failures", "samplesExecuted");
+                "successes", "failures", "samplesExecuted", "resultProjection");
+
+        // Each iteration's resultProjection must carry one sample[N] entry per trial.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> projection = (Map<String, Object>) first.get("resultProjection");
+        assertThat(projection).containsKeys("sample[0]", "sample[1]");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sample0 = (Map<String, Object>) projection.get("sample[0]");
+        assertThat(sample0).containsKeys("input", "postconditions", "executionTimeMs", "content");
 
         @SuppressWarnings("unchecked")
         Map<String, Object> convergence = (Map<String, Object>) parsed.get("convergence");
         assertThat(convergence).containsKeys("totalIterations", "bestIteration",
                 "bestScore", "bestFactors", "terminationReason");
+
+        // Diff anchor comments must appear before every sample[N]: line.
+        // History size × samples-per-iteration = total anchor count.
+        int totalSamples = iterations.stream()
+                .mapToInt(it -> ((Number) it.get("samplesExecuted")).intValue())
+                .sum();
+        long anchorCount = yaml.lines()
+                .filter(line -> line.contains("anchor:"))
+                .count();
+        assertThat(anchorCount).isEqualTo((long) totalSamples);
     }
 
     @Test

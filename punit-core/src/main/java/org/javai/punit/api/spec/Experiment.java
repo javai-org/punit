@@ -170,6 +170,20 @@ public final class Experiment implements Spec {
     }
 
     /**
+     * Diagnostic accessor returning the per-iteration
+     * {@link SampleSummary} parallel to {@link #history()}, in the
+     * same execution order. Empty for measure and explore. Consumed
+     * by the OPTIMIZE artefact emitter when it needs per-sample
+     * trial detail (the {@code resultProjection:} block of EX06).
+     */
+    public List<SampleSummary<?>> iterationSummaries() {
+        if (internal instanceof OptimizeInternal<?, ?, ?> o) {
+            return List.copyOf(o.iterationSummaries);
+        }
+        return List.of();
+    }
+
+    /**
      * Diagnostic accessor populated only after an explore experiment
      * has run. Yields one entry per {@code FT} in the grid, in
      * iteration order. Empty for measure and optimize, and for
@@ -512,6 +526,7 @@ public final class Experiment implements Spec {
         private final int noImprovementWindow;
 
         private final List<IterationResult<FT>> history = new ArrayList<>();
+        private final List<SampleSummary<OT>> iterationSummaries = new ArrayList<>();
         String terminationReason;
 
         private OptimizeInternal(OptimizeBuilder<FT, IT, OT> b) {
@@ -538,6 +553,7 @@ public final class Experiment implements Spec {
                     summary.successes(),
                     summary.failures(),
                     summary.total()));
+            iterationSummaries.add(summary);
         }
 
         private static List<FailureExemplar> flattenExemplars(

@@ -12,6 +12,7 @@ import java.util.function.BiConsumer;
 
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.FactorsStepper.IterationResult;
+import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.engine.optimize.OptimizeOutputWriter;
@@ -96,6 +97,7 @@ public final class OptimizeEmitter {
             // No iterations completed — nothing to emit.
             return;
         }
+        List<SampleSummary<?>> iterationSummaries = experiment.iterationSummaries();
         Optional<IterationResult<?>> best = experiment.bestOptimizeIteration();
         String objective = experiment.optimizeObjective().orElse("MAXIMIZE");
         String terminationReason = experiment.optimizeTerminationReason().orElse("UNKNOWN");
@@ -108,6 +110,7 @@ public final class OptimizeEmitter {
                 experimentId,
                 objective,
                 history,
+                iterationSummaries,
                 best.orElse(null),
                 terminationReason);
         sink.accept(useCaseId + "/" + experimentId + ".yaml", yaml);
