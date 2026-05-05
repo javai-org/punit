@@ -49,13 +49,24 @@ public interface FactorsStepper<FT> {
      *                                bounded exemplars
      * @param failureExemplars        flattened bounded view across
      *                                all clauses
+     * @param successes               raw count of samples whose
+     *                                outcome was {@code Ok}
+     * @param failures                raw count of samples whose
+     *                                outcome was {@code Fail}
+     * @param samplesExecuted         total samples executed in the
+     *                                iteration (successes + failures,
+     *                                matching the iteration's
+     *                                {@link SampleSummary#total()})
      * @param <FT> the factor record type
      */
     record IterationResult<FT>(
             FT factors,
             double score,
             Map<String, FailureCount> failuresByPostcondition,
-            List<FailureExemplar> failureExemplars) {
+            List<FailureExemplar> failureExemplars,
+            int successes,
+            int failures,
+            int samplesExecuted) {
 
         public IterationResult {
             Objects.requireNonNull(failuresByPostcondition, "failuresByPostcondition");
@@ -65,14 +76,31 @@ public interface FactorsStepper<FT> {
         }
 
         /**
-         * Backward-compatible constructor that defaults the histogram
-         * and exemplar list to empty. Used by call sites that haven't
-         * yet migrated to the canonical 4-field shape; the engine
-         * constructs results via the canonical constructor with
-         * populated histograms.
+         * Backward-compatible 4-field constructor. Defaults the raw
+         * count fields ({@code successes}, {@code failures},
+         * {@code samplesExecuted}) to {@code 0}; call sites that
+         * have access to the iteration's {@link SampleSummary}
+         * should use the canonical 7-field constructor so the
+         * counts reach the optimize artefact (EX06).
+         */
+        public IterationResult(
+                FT factors,
+                double score,
+                Map<String, FailureCount> failuresByPostcondition,
+                List<FailureExemplar> failureExemplars) {
+            this(factors, score, failuresByPostcondition, failureExemplars, 0, 0, 0);
+        }
+
+        /**
+         * Backward-compatible 2-field constructor. Defaults the
+         * histogram and exemplar list to empty and the raw counts
+         * to {@code 0}. Used by call sites that haven't yet migrated
+         * to the canonical 7-field shape; the engine constructs
+         * results via the canonical constructor with populated
+         * histograms and counts.
          */
         public IterationResult(FT factors, double score) {
-            this(factors, score, Map.of(), List.of());
+            this(factors, score, Map.of(), List.of(), 0, 0, 0);
         }
     }
 }
