@@ -86,7 +86,7 @@ Most users depend on `punit-junit5`, which pulls `punit-core` (and `punit-report
 
 ```kotlin
 plugins {
-    id("org.javai.punit") version "0.6.0"
+    id("org.javai.punit") version "0.7.0"
 }
 
 repositories {
@@ -94,7 +94,7 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.javai:punit-junit5:0.6.0")
+    testImplementation("org.javai:punit-junit5:0.7.0")
 }
 ```
 
@@ -104,7 +104,7 @@ dependencies {
 <dependency>
     <groupId>org.javai</groupId>
     <artifactId>punit-junit5</artifactId>
-    <version>0.6.0</version>
+    <version>0.7.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -118,7 +118,7 @@ For sentinel-deployable applications that run probabilistic checks without a tes
 A use case wraps the service call and declares its acceptance contract:
 
 ```java
-public class GreetingService implements UseCase<Void, String, String> {
+public class GreetingService implements UseCase<NoFactors, String, String> {
     @Override
     public Outcome<String> invoke(String name, TokenTracker tracker) {
         return Outcome.ok(myService.greet(name));
@@ -134,16 +134,16 @@ public class GreetingService implements UseCase<Void, String, String> {
 }
 ```
 
+`UseCase<FT, I, O>` carries three type parameters: `FT` is the factor record (the configuration the use case is sensitive to — model name, temperature, retry count, …); `I` is the per-sample input; `O` is the output the service returns. When a use case has no varying factors, declare `FT` as `NoFactors` (an empty record provided by punit) and the framework's no-factor builder overloads do the right thing.
+
 The probabilistic test exercises that use case with a `Sampling` (factory + inputs + sample count) and asserts a population-level criterion:
 
 ```java
 class GreetingServiceTest {
     @ProbabilisticTest
     void serviceGreetsConsistently() {
-        PUnit.testing(
-                Sampling.of(v -> new GreetingService(), 100,
-                        List.of("Alice", "Bob", "Charlie")),
-                null)
+        PUnit.testing(Sampling.of(nf -> new GreetingService(), 100,
+                        List.of("Alice", "Bob", "Charlie")))
             .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
             .contractRef("Service Agreement §4.2")
             .assertPasses();
