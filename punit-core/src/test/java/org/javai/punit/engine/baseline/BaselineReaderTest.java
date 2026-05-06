@@ -127,6 +127,78 @@ class BaselineReaderTest {
     }
 
     @Test
+    @DisplayName("load(Path) returns the parsed record with no integrity warning when the "
+            + "file's contentFingerprint matches its body")
+    void loadOkOnFreshlyWrittenFile(@TempDir Path tempDir) throws IOException {
+        BaselineRecord original = new BaselineRecord(
+                "ShoppingBasket", "measureBaseline", "a1b2c3d4",
+                "sha256:abc", 100,
+                Instant.parse("2026-04-26T15:30:00Z"),
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.9, 100)),
+                CovariateProfile.empty(),
+                LatencyIndicator.empty());
+        Path file = writer.write(original, tempDir);
+
+        BaselineReader.LoadedBaseline loaded = reader.load(file);
+
+        assertThat(loaded.record().useCaseId()).isEqualTo("ShoppingBasket");
+        assertThat(loaded.integrityWarning())
+                .as("a freshly-written baseline must verify cleanly")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("load(Path) surfaces the mismatch warning when the file body has been "
+            + "edited after the contentFingerprint was written")
+    void loadMismatchOnTamperedFile(@TempDir Path tempDir) throws IOException {
+        BaselineRecord original = new BaselineRecord(
+                "ShoppingBasket", "measureBaseline", "a1b2c3d4",
+                "sha256:abc", 100,
+                Instant.parse("2026-04-26T15:30:00Z"),
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.95, 100)),
+                CovariateProfile.empty(),
+                LatencyIndicator.empty());
+        Path file = writer.write(original, tempDir);
+        // Tamper: lower the observed pass rate without re-fingerprinting.
+        String tampered = Files.readString(file).replace(
+                "observedPassRate: 0.95", "observedPassRate: 0.5");
+        Files.writeString(file, tampered);
+
+        BaselineReader.LoadedBaseline loaded = reader.load(file);
+
+        assertThat(loaded.integrityWarning()).isPresent();
+        assertThat(loaded.integrityWarning().get())
+                .contains("integrity check failed")
+                .contains(file.toString());
+    }
+
+    @Test
+    @DisplayName("load(Path) surfaces the softer missing warning when the file predates "
+            + "the contentFingerprint convention")
+    void loadMissingOnLegacyFile(@TempDir Path tempDir) throws IOException {
+        // Synthesise a legacy baseline by writing a valid record and then
+        // stripping the trailing contentFingerprint: line.
+        BaselineRecord original = new BaselineRecord(
+                "Legacy", "measureBaseline", "a1b2c3d4",
+                "sha256:abc", 50,
+                Instant.parse("2026-04-26T15:30:00Z"),
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.8, 50)),
+                CovariateProfile.empty(),
+                LatencyIndicator.empty());
+        Path file = writer.write(original, tempDir);
+        String stripped = Files.readString(file)
+                .replaceAll("(?m)^contentFingerprint:.*\\R?", "");
+        Files.writeString(file, stripped);
+
+        BaselineReader.LoadedBaseline loaded = reader.load(file);
+
+        assertThat(loaded.integrityWarning()).isPresent();
+        assertThat(loaded.integrityWarning().get())
+                .contains("predates integrity verification")
+                .contains(file.toString());
+    }
+
+    @Test
     @DisplayName("rejects unknown schemaVersion")
     void rejectsUnknownSchemaVersion() {
         String yaml = "schemaVersion: punit-baseline-99\n"

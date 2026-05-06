@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.covariate.CovariateProfile;
@@ -46,13 +47,47 @@ public final class BaselineReader {
 
     /** Reads and parses the file at {@code baselineFile}. */
     public BaselineRecord read(Path baselineFile) throws IOException {
+        return load(baselineFile).record();
+    }
+
+    /**
+     * Reads, parses, and integrity-verifies the file at
+     * {@code baselineFile}. Returns the parsed {@link BaselineRecord}
+     * paired with an optional integrity warning per EX10 — empty
+     * when the {@code contentFingerprint:} field's stored digest
+     * matches the recomputed body digest, populated otherwise.
+     *
+     * <p>Integrity failure does <em>not</em> propagate as an
+     * exception; the warning is reported through the verdict's
+     * warnings list, not the test outcome. Parse failures still
+     * throw — a malformed file is a different category from a
+     * modified-but-well-formed file.
+     */
+    public LoadedBaseline load(Path baselineFile) throws IOException {
         Objects.requireNonNull(baselineFile, "baselineFile");
         String content = Files.readString(baselineFile, StandardCharsets.UTF_8);
+        BaselineRecord record;
         try {
-            return parse(content);
+            record = parse(content);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(
                     "Failed to parse baseline file " + baselineFile + ": " + e.getMessage(), e);
+        }
+        Optional<String> integrityWarning = BaselineIntegrity.verify(content, baselineFile);
+        return new LoadedBaseline(record, integrityWarning);
+    }
+
+    /**
+     * Bundles a parsed {@link BaselineRecord} with an optional
+     * integrity warning surfaced by {@link BaselineIntegrity#verify}.
+     * The resolver propagates the warning into the
+     * {@link org.javai.punit.api.spec.BaselineLookup}'s notes when
+     * this record is the selected candidate.
+     */
+    public record LoadedBaseline(BaselineRecord record, Optional<String> integrityWarning) {
+        public LoadedBaseline {
+            Objects.requireNonNull(record, "record");
+            Objects.requireNonNull(integrityWarning, "integrityWarning");
         }
     }
 

@@ -107,11 +107,15 @@ public final class BaselineWriter {
             root.put("resultProjection", ResultProjections.resultProjectionMap(trials));
         }
         String dump = yaml().dump(root);
-        if (trials.isEmpty()) {
-            return dump;
-        }
-        return ResultProjections.injectAnchorComments(
-                dump, ResultProjections.anchorsFor(trials));
+        String body = trials.isEmpty()
+                ? dump
+                : ResultProjections.injectAnchorComments(
+                        dump, ResultProjections.anchorsFor(trials));
+        // EX10: append the SHA-256 of the body as the last field. The
+        // reader recomputes the digest over the same prefix at load
+        // time and surfaces a verdict warning when the file has been
+        // modified since the measure produced it.
+        return BaselineIntegrity.appendFingerprint(body);
     }
 
     private Map<String, Object> toYamlMap(BaselineRecord record) {
