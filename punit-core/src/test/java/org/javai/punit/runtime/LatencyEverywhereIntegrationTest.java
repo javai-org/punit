@@ -88,13 +88,17 @@ class LatencyEverywhereIntegrationTest {
                 .isNotNull();
         assertThat(latency).containsEntry("basis", "passing-samples");
         assertThat(latency).containsEntry("totalSamples", 6);
-        // 4 of 6 inputs are even-length → expect ~4 contributing samples
-        // (engine cycles inputs; for 6 samples over 6 inputs each runs once).
+        // 4 of 6 inputs are even-length → expect ~4 contributing samples.
         assertThat((Integer) latency.get("contributingSamples"))
                 .as("contributingSamples must be ≤ totalSamples and > 0")
                 .isPositive()
                 .isLessThanOrEqualTo(6);
-        assertThat(latency).containsKeys("p50Ms", "p90Ms", "p95Ms", "p99Ms");
+        // LT01 minimum-samples rule: with ≤ 6 contributing samples,
+        // only p50Ms (needs ≥ 1) is emittable. p90 / p95 / p99 keys
+        // are correctly absent — explore is the canonical
+        // small-sample case the rule protects.
+        assertThat(latency).containsKey("p50Ms");
+        assertThat(latency).doesNotContainKeys("p95Ms", "p99Ms");
     }
 
     @Test
@@ -163,7 +167,9 @@ class LatencyEverywhereIntegrationTest {
         assertThat(latency).containsEntry("basis", "passing-samples");
         assertThat(latency).containsKey("contributingSamples");
         assertThat(latency).containsKey("totalSamples");
-        assertThat(latency).containsKeys("p50Ms", "p90Ms", "p95Ms", "p99Ms");
+        // LT01: 6 samples, ≤ 6 contributing → only p50Ms emits.
+        assertThat(latency).containsKey("p50Ms");
+        assertThat(latency).doesNotContainKeys("p95Ms", "p99Ms");
     }
 
     @Test

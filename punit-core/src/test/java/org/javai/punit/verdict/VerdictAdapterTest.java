@@ -168,16 +168,16 @@ class VerdictAdapterTest {
     class LatencyDimension {
 
         @Test
-        @DisplayName("populates observed percentiles when latency has samples")
+        @DisplayName("populates observed percentiles when latency has samples (≥ 100 → all four emit)")
         void populatesPercentiles() {
             LatencyResult lat = new LatencyResult(
                     Duration.ofMillis(120), Duration.ofMillis(340),
                     Duration.ofMillis(420), Duration.ofMillis(810),
-                    50);
+                    100);
             ProbabilisticTestResult result = resultWithEngineSummary(
                     Verdict.PASS,
                     new EngineRunSummary(
-                            50, 50, 48, 2, 1000L, 0L, 0,
+                            100, 100, 100, 0, 1000L, 0L, 0,
                             lat,
                             org.javai.punit.api.spec.TerminationReason.COMPLETED,
                             0.95,
@@ -192,6 +192,34 @@ class VerdictAdapterTest {
             assertThat(verdict.latency().get().p99Ms()).isEqualTo(810L);
             assertThat(verdict.latency().get().maxMs()).isEqualTo(-1L);
             assertThat(verdict.latency().get().assertions()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("LT01 minimum-samples rule: at n=50 contributing, p99Ms is the omit-sentinel")
+        void omitsP99BelowThreshold() {
+            // 50 contributing samples → p50 (≥ 1) and p90 (≥ 10)
+            // and p95 (≥ 20) all emit; p99 (≥ 100) does not.
+            LatencyResult lat = new LatencyResult(
+                    Duration.ofMillis(120), Duration.ofMillis(340),
+                    Duration.ofMillis(420), Duration.ofMillis(810),
+                    50);
+            ProbabilisticTestResult result = resultWithEngineSummary(
+                    Verdict.PASS,
+                    new EngineRunSummary(
+                            50, 50, 50, 0, 1000L, 0L, 0,
+                            lat,
+                            org.javai.punit.api.spec.TerminationReason.COMPLETED,
+                            0.95,
+                            Optional.empty()));
+
+            ProbabilisticTestVerdict verdict = adapt(result);
+
+            assertThat(verdict.latency()).isPresent();
+            assertThat(verdict.latency().get().p50Ms()).isEqualTo(120L);
+            assertThat(verdict.latency().get().p90Ms()).isEqualTo(340L);
+            assertThat(verdict.latency().get().p95Ms()).isEqualTo(420L);
+            // p99 must be the -1L sentinel — renderer translates to "-".
+            assertThat(verdict.latency().get().p99Ms()).isEqualTo(-1L);
         }
 
         @Test

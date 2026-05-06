@@ -32,22 +32,22 @@ class LatencySectionTest {
     }
 
     @Test
-    @DisplayName("Block carries the LT01 indicator triple plus four percentiles in milliseconds")
-    void blockShapeWhenPassingSamplesPresent() {
+    @DisplayName("With ≥ 100 passing samples, the block carries all four percentiles")
+    void blockShapeAtFullThresholds() {
         LatencyResult passing = new LatencyResult(
                 Duration.ofMillis(42),
                 Duration.ofMillis(78),
                 Duration.ofMillis(95),
                 Duration.ofMillis(150),
-                18);
+                100);
 
-        Optional<Map<String, Object>> block = LatencySection.blockFor(passing, 18, 20);
+        Optional<Map<String, Object>> block = LatencySection.blockFor(passing, 100, 110);
         assertThat(block).isPresent();
         Map<String, Object> map = block.get();
         assertThat(map).containsExactly(
                 Map.entry("basis", "passing-samples"),
-                Map.entry("contributingSamples", 18),
-                Map.entry("totalSamples", 20),
+                Map.entry("contributingSamples", 100),
+                Map.entry("totalSamples", 110),
                 Map.entry("p50Ms", 42L),
                 Map.entry("p90Ms", 78L),
                 Map.entry("p95Ms", 95L),
@@ -55,17 +55,48 @@ class LatencySectionTest {
     }
 
     @Test
-    @DisplayName("contributingSamples == totalSamples when every sample passed")
+    @DisplayName("LT01 minimum-sample rule: 18 passing → only p50 / p90 keys emitted")
+    void omitsPercentilesBelowThreshold() {
+        LatencyResult passing = new LatencyResult(
+                Duration.ofMillis(42),
+                Duration.ofMillis(78),
+                Duration.ofMillis(95),
+                Duration.ofMillis(150),
+                18);
+
+        Map<String, Object> block = LatencySection.blockFor(passing, 18, 20).orElseThrow();
+        // p50 needs ≥ 1, p90 needs ≥ 10 — both met at 18.
+        assertThat(block).containsKeys("p50Ms", "p90Ms");
+        // p95 needs ≥ 20, p99 needs ≥ 100 — both unmet at 18.
+        assertThat(block).doesNotContainKeys("p95Ms", "p99Ms");
+    }
+
+    @Test
+    @DisplayName("contributingSamples == totalSamples when every sample passed (above all thresholds)")
     void allSamplesPassing() {
         LatencyResult passing = new LatencyResult(
                 Duration.ofMillis(10),
                 Duration.ofMillis(20),
                 Duration.ofMillis(25),
                 Duration.ofMillis(30),
-                10);
+                100);
 
-        Map<String, Object> block = LatencySection.blockFor(passing, 10, 10).orElseThrow();
-        assertThat(block).containsEntry("contributingSamples", 10);
-        assertThat(block).containsEntry("totalSamples", 10);
+        Map<String, Object> block = LatencySection.blockFor(passing, 100, 100).orElseThrow();
+        assertThat(block).containsEntry("contributingSamples", 100);
+        assertThat(block).containsEntry("totalSamples", 100);
+        // All four percentiles emit at n=100.
+        assertThat(block).containsKeys("p50Ms", "p90Ms", "p95Ms", "p99Ms");
+    }
+
+    @Test
+    @DisplayName("isPercentileEmittable encodes the LT01 thresholds (1 / 10 / 20 / 100)")
+    void thresholdRule() {
+        assertThat(LatencySection.isPercentileEmittable("p50", 1)).isTrue();
+        assertThat(LatencySection.isPercentileEmittable("p90", 9)).isFalse();
+        assertThat(LatencySection.isPercentileEmittable("p90", 10)).isTrue();
+        assertThat(LatencySection.isPercentileEmittable("p95", 19)).isFalse();
+        assertThat(LatencySection.isPercentileEmittable("p95", 20)).isTrue();
+        assertThat(LatencySection.isPercentileEmittable("p99", 99)).isFalse();
+        assertThat(LatencySection.isPercentileEmittable("p99", 100)).isTrue();
     }
 }
