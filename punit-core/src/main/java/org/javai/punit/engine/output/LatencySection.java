@@ -40,6 +40,17 @@ public final class LatencySection {
     public static final int MIN_SAMPLES_P95 = 20;
     public static final int MIN_SAMPLES_P99 = 100;
 
+    /**
+     * Sentinel value carried in latency-percentile fields (e.g.
+     * {@code p50Ms}, {@code p95Ms}, {@code p99Ms}, {@code maxMs}) to
+     * mean "not reliably estimated" — the contributing-sample count
+     * fell below this percentile's LT01 minimum, so no value is
+     * emitted. Producers (the verdict adapter) write this; consumers
+     * (text and HTML renderers) recognise it and substitute a dash
+     * rather than the literal {@code -1}.
+     */
+    public static final long PERCENTILE_UNAVAILABLE_MS = -1L;
+
     private LatencySection() { }
 
     /**

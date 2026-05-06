@@ -10,6 +10,7 @@ import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
+import org.javai.punit.engine.output.LatencySection;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.LatencyInput;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput;
@@ -203,9 +204,9 @@ public final class VerdictAdapter {
         // dimension whenever ≥ 1 sample passed, independent of LT04
         // activation; threshold/verdict sub-fields stay LT04-gated
         // and are populated separately when assertions are configured.
-        // Each percentile is set to -1L (the "unavailable" sentinel)
-        // when contributingSamples is below the LT01 minimum-samples
-        // threshold for that percentile.
+        // Each percentile is set to LatencySection.PERCENTILE_UNAVAILABLE_MS
+        // (the "unavailable" sentinel) when contributingSamples is below
+        // the LT01 minimum-samples threshold for that percentile.
         LatencyResult lat = engine.passingLatencyResult();
         if (lat.sampleCount() == 0) {
             return null;
@@ -220,7 +221,7 @@ public final class VerdictAdapter {
                 msIfEmittable("p90", lat.p90(), contributing),
                 msIfEmittable("p95", lat.p95(), contributing),
                 msIfEmittable("p99", lat.p99(), contributing),
-                -1L,                                   // maxMs unavailable
+                LatencySection.PERCENTILE_UNAVAILABLE_MS, // maxMs unavailable
                 List.of(),                             // assertions (LT04-gated; populated separately when active)
                 List.of(),                             // caveats
                 contributing,                          // dimensionSuccesses
@@ -230,15 +231,15 @@ public final class VerdictAdapter {
     /**
      * Returns {@code duration.toMillis()} when the contributing-sample
      * count meets the LT01 minimum-samples threshold for the named
-     * percentile; otherwise returns {@code -1L} to signal "not
-     * computed reliably." Renderers and serialisers treat {@code -1L}
-     * as the omit-percentile sentinel.
+     * percentile; otherwise returns
+     * {@link LatencySection#PERCENTILE_UNAVAILABLE_MS} to signal "not
+     * computed reliably." Renderers and serialisers recognise this
+     * sentinel and omit the percentile from their output.
      */
     private static long msIfEmittable(String label, java.time.Duration duration, int contributingSamples) {
-        return org.javai.punit.engine.output.LatencySection
-                .isPercentileEmittable(label, contributingSamples)
+        return LatencySection.isPercentileEmittable(label, contributingSamples)
                 ? duration.toMillis()
-                : -1L;
+                : LatencySection.PERCENTILE_UNAVAILABLE_MS;
     }
 
     private static List<MisalignmentInput> toMisalignmentInputs(CovariateAlignment alignment) {

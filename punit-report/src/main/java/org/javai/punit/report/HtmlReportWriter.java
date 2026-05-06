@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.engine.output.LatencySection;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
@@ -271,6 +272,13 @@ final class HtmlReportWriter {
 
     private static void appendLatencyCell(StringBuilder html, LatencyDimension lat,
                                              String label, long observedMs) {
+        if (observedMs == LatencySection.PERCENTILE_UNAVAILABLE_MS) {
+            // Below the LT01 minimum-samples threshold for this
+            // percentile — render as a dash rather than the literal
+            // sentinel value or a misleading number.
+            html.append("<td class=\"latency-observed\">-</td>\n");
+            return;
+        }
         Optional<PercentileAssertion> assertion = lat.assertions().stream()
                 .filter(a -> a.label().equals(label))
                 .findFirst();

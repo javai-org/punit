@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.engine.output.LatencySection;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.reporting.RateFormat;
@@ -457,11 +458,11 @@ public final class VerdictTextRenderer {
 
         // Observed distribution
         sb.append("  Observed distribution:\n");
-        if (lat.p50Ms() >= 0) sb.append(statLabel("p50:", lat.p50Ms() + "ms"));
-        if (lat.p90Ms() >= 0) sb.append(statLabel("p90:", lat.p90Ms() + "ms"));
-        if (lat.p95Ms() >= 0) sb.append(statLabel("p95:", lat.p95Ms() + "ms"));
-        if (lat.p99Ms() >= 0) sb.append(statLabel("p99:", lat.p99Ms() + "ms"));
-        if (lat.maxMs() >= 0) sb.append(statLabel("max:", lat.maxMs() + "ms"));
+        if (isPercentileAvailable(lat.p50Ms())) sb.append(statLabel("p50:", lat.p50Ms() + "ms"));
+        if (isPercentileAvailable(lat.p90Ms())) sb.append(statLabel("p90:", lat.p90Ms() + "ms"));
+        if (isPercentileAvailable(lat.p95Ms())) sb.append(statLabel("p95:", lat.p95Ms() + "ms"));
+        if (isPercentileAvailable(lat.p99Ms())) sb.append(statLabel("p99:", lat.p99Ms() + "ms"));
+        if (isPercentileAvailable(lat.maxMs())) sb.append(statLabel("max:", lat.maxMs() + "ms"));
         sb.append("\n");
 
         // Percentile thresholds
@@ -845,13 +846,17 @@ public final class VerdictTextRenderer {
     }
 
     /**
-     * Format a percentile's milliseconds value, rendering negative
-     * values as {@code "-"} (the LT01 omit-percentile sentinel:
-     * contributingSamples below this percentile's minimum threshold
-     * means the value is not reliably estimated).
+     * Format a percentile's milliseconds value, rendering the
+     * {@link LatencySection#PERCENTILE_UNAVAILABLE_MS} sentinel as
+     * {@code "-"} (LT01: contributingSamples below this percentile's
+     * minimum threshold means the value is not reliably estimated).
      */
     private static String formatMsOrDash(long ms) {
-        return ms < 0 ? "-" : ms + "ms";
+        return isPercentileAvailable(ms) ? ms + "ms" : "-";
+    }
+
+    private static boolean isPercentileAvailable(long ms) {
+        return ms != LatencySection.PERCENTILE_UNAVAILABLE_MS;
     }
 
     private static void appendDimensionBreakdown(StringBuilder sb, ProbabilisticTestVerdict verdict) {

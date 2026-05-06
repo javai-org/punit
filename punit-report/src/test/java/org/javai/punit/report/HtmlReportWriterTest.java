@@ -10,6 +10,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
+import org.javai.punit.engine.output.LatencySection;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
@@ -471,6 +472,39 @@ class HtmlReportWriterTest {
             assertThat(html).contains(".latency-observed");
             assertThat(html).contains(".latency-pass");
             assertThat(html).contains(".latency-fail");
+        }
+
+        @Test
+        @DisplayName("unavailable percentile (LT01 below-minimum sentinel) renders as a dash")
+        void unavailablePercentileRendersAsDash() {
+            // p99 below LT01 minimum (100 contributing samples) is
+            // emitted as PERCENTILE_UNAVAILABLE_MS by the adapter; the
+            // HTML cell must show "-" rather than "-1ms" or a literal
+            // sentinel value.
+            ProbabilisticTestVerdict base = passingVerdict();
+            LatencyDimension latency = new LatencyDimension(
+                    90, 100, false, Optional.empty(),
+                    120, 340, 420,
+                    LatencySection.PERCENTILE_UNAVAILABLE_MS,
+                    LatencySection.PERCENTILE_UNAVAILABLE_MS,
+                    List.of(), List.of(), 90, 10
+            );
+            ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdict(
+                    base.correlationId(), base.timestamp(), base.identity(), base.execution(),
+                    base.functional(), Optional.of(latency),
+                    base.statistics(), base.covariates(), base.cost(),
+                    base.pacing(), base.provenance(), base.termination(),
+                    base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                    base.verdictReason()
+            );
+
+            String html = HtmlReportWriter.generate(List.of(verdict));
+
+            assertThat(html).contains("<td class=\"latency-observed\">120ms</td>"); // p50 present
+            assertThat(html).contains("<td class=\"latency-observed\">420ms</td>"); // p95 present
+            assertThat(html).contains("<td class=\"latency-observed\">-</td>");     // p99 unavailable
+            assertThat(html).doesNotContain("<td class=\"latency-observed\">-1ms");
+            assertThat(html).doesNotContain("<td class=\"latency-observed\">-ms");
         }
     }
 
