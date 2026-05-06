@@ -130,7 +130,8 @@ class PassRateTest {
     // ── empirical() — default resolution ────────────────────────────
 
     @Test
-    @DisplayName("empirical() with no baseline returns INCONCLUSIVE")
+    @DisplayName("empirical() with no baseline returns INCONCLUSIVE with the "
+            + "'no baseline available' RP01 discriminant on the detail map")
     void empiricalNoBaselineInconclusive() {
         PassRate<String> criterion = PassRate.empirical();
 
@@ -138,6 +139,11 @@ class PassRateTest {
 
         assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
         assertThat(result.explanation()).contains("baseline");
+        assertThat(result.detail())
+                .as("RP01 vocabulary discriminant for the verdict-builder")
+                .containsEntry(
+                        org.javai.punit.api.spec.InconclusiveReasons.DETAIL_KEY,
+                        org.javai.punit.api.spec.InconclusiveReasons.NO_BASELINE_AVAILABLE);
     }
 
     @Test

@@ -12,6 +12,7 @@ import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.EmpiricalChecks;
 import org.javai.punit.api.spec.EvaluationContext;
 import org.javai.punit.api.spec.Experiment;
+import org.javai.punit.api.spec.InconclusiveReasons;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Verdict;
@@ -179,6 +180,8 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
                 Map<String, Object> detail = new LinkedHashMap<>();
                 detail.put("confidence", confidence);
                 detail.put("origin", ThresholdOrigin.EMPIRICAL.name());
+                detail.put(InconclusiveReasons.DETAIL_KEY,
+                        InconclusiveReasons.NO_BASELINE_AVAILABLE);
                 return inconclusive(
                         "no matching baseline was resolvable for empirical threshold; "
                                 + "see DG02 §'Baseline relationship' for the resolution mechanism",

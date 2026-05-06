@@ -37,6 +37,11 @@ class EmpiricalChecksTest {
         assertThat(r.detail()).containsEntry("testSampleCount", 200);
         assertThat(r.detail()).containsEntry("baselineSampleCount", 100);
         assertThat(r.detail()).containsEntry("origin", "EMPIRICAL");
+        assertThat(r.detail())
+                .as("RP01 vocabulary discriminant for the verdict-builder")
+                .containsEntry(
+                        InconclusiveReasons.DETAIL_KEY,
+                        InconclusiveReasons.BASELINE_SAMPLE_SIZE_EXCEEDED);
     }
 
     @Test
@@ -99,6 +104,11 @@ class EmpiricalChecksTest {
         assertThat(r.detail()).containsEntry("testInputsIdentity", "sha256:test");
         assertThat(r.detail()).containsEntry("baselineInputsIdentity", "sha256:baseline");
         assertThat(r.detail()).containsEntry("origin", "EMPIRICAL");
+        assertThat(r.detail())
+                .as("RP01 vocabulary discriminant for the verdict-builder")
+                .containsEntry(
+                        InconclusiveReasons.DETAIL_KEY,
+                        InconclusiveReasons.BASELINE_INPUTS_MISMATCH);
     }
 
     @Test

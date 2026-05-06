@@ -9,7 +9,9 @@ import java.util.UUID;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.InconclusiveReasons;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
@@ -106,6 +108,11 @@ public class ProbabilisticTestVerdictBuilder {
     // Verdict; tests that build a verdict directly without a criterion
     // run can override via criterionVerdict(...).
     private Verdict criterionVerdict = Verdict.FAIL;
+    // The criterion results carry the inconclusive-reason discriminant
+    // (per RP01 / InconclusiveReasons.DETAIL_KEY). When empty, the
+    // reason synthesis falls back to "insufficient evidence" — the
+    // RP01 catch-all.
+    private List<EvaluatedCriterion> criterionResults = List.of();
 
     // ── Postcondition failure histogram ───────────────────────────────────
     private Map<String, FailureCount> postconditionFailures = Map.of();
@@ -261,6 +268,25 @@ public class ProbabilisticTestVerdictBuilder {
      */
     public ProbabilisticTestVerdictBuilder criterionVerdict(Verdict verdict) {
         this.criterionVerdict = java.util.Objects.requireNonNull(verdict, "verdict");
+        return this;
+    }
+
+    /**
+     * Set the evaluated criterion results for this run. The verdict
+     * builder reads each result's {@link CriterionResult#detail() detail map}
+     * for the {@link InconclusiveReasons#DETAIL_KEY inconclusiveReason}
+     * discriminant when synthesising the verdict reason on an
+     * INCONCLUSIVE-aligned-non-budget verdict — the criterion is the
+     * only layer that knows which of the four non-covariate non-budget
+     * conditions fired (no baseline, inputs mismatch, sample-size
+     * violation, statistical insufficiency).
+     *
+     * <p>When unset, the verdict reason falls back to
+     * {@link InconclusiveReasons#INSUFFICIENT_EVIDENCE} — the RP01
+     * catch-all.
+     */
+    public ProbabilisticTestVerdictBuilder criterionResults(List<EvaluatedCriterion> results) {
+        this.criterionResults = results == null ? List.of() : List.copyOf(results);
         return this;
     }
 
@@ -551,21 +577,43 @@ public class ProbabilisticTestVerdictBuilder {
     private String deriveVerdictReason(PUnitVerdict punitVerdict, CovariateStatus covariates) {
         if (punitVerdict == PUnitVerdict.INCONCLUSIVE) {
             if (!covariates.aligned()) {
-                return "covariate misalignment";
+                return InconclusiveReasons.COVARIATE_MISALIGNMENT;
             }
             if (terminationReason.isBudgetExhaustion()) {
-                return "budget exhausted";
+                return InconclusiveReasons.BUDGET_EXHAUSTED;
             }
-            return "insufficient evidence";
+            return inconclusiveReasonFromCriteria()
+                    .orElse(InconclusiveReasons.INSUFFICIENT_EVIDENCE);
         }
         if (terminationReason.isBudgetExhaustion()) {
-            return "budget exhausted";
+            return InconclusiveReasons.BUDGET_EXHAUSTED;
         }
         String comparator = observedPassRate >= minPassRate ? ">=" : "<";
         return String.format("%s %s %s",
                 RateFormat.format(observedPassRate),
                 comparator,
                 RateFormat.format(minPassRate));
+    }
+
+    /**
+     * Scan the criterion results for the first INCONCLUSIVE-reason
+     * discriminant (per {@link InconclusiveReasons#DETAIL_KEY}). The
+     * "first" rule is fine: today's specs carry one criterion, and
+     * when multiple are added the first INCONCLUSIVE criterion is the
+     * one whose reason most narrowly describes the failure (subsequent
+     * criteria run only if earlier ones don't short-circuit).
+     */
+    private Optional<String> inconclusiveReasonFromCriteria() {
+        for (EvaluatedCriterion ec : criterionResults) {
+            if (ec.result().verdict() != Verdict.INCONCLUSIVE) {
+                continue;
+            }
+            Object marker = ec.result().detail().get(InconclusiveReasons.DETAIL_KEY);
+            if (marker instanceof String s && !s.isBlank()) {
+                return Optional.of(s);
+            }
+        }
+        return Optional.empty();
     }
 
     // ── Input records ─────────────────────────────────────────────────────

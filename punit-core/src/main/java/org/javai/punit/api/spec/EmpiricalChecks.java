@@ -71,6 +71,8 @@ public final class EmpiricalChecks {
         detail.putIfAbsent("origin", ThresholdOrigin.EMPIRICAL.name());
         detail.put("testSampleCount", testSampleCount);
         detail.put("baselineSampleCount", baselineSampleCount);
+        detail.put(InconclusiveReasons.DETAIL_KEY,
+                InconclusiveReasons.BASELINE_SAMPLE_SIZE_EXCEEDED);
         String reason = "test sample size (" + testSampleCount + ") exceeds baseline "
                 + "sample size (" + baselineSampleCount + "). The baseline must be "
                 + "at least as rigorous as the test it grounds. Re-run the baseline "
@@ -129,6 +131,8 @@ public final class EmpiricalChecks {
         detail.putIfAbsent("origin", ThresholdOrigin.EMPIRICAL.name());
         detail.put("testInputsIdentity", testIdentity);
         detail.put("baselineInputsIdentity", baselineIdentity);
+        detail.put(InconclusiveReasons.DETAIL_KEY,
+                InconclusiveReasons.BASELINE_INPUTS_MISMATCH);
         String reason = "test inputs identity (" + truncate(testIdentity)
                 + ") differs from the resolved baseline's recorded inputs "
                 + "identity (" + truncate(baselineIdentity) + "). An empirical "
