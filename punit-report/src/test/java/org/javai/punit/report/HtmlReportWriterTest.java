@@ -81,6 +81,18 @@ class HtmlReportWriterTest {
     class TableRows {
 
         @Test
+        @DisplayName("the verdict table carries a single Verdict column — the JUnit "
+                + "column was retired in 0.7.0")
+        void tableHeaderShape() {
+            String html = HtmlReportWriter.generate(List.of(passingVerdict()));
+
+            assertThat(html).contains("<th>Verdict</th>");
+            assertThat(html)
+                    .doesNotContain("<th>JUnit</th>")
+                    .doesNotContain("<th>PUnit</th>");
+        }
+
+        @Test
         @DisplayName("renders test method name as expandable summary")
         void rendersMethodName() {
             String html = HtmlReportWriter.generate(List.of(passingVerdict()));
@@ -89,32 +101,27 @@ class HtmlReportWriterTest {
         }
 
         @Test
-        @DisplayName("applies correct CSS classes for passing verdict")
+        @DisplayName("applies the punit-pass CSS class on the verdict cell for a passing verdict")
         void appliesPassCssClasses() {
             String html = HtmlReportWriter.generate(List.of(passingVerdict()));
 
-            assertThat(html).contains("class=\"junit-pass\"");
             assertThat(html).contains("class=\"punit-pass\"");
+            assertThat(html)
+                    .as("the JUnit column was retired in 0.7.0 — the verdict cell "
+                            + "carries the punit verdict only")
+                    .doesNotContain("junit-pass")
+                    .doesNotContain("junit-fail");
         }
 
         @Test
-        @DisplayName("applies correct CSS classes for failing verdict")
+        @DisplayName("applies the punit-fail CSS class on the verdict cell for a failing verdict")
         void appliesFailCssClasses() {
             String html = HtmlReportWriter.generate(List.of(failingVerdict()));
 
-            assertThat(html).contains("class=\"junit-fail\"");
             assertThat(html).contains("class=\"punit-fail\"");
-        }
-
-        @Test
-        @DisplayName("JUnit FAIL with PUnit PASS renders divergent CSS classes")
-        void junitFailWithPUnitPassRendersDivergentClasses() {
-            ProbabilisticTestVerdict verdict = divergentVerdict();
-
-            String html = HtmlReportWriter.generate(List.of(verdict));
-
-            assertThat(html).contains("class=\"junit-fail\"");
-            assertThat(html).contains("class=\"punit-pass\"");
+            assertThat(html)
+                    .doesNotContain("junit-pass")
+                    .doesNotContain("junit-fail");
         }
 
         @Test
@@ -549,26 +556,6 @@ class HtmlReportWriterTest {
 
     private ProbabilisticTestVerdict inconclusiveVerdict() {
         return minimalVerdict("shouldBeInconclusive", false, PUnitVerdict.INCONCLUSIVE);
-    }
-
-    private ProbabilisticTestVerdict divergentVerdict() {
-        return new ProbabilisticTestVerdict(
-                "v:test01",
-                Instant.parse("2026-03-11T14:30:00Z"),
-                new TestIdentity("com.example.MyTest", "shouldDiverge", Optional.empty()),
-                new ExecutionSummary(100, 100, 80, 20, 0.7, 0.80, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
-                Optional.empty(), Optional.empty(),
-                new StatisticalAnalysis(0.95, 0.04, 0.72, 0.88,
-                        Optional.of(2.50), Optional.of(0.006),
-                        Optional.empty(), Optional.empty(), List.of()),
-                CovariateStatus.allAligned(),
-                new CostSummary(0, 0, 0, TokenMode.NONE, Optional.empty(), Optional.empty()),
-                Optional.empty(), Optional.empty(),
-                new Termination(TerminationReason.COMPLETED, Optional.empty()),
-                Map.of(), false, PUnitVerdict.PASS,
-                "0.8000 >= 0.7000"
-        );
     }
 
     private ProbabilisticTestVerdict minimalVerdict(String methodName, boolean passed, PUnitVerdict punitVerdict) {

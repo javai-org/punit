@@ -92,8 +92,7 @@ final class HtmlReportWriter {
             html.append("<table>\n");
             html.append("<thead>\n<tr>\n");
             html.append("<th>Test Name</th>");
-            html.append("<th>JUnit</th>");
-            html.append("<th>PUnit</th>");
+            html.append("<th>Verdict</th>");
             html.append("<th>Functional</th>");
             html.append("<th>p50</th>");
             html.append("<th>p95</th>");
@@ -149,7 +148,6 @@ final class HtmlReportWriter {
     private static void appendVerdictRow(StringBuilder html, ProbabilisticTestVerdict verdict) {
         ExecutionSummary exec = verdict.execution();
         String methodName = verdict.identity().methodName();
-        String junitClass = verdict.junitPassed() ? "junit-pass" : "junit-fail";
         String punitClass = punitCssClass(verdict.punitVerdict());
 
         html.append("<tr>\n");
@@ -177,11 +175,10 @@ final class HtmlReportWriter {
         html.append("</details>\n");
         html.append("</td>\n");
 
-        // JUnit verdict
-        html.append("<td class=\"").append(junitClass).append("\">")
-                .append(verdict.junitPassed() ? "PASS" : "FAIL").append("</td>\n");
-
-        // PUnit verdict
+        // Verdict (single column; in 0.7.0 the test body always represents
+        // one statistical test, so a JUnit pass/fail cannot diverge from
+        // the punit verdict — the JUnit column would carry no extra
+        // signal).
         html.append("<td class=\"").append(punitClass).append("\">")
                 .append(verdict.punitVerdict().name()).append("</td>\n");
 
@@ -412,8 +409,8 @@ final class HtmlReportWriter {
                     z-index: 10;
                     pointer-events: none;
                 }
-                .junit-pass, .punit-pass { color: var(--pass-color); font-weight: 600; }
-                .junit-fail, .punit-fail { color: var(--fail-color); font-weight: 600; }
+                .punit-pass { color: var(--pass-color); font-weight: 600; }
+                .punit-fail { color: var(--fail-color); font-weight: 600; }
                 .punit-inconclusive { color: var(--inconclusive-color); font-weight: 600; }
                 .latency-observed { color: #adb5bd; }
                 .latency-pass { color: var(--pass-color); font-weight: 600; }
