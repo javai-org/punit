@@ -845,19 +845,33 @@ public final class VerdictTextRenderer {
     }
 
     private static void appendDimensionBreakdown(StringBuilder sb, ProbabilisticTestVerdict verdict) {
-        if (verdict.functional().isEmpty() || verdict.latency().isEmpty()
-                || verdict.latency().get().skipped()) {
+        if (verdict.functional().isEmpty()) {
             return;
         }
-
         FunctionalDimension func = verdict.functional().get();
-        LatencyDimension lat = verdict.latency().get();
-
         sb.append(PUnitReporter.labelValueLn("Contract:",
                 String.format("%d/%d passed",
                         func.successes(), func.successes() + func.failures())));
-        sb.append(PUnitReporter.labelValueLn("Latency:",
-                String.format("%d/%d within limit",
-                        lat.dimensionSuccesses(), lat.dimensionSuccesses() + lat.dimensionFailures())));
+
+        verdict.latency().ifPresent(lat -> {
+            // LT01 descriptive one-liner: surfaces the passing-only
+            // percentiles + indicator counts alongside the pass/fail
+            // block so a reader sees latency at a glance, independent
+            // of LT04 activation.
+            if (lat.successfulSamples() > 0) {
+                sb.append(PUnitReporter.labelValueLn("Latency:",
+                        String.format("(%d/%d passing) p50=%dms p95=%dms p99=%dms",
+                                lat.successfulSamples(), lat.totalSamples(),
+                                lat.p50Ms(), lat.p95Ms(), lat.p99Ms())));
+            }
+            // LT04 threshold-side summary — only when latency
+            // assertions are actually configured.
+            if (!lat.skipped() && !lat.assertions().isEmpty()) {
+                sb.append(PUnitReporter.labelValueLn("Latency assertions:",
+                        String.format("%d/%d within limit",
+                                lat.dimensionSuccesses(),
+                                lat.dimensionSuccesses() + lat.dimensionFailures())));
+            }
+        });
     }
 }
