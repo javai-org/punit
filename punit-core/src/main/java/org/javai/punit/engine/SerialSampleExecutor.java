@@ -124,33 +124,49 @@ public final class SerialSampleExecutor implements SampleExecutor {
     }
 
     /**
+     * Token prefixed to every progress emission so the
+     * punit-gradle-plugin can pattern-match the chunks on the
+     * receiving side of Gradle's test-stdout pipe and reformat
+     * them into clean in-place updates on the build's terminal.
+     *
+     * <p><b>Cross-module invariant:</b> this string must stay
+     * byte-identical with the matcher in
+     * {@code punit-gradle-plugin/.../PUnitPlugin.kt} (constant
+     * {@code SAMPLE_PROGRESS_MARKER}). The two live in different
+     * Gradle projects with separate classpaths — the plugin runs
+     * in the Gradle build process, this code runs in the test
+     * JVM — so a shared Java/Kotlin import is impractical. A
+     * change here requires a matching change there.
+     *
+     * <p>The token is written verbatim and contains no characters
+     * that need shell escaping, so a stray emission visible in a
+     * raw log is human-readable rather than mojibake.
+     */
+    public static final String SAMPLE_PROGRESS_MARKER = "[PUNIT-PROGRESS]";
+
+    /**
      * Emit a per-sample progress counter to {@code System.out} and
-     * flush. The format is a leading carriage return followed by
-     * width-padded {@code "completed/total"} (e.g. {@code "  12/100"}
-     * for total = 100). The carriage return returns the cursor to
-     * column 0 so a real terminal updates the counter in place; the
-     * width-padding keeps the rendered length stable across the
-     * run so an in-place update fully overwrites the previous
-     * counter.
+     * flush. The format is the {@link #SAMPLE_PROGRESS_MARKER}
+     * token followed by width-padded {@code "completed/total"} and
+     * a trailing newline (e.g. {@code "[PUNIT-PROGRESS]  12/100\n"}
+     * for total = 100). The newline ensures Gradle's test-stdout
+     * pipe delivers the line as one event; the marker lets the
+     * punit-gradle-plugin's {@link
+     * org.gradle.api.tasks.testing.TestOutputListener} recognise
+     * the chunk, strip the decoration, and replay the counter as
+     * an in-place {@code \r}-prefixed update on the build's
+     * terminal.
      *
-     * <h3>Display under Gradle's test task</h3>
-     *
-     * <p>Gradle's {@code testLogging.showStandardStreams} fires a
-     * {@code TestOutputEvent} per flush from the test JVM and
-     * renders each event on its own indented {@code STANDARD_OUT}
-     * line, regardless of console mode. So under Gradle the
-     * counter appears as a vertical scroll of {@code 1/100},
-     * {@code 2/100}, {@code 3/100}, ... lines rather than a single
-     * updating line. This is verbose but informative — each line
-     * carries the running count, and the operator gets a live
-     * signal that the JVM is busy. Outside Gradle (IntelliJ
-     * direct-JVM, Maven Surefire, plain {@code java} invocation)
-     * the carriage-return semantics are honoured by the terminal
-     * and the counter updates in place.
+     * <p>Outside Gradle's test task — IntelliJ direct-JVM, Maven
+     * Surefire, plain {@code java} invocation — the marker is
+     * harmless visual noise, and the counter still scrolls
+     * line-by-line as a live progress signal. The in-place update
+     * is a Gradle-only nicety that the plugin layer provides.
      */
     private static void emitProgress(int completed, int total) {
         int width = String.valueOf(total).length();
-        System.out.print('\r' + String.format("%" + width + "d/%d", completed, total));
+        System.out.println(SAMPLE_PROGRESS_MARKER
+                + String.format("%" + width + "d/%d", completed, total));
         System.out.flush();
     }
 

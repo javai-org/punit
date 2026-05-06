@@ -1441,37 +1441,37 @@ extension surface.
 ### Per-sample progress counter
 
 PUnit emits a `completed/total` counter to standard output after
-each sample completes — for a 100-sample MEASURE you'll see
-`  1/100`, `  2/100`, `  3/100`, …, `100/100`. The counter is
-prefixed with a carriage return (`\r`) and width-padded so a real
-terminal updates the counter in place rather than scrolling — a
-single line that ticks upward as the run progresses. The counter
-flushes after every sample, so a long-running test gives live
-feedback that the JVM is busy rather than blocked.
+each sample completes. For a 100-sample MEASURE the counter ticks
+through `  1/100`, `  2/100`, `  3/100`, ..., `100/100` — width-
+padded so the rendered length stays constant — giving live
+feedback that the JVM is making progress rather than blocked.
 
-Display under Gradle is the one rough edge. Gradle's
-`testLogging.showStandardStreams` infrastructure fires a
-`TestOutputEvent` per flush from the test JVM and renders each
-event on its own indented `STANDARD_OUT` line — regardless of
-console mode. The carriage return survives in the byte stream but
-is rendered after the per-event indent, so the in-place update is
-not honoured. Under Gradle the counter appears as a vertical
-scroll of `1/100`, `2/100`, … lines rather than a single updating
-line. Verbose, but still informative — each line carries the
-running count and the operator gets a live signal that the run is
-making progress.
+The display rendering depends on whether you run via Gradle or via
+another launcher:
 
-Outside Gradle (IntelliJ direct-JVM, Maven Surefire, plain
-`java` invocation) the carriage-return semantics are honoured by
-the terminal natively and the counter updates in place as
-intended.
+**Under Gradle (`./gradlew test`, `./gradlew exp`)** — the
+punit-gradle-plugin installs a test-output bridge that intercepts
+the per-sample emissions, strips an internal protocol marker, and
+relays the counter to the build's terminal as a single
+`\r`-prefixed line that updates in place. So you see one ticking
+counter, not a vertical scroll of every count. Real test stdout
+that *isn't* progress is passed through unmodified — the bridge
+restores the visibility the dropped `STANDARD_OUT` decoration
+would have provided.
+
+**Outside Gradle** — IntelliJ's direct-JVM test runner, Maven
+Surefire, plain `java` invocation — the marker prefix is visible
+in the raw output (`[PUNIT-PROGRESS]  1/100`, one line per
+sample), and the counter scrolls. The bridge that strips the
+marker is plugin-side, so other launchers don't get the in-place
+nicety; they do still get a live progress signal.
 
 The feature is deliberately lean: one counter emission per sample,
 no spinner, no ETA, no rate, no end-of-run summary, and no
-pass/fail glyph (the verdict record covers post-run pass/fail in
+pass/fail glyph. The verdict record covers post-run pass/fail in
 full; threshold-aware live colouring would require statistics-core
 plumbing into the executor that breaches the package-isolation
-rule, so it is out of scope for this surface).
+rule, so it is out of scope for this surface.
 
 ---
 

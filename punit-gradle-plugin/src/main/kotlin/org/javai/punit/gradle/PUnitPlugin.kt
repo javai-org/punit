@@ -7,6 +7,9 @@ import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestOutputEvent
+import org.gradle.api.tasks.testing.TestOutputListener
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import java.io.File
@@ -95,6 +98,7 @@ class PUnitPlugin : Plugin<Project> {
 
             forwardPUnitSystemProperties(this)
             applyRunFilter(project, this)
+            installProgressBridge(this)
         }
     }
 
@@ -120,9 +124,15 @@ class PUnitPlugin : Plugin<Project> {
             }
 
             testLogging {
+                // STANDARD_OUT is dropped here so per-sample progress
+                // chunks (see SampleProgressBridge) aren't decorated
+                // with the `STANDARD_OUT` test-name header on every
+                // flush. The bridge takes responsibility for relaying
+                // ALL test-stdout — progress and non-progress alike —
+                // to the build's terminal, so nothing is lost.
                 events = setOf(
                     TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED,
-                    TestLogEvent.STANDARD_OUT, TestLogEvent.STANDARD_ERROR
+                    TestLogEvent.STANDARD_ERROR
                 )
                 showExceptions = true
                 showCauses = true
@@ -130,6 +140,7 @@ class PUnitPlugin : Plugin<Project> {
                 exceptionFormat = TestExceptionFormat.FULL
                 showStandardStreams = true
             }
+            installProgressBridge(this)
 
             reports {
                 html.outputLocation.set(project.layout.buildDirectory.dir("reports/experiment"))
@@ -478,6 +489,98 @@ class PUnitPlugin : Plugin<Project> {
                 task.filter.includeTestsMatching("*$runFilter")
             } else {
                 task.filter.includeTestsMatching("*$runFilter*")
+            }
+        }
+    }
+
+    /**
+     * Wire per-sample progress emission from the test JVM through to
+     * the build's terminal as in-place updates.
+     *
+     * Punit's [SerialSampleExecutor] writes a marker-prefixed line
+     * after every sample. Inside the test JVM that line goes to
+     * stdout, which Gradle captures over a pipe — by default, Gradle
+     * decorates the chunk with a `STANDARD_OUT` test-name header on
+     * every flush, which is fine for ad-hoc test stdout but ruins the
+     * per-sample progress idea (verbose vertical scroll, double
+     * lines around carriage returns, the user complains rightly).
+     *
+     * Approach:
+     *
+     *   1. Drop `STANDARD_OUT` from `testLogging.events` so Gradle
+     *      stops decorating test-stdout chunks. (We re-emit non-progress
+     *      stdout from inside the listener, so nothing is silently lost.)
+     *   2. Register a `TestOutputListener` that pattern-matches the
+     *      marker, strips it, and writes a `\r`-prefixed counter to the
+     *      build process's own stdout. The build's stdout is a real
+     *      terminal handle (not a pipe), so the carriage return
+     *      collapses each emission onto a single updating line.
+     *   3. Non-progress chunks are passed through unmodified — same
+     *      visual effect as the dropped `STANDARD_OUT` event would have
+     *      produced, minus the per-line decoration.
+     *
+     * The marker constant must stay byte-identical with
+     * `SerialSampleExecutor.SAMPLE_PROGRESS_MARKER`. The two live
+     * in different Gradle projects with separate classpaths — this
+     * code runs in the build process, the executor runs in the test
+     * JVM — so a shared Java/Kotlin import is impractical.
+     */
+    private fun installProgressBridge(task: Test) {
+        task.addTestOutputListener(SampleProgressBridge())
+    }
+
+    private companion object {
+        /**
+         * Mirrors `SerialSampleExecutor.SAMPLE_PROGRESS_MARKER` in
+         * punit-core. Cross-module invariant: a change to one is a
+         * change to both.
+         */
+        const val SAMPLE_PROGRESS_MARKER = "[PUNIT-PROGRESS]"
+    }
+
+    /**
+     * Receives every chunk of test JVM stdout/stderr. Recognises
+     * progress lines by their marker prefix, strips the marker, and
+     * writes the counter to the build's terminal as an in-place
+     * `\r`-prefixed update. Non-progress chunks pass through
+     * unmodified.
+     *
+     * Made package-private (default Kotlin visibility) so the
+     * functional-test module can verify the bridge end-to-end.
+     */
+    internal class SampleProgressBridge : TestOutputListener {
+
+        override fun onOutput(testDescriptor: TestDescriptor, outputEvent: TestOutputEvent) {
+            val message = outputEvent.message
+            // The marker may appear at any byte offset in the chunk —
+            // Gradle sometimes batches a leading newline with the
+            // following line into one event. Find the marker rather
+            // than insisting it sit at column 0.
+            val markerIdx = message.indexOf(SAMPLE_PROGRESS_MARKER)
+            if (markerIdx < 0) {
+                System.out.print(message)
+                System.out.flush()
+                return
+            }
+            // Anything before the marker is non-progress content from
+            // the same chunk — pass it through verbatim.
+            if (markerIdx > 0) {
+                System.out.print(message.substring(0, markerIdx))
+            }
+            // Extract the counter content: everything between the
+            // marker and the next newline (the executor terminates
+            // each emission with a newline so chunks line-align).
+            val afterMarker = markerIdx + SAMPLE_PROGRESS_MARKER.length
+            val newlineIdx = message.indexOf('\n', afterMarker)
+            val end = if (newlineIdx < 0) message.length else newlineIdx
+            val counter = message.substring(afterMarker, end)
+            System.out.print('\r' + counter)
+            System.out.flush()
+            // If the chunk carried trailing content beyond the line
+            // (rare), pass it through too.
+            if (newlineIdx >= 0 && newlineIdx + 1 < message.length) {
+                System.out.print(message.substring(newlineIdx + 1))
+                System.out.flush()
             }
         }
     }

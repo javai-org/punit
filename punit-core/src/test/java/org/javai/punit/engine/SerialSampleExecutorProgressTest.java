@@ -24,9 +24,12 @@ import org.junit.jupiter.api.Test;
  * Progress-counter behavioural contract for {@link SerialSampleExecutor}.
  *
  * <p>Captures {@code System.out} during a controlled sample-loop run
- * and asserts the executor emits a per-sample {@code "\r m/n"}
- * counter — one event per sample, immediately flushed, width-padded
- * for stable in-place updates outside Gradle.
+ * and asserts the executor emits one {@code [PUNIT-PROGRESS] m/n\n}
+ * line per sample, immediately flushed. The marker lets the
+ * punit-gradle-plugin's {@code TestOutputListener} recognise
+ * progress chunks on the receiving side of Gradle's test-stdout
+ * pipe and reformat them as clean in-place updates on the build's
+ * terminal.
  */
 @DisplayName("SerialSampleExecutor — per-sample progress counter")
 class SerialSampleExecutorProgressTest {
@@ -57,26 +60,37 @@ class SerialSampleExecutorProgressTest {
         }
     }
 
+    private static final String MARKER = SerialSampleExecutor.SAMPLE_PROGRESS_MARKER;
+
     @Test
-    @DisplayName("emits a \\r-prefixed m/n counter after every sample, regardless of pass/fail")
+    @DisplayName("emits one [PUNIT-PROGRESS] m/n line after every sample, regardless of pass/fail")
     void emitsCounterPerSample() {
         runWith(new AlternatingUseCase(), List.of(0, 1, 2, 3));
 
-        assertThat(captured.toString(StandardCharsets.UTF_8))
-                .as("4 samples → 4 counter emissions: 1/4, 2/4, 3/4, 4/4")
-                .isEqualTo("\r1/4\r2/4\r3/4\r4/4");
+        // 4 samples → 4 newline-terminated lines, each prefixed with the marker.
+        // System.out.println uses the platform line separator; assert using lines().
+        String captured = this.captured.toString(StandardCharsets.UTF_8);
+        assertThat(captured.lines().toList())
+                .containsExactly(
+                        MARKER + "1/4",
+                        MARKER + "2/4",
+                        MARKER + "3/4",
+                        MARKER + "4/4");
     }
 
     @Test
-    @DisplayName("width-pads the numerator to the decimal width of the total — keeps in-place "
-            + "updates aligned for terminals that honour \\r")
+    @DisplayName("width-pads the numerator to the decimal width of the total — keeps the "
+            + "rendered counter aligned regardless of where the consumer renders it")
     void widthPadsNumerator() {
         runWith(new AlternatingUseCase(), List.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
         // total = 11 → width = 2; numerator padded with one leading space for single digits.
-        String expected = "\r 1/11\r 2/11\r 3/11\r 4/11\r 5/11\r 6/11\r 7/11"
-                + "\r 8/11\r 9/11\r10/11\r11/11";
-        assertThat(captured.toString(StandardCharsets.UTF_8)).isEqualTo(expected);
+        assertThat(captured.toString(StandardCharsets.UTF_8).lines().toList())
+                .containsExactly(
+                        MARKER + " 1/11", MARKER + " 2/11", MARKER + " 3/11",
+                        MARKER + " 4/11", MARKER + " 5/11", MARKER + " 6/11",
+                        MARKER + " 7/11", MARKER + " 8/11", MARKER + " 9/11",
+                        MARKER + "10/11", MARKER + "11/11");
     }
 
     @Test
@@ -91,9 +105,9 @@ class SerialSampleExecutorProgressTest {
         };
         runWith(alwaysThrows, List.of(0, 1));
 
-        assertThat(captured.toString(StandardCharsets.UTF_8))
+        assertThat(captured.toString(StandardCharsets.UTF_8).lines().toList())
                 .as("defect path emits the same counter format as the normal path")
-                .isEqualTo("\r1/2\r2/2");
+                .containsExactly(MARKER + "1/2", MARKER + "2/2");
     }
 
     @Test
@@ -104,21 +118,20 @@ class SerialSampleExecutorProgressTest {
             @Override public String id() { return "CounterPeek"; }
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
-                // Sample-internal observable: bytes already in the captured
-                // stream when this sample starts. emitProgress is called
-                // *after* observer.onSample, so for sample i (0-indexed)
-                // we expect i prior counter emissions, each of length
-                // 1 + width + 1 + 1 = 4 (e.g. "\r1/4" for total=4).
-                int priorEmissions = input;
-                int emissionLength = 1 + 1 + 1 + 1; // \r + digit + / + digit
-                assertThat(captured.size()).isEqualTo(priorEmissions * emissionLength);
+                // Sample-internal observable: line count visible inside this
+                // sample's invoke. emitProgress is called *after*
+                // observer.onSample, so for sample i (0-indexed) we expect
+                // exactly i prior progress lines in the captured stream.
+                long priorLines = captured.toString(StandardCharsets.UTF_8).lines().count();
+                assertThat(priorLines).isEqualTo(input);
                 return Outcome.ok("pass");
             }
         };
         runWith(counterPeek, List.of(0, 1, 2, 3));
 
-        assertThat(captured.toString(StandardCharsets.UTF_8))
-                .isEqualTo("\r1/4\r2/4\r3/4\r4/4");
+        assertThat(captured.toString(StandardCharsets.UTF_8).lines().toList())
+                .containsExactly(
+                        MARKER + "1/4", MARKER + "2/4", MARKER + "3/4", MARKER + "4/4");
     }
 
     private void runWith(UseCase<Void, Integer, String> useCase, List<Integer> inputs) {
