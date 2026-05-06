@@ -1433,33 +1433,45 @@ PUnit resolves configuration in this order (highest priority first):
 | Confidence level        | `punit.confidence`           | `PUNIT_CONFIDENCE`          | `0.95`                                             |
 | Latency enforcement     | `punit.latency.enforcement`  | `PUNIT_LATENCY_ENFORCEMENT` | `advisory`                                         |
 | Default samples         | `punit.samples`              | `PUNIT_SAMPLES`             | builder-supplied; no global default                |
-| Progress glyph colour   | `punit.progress.color`       | —                           | `true`                                             |
 
 Gradle plugin configuration in the `punit { }` extension block
 mirrors the same settings. See the plugin module's README for the
 extension surface.
 
-### Per-sample progress glyphs
+### Per-sample progress counter
 
-PUnit emits a single non-newline character to standard output after
-each sample completes — `.` for a passing sample, `x` for a failing
-one. The glyphs are flushed immediately so a long-running MEASURE
-or probabilistic test gives live feedback that the JVM is busy
-rather than blocked. With the default `punit.progress.color=true`,
-each glyph is wrapped in ANSI green / red so a colour-aware
-terminal reinforces the pass/fail signal — but the differentiation
-is doubly encoded (period vs ex, green vs red), so a colour-blind
-reader or a non-ANSI terminal still sees the distinction.
+PUnit emits a `completed/total` counter to standard output after
+each sample completes — for a 100-sample MEASURE you'll see
+`  1/100`, `  2/100`, `  3/100`, …, `100/100`. The counter is
+prefixed with a carriage return (`\r`) and width-padded so a real
+terminal updates the counter in place rather than scrolling — a
+single line that ticks upward as the run progresses. The counter
+flushes after every sample, so a long-running test gives live
+feedback that the JVM is busy rather than blocked.
 
-Set `-Dpunit.progress.color=false` to disable the ANSI wrapper.
-The glyphs continue to be emitted.
+Display under Gradle is the one rough edge. Gradle's
+`testLogging.showStandardStreams` infrastructure fires a
+`TestOutputEvent` per flush from the test JVM and renders each
+event on its own indented `STANDARD_OUT` line — regardless of
+console mode. The carriage return survives in the byte stream but
+is rendered after the per-event indent, so the in-place update is
+not honoured. Under Gradle the counter appears as a vertical
+scroll of `1/100`, `2/100`, … lines rather than a single updating
+line. Verbose, but still informative — each line carries the
+running count and the operator gets a live signal that the run is
+making progress.
 
-The feature is deliberately lean: one glyph per sample, no spinner,
-no percentage, no ETA, no end-of-run summary. Verdict-rendering
-machinery remains the sole producer of structured run output. If
-the Gradle rich console garbles the glyph stream, run with
-`./gradlew exp --console=plain` — Gradle's plain console preserves
-the per-sample emission order exactly.
+Outside Gradle (IntelliJ direct-JVM, Maven Surefire, plain
+`java` invocation) the carriage-return semantics are honoured by
+the terminal natively and the counter updates in place as
+intended.
+
+The feature is deliberately lean: one counter emission per sample,
+no spinner, no ETA, no rate, no end-of-run summary, and no
+pass/fail glyph (the verdict record covers post-run pass/fail in
+full; threshold-aware live colouring would require statistics-core
+plumbing into the executor that breaches the package-isolation
+rule, so it is out of scope for this surface).
 
 ---
 

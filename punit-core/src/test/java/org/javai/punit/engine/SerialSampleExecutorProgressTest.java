@@ -21,40 +21,29 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Progress-glyph behavioural contract for {@link SerialSampleExecutor}.
+ * Progress-counter behavioural contract for {@link SerialSampleExecutor}.
  *
  * <p>Captures {@code System.out} during a controlled sample-loop run
- * and asserts the executor emits the expected glyph stream — one
- * non-newline character per sample, immediately flushed, with the
- * pass/fail discriminant doubly encoded as glyph + colour.
+ * and asserts the executor emits a per-sample {@code "\r m/n"}
+ * counter — one event per sample, immediately flushed, width-padded
+ * for stable in-place updates outside Gradle.
  */
-@DisplayName("SerialSampleExecutor — per-sample progress glyphs")
+@DisplayName("SerialSampleExecutor — per-sample progress counter")
 class SerialSampleExecutorProgressTest {
-
-    private static final String GREEN = "[32m";
-    private static final String RED = "[31m";
-    private static final String RESET = "[0m";
 
     private PrintStream originalOut;
     private ByteArrayOutputStream captured;
-    private String previousColorProperty;
 
     @BeforeEach
     void redirectStdout() {
         originalOut = System.out;
         captured = new ByteArrayOutputStream();
         System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
-        previousColorProperty = System.getProperty(SerialSampleExecutor.PROGRESS_COLOR_PROPERTY);
     }
 
     @AfterEach
     void restoreStdout() {
         System.setOut(originalOut);
-        if (previousColorProperty == null) {
-            System.clearProperty(SerialSampleExecutor.PROGRESS_COLOR_PROPERTY);
-        } else {
-            System.setProperty(SerialSampleExecutor.PROGRESS_COLOR_PROPERTY, previousColorProperty);
-        }
     }
 
     /** Use case whose outcome alternates pass/fail by input parity. */
@@ -69,40 +58,30 @@ class SerialSampleExecutorProgressTest {
     }
 
     @Test
-    @DisplayName("default colour mode emits ANSI-wrapped glyphs — green '.' for pass, red 'x' for fail")
-    void emitsAnsiWrappedGlyphsByDefault() {
-        // Property unset → defaults to true.
-        System.clearProperty(SerialSampleExecutor.PROGRESS_COLOR_PROPERTY);
-
+    @DisplayName("emits a \\r-prefixed m/n counter after every sample, regardless of pass/fail")
+    void emitsCounterPerSample() {
         runWith(new AlternatingUseCase(), List.of(0, 1, 2, 3));
 
-        // 4 samples cycling inputs 0,1,2,3 → pass, fail, pass, fail.
-        String expected = GREEN + '.' + RESET
-                + RED + 'x' + RESET
-                + GREEN + '.' + RESET
-                + RED + 'x' + RESET;
+        assertThat(captured.toString(StandardCharsets.UTF_8))
+                .as("4 samples → 4 counter emissions: 1/4, 2/4, 3/4, 4/4")
+                .isEqualTo("\r1/4\r2/4\r3/4\r4/4");
+    }
+
+    @Test
+    @DisplayName("width-pads the numerator to the decimal width of the total — keeps in-place "
+            + "updates aligned for terminals that honour \\r")
+    void widthPadsNumerator() {
+        runWith(new AlternatingUseCase(), List.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+
+        // total = 11 → width = 2; numerator padded with one leading space for single digits.
+        String expected = "\r 1/11\r 2/11\r 3/11\r 4/11\r 5/11\r 6/11\r 7/11"
+                + "\r 8/11\r 9/11\r10/11\r11/11";
         assertThat(captured.toString(StandardCharsets.UTF_8)).isEqualTo(expected);
     }
 
     @Test
-    @DisplayName("punit.progress.color=false disables the ANSI wrapper but keeps the glyphs — "
-            + "the pass/fail discriminant survives without colour")
-    void disablingColourLeavesGlyphsIntact() {
-        System.setProperty(SerialSampleExecutor.PROGRESS_COLOR_PROPERTY, "false");
-
-        runWith(new AlternatingUseCase(), List.of(0, 1, 2, 3));
-
-        assertThat(captured.toString(StandardCharsets.UTF_8))
-                .isEqualTo(".x.x")
-                .doesNotContain("[")
-                .as("no ANSI escape sequences when colour is disabled");
-    }
-
-    @Test
-    @DisplayName("a defect (use case throws) emits an 'x' glyph regardless of cause")
-    void defectEmitsFailureGlyph() {
-        System.setProperty(SerialSampleExecutor.PROGRESS_COLOR_PROPERTY, "false");
-
+    @DisplayName("a defect (use case throws) still advances the counter")
+    void defectAlsoAdvancesCounter() {
         UseCase<Void, Integer, String> alwaysThrows = new UseCase<>() {
             @Override public String id() { return "AlwaysThrows"; }
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
@@ -112,30 +91,34 @@ class SerialSampleExecutorProgressTest {
         };
         runWith(alwaysThrows, List.of(0, 1));
 
-        assertThat(captured.toString(StandardCharsets.UTF_8)).isEqualTo("xx");
+        assertThat(captured.toString(StandardCharsets.UTF_8))
+                .as("defect path emits the same counter format as the normal path")
+                .isEqualTo("\r1/2\r2/2");
     }
 
     @Test
-    @DisplayName("each glyph is flushed immediately — no buffering across samples")
-    void eachGlyphFlushedImmediately() {
-        System.setProperty(SerialSampleExecutor.PROGRESS_COLOR_PROPERTY, "false");
-
-        UseCase<Void, Integer, String> alwaysPasses = new UseCase<>() {
-            @Override public String id() { return "AlwaysPasses"; }
+    @DisplayName("each emission is flushed before the next sample begins — no buffering across "
+            + "samples, which is the property the feature exists to provide")
+    void eachEmissionFlushedImmediately() {
+        UseCase<Void, Integer, String> counterPeek = new UseCase<>() {
+            @Override public String id() { return "CounterPeek"; }
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
                 // Sample-internal observable: bytes already in the captured
-                // stream after this many samples. emitProgress is called
-                // *after* the observer.onSample callback, so the glyph
-                // for sample N has not been emitted yet here.
-                int beforeThisSample = captured.size();
-                assertThat(beforeThisSample).isEqualTo(input);
+                // stream when this sample starts. emitProgress is called
+                // *after* observer.onSample, so for sample i (0-indexed)
+                // we expect i prior counter emissions, each of length
+                // 1 + width + 1 + 1 = 4 (e.g. "\r1/4" for total=4).
+                int priorEmissions = input;
+                int emissionLength = 1 + 1 + 1 + 1; // \r + digit + / + digit
+                assertThat(captured.size()).isEqualTo(priorEmissions * emissionLength);
                 return Outcome.ok("pass");
             }
         };
-        runWith(alwaysPasses, List.of(0, 1, 2, 3));
+        runWith(counterPeek, List.of(0, 1, 2, 3));
 
-        assertThat(captured.toString(StandardCharsets.UTF_8)).isEqualTo("....");
+        assertThat(captured.toString(StandardCharsets.UTF_8))
+                .isEqualTo("\r1/4\r2/4\r3/4\r4/4");
     }
 
     private void runWith(UseCase<Void, Integer, String> useCase, List<Integer> inputs) {
