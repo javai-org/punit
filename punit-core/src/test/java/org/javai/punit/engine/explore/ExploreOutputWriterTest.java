@@ -96,7 +96,8 @@ class ExploreOutputWriterTest {
         // EX07 per-sample fields: input, postconditions, executionTimeMs;
         // content present on success, failureDetail on failure (LengthUseCase
         // never fails so content is the expected key here).
-        assertThat(sample0).containsKeys("input", "postconditions", "executionTimeMs", "content");
+        assertThat(sample0).containsKeys("inputIndex", "postconditions", "executionTimeMs", "content");
+        assertThat(sample0).doesNotContainKey("input");
 
         // Diff anchor comments must be injected before each sample[N]: line.
         // Two samples → two anchor comments. snakeyaml strips comments on

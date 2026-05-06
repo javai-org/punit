@@ -58,7 +58,13 @@ public final class ResultProjections {
      */
     public static Map<String, Object> projectionFor(Trial<?, ?> trial) {
         Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put("input", String.valueOf(trial.input()));
+        // EX07: emit the input's position in the inputs list, not
+        // the input's value. Punit's deterministic-inputs-list model
+        // means the developer has the inputs in hand; rendering
+        // arbitrary IT types as canonical strings is fragile
+        // (Object.toString → "com.example.Foo@1a2b3c4d") and bulks
+        // up artefacts without proportionate value.
+        entry.put("inputIndex", trial.inputIndex());
         Map<String, Object> postconds = new LinkedHashMap<>();
         for (PostconditionResult pr : trial.outcome().postconditionResults()) {
             postconds.put(pr.description(), pr.passed() ? "passed" : "failed");
@@ -97,20 +103,25 @@ public final class ResultProjections {
      * Compute the per-trial diff anchors to interleave with a
      * {@code resultProjection:} block. Anchor for trial at index
      * {@code i} = first 8 hex chars of
-     * {@code SHA-256(i + ":" + canonical(input))}. Same trial →
-     * same anchor → diff aligns.
+     * {@code SHA-256(i + ":" + inputIndex)}. Same trial position +
+     * same inputIndex → same anchor → diff aligns. The hash uses
+     * the inputIndex rather than a canonical-string rendering of
+     * the input value (per EX07): the input value itself isn't
+     * persisted to the artefact, and two runs of the same spec
+     * produce identical inputIndex sequences by virtue of
+     * deterministic cycling.
      */
     public static List<String> anchorsFor(List<? extends Trial<?, ?>> trials) {
         List<String> anchors = new ArrayList<>(trials.size());
         for (int i = 0; i < trials.size(); i++) {
-            anchors.add(anchorOf(i, trials.get(i).input()));
+            anchors.add(anchorOf(i, trials.get(i).inputIndex()));
         }
         return anchors;
     }
 
-    /** Anchor for one (index, input) pair. */
-    public static String anchorOf(int sampleIndex, Object input) {
-        String content = sampleIndex + ":" + String.valueOf(input);
+    /** Anchor for one (sampleIndex, inputIndex) pair. */
+    public static String anchorOf(int sampleIndex, int inputIndex) {
+        String content = sampleIndex + ":" + inputIndex;
         return sha256HexPrefix(content, 8);
     }
 

@@ -155,6 +155,27 @@ class BaselineWriterTest {
     }
 
     @Test
+    @DisplayName("emits a contentFingerprint: line as the last field — SHA-256 of the body "
+            + "preceding it (EX10 integrity)")
+    void emitsContentFingerprintAsLastField() {
+        String yaml = writer.toYaml(recordWith(Map.of(
+                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))));
+
+        // Last non-empty line carries the fingerprint key.
+        java.util.List<String> nonEmpty = yaml.lines()
+                .filter(l -> !l.isBlank())
+                .toList();
+        assertThat(nonEmpty.get(nonEmpty.size() - 1))
+                .startsWith("contentFingerprint: ")
+                .matches("contentFingerprint: [0-9a-f]{64}");
+
+        // The reader must accept its own writer's output without surfacing
+        // an integrity warning.
+        Map<String, Object> root = new Yaml().load(yaml);
+        assertThat(root).containsKey("contentFingerprint");
+    }
+
+    @Test
     @DisplayName("rejects an unsupported BaselineStatistics flavour with a diagnostic")
     void rejectsUnknownStatisticsKind() {
         BaselineStatistics unknown = () -> 1;

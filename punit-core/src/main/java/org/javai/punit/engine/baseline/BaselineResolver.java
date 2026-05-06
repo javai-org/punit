@@ -6,7 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -142,8 +144,11 @@ public final class BaselineResolver {
         Objects.requireNonNull(currentProfile, "currentProfile");
         Objects.requireNonNull(declarations, "declarations");
 
-        BaselineSelector.SelectionReport report = findAndSelectWithReport(
-                useCaseId, factorsFingerprint, currentProfile, declarations);
+        EnumeratedBaselines enumerated = enumerateCandidates(useCaseId, factorsFingerprint);
+        BaselineSelector.SelectionReport report = enumerated.records().isEmpty()
+                ? BaselineSelector.SelectionReport.NONE
+                : BaselineSelector.selectWithReport(
+                        enumerated.records(), currentProfile, declarations);
         Optional<BaselineRecord> selected = report.selected();
         if (selected.isEmpty()) {
             return new BaselineLookup<>(
@@ -151,11 +156,16 @@ public final class BaselineResolver {
                     Optional.empty());
         }
         Optional<String> sourceFile = Optional.of(selected.get().filename());
+        // EX10: surface the integrity warning (if any) for the
+        // *selected* candidate only — warnings about candidates that
+        // didn't influence the verdict would be noise.
+        List<String> notes = withIntegrityWarning(
+                report.notes(), enumerated, selected.get());
         CovariateProfile baselineProfile = selected.get().covariateProfile();
         BaselineStatistics entry = selected.get().statisticsByCriterionName().get(criterionName);
         if (entry == null) {
             return new BaselineLookup<>(
-                    Optional.empty(), baselineProfile, report.notes(), sourceFile);
+                    Optional.empty(), baselineProfile, notes, sourceFile);
         }
         if (!statisticsType.isInstance(entry)) {
             throw new IllegalStateException(
@@ -166,8 +176,21 @@ public final class BaselineResolver {
                             + " — write-side and read-side criterion kinds disagree");
         }
         return new BaselineLookup<>(
-                Optional.of(statisticsType.cast(entry)), baselineProfile, report.notes(),
-                sourceFile);
+                Optional.of(statisticsType.cast(entry)), baselineProfile, notes, sourceFile);
+    }
+
+    private static List<String> withIntegrityWarning(
+            List<String> selectionNotes,
+            EnumeratedBaselines enumerated,
+            BaselineRecord selected) {
+        Optional<String> integrity = enumerated.integrityWarningFor(selected.filename());
+        if (integrity.isEmpty()) {
+            return selectionNotes;
+        }
+        List<String> combined = new ArrayList<>(selectionNotes.size() + 1);
+        combined.addAll(selectionNotes);
+        combined.add(integrity.get());
+        return combined;
     }
 
     /**
@@ -203,37 +226,34 @@ public final class BaselineResolver {
             String factorsFingerprint,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
-        return findAndSelectWithReport(useCaseId, factorsFingerprint,
-                currentProfile, declarations).selected();
-    }
-
-    private BaselineSelector.SelectionReport findAndSelectWithReport(
-            String useCaseId,
-            String factorsFingerprint,
-            CovariateProfile currentProfile,
-            List<Covariate> declarations) {
-        List<BaselineRecord> candidates = findRecords(useCaseId, factorsFingerprint);
-        if (candidates.isEmpty()) {
-            return BaselineSelector.SelectionReport.NONE;
+        EnumeratedBaselines enumerated = enumerateCandidates(useCaseId, factorsFingerprint);
+        if (enumerated.records().isEmpty()) {
+            return Optional.empty();
         }
         return BaselineSelector.selectWithReport(
-                candidates, currentProfile, declarations);
+                enumerated.records(), currentProfile, declarations).selected();
     }
 
-    private List<BaselineRecord> findRecords(String useCaseId, String factorsFingerprint) {
+    private EnumeratedBaselines enumerateCandidates(
+            String useCaseId, String factorsFingerprint) {
         if (!Files.isDirectory(baselineDir)) {
-            return List.of();
+            return EnumeratedBaselines.empty();
         }
         String prefix = useCaseId + ".";
         String factorsSegment = "-" + factorsFingerprint;
         String yamlExt = ".yaml";
         try (var stream = Files.list(baselineDir)) {
-            List<BaselineRecord> out = new ArrayList<>();
+            List<BaselineRecord> records = new ArrayList<>();
+            Map<String, Optional<String>> warnings = new LinkedHashMap<>();
             stream
                     .filter(p -> matchesFactorsFingerprint(
                             p.getFileName().toString(), prefix, factorsSegment, yamlExt))
-                    .forEach(p -> out.add(readUnchecked(p)));
-            return out;
+                    .forEach(p -> {
+                        BaselineReader.LoadedBaseline loaded = loadUnchecked(p);
+                        records.add(loaded.record());
+                        warnings.put(loaded.record().filename(), loaded.integrityWarning());
+                    });
+            return new EnumeratedBaselines(records, warnings);
         } catch (IOException e) {
             throw new UncheckedIOException(
                     "Failed to enumerate baselines in " + baselineDir, e);
@@ -271,12 +291,34 @@ public final class BaselineResolver {
                 || name.charAt(afterSegment) == '-';
     }
 
-    private BaselineRecord readUnchecked(Path file) {
+    private BaselineReader.LoadedBaseline loadUnchecked(Path file) {
         try {
-            return reader.read(file);
+            return reader.load(file);
         } catch (IOException e) {
             throw new UncheckedIOException(
                     "Failed to read baseline file " + file, e);
+        }
+    }
+
+    /**
+     * Per-enumeration scratch carrying the candidate records the
+     * selector chooses among, plus a side-table of integrity
+     * warnings keyed by canonical filename. After selection, only
+     * the warning matching the chosen record's filename is folded
+     * into the lookup notes; non-selected candidates' warnings are
+     * dropped (they would be noise — the verdict only depends on
+     * the selected baseline).
+     */
+    private record EnumeratedBaselines(
+            List<BaselineRecord> records,
+            Map<String, Optional<String>> integrityWarningsByFilename) {
+
+        Optional<String> integrityWarningFor(String filename) {
+            return integrityWarningsByFilename.getOrDefault(filename, Optional.empty());
+        }
+
+        static EnumeratedBaselines empty() {
+            return new EnumeratedBaselines(List.of(), Map.of());
         }
     }
 }
