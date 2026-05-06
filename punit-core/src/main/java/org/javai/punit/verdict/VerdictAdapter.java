@@ -58,10 +58,17 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  *       to the richer core enum; details kept null.</li>
  *   <li><b>Postcondition failures</b> — pass-through from
  *       {@link ProbabilisticTestResult#failuresByPostcondition()}.</li>
- *   <li><b>Verdict</b> — {@link Verdict#PASS} maps to
- *       {@code passedStatistically=true}; {@link Verdict#FAIL} and
- *       {@link Verdict#INCONCLUSIVE} both map to false (the builder's
- *       covariate-alignment logic decides FAIL vs INCONCLUSIVE).</li>
+ *   <li><b>Verdict</b> — the criterion's three-state
+ *       {@link Verdict} flows straight through to the builder via
+ *       {@link ProbabilisticTestVerdictBuilder#criterionVerdict}. The
+ *       builder then derives the {@link PUnitVerdict} consulting both
+ *       the criterion verdict and the run-level overrides
+ *       (covariate misalignment and budget exhaustion both force
+ *       INCONCLUSIVE regardless of what the criterion concluded).
+ *       This preserves a non-covariate INCONCLUSIVE — no baseline,
+ *       sample-size violation, identity mismatch — through to the
+ *       rendered verdict, per the RP01 invariant that "the verdict
+ *       is consistent with the statistical analysis."</li>
  * </ul>
  *
  * <h2>What the adapter cannot fill</h2>
@@ -153,7 +160,7 @@ public final class VerdictAdapter {
         b.postconditionFailures(result.failuresByPostcondition());
 
         // Verdict
-        b.passedStatistically(result.verdict() == Verdict.PASS);
+        b.criterionVerdict(result.verdict());
         // No JUnit-pass concept on the result; default true (the
         // field is only meaningful inside the JUnit context).
         b.junitPassed(true);

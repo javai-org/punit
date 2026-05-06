@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
@@ -70,7 +71,7 @@ class ConsoleVerdictSinkTest {
                     .execution(100, 42, 30, 12, 0.9, 0.7143, 200)
                     .termination(TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED, "Time budget exceeded")
                     .junitPassed(false)
-                    .passedStatistically(false)
+                    .criterionVerdict(Verdict.FAIL)
                     .build();
 
             String output = renderVerdict(verdict);
@@ -96,7 +97,7 @@ class ConsoleVerdictSinkTest {
                             10, 20, 30, 50, 100,
                             List.of(), List.of(), 90, 10))
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
 
             String output = renderVerdict(verdict);
@@ -115,7 +116,7 @@ class ConsoleVerdictSinkTest {
                     .execution(100, 100, 95, 5, 0.9, 0.95, 150)
                     .functionalDimension(95, 5)
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
 
             String output = renderVerdict(verdict);
@@ -147,7 +148,7 @@ class ConsoleVerdictSinkTest {
                 .identity("MySpec", "shouldPass", null)
                 .execution(100, 100, 95, 5, 0.9, 0.95, 150)
                 .junitPassed(true)
-                .passedStatistically(true)
+                .criterionVerdict(Verdict.PASS)
                 .build();
     }
 
@@ -156,7 +157,7 @@ class ConsoleVerdictSinkTest {
                 .identity("MySpec", "shouldPass", null)
                 .execution(100, 100, 80, 20, 0.9, 0.80, 200)
                 .junitPassed(false)
-                .passedStatistically(false)
+                .criterionVerdict(Verdict.FAIL)
                 .build();
     }
 

@@ -125,7 +125,7 @@ class VerdictAdapterTest {
     class VerdictMapping {
 
         @Test
-        @DisplayName("PASS verdict produces passedStatistically=true and PUnitVerdict.PASS")
+        @DisplayName("PASS verdict with aligned covariates produces PUnitVerdict.PASS")
         void passVerdict() {
             ProbabilisticTestVerdict verdict = adapt(minimalResult(Verdict.PASS));
 
@@ -138,6 +138,28 @@ class VerdictAdapterTest {
             ProbabilisticTestVerdict verdict = adapt(minimalResult(Verdict.FAIL));
 
             assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.FAIL);
+        }
+
+        @Test
+        @DisplayName("INCONCLUSIVE with aligned covariates produces PUnitVerdict.INCONCLUSIVE "
+                + "with reason 'insufficient evidence' (RP01 verdict-fidelity regression)")
+        void inconclusiveSurvivesAlignedCovariates() {
+            // The reproducer: a criterion that returns Verdict.INCONCLUSIVE
+            // for a non-covariate reason (no baseline, sample-size violation,
+            // identity mismatch) must not silently collapse to FAIL just
+            // because the run's covariates happen to be aligned. RP01
+            // requires the punit verdict to be consistent with the
+            // statistical analysis and the verdict reason to be consistent
+            // with the verdict enum.
+            ProbabilisticTestVerdict verdict = adapt(minimalResult(Verdict.INCONCLUSIVE));
+
+            assertThat(verdict.covariates().aligned())
+                    .as("covariate alignment is the *common* case the bug masked")
+                    .isTrue();
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.INCONCLUSIVE);
+            assertThat(verdict.verdictReason())
+                    .as("RP01: verdict reason consistent with verdict enum value")
+                    .isEqualTo("insufficient evidence");
         }
 
         @Test
