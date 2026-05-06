@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
+import org.javai.outcome.Outcome;
 import org.javai.punit.api.spec.ExceptionPolicy;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.TokenTracker;
@@ -105,10 +106,12 @@ public final class SerialSampleExecutor implements SampleExecutor {
             } catch (Throwable t) {
                 Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
                 observer.onDefect(i, t, elapsed);
+                emitProgress(false);
                 continue;
             }
             Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
             observer.onSample(i, outcome, elapsed);
+            emitProgress(outcome.value() instanceof Outcome.Ok);
         }
     }
 
@@ -120,4 +123,41 @@ public final class SerialSampleExecutor implements SampleExecutor {
             throw new RuntimeException("pacing sleep interrupted", ie);
         }
     }
+
+    /**
+     * Emit a single per-sample progress glyph to {@code System.out}
+     * and flush. {@code '.'} for a passing sample, {@code 'x'} for
+     * a failing one. When the {@code punit.progress.color} system
+     * property is unset or {@code true} (the default), the glyph
+     * is wrapped in ANSI green / red so a colour-aware terminal
+     * reinforces the pass/fail signal. The glyph itself remains
+     * visible without colour — the differentiation is doubly
+     * encoded so neither encoding alone carries the distinction.
+     *
+     * <p>The property is read on every call rather than cached in
+     * a {@code static final} so test fixtures can flip it via
+     * {@code System.setProperty} without forking the JVM. The
+     * per-sample cost of one {@link System#getProperty(String, String)}
+     * is negligible against the stdout I/O the method already
+     * performs.
+     */
+    private static void emitProgress(boolean ok) {
+        boolean color = Boolean.parseBoolean(
+                System.getProperty(PROGRESS_COLOR_PROPERTY, "true"));
+        String glyph;
+        if (ok) {
+            glyph = color ? GREEN + '.' + RESET : ".";
+        } else {
+            glyph = color ? RED + 'x' + RESET : "x";
+        }
+        System.out.print(glyph);
+        System.out.flush();
+    }
+
+    /** System property toggling ANSI colour on the per-sample progress glyphs. */
+    static final String PROGRESS_COLOR_PROPERTY = "punit.progress.color";
+
+    private static final String GREEN = "[32m";
+    private static final String RED = "[31m";
+    private static final String RESET = "[0m";
 }

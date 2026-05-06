@@ -1433,10 +1433,33 @@ PUnit resolves configuration in this order (highest priority first):
 | Confidence level        | `punit.confidence`           | `PUNIT_CONFIDENCE`          | `0.95`                                             |
 | Latency enforcement     | `punit.latency.enforcement`  | `PUNIT_LATENCY_ENFORCEMENT` | `advisory`                                         |
 | Default samples         | `punit.samples`              | `PUNIT_SAMPLES`             | builder-supplied; no global default                |
+| Progress glyph colour   | `punit.progress.color`       | —                           | `true`                                             |
 
 Gradle plugin configuration in the `punit { }` extension block
 mirrors the same settings. See the plugin module's README for the
 extension surface.
+
+### Per-sample progress glyphs
+
+PUnit emits a single non-newline character to standard output after
+each sample completes — `.` for a passing sample, `x` for a failing
+one. The glyphs are flushed immediately so a long-running MEASURE
+or probabilistic test gives live feedback that the JVM is busy
+rather than blocked. With the default `punit.progress.color=true`,
+each glyph is wrapped in ANSI green / red so a colour-aware
+terminal reinforces the pass/fail signal — but the differentiation
+is doubly encoded (period vs ex, green vs red), so a colour-blind
+reader or a non-ANSI terminal still sees the distinction.
+
+Set `-Dpunit.progress.color=false` to disable the ANSI wrapper.
+The glyphs continue to be emitted.
+
+The feature is deliberately lean: one glyph per sample, no spinner,
+no percentage, no ETA, no end-of-run summary. Verdict-rendering
+machinery remains the sole producer of structured run output. If
+the Gradle rich console garbles the glyph stream, run with
+`./gradlew exp --console=plain` — Gradle's plain console preserves
+the per-sample emission order exactly.
 
 ---
 
