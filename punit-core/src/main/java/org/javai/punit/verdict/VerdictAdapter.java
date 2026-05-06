@@ -162,6 +162,10 @@ public final class VerdictAdapter {
 
         // Verdict
         b.criterionVerdict(result.verdict());
+        // Criterion results carry the inconclusive-reason discriminant
+        // per InconclusiveReasons.DETAIL_KEY; the builder reads them
+        // when synthesising the verdict reason.
+        b.criterionResults(result.criterionResults());
         // No JUnit-pass concept on the result; default true (the
         // field is only meaningful inside the JUnit context).
         b.junitPassed(true);

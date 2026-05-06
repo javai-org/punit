@@ -19,6 +19,7 @@ import org.javai.punit.api.spec.EngineRunSummary;
 import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.InconclusiveReasons;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.model.TerminationReason;
@@ -138,6 +139,63 @@ class VerdictAdapterTest {
             ProbabilisticTestVerdict verdict = adapt(minimalResult(Verdict.FAIL));
 
             assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.FAIL);
+        }
+
+        @Test
+        @DisplayName("INCONCLUSIVE with the 'no baseline available' criterion discriminant "
+                + "renders that reason on the verdict (RP01 vocabulary)")
+        void inconclusiveNoBaselineAvailable() {
+            ProbabilisticTestVerdict verdict = adapt(inconclusiveWithReason(
+                    InconclusiveReasons.NO_BASELINE_AVAILABLE));
+
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.INCONCLUSIVE);
+            assertThat(verdict.verdictReason()).isEqualTo("no baseline available");
+        }
+
+        @Test
+        @DisplayName("INCONCLUSIVE with the 'baseline inputs mismatch' discriminant renders "
+                + "that reason on the verdict")
+        void inconclusiveBaselineInputsMismatch() {
+            ProbabilisticTestVerdict verdict = adapt(inconclusiveWithReason(
+                    InconclusiveReasons.BASELINE_INPUTS_MISMATCH));
+
+            assertThat(verdict.verdictReason()).isEqualTo("baseline inputs mismatch");
+        }
+
+        @Test
+        @DisplayName("INCONCLUSIVE with the 'baseline sample size exceeded' discriminant "
+                + "renders that reason on the verdict")
+        void inconclusiveBaselineSampleSizeExceeded() {
+            ProbabilisticTestVerdict verdict = adapt(inconclusiveWithReason(
+                    InconclusiveReasons.BASELINE_SAMPLE_SIZE_EXCEEDED));
+
+            assertThat(verdict.verdictReason()).isEqualTo("baseline sample size exceeded");
+        }
+
+        @Test
+        @DisplayName("INCONCLUSIVE with the 'insufficient evidence' discriminant renders "
+                + "that reason on the verdict")
+        void inconclusiveInsufficientEvidenceExplicit() {
+            // Explicit discriminant — the criterion stamped INSUFFICIENT_EVIDENCE
+            // rather than leaving the detail map untouched. Same behaviour as
+            // the no-discriminant fallback, but exercised via the named path.
+            ProbabilisticTestVerdict verdict = adapt(inconclusiveWithReason(
+                    InconclusiveReasons.INSUFFICIENT_EVIDENCE));
+
+            assertThat(verdict.verdictReason()).isEqualTo("insufficient evidence");
+        }
+
+        @Test
+        @DisplayName("INCONCLUSIVE with no discriminant on the criterion-result detail "
+                + "map falls back to 'insufficient evidence' — RP01 catch-all "
+                + "(backward compat for criteria pre-dating the vocabulary expansion)")
+        void inconclusiveNoDiscriminantFallsBack() {
+            // No criterion result on the test result — the builder's
+            // criterionResults list is empty.
+            ProbabilisticTestVerdict verdict = adapt(minimalResult(Verdict.INCONCLUSIVE));
+
+            assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.INCONCLUSIVE);
+            assertThat(verdict.verdictReason()).isEqualTo("insufficient evidence");
         }
 
         @Test
@@ -398,6 +456,27 @@ class VerdictAdapterTest {
         return new ProbabilisticTestResult(
                 v, FactorBundle.of(new Factors()),
                 List.of(), TestIntent.VERIFICATION, List.of(),
+                CovariateAlignment.none(), Optional.empty(), Map.of(),
+                EngineRunSummary.empty());
+    }
+
+    /**
+     * Build a {@link ProbabilisticTestResult} whose verdict is
+     * INCONCLUSIVE and whose single criterion result carries the
+     * given discriminant on its detail map under
+     * {@link InconclusiveReasons#DETAIL_KEY}. Aligned covariates —
+     * the case the bug masked.
+     */
+    private static ProbabilisticTestResult inconclusiveWithReason(String reasonValue) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put(InconclusiveReasons.DETAIL_KEY, reasonValue);
+        EvaluatedCriterion ec = new EvaluatedCriterion(
+                new CriterionResult("pass-rate", Verdict.INCONCLUSIVE,
+                        "synthetic — see test fixture", detail),
+                CriterionRole.REQUIRED);
+        return new ProbabilisticTestResult(
+                Verdict.INCONCLUSIVE, FactorBundle.of(new Factors()),
+                List.of(ec), TestIntent.VERIFICATION, List.of(),
                 CovariateAlignment.none(), Optional.empty(), Map.of(),
                 EngineRunSummary.empty());
     }
