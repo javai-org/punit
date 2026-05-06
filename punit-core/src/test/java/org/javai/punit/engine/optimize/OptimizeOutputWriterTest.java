@@ -90,7 +90,8 @@ class OptimizeOutputWriterTest {
         assertThat(projection).containsKeys("sample[0]", "sample[1]");
         @SuppressWarnings("unchecked")
         Map<String, Object> sample0 = (Map<String, Object>) projection.get("sample[0]");
-        assertThat(sample0).containsKeys("input", "postconditions", "executionTimeMs", "content");
+        assertThat(sample0).containsKeys("inputIndex", "postconditions", "executionTimeMs", "content");
+        assertThat(sample0).doesNotContainKey("input");
 
         @SuppressWarnings("unchecked")
         Map<String, Object> convergence = (Map<String, Object>) parsed.get("convergence");

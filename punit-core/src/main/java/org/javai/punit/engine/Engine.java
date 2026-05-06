@@ -268,12 +268,16 @@ public final class Engine {
             // ever supplies UseCaseOutcome<IT, OT> so this is safe.
             @SuppressWarnings("unchecked")
             UseCaseOutcome<IT, OT> typed = (UseCaseOutcome<IT, OT>) stamped;
-            return new Trial<>(inputForIndex(index), typed, stamped.duration());
+            int inputIndex = cycleIndexFor(index);
+            return new Trial<>(inputs.get(inputIndex), typed, stamped.duration(), inputIndex);
         }
 
         private IT inputForIndex(int index) {
-            int cycleIndex = (cycleStart + index) % inputs.size();
-            return inputs.get(cycleIndex);
+            return inputs.get(cycleIndexFor(index));
+        }
+
+        private int cycleIndexFor(int index) {
+            return (cycleStart + index) % inputs.size();
         }
 
         SampleSummary<OT> toSummary(Duration elapsed) {
