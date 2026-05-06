@@ -124,12 +124,19 @@ class PUnitPlugin : Plugin<Project> {
             }
 
             testLogging {
-                // STANDARD_OUT is dropped here so per-sample progress
-                // chunks (see SampleProgressBridge) aren't decorated
-                // with the `STANDARD_OUT` test-name header on every
-                // flush. The bridge takes responsibility for relaying
-                // ALL test-stdout — progress and non-progress alike —
-                // to the build's terminal, so nothing is lost.
+                // STANDARD_OUT is dropped from `events` so per-sample
+                // progress chunks (see SampleProgressBridge) aren't
+                // decorated with the `STANDARD_OUT` test-name header
+                // on every flush. The bridge takes responsibility for
+                // relaying ALL test-stdout — progress and non-progress
+                // alike — to the build's terminal, so nothing is lost.
+                //
+                // showStandardStreams is intentionally NOT set here:
+                // setting it to `true` is a shortcut that re-adds
+                // STANDARD_OUT and STANDARD_ERROR to `events`,
+                // undoing the explicit removal above. Setting it to
+                // `false` would also strip STANDARD_ERROR, which we
+                // want to keep.
                 events = setOf(
                     TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED,
                     TestLogEvent.STANDARD_ERROR
@@ -138,7 +145,6 @@ class PUnitPlugin : Plugin<Project> {
                 showCauses = true
                 showStackTraces = true
                 exceptionFormat = TestExceptionFormat.FULL
-                showStandardStreams = true
             }
             installProgressBridge(this)
 
