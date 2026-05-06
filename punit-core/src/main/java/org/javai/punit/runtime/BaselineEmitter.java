@@ -30,6 +30,7 @@ import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.engine.baseline.BaselineRecord;
 import org.javai.punit.engine.baseline.BaselineWriter;
 import org.javai.punit.engine.baseline.FactorsFingerprint;
+import org.javai.punit.engine.baseline.LatencyIndicator;
 import org.javai.punit.engine.covariate.CovariateResolver;
 
 /**
@@ -156,6 +157,15 @@ final class BaselineEmitter {
                 : CovariateResolver.defaults()
                         .resolve(declarations, useCase.customCovariateResolvers());
 
+        // EX04 descriptive latency: passing-only percentiles plus
+        // the LT01 population indicator. Empty when no samples
+        // passed; BaselineWriter omits the block entirely in that
+        // case.
+        LatencyResult passing = summary.passingLatencyResult();
+        LatencyIndicator latencyIndicator = passing.sampleCount() == 0
+                ? LatencyIndicator.empty()
+                : new LatencyIndicator(passing, summary.successes(), total);
+
         return new BaselineRecord(
                 useCaseId,
                 experimentId,
@@ -164,7 +174,8 @@ final class BaselineEmitter {
                 total,
                 Instant.now(),
                 stats,
-                profile);
+                profile,
+                latencyIndicator);
     }
 
 }

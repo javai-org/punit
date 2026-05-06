@@ -191,24 +191,26 @@ public final class VerdictAdapter {
     }
 
     private static LatencyInput toLatencyInput(EngineRunSummary engine) {
-        LatencyResult lat = engine.latencyResult();
+        // LT01: only samples whose contract evaluated to Outcome.ok
+        // contribute to the percentiles. Emit the descriptive
+        // dimension whenever ≥ 1 sample passed, independent of LT04
+        // activation; threshold/verdict sub-fields stay LT04-gated
+        // and are populated separately when assertions are configured.
+        LatencyResult lat = engine.passingLatencyResult();
         if (lat.sampleCount() == 0) {
             return null;
         }
-        // Observed-only latency — no per-percentile assertions, no
-        // caveats. Successful samples = engine.successes; dimension
-        // failures = 0 (latency isn't asserted as a criterion today).
         return new LatencyInput(
-                engine.successes(),
-                engine.samplesExecuted(),
-                false,                                 // skipped
+                engine.successes(),                    // contributing (passing) samples
+                engine.samplesExecuted(),              // total samples
+                false,                                 // skipped (LT04 concept; descriptive emitted regardless)
                 null,                                  // skipReason
                 lat.p50().toMillis(),
                 lat.p90().toMillis(),
                 lat.p95().toMillis(),
                 lat.p99().toMillis(),
                 -1L,                                   // maxMs unavailable
-                List.of(),                             // assertions
+                List.of(),                             // assertions (LT04-gated; populated separately when active)
                 List.of(),                             // caveats
                 engine.successes(),                    // dimensionSuccesses
                 0);                                    // dimensionFailures

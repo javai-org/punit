@@ -70,12 +70,14 @@ public record EngineRunSummary(
         LatencyResult latencyResult,
         TerminationReason terminationReason,
         double confidence,
-        Optional<String> baselineFilename) {
+        Optional<String> baselineFilename,
+        LatencyResult passingLatencyResult) {
 
     public EngineRunSummary {
         Objects.requireNonNull(latencyResult, "latencyResult");
         Objects.requireNonNull(terminationReason, "terminationReason");
         Objects.requireNonNull(baselineFilename, "baselineFilename");
+        Objects.requireNonNull(passingLatencyResult, "passingLatencyResult");
         if (plannedSamples < 0 || samplesExecuted < 0
                 || successes < 0 || failures < 0) {
             throw new IllegalArgumentException("counts must be non-negative");
@@ -108,6 +110,35 @@ public record EngineRunSummary(
                 LatencyResult.empty(),
                 TerminationReason.COMPLETED,
                 0.95,
-                Optional.empty());
+                Optional.empty(),
+                LatencyResult.empty());
+    }
+
+    /**
+     * Backward-compatible 11-arg constructor. Defaults
+     * {@link #passingLatencyResult()} to the supplied
+     * {@code latencyResult} so callers that haven't yet
+     * differentiated passing-only data see the descriptive latency
+     * dimension populated as it was before the LT01 amendment.
+     * Production code in the engine constructs summaries via the
+     * canonical 12-arg constructor with the proper passing-only
+     * result.
+     */
+    public EngineRunSummary(
+            int plannedSamples,
+            int samplesExecuted,
+            int successes,
+            int failures,
+            long elapsedMs,
+            long tokensConsumed,
+            int failuresDropped,
+            LatencyResult latencyResult,
+            TerminationReason terminationReason,
+            double confidence,
+            Optional<String> baselineFilename) {
+        this(plannedSamples, samplesExecuted, successes, failures,
+                elapsedMs, tokensConsumed, failuresDropped, latencyResult,
+                terminationReason, confidence, baselineFilename,
+                latencyResult);
     }
 }

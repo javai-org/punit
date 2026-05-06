@@ -140,11 +140,16 @@ public final class Engine {
         private final BudgetTracker tracker;
         // retained is exposed via the summary; failure detail beyond
         // maxExampleFailures is elided. allForLatency holds durations
-        // from every sample so latency stats never skew on drop.
-        // trials carries the full ordered (input, outcome, duration)
-        // history regardless of the failure cap.
+        // from every sample so the all-samples latency stats never
+        // skew on drop. passingForLatency holds durations from samples
+        // that passed (Outcome.Ok at the contract layer per
+        // UseCaseOutcome.value()), feeding the LT01 passing-only
+        // descriptive percentiles emitted into EX04 / EX05 / EX06 /
+        // RP01 artefacts. trials carries the full ordered (input,
+        // outcome, duration) history regardless of the failure cap.
         private final List<UseCaseOutcome<?, OT>> retained = new ArrayList<>();
         private final List<UseCaseOutcome<?, OT>> allForLatency = new ArrayList<>();
+        private final List<UseCaseOutcome<?, OT>> passingForLatency = new ArrayList<>();
         private final List<Trial<?, OT>> trials = new ArrayList<>();
         private final LinkedHashMap<String, MutableFailureBucket> failuresByPostcondition =
                 new LinkedHashMap<>();
@@ -221,6 +226,7 @@ public final class Engine {
             if (ok) {
                 successes++;
                 retained.add(stamped);
+                passingForLatency.add(stamped);
             } else {
                 failures++;
                 if (retainedFailures < maxExampleFailures) {
@@ -272,6 +278,8 @@ public final class Engine {
 
         SampleSummary<OT> toSummary(Duration elapsed) {
             LatencyResult latencyResult = LatencyPercentileComputer.computeFrom(allForLatency);
+            LatencyResult passingLatencyResult =
+                    LatencyPercentileComputer.computeFrom(passingForLatency);
             return new SampleSummary<>(
                     retained,
                     elapsed,
@@ -282,7 +290,8 @@ public final class Engine {
                     latencyResult,
                     tracker.terminationReason(),
                     trials,
-                    immutableFailuresByPostcondition());
+                    immutableFailuresByPostcondition(),
+                    passingLatencyResult);
         }
 
         private Map<String, FailureCount> immutableFailuresByPostcondition() {

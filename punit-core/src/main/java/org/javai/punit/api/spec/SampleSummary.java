@@ -59,7 +59,8 @@ public record SampleSummary<OT>(
         LatencyResult latencyResult,
         TerminationReason terminationReason,
         List<Trial<?, OT>> trials,
-        Map<String, FailureCount> failuresByPostcondition) {
+        Map<String, FailureCount> failuresByPostcondition,
+        LatencyResult passingLatencyResult) {
 
     public SampleSummary {
         Objects.requireNonNull(outcomes, "outcomes");
@@ -68,6 +69,7 @@ public record SampleSummary<OT>(
         Objects.requireNonNull(terminationReason, "terminationReason");
         Objects.requireNonNull(trials, "trials");
         Objects.requireNonNull(failuresByPostcondition, "failuresByPostcondition");
+        Objects.requireNonNull(passingLatencyResult, "passingLatencyResult");
         if (successes < 0 || failures < 0) {
             throw new IllegalArgumentException("counts must be non-negative");
         }
@@ -96,11 +98,33 @@ public record SampleSummary<OT>(
     }
 
     /**
-     * Backward-compatible constructor that defaults
-     * {@link #failuresByPostcondition()} to an empty map. Used by
-     * test fixtures and call sites that haven't yet migrated to the
-     * canonical 10-field shape; the engine constructs summaries via
-     * the canonical constructor with a populated histogram.
+     * Backward-compatible 10-arg constructor that defaults
+     * {@link #passingLatencyResult()} to {@link LatencyResult#empty()}.
+     * Test fixtures and call sites that haven't yet migrated to the
+     * canonical 11-field shape can construct via this overload; the
+     * engine constructs summaries via the canonical constructor with
+     * the passing-only latency result populated.
+     */
+    public SampleSummary(
+            List<UseCaseOutcome<?, OT>> outcomes,
+            Duration elapsed,
+            int successes,
+            int failures,
+            long tokensConsumed,
+            int failuresDropped,
+            LatencyResult latencyResult,
+            TerminationReason terminationReason,
+            List<Trial<?, OT>> trials,
+            Map<String, FailureCount> failuresByPostcondition) {
+        this(outcomes, elapsed, successes, failures, tokensConsumed,
+                failuresDropped, latencyResult, terminationReason, trials,
+                failuresByPostcondition, LatencyResult.empty());
+    }
+
+    /**
+     * Backward-compatible 9-arg constructor that defaults
+     * {@link #failuresByPostcondition()} to an empty map and
+     * {@link #passingLatencyResult()} to {@link LatencyResult#empty()}.
      */
     public SampleSummary(
             List<UseCaseOutcome<?, OT>> outcomes,
@@ -114,7 +138,7 @@ public record SampleSummary<OT>(
             List<Trial<?, OT>> trials) {
         this(outcomes, elapsed, successes, failures, tokensConsumed,
                 failuresDropped, latencyResult, terminationReason, trials,
-                Map.of());
+                Map.of(), LatencyResult.empty());
     }
 
     /**

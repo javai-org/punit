@@ -195,12 +195,41 @@ public record ProbabilisticTestVerdict(
             List<PercentileAssertion> assertions,
             List<String> caveats,
             int dimensionSuccesses,
-            int dimensionFailures
+            int dimensionFailures,
+            String basis
     ) {
         public LatencyDimension {
             skipReason = skipReason != null ? skipReason : Optional.empty();
             assertions = assertions != null ? List.copyOf(assertions) : List.of();
             caveats = caveats != null ? List.copyOf(caveats) : List.of();
+            basis = basis != null ? basis : "passing-samples";
+        }
+
+        /**
+         * Backward-compatible 13-arg constructor that defaults
+         * {@link #basis()} to {@code "passing-samples"} (the only
+         * currently defined population per LT01). Test fixtures and
+         * older call sites that haven't yet adopted the canonical
+         * 14-field shape can construct via this overload.
+         */
+        public LatencyDimension(
+                int successfulSamples,
+                int totalSamples,
+                boolean skipped,
+                Optional<String> skipReason,
+                long p50Ms,
+                long p90Ms,
+                long p95Ms,
+                long p99Ms,
+                long maxMs,
+                List<PercentileAssertion> assertions,
+                List<String> caveats,
+                int dimensionSuccesses,
+                int dimensionFailures) {
+            this(successfulSamples, totalSamples, skipped, skipReason,
+                    p50Ms, p90Ms, p95Ms, p99Ms, maxMs,
+                    assertions, caveats, dimensionSuccesses, dimensionFailures,
+                    "passing-samples");
         }
     }
 
