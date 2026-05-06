@@ -11,6 +11,7 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.spec.FactorsStepper.IterationResult;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Trial;
+import org.javai.punit.engine.output.LatencySection;
 import org.javai.punit.engine.output.ResultProjections;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -102,12 +103,18 @@ public final class OptimizeOutputWriter {
             entry.put("successes", ir.successes());
             entry.put("failures", ir.failures());
             entry.put("samplesExecuted", ir.samplesExecuted());
+            // Per-iteration latency block — passing-only percentiles
+            // + LT01 indicator, scoped to this iteration's samples.
+            // Omitted when zero samples passed in the iteration.
             // Per-iteration result projection: one sample[N]: block
             // per trial, carrying input / postconditions / etc. The
             // writer leaves anchor-comment injection to the
             // top-level injectAnchorComments pass.
             if (idx < iterationSummaries.size()) {
-                List<? extends Trial<?, ?>> trials = iterationSummaries.get(idx).trials();
+                SampleSummary<?> iterSummary = iterationSummaries.get(idx);
+                LatencySection.blockFor(iterSummary)
+                        .ifPresent(block -> entry.put("latency", block));
+                List<? extends Trial<?, ?>> trials = iterSummary.trials();
                 entry.put("resultProjection", ResultProjections.resultProjectionMap(trials));
             }
             out.add(entry);

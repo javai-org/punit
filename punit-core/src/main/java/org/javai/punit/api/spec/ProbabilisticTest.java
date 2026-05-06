@@ -246,7 +246,8 @@ public final class ProbabilisticTest implements Spec {
                     s.latencyResult(),
                     s.terminationReason(),
                     confidence,
-                    baselineFilename);
+                    baselineFilename,
+                    s.passingLatencyResult());
         }
 
         private static double scanConfidence(List<EvaluatedCriterion> evaluated) {

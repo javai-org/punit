@@ -94,6 +94,21 @@ public final class BaselineWriter {
             root.put(FIELD_COVARIATES,
                     new LinkedHashMap<>(record.covariateProfile().values()));
         }
+        // EX04 latency block — passing-only percentiles + LT01
+        // population indicator. Emitted top-level (not under
+        // statistics) per the catalog amendment landed via
+        // orchestrator PR #21. The block is omitted entirely when
+        // zero samples passed; individual percentiles within it are
+        // omitted per LT01's minimum-samples rule (1 / 10 / 20 /
+        // 100 for p50 / p90 / p95 / p99).
+        LatencyIndicator latency = record.latencyIndicator();
+        if (latency.hasData()) {
+            org.javai.punit.engine.output.LatencySection.blockFor(
+                    latency.passingPercentiles(),
+                    latency.contributingSamples(),
+                    latency.totalSamples())
+                .ifPresent(block -> root.put("latency", block));
+        }
         return root;
     }
 

@@ -13,6 +13,7 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.PerConfigSummary;
 import org.javai.punit.api.spec.SampleSummary;
+import org.javai.punit.engine.output.LatencySection;
 import org.javai.punit.engine.output.ResultProjections;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -67,6 +68,12 @@ public final class ExploreOutputWriter {
         root.put("execution", executionBlock(entry));
         root.put("statistics", statisticsBlock(entry.summary()));
         root.put("cost", costBlock(entry.summary()));
+        // EX05 latency block — passing-only percentiles + LT01
+        // indicator. Inserted before resultProjection so the
+        // aggregate latency precedes the per-sample timing data.
+        // Omitted entirely when zero samples passed.
+        LatencySection.blockFor(entry.summary())
+                .ifPresent(block -> root.put("latency", block));
         root.put("resultProjection", ResultProjections.resultProjectionMap(entry.summary().trials()));
 
         String dump = yaml().dump(root);

@@ -47,7 +47,8 @@ public record BaselineRecord(
         int sampleCount,
         Instant generatedAt,
         Map<String, BaselineStatistics> statisticsByCriterionName,
-        CovariateProfile covariateProfile) {
+        CovariateProfile covariateProfile,
+        LatencyIndicator latencyIndicator) {
 
     public BaselineRecord {
         Objects.requireNonNull(useCaseId, "useCaseId");
@@ -57,6 +58,7 @@ public record BaselineRecord(
         Objects.requireNonNull(generatedAt, "generatedAt");
         Objects.requireNonNull(statisticsByCriterionName, "statisticsByCriterionName");
         Objects.requireNonNull(covariateProfile, "covariateProfile");
+        Objects.requireNonNull(latencyIndicator, "latencyIndicator");
         if (useCaseId.isBlank()) {
             throw new IllegalArgumentException("useCaseId must not be blank");
         }
@@ -79,10 +81,29 @@ public record BaselineRecord(
     }
 
     /**
+     * Backward-compatible 8-arg constructor that defaults
+     * {@link #latencyIndicator()} to {@link LatencyIndicator#empty()}.
+     */
+    public BaselineRecord(
+            String useCaseId,
+            String methodName,
+            String factorsFingerprint,
+            String inputsIdentity,
+            int sampleCount,
+            Instant generatedAt,
+            Map<String, BaselineStatistics> statisticsByCriterionName,
+            CovariateProfile covariateProfile) {
+        this(useCaseId, methodName, factorsFingerprint, inputsIdentity,
+                sampleCount, generatedAt, statisticsByCriterionName,
+                covariateProfile, LatencyIndicator.empty());
+    }
+
+    /**
      * Convenience constructor for callers that don't carry a covariate
      * profile (covariate-insensitive baselines, tests that don't
      * exercise covariate resolution). Equivalent to the canonical
-     * constructor with {@link CovariateProfile#empty()}.
+     * constructor with {@link CovariateProfile#empty()} and
+     * {@link LatencyIndicator#empty()}.
      */
     public BaselineRecord(
             String useCaseId,
@@ -94,7 +115,7 @@ public record BaselineRecord(
             Map<String, BaselineStatistics> statisticsByCriterionName) {
         this(useCaseId, methodName, factorsFingerprint, inputsIdentity,
                 sampleCount, generatedAt, statisticsByCriterionName,
-                CovariateProfile.empty());
+                CovariateProfile.empty(), LatencyIndicator.empty());
     }
 
     /**
