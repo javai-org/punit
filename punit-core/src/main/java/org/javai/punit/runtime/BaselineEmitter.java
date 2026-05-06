@@ -141,9 +141,20 @@ final class BaselineEmitter {
         Map<String, BaselineStatistics> stats = new LinkedHashMap<>();
         stats.put("bernoulli-pass-rate",
                 new PassRateStatistics((double) summary.successes() / (double) total, total));
-        LatencyResult latency = summary.latencyResult();
-        if (latency.sampleCount() > 0) {
-            stats.put("percentile-latency", new LatencyStatistics(latency, total));
+        // LatencyStatistics retained on the in-memory record under
+        // the criterion-name "percentile-latency" so the
+        // PercentileLatency criterion's lookup path keeps working.
+        // Sourced from passingLatencyResult per LT01 — only samples
+        // whose contract evaluated to Outcome.ok contribute. The
+        // legacy YAML emission of this entry under
+        // statistics.percentile-latency is retired; the data lives
+        // canonically in the top-level latency: block, and the
+        // reader synthesises this map entry from that block at load
+        // time.
+        LatencyResult passingForCriterion = summary.passingLatencyResult();
+        if (passingForCriterion.sampleCount() > 0) {
+            stats.put("percentile-latency",
+                    new LatencyStatistics(passingForCriterion, summary.successes()));
         }
 
         // The resolved covariate profile is part of the baseline's

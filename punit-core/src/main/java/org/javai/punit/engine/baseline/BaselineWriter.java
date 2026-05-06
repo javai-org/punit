@@ -82,9 +82,19 @@ public final class BaselineWriter {
         root.put(FIELD_SAMPLE_COUNT, record.sampleCount());
         root.put(FIELD_GENERATED_AT, DateTimeFormatter.ISO_INSTANT.format(record.generatedAt()));
 
+        // The legacy criterion-named "percentile-latency" entry is
+        // no longer emitted to YAML — the canonical EX04 location
+        // for latency data is the top-level `latency:` block written
+        // below. The in-memory map keeps the entry for the
+        // PercentileLatency criterion's lookup; the reader
+        // re-synthesises it from the top-level block on load.
         Map<String, Object> stats = new LinkedHashMap<>();
-        record.statisticsByCriterionName().forEach((name, value) ->
-                stats.put(name, serialiseStatisticsEntry(name, value)));
+        record.statisticsByCriterionName().forEach((name, value) -> {
+            if (value instanceof LatencyStatistics) {
+                return; // suppressed; lives in the latency: block instead
+            }
+            stats.put(name, serialiseStatisticsEntry(name, value));
+        });
         root.put(FIELD_STATISTICS, stats);
 
         if (!record.covariateProfile().isEmpty()) {

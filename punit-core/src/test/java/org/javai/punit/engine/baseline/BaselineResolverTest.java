@@ -25,10 +25,18 @@ class BaselineResolverTest {
 
     private void writeBaseline(Path dir, String useCaseId, String fingerprint,
                                 Map<String, BaselineStatistics> entries) throws IOException {
+        writeBaseline(dir, useCaseId, fingerprint, entries, LatencyIndicator.empty());
+    }
+
+    private void writeBaseline(Path dir, String useCaseId, String fingerprint,
+                                Map<String, BaselineStatistics> entries,
+                                LatencyIndicator indicator) throws IOException {
         BaselineRecord record = new BaselineRecord(
                 useCaseId, "measureBaseline", fingerprint,
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
-                entries);
+                entries,
+                CovariateProfile.empty(),
+                indicator);
         writer.write(record, dir);
     }
 
@@ -122,9 +130,23 @@ class BaselineResolverTest {
     @Test
     @DisplayName("resolves multiple criterion entries from one baseline file")
     void resolvesMultipleEntries(@TempDir Path dir) throws IOException {
-        writeBaseline(dir, "ShoppingBasket", "a1b2c3d4", new java.util.LinkedHashMap<>(Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000),
-                "percentile-latency", new LatencyStatistics(LatencyResult.empty(), 1000))));
+        // Pass-rate rides on the statistics: map; latency rides on
+        // the top-level latency: block (the indicator). The reader
+        // synthesises the "percentile-latency" map entry from the
+        // indicator at load time, so a resolver lookup keyed by the
+        // criterion name finds the entry as before.
+        LatencyIndicator indicator = new LatencyIndicator(
+                new LatencyResult(
+                        java.time.Duration.ofMillis(50),
+                        java.time.Duration.ofMillis(100),
+                        java.time.Duration.ofMillis(200),
+                        java.time.Duration.ofMillis(400),
+                        1000),
+                1000, 1000);
+        writeBaseline(dir, "ShoppingBasket", "a1b2c3d4",
+                new java.util.LinkedHashMap<>(Map.of(
+                        "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))),
+                indicator);
 
         var resolver = new BaselineResolver(dir);
 
