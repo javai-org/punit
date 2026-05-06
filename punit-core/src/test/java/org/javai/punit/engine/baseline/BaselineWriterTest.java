@@ -71,7 +71,7 @@ class BaselineWriterTest {
     }
 
     @Test
-    @DisplayName("serialises a LatencyStatistics entry with all four percentiles in ISO-8601")
+    @DisplayName("serialises latency to the top-level latency: block with ms-integer percentiles")
     void serialisesLatency() {
         LatencyResult percentiles = new LatencyResult(
                 Duration.ofMillis(250),
@@ -79,36 +79,60 @@ class BaselineWriterTest {
                 Duration.ofMillis(800),
                 Duration.ofMillis(1200),
                 1000);
+        LatencyIndicator indicator = new LatencyIndicator(percentiles, 1000, 1000);
 
-        String yaml = writer.toYaml(recordWith(Map.of(
-                "percentile-latency", new LatencyStatistics(percentiles, 1000))));
+        String yaml = writer.toYaml(recordWithLatency(
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                indicator));
 
         Map<String, Object> root = new Yaml().load(yaml);
+        // Legacy statistics.percentile-latency block is retired —
+        // latency lives at the top level only.
         Map<String, Object> stats = (Map<String, Object>) root.get("statistics");
-        Map<String, Object> entry = (Map<String, Object>) stats.get("percentile-latency");
+        assertThat(stats).doesNotContainKey("percentile-latency");
 
-        assertThat(entry).containsEntry("sampleCount", 1000);
-
-        Map<String, Object> percentileMap = (Map<String, Object>) entry.get("percentiles");
-        assertThat(percentileMap)
-                .containsEntry("p50", "PT0.25S")
-                .containsEntry("p90", "PT0.5S")
-                .containsEntry("p95", "PT0.8S")
-                .containsEntry("p99", "PT1.2S");
+        Map<String, Object> latency = (Map<String, Object>) root.get("latency");
+        // snakeyaml round-trips small integers as Integer, not Long.
+        assertThat(latency)
+                .containsEntry("basis", "passing-samples")
+                .containsEntry("contributingSamples", 1000)
+                .containsEntry("totalSamples", 1000);
+        assertThat(((Number) latency.get("p50Ms")).longValue()).isEqualTo(250L);
+        assertThat(((Number) latency.get("p90Ms")).longValue()).isEqualTo(500L);
+        assertThat(((Number) latency.get("p95Ms")).longValue()).isEqualTo(800L);
+        assertThat(((Number) latency.get("p99Ms")).longValue()).isEqualTo(1200L);
     }
 
     @Test
-    @DisplayName("serialises multiple criterion entries side-by-side")
+    @DisplayName("serialises pass-rate under statistics: and latency at the top level alongside")
     void serialisesBothCriteria() {
         Map<String, BaselineStatistics> entries = new LinkedHashMap<>();
         entries.put("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000));
-        entries.put("percentile-latency", new LatencyStatistics(LatencyResult.empty(), 1000));
+        LatencyIndicator indicator = new LatencyIndicator(
+                new LatencyResult(Duration.ofMillis(250), Duration.ofMillis(500),
+                        Duration.ofMillis(800), Duration.ofMillis(1200), 1000),
+                1000, 1000);
 
-        String yaml = writer.toYaml(recordWith(entries));
+        String yaml = writer.toYaml(recordWithLatency(entries, indicator));
         Map<String, Object> root = new Yaml().load(yaml);
         Map<String, Object> stats = (Map<String, Object>) root.get("statistics");
 
-        assertThat(stats).containsKeys("bernoulli-pass-rate", "percentile-latency");
+        assertThat(stats).containsOnlyKeys("bernoulli-pass-rate");
+        assertThat(root).containsKey("latency");
+    }
+
+    private BaselineRecord recordWithLatency(
+            Map<String, BaselineStatistics> stats, LatencyIndicator indicator) {
+        return new BaselineRecord(
+                "ShoppingBasketUseCase",
+                "measureBaseline",
+                "a1b2c3d4",
+                "sha256:7d3a8c1e9b2f",
+                1000,
+                Instant.parse("2026-04-26T15:30:00Z"),
+                stats,
+                org.javai.punit.api.covariate.CovariateProfile.empty(),
+                indicator);
     }
 
     @Test

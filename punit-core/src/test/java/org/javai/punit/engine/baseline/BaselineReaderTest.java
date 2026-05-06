@@ -27,11 +27,18 @@ class BaselineReaderTest {
     private final BaselineWriter writer = new BaselineWriter();
 
     private BaselineRecord roundTrip(Map<String, BaselineStatistics> entries) {
+        return roundTrip(entries, LatencyIndicator.empty());
+    }
+
+    private BaselineRecord roundTrip(Map<String, BaselineStatistics> entries,
+                                     LatencyIndicator indicator) {
         BaselineRecord original = new BaselineRecord(
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:abc123", 1000,
                 Instant.parse("2026-04-26T15:30:00Z"),
-                entries);
+                entries,
+                org.javai.punit.api.covariate.CovariateProfile.empty(),
+                indicator);
         return reader.parse(writer.toYaml(original));
     }
 
@@ -56,7 +63,7 @@ class BaselineReaderTest {
     }
 
     @Test
-    @DisplayName("round-trips a LatencyStatistics record (all four percentiles)")
+    @DisplayName("round-trips latency through the top-level latency: block (ms-integer percentiles)")
     void roundTripLatency() {
         LatencyResult percentiles = new LatencyResult(
                 Duration.ofMillis(250),
@@ -64,10 +71,19 @@ class BaselineReaderTest {
                 Duration.ofMillis(800),
                 Duration.ofMillis(1200),
                 1000);
+        LatencyIndicator indicator = new LatencyIndicator(percentiles, 1000, 1000);
 
-        BaselineRecord parsed = roundTrip(Map.of(
-                "percentile-latency", new LatencyStatistics(percentiles, 1000)));
+        // Pass-rate is mandatory (statisticsByCriterionName must be
+        // non-empty per BaselineRecord's invariant); latency rides on
+        // the indicator.
+        BaselineRecord parsed = roundTrip(
+                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                indicator);
 
+        // Reader synthesises the LatencyStatistics map entry from
+        // the top-level latency: block, so the criterion-lookup
+        // pattern keeps working without requiring the legacy
+        // statistics.percentile-latency YAML emission.
         BaselineStatistics entry = parsed.statisticsByCriterionName().get("percentile-latency");
         assertThat(entry).isInstanceOf(LatencyStatistics.class);
         LatencyStatistics latency = (LatencyStatistics) entry;
@@ -76,16 +92,23 @@ class BaselineReaderTest {
         assertThat(latency.percentiles().p95()).isEqualTo(Duration.ofMillis(800));
         assertThat(latency.percentiles().p99()).isEqualTo(Duration.ofMillis(1200));
         assertThat(latency.sampleCount()).isEqualTo(1000);
+
+        // The typed indicator survives round-trip too.
+        assertThat(parsed.latencyIndicator().contributingSamples()).isEqualTo(1000);
+        assertThat(parsed.latencyIndicator().totalSamples()).isEqualTo(1000);
     }
 
     @Test
-    @DisplayName("round-trips multiple criterion entries side-by-side")
+    @DisplayName("round-trips both criteria — pass-rate via statistics:, latency via top-level block")
     void roundTripBothCriteria() {
         Map<String, BaselineStatistics> entries = new LinkedHashMap<>();
         entries.put("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000));
-        entries.put("percentile-latency", new LatencyStatistics(LatencyResult.empty(), 1000));
+        LatencyIndicator indicator = new LatencyIndicator(
+                new LatencyResult(Duration.ofMillis(250), Duration.ofMillis(500),
+                        Duration.ofMillis(800), Duration.ofMillis(1200), 1000),
+                1000, 1000);
 
-        BaselineRecord parsed = roundTrip(entries);
+        BaselineRecord parsed = roundTrip(entries, indicator);
 
         assertThat(parsed.statisticsByCriterionName()).containsOnlyKeys(
                 "bernoulli-pass-rate", "percentile-latency");

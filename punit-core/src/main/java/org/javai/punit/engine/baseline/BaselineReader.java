@@ -81,11 +81,55 @@ public final class BaselineReader {
             entries.put(e.getKey(), parseStatisticsEntry(e.getKey(), e.getValue()));
         }
 
+        // Canonical EX04 location for latency: the top-level
+        // `latency:` block. When present, it sources the
+        // PercentileLatency criterion's in-memory entry under
+        // "percentile-latency" and overrides any legacy entry that
+        // happened to be in the statistics map (old-shape baselines
+        // on disk continue to load via the existing loop above).
+        LatencyIndicator latencyIndicator = parseLatencyIndicator(root);
+        if (latencyIndicator.hasData()) {
+            entries.put("percentile-latency", new LatencyStatistics(
+                    latencyIndicator.passingPercentiles(),
+                    latencyIndicator.contributingSamples()));
+        }
+
         CovariateProfile profile = parseCovariates(root);
 
         return new BaselineRecord(
                 useCaseId, methodName, factorsFingerprint,
-                inputsIdentity, sampleCount, generatedAt, entries, profile);
+                inputsIdentity, sampleCount, generatedAt, entries, profile,
+                latencyIndicator);
+    }
+
+    /**
+     * Parse the top-level {@code latency:} block (the canonical EX04
+     * location post-LT01). Returns {@link LatencyIndicator#empty()}
+     * when the block is absent — legacy baselines that carry latency
+     * only under {@code statistics.percentile-latency} continue to
+     * load via the regular statistics-map path.
+     */
+    private LatencyIndicator parseLatencyIndicator(Map<String, Object> root) {
+        if (!root.containsKey("latency")) {
+            return LatencyIndicator.empty();
+        }
+        Map<String, Object> block = requireMap(root, "latency");
+        int contributing = requireInt(block, "contributingSamples");
+        int total = requireInt(block, "totalSamples");
+        Duration p50 = block.containsKey("p50Ms")
+                ? Duration.ofMillis(requireInt(block, "p50Ms"))
+                : Duration.ZERO;
+        Duration p90 = block.containsKey("p90Ms")
+                ? Duration.ofMillis(requireInt(block, "p90Ms"))
+                : Duration.ZERO;
+        Duration p95 = block.containsKey("p95Ms")
+                ? Duration.ofMillis(requireInt(block, "p95Ms"))
+                : Duration.ZERO;
+        Duration p99 = block.containsKey("p99Ms")
+                ? Duration.ofMillis(requireInt(block, "p99Ms"))
+                : Duration.ZERO;
+        LatencyResult result = new LatencyResult(p50, p90, p95, p99, contributing);
+        return new LatencyIndicator(result, contributing, total);
     }
 
     private CovariateProfile parseCovariates(Map<String, Object> root) {
