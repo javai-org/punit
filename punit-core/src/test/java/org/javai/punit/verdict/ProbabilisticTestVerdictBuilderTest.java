@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
 import org.javai.punit.controls.budget.SharedBudgetMonitor.Scope;
@@ -272,7 +273,7 @@ class ProbabilisticTestVerdictBuilderTest {
         @Test
         void alignedCovariatesWithPassYieldsPass() {
             ProbabilisticTestVerdict verdict = minimalBuilder()
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
 
             assertThat(verdict.covariates().aligned()).isTrue();
@@ -283,7 +284,7 @@ class ProbabilisticTestVerdictBuilderTest {
         @Test
         void alignedCovariatesWithFailYieldsFail() {
             ProbabilisticTestVerdict verdict = minimalBuilder()
-                    .passedStatistically(false)
+                    .criterionVerdict(Verdict.FAIL)
                     .build();
 
             assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.FAIL);
@@ -294,7 +295,7 @@ class ProbabilisticTestVerdictBuilderTest {
             ProbabilisticTestVerdict verdict = minimalBuilder()
                     .misalignments(List.of(
                             new MisalignmentInput("model", "gpt-4", "gpt-3.5")))
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
 
             assertThat(verdict.covariates().aligned()).isFalse();
@@ -308,7 +309,7 @@ class ProbabilisticTestVerdictBuilderTest {
             ProbabilisticTestVerdict verdict = minimalBuilder()
                     .misalignments(List.of(
                             new MisalignmentInput("model", "gpt-4", "gpt-3.5")))
-                    .passedStatistically(false)
+                    .criterionVerdict(Verdict.FAIL)
                     .build();
 
             assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.INCONCLUSIVE);
@@ -332,7 +333,7 @@ class ProbabilisticTestVerdictBuilderTest {
         void junitFailWithPUnitPassIsLegitimate() {
             ProbabilisticTestVerdict verdict = minimalBuilder()
                     .junitPassed(false)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
 
             assertThat(verdict.junitPassed()).isFalse();
@@ -511,7 +512,7 @@ class ProbabilisticTestVerdictBuilderTest {
                     .identity("Test", "method", null)
                     .execution(100, 100, 96, 4, 0.9374, 0.96, 150)
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
 
             double se = verdict.statistics().standardError();
@@ -531,7 +532,7 @@ class ProbabilisticTestVerdictBuilderTest {
                     .identity("Test", "method", null)
                     .execution(100, 100, 96, 4, 0.9374, 0.96, 150)
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
 
             double z = verdict.statistics().testStatistic().orElseThrow();
@@ -621,6 +622,6 @@ class ProbabilisticTestVerdictBuilderTest {
                 .identity("TestClass", "testMethod", null)
                 .execution(100, 100, 95, 5, 0.90, 0.95, 1000)
                 .junitPassed(true)
-                .passedStatistically(true);
+                .criterionVerdict(Verdict.PASS);
     }
 }

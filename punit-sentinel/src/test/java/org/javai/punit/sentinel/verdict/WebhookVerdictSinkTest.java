@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +20,7 @@ class WebhookVerdictSinkTest {
                 .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                 .environmentMetadata(Map.of("environment", "staging"))
                 .junitPassed(true)
-                .passedStatistically(true)
+                .criterionVerdict(Verdict.PASS)
                 .build();
     }
 
@@ -92,7 +93,7 @@ class WebhookVerdictSinkTest {
                     .identity("TestClass", "failingTest", "uc2")
                     .execution(100, 100, 80, 20, 0.9, 0.8, 1000)
                     .junitPassed(false)
-                    .passedStatistically(false)
+                    .criterionVerdict(Verdict.FAIL)
                     .build();
             String json = WebhookVerdictSink.toJson(verdict);
 
@@ -107,7 +108,7 @@ class WebhookVerdictSinkTest {
                     .identity("test\"Class", "test\"Method", "use\"Case")
                     .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
             String json = WebhookVerdictSink.toJson(verdict);
 
@@ -123,7 +124,7 @@ class WebhookVerdictSinkTest {
                     .identity("test\\Class", "testMethod", "useCase")
                     .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
             String json = WebhookVerdictSink.toJson(verdict);
 
@@ -138,7 +139,7 @@ class WebhookVerdictSinkTest {
                     .identity("TestClass", "test", "uc")
                     .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
             String json = WebhookVerdictSink.toJson(verdict);
 

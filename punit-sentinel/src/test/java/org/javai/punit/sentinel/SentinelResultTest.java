@@ -3,6 +3,7 @@ package org.javai.punit.sentinel;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.List;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +69,7 @@ class SentinelResultTest {
                     .identity("TestClass", "testMethod", "useCase1")
                     .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                     .junitPassed(true)
-                    .passedStatistically(true)
+                    .criterionVerdict(Verdict.PASS)
                     .build();
             var verdicts = List.of(verdict);
             var duration = Duration.ofMillis(1500);

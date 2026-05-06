@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.spec.FailureCount;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
@@ -100,7 +101,11 @@ public class ProbabilisticTestVerdictBuilder {
 
     // ── Verdicts ──────────────────────────────────────────────────────────
     private boolean junitPassed;
-    private boolean passedStatistically;
+    // Default to FAIL — the criterion-side default for "no information
+    // recorded yet." The adapter sets this from the criterion's actual
+    // Verdict; tests that build a verdict directly without a criterion
+    // run can override via criterionVerdict(...).
+    private Verdict criterionVerdict = Verdict.FAIL;
 
     // ── Postcondition failure histogram ───────────────────────────────────
     private Map<String, FailureCount> postconditionFailures = Map.of();
@@ -246,8 +251,16 @@ public class ProbabilisticTestVerdictBuilder {
         return this;
     }
 
-    public ProbabilisticTestVerdictBuilder passedStatistically(boolean passed) {
-        this.passedStatistically = passed;
+    /**
+     * Set the criterion-side verdict for this run. The three-state
+     * value is preserved through to {@link #derivePUnitVerdict} so an
+     * INCONCLUSIVE result from the criterion (no baseline, sample-size
+     * violation, identity mismatch) does not silently collapse to FAIL
+     * just because the run's covariates happen to be aligned (per
+     * RP01's verdict-consistent-with-statistical-analysis invariant).
+     */
+    public ProbabilisticTestVerdictBuilder criterionVerdict(Verdict verdict) {
+        this.criterionVerdict = java.util.Objects.requireNonNull(verdict, "verdict");
         return this;
     }
 
@@ -524,7 +537,15 @@ public class ProbabilisticTestVerdictBuilder {
         if (!covariates.aligned()) {
             return PUnitVerdict.INCONCLUSIVE;
         }
-        return passedStatistically ? PUnitVerdict.PASS : PUnitVerdict.FAIL;
+        if (terminationReason.isBudgetExhaustion()) {
+            return PUnitVerdict.INCONCLUSIVE;
+        }
+        if (criterionVerdict == Verdict.INCONCLUSIVE) {
+            return PUnitVerdict.INCONCLUSIVE;
+        }
+        return criterionVerdict == Verdict.PASS
+                ? PUnitVerdict.PASS
+                : PUnitVerdict.FAIL;
     }
 
     private String deriveVerdictReason(PUnitVerdict punitVerdict, CovariateStatus covariates) {
