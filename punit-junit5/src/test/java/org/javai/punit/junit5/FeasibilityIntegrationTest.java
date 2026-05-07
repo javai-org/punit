@@ -27,7 +27,7 @@ import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Events;
 
-@DisplayName("Feasibility — VERIFICATION fails fast, SMOKE warns")
+@DisplayName("Feasibility — VERIFICATION fails fast, SMOKE proceeds silently")
 class FeasibilityIntegrationTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
@@ -86,11 +86,12 @@ class FeasibilityIntegrationTest {
     }
 
     @Test
-    @DisplayName("SMOKE + undersized sample — engine runs; warning printed to stderr; verdict still produced")
+    @DisplayName("SMOKE + undersized sample — engine runs silently; verdict produced")
     void smokeInfeasibleAllowed() throws IOException {
-        // Same config as VerificationInfeasible but intent=SMOKE. The check
-        // warns instead of failing fast; the engine runs; the verdict is
-        // produced as if feasibility had been met.
+        // Same config as VerificationInfeasible but intent=SMOKE. The
+        // developer has declared "I know this is undersized; treat as
+        // a sentinel" — the gate produces no warning and the run
+        // proceeds.
         writeBaselineAt(0.95, 1000);
 
         Events events = run(FeasibilitySubjects.SmokeInfeasible.class);
@@ -135,7 +136,7 @@ class FeasibilityIntegrationTest {
     }
 
     @Test
-    @DisplayName("SMOKE + contractual SLA threshold + undersized sample — engine runs; warning printed")
+    @DisplayName("SMOKE + contractual SLA threshold + undersized sample — engine runs silently")
     void contractualSmokeInfeasibleAllowed() {
         Events events = run(FeasibilitySubjects.ContractualSmokeInfeasible.class);
         // Subject's use case always passes; contractual evaluator does

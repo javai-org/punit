@@ -76,15 +76,14 @@ public final class FeasibilitySubjects {
     }
 
     /**
-     * SMOKE + undersized sample: feasibility check warns but allows
-     * the engine to run; the test passes (or whatever verdict).
+     * SMOKE + undersized sample: feasibility check is silent; the
+     * engine runs; the test passes (or whatever verdict). The
+     * developer has declared SMOKE — "I know it's undersized" — so
+     * no warning is emitted.
      */
     public static final class SmokeInfeasible {
         @ProbabilisticTest
-        void shouldRunWithWarning() {
-            // Same configuration as VerificationInfeasible — n=10 against
-            // baseline 0.95 — but explicitly SMOKE intent. Run proceeds;
-            // a warning is printed to stderr.
+        void shouldRunSilently() {
             PUnit.testing(sampling(10))
                     .criterion(PassRate.<Boolean>empirical())
                     .intent(TestIntent.SMOKE)
@@ -113,12 +112,12 @@ public final class FeasibilitySubjects {
     /**
      * SMOKE + contractual threshold + undersized sample: same
      * configuration as {@link ContractualVerificationInfeasible}
-     * but with explicit SMOKE intent. The framework warns and
-     * proceeds; the engine runs to a real verdict.
+     * but with explicit SMOKE intent. The framework is silent and
+     * the engine runs to a real verdict.
      */
     public static final class ContractualSmokeInfeasible {
         @ProbabilisticTest
-        void shouldRunWithWarning() {
+        void shouldRunSilently() {
             PUnit.testing(sampling(50))
                     .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .intent(TestIntent.SMOKE)

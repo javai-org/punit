@@ -1,6 +1,5 @@
 package org.javai.punit.engine.criteria;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -25,8 +24,10 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  *       the resolved baseline rate, the test fails fast as misconfigured
  *       (an {@link IllegalStateException}) <em>before</em> the engine
  *       runs any samples.</li>
- *   <li>{@link TestIntent#SMOKE} — undersized configurations are
- *       allowed; a warning is returned for the caller to surface.</li>
+ *   <li>{@link TestIntent#SMOKE} — silent. The developer has
+ *       explicitly declared SMOKE intent, which means "I know this is
+ *       undersized; treat it as a sentinel." The gate produces no
+ *       warning and the run proceeds.</li>
  * </ul>
  *
  * <p>The check applies to {@link PassRate} criteria — both contractual
@@ -56,10 +57,10 @@ public final class Feasibility {
      * Check feasibility of a single {@code PassRate} criterion
      * against a resolved baseline.
      *
-     * @return a list of warnings (one per infeasible-but-tolerated
-     *         SMOKE criterion). Throws {@link IllegalStateException}
-     *         instead when intent is {@link TestIntent#VERIFICATION}
-     *         and the criterion is infeasible.
+     * @return an empty list. Throws {@link IllegalStateException}
+     *         when intent is {@link TestIntent#VERIFICATION} and the
+     *         criterion is infeasible. SMOKE-intent infeasibility is
+     *         silent — see the class javadoc.
      */
     public static List<String> check(
             int samples,
@@ -98,12 +99,12 @@ public final class Feasibility {
         if (result.feasible()) {
             return List.of();
         }
-        String diagnostic = InfeasibilityMessageRenderer.render(useCaseId, result, false);
         if (intent == TestIntent.VERIFICATION) {
-            throw new IllegalStateException(diagnostic);
+            throw new IllegalStateException(
+                    InfeasibilityMessageRenderer.render(useCaseId, result, false));
         }
-        List<String> warnings = new ArrayList<>(1);
-        warnings.add("[" + intent + "]" + diagnostic);
-        return warnings;
+        // SMOKE intent: the developer has declared "I know this is
+        // undersized; treat it as a sentinel." Silent — no warning.
+        return List.of();
     }
 }
