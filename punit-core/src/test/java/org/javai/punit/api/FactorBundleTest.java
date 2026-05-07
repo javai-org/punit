@@ -18,6 +18,8 @@ class FactorBundleTest {
 
     record WithList(String name, List<Integer> values) {}
 
+    enum LlmModel { GPT_4O, GPT_4_TURBO }
+
     @Test
     @DisplayName("reflectively reads record components in declaration order")
     void entriesInDeclarationOrder() {
@@ -76,20 +78,39 @@ class FactorBundleTest {
     }
 
     @Test
-    @DisplayName("rejects a non-record type")
-    void rejectsNonRecord() {
+    @DisplayName("rejects a type that is neither record nor enum")
+    void rejectsNonRecordNonEnum() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> FactorBundle.of("not a record"))
-                .withMessageContaining("must be a record");
+                .withMessageContaining("must be a record or enum");
     }
 
     @Test
-    @DisplayName("rejects records with inadmissible component types, naming the component")
-    void rejectsBadComponentType() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> FactorBundle.of(new WithList("x", List.of(1, 2))))
-                .withMessageContaining("'values'")
-                .withMessageContaining("not admissible");
+    @DisplayName("admits records with non-canonical component types via toString() coercion")
+    void admitsNonCanonicalComponentViaToString() {
+        FactorBundle b = FactorBundle.of(new WithList("x", List.of(1, 2)));
+        assertThat(b.entries()).hasSize(2);
+        assertThat(b.entries().get(0).name()).isEqualTo("name");
+        assertThat(b.entries().get(1).name()).isEqualTo("values");
+        assertThat(b.canonicalJson())
+                .isEqualTo("{\"name\":\"x\",\"values\":\"[1, 2]\"}");
+    }
+
+    @Test
+    @DisplayName("accepts an enum directly as the factor value, keyed by declaring-class simple name")
+    void acceptsEnumAsFactor() {
+        FactorBundle b = FactorBundle.of(LlmModel.GPT_4O);
+        assertThat(b.entries()).hasSize(1);
+        assertThat(b.entries().get(0).name()).isEqualTo("LlmModel");
+        assertThat(b.canonicalJson()).isEqualTo("{\"LlmModel\":\"GPT_4O\"}");
+    }
+
+    @Test
+    @DisplayName("enum factor: distinct constants produce distinct hashes")
+    void enumFactorDistinctHashes() {
+        FactorBundle a = FactorBundle.of(LlmModel.GPT_4O);
+        FactorBundle b = FactorBundle.of(LlmModel.GPT_4_TURBO);
+        assertThat(a.bundleHash()).isNotEqualTo(b.bundleHash());
     }
 
     @Test

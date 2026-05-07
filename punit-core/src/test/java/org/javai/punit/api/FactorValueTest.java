@@ -1,7 +1,6 @@
 package org.javai.punit.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.net.URI;
@@ -105,11 +104,10 @@ class FactorValueTest {
     }
 
     @Test
-    @DisplayName("rejects unsupported types with a clear message naming the type")
-    void rejects_unsupported_types() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> FactorValue.of(List.of(1, 2)))
-                .withMessageContaining("not admissible")
-                .withMessageContaining("java.util");
+    @DisplayName("coerces unsupported types to a string via toString()")
+    void coerces_unsupported_types_to_string() {
+        FactorValue v = FactorValue.of(List.of(1, 2));
+        assertThat(v).isInstanceOf(StringValue.class);
+        assertThat(v.yamlValue()).isEqualTo("[1, 2]");
     }
 }
