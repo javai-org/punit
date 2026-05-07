@@ -26,7 +26,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -34,8 +33,6 @@ import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
-import org.javai.punit.api.spec.Trial;
-import org.javai.punit.engine.output.ResultProjections;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
@@ -61,56 +58,30 @@ public final class BaselineWriter {
      * filename. Returns the path the file was written to.
      */
     public Path write(BaselineRecord record, Path baselineDir) throws IOException {
-        return write(record, List.of(), baselineDir);
-    }
-
-    /**
-     * Writes {@code record} plus a per-sample {@code resultProjection:}
-     * block built from {@code trials} to {@code baselineDir}. Returns
-     * the path the file was written to.
-     */
-    public Path write(BaselineRecord record, List<? extends Trial<?, ?>> trials, Path baselineDir)
-            throws IOException {
         Objects.requireNonNull(record, "record");
-        Objects.requireNonNull(trials, "trials");
         Objects.requireNonNull(baselineDir, "baselineDir");
         Files.createDirectories(baselineDir);
         Path file = baselineDir.resolve(record.filename());
-        Files.writeString(file, toYaml(record, trials), StandardCharsets.UTF_8);
+        Files.writeString(file, toYaml(record), StandardCharsets.UTF_8);
         return file;
     }
 
-    /** Serialises {@code record} to the YAML schema as a string. */
-    public String toYaml(BaselineRecord record) {
-        return toYaml(record, List.of());
-    }
-
     /**
-     * Serialises {@code record} to the YAML schema, appending a per-sample
-     * {@code resultProjection:} block sourced from {@code trials} when
-     * non-empty. Per EX07 the block carries one {@code sample[N]} entry
-     * per trial in iteration order — inputIndex, postconditions,
-     * executionTimeMs, content-or-failureDetail, optional tokensUsed —
-     * with diff-anchor comments injected before each entry to keep
-     * {@code diff} aligned across runs.
+     * Serialises {@code record} to the YAML schema as a string.
      *
-     * <p>Per the user's "bulk argument holds, but the information is
-     * valuable" guidance: every trial is emitted (no failure cap), so a
-     * baseline file preserves every per-sample observation that drove
-     * the recorded statistics.
+     * <p>The MEASURE baseline carries aggregate signal only —
+     * pass-rate statistics, latency percentiles, covariate profile,
+     * footprint, fingerprint. Per-sample diagnostic detail (the EX07
+     * result-projection shape) lives on EXPLORE / OPTIMIZE artefacts;
+     * MEASURE per-sample failure context is emitted to {@code System.err}
+     * as the engine processes each sample (one {@code [PUNIT-FAIL]}
+     * line per failed clause), keeping the baseline file size constant
+     * in sample count and keeping the EX10 integrity fingerprint over
+     * content the resolver actually reads.
      */
-    public String toYaml(BaselineRecord record, List<? extends Trial<?, ?>> trials) {
+    public String toYaml(BaselineRecord record) {
         Objects.requireNonNull(record, "record");
-        Objects.requireNonNull(trials, "trials");
-        Map<String, Object> root = toYamlMap(record);
-        if (!trials.isEmpty()) {
-            root.put("resultProjection", ResultProjections.resultProjectionMap(trials));
-        }
-        String dump = yaml().dump(root);
-        String body = trials.isEmpty()
-                ? dump
-                : ResultProjections.injectAnchorComments(
-                        dump, ResultProjections.anchorsFor(trials));
+        String body = yaml().dump(toYamlMap(record));
         // EX10: append the SHA-256 of the body as the last field. The
         // reader recomputes the digest over the same prefix at load
         // time and surfaces a verdict warning when the file has been

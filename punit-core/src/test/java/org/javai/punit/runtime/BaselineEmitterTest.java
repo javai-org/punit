@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -94,9 +93,9 @@ class BaselineEmitterTest {
     };
 
     @Test
-    @DisplayName("emits a per-sample resultProjection: block carrying every trial — "
-            + "inputIndex, postconditions, executionTimeMs, content-or-failureDetail")
-    void emitsResultProjection() {
+    @DisplayName("emits no per-sample resultProjection: block — MEASURE baselines carry "
+            + "aggregate signal only; per-sample failure detail goes to System.err")
+    void omitsResultProjection() {
         Sampling<NoFactors, Integer, String> sampling = Sampling
                 .<NoFactors, Integer, String>builder()
                 .useCaseFactory(f -> EVENS_PASS)
@@ -114,73 +113,14 @@ class BaselineEmitterTest {
         String yaml = sink.values().iterator().next();
         Map<String, Object> root = new Yaml().load(yaml);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> projection = (Map<String, Object>) root.get("resultProjection");
-        assertThat(projection)
-                .as("MEASURE baselines must carry a resultProjection: block — "
-                        + "per-sample observations are not lost to bulk")
-                .isNotNull();
-        // 4 samples → 4 sample[N] entries in iteration order.
-        assertThat(projection).containsKeys("sample[0]", "sample[1]", "sample[2]", "sample[3]");
+        assertThat(root)
+                .as("MEASURE baseline must not carry a resultProjection: block — "
+                        + "the probabilistic test consumes only aggregate signal "
+                        + "(pass count, sample total, footprint, fingerprint, "
+                        + "derived threshold)")
+                .doesNotContainKey("resultProjection");
 
-        // Cycling: sample[0] → input 2 (index 0, passes), sample[1] → input 3 (index 1, fails),
-        // sample[2] → input 2 (index 0, passes), sample[3] → input 3 (index 1, fails).
-        @SuppressWarnings("unchecked")
-        Map<String, Object> s0 = (Map<String, Object>) projection.get("sample[0]");
-        assertThat(s0).containsKeys("inputIndex", "postconditions", "executionTimeMs", "content");
-        assertThat(s0).doesNotContainKey("input");
-        assertThat(s0).containsEntry("inputIndex", 0);
-        assertThat(s0.get("content")).isEqualTo("even-2");
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> s1 = (Map<String, Object>) projection.get("sample[1]");
-        assertThat(s1).containsKeys("inputIndex", "postconditions", "executionTimeMs", "failureDetail");
-        assertThat(s1).containsEntry("inputIndex", 1);
-        assertThat(((String) s1.get("failureDetail"))).startsWith("odd: got 3");
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> s2 = (Map<String, Object>) projection.get("sample[2]");
-        assertThat(s2).containsEntry("inputIndex", 0);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> s3 = (Map<String, Object>) projection.get("sample[3]");
-        assertThat(s3).containsEntry("inputIndex", 1);
-
-        // Diff-anchor comments: one per sample[N] line, snakeyaml-stripped on
-        // re-parse so we assert against the raw YAML string.
-        long anchorCount = yaml.lines()
-                .filter(line -> line.contains("anchor:"))
-                .count();
-        assertThat(anchorCount).isEqualTo(4L);
-    }
-
-    @Test
-    @DisplayName("two runs of the same MEASURE produce identical anchor lines — diff aligns")
-    void anchorsContentDeterministic() {
-        Sampling<NoFactors, Integer, Boolean> sampling1 = Sampling.<NoFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> ALWAYS_PASSES)
-                .inputs(1, 2, 3)
-                .samples(3)
-                .build();
-        Experiment run1 = Experiment.measuring(sampling1, new NoFactors()).build();
-        new Engine().run(run1);
-
-        Sampling<NoFactors, Integer, Boolean> sampling2 = Sampling.<NoFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> ALWAYS_PASSES)
-                .inputs(1, 2, 3)
-                .samples(3)
-                .build();
-        Experiment run2 = Experiment.measuring(sampling2, new NoFactors()).build();
-        new Engine().run(run2);
-
-        Map<String, String> sink1 = new LinkedHashMap<>();
-        Map<String, String> sink2 = new LinkedHashMap<>();
-        BaselineEmitter.emit(run1, (BiConsumer<String, String>) sink1::put);
-        BaselineEmitter.emit(run2, (BiConsumer<String, String>) sink2::put);
-
-        List<String> anchors1 = sink1.values().iterator().next().lines()
-                .filter(l -> l.contains("anchor:")).toList();
-        List<String> anchors2 = sink2.values().iterator().next().lines()
-                .filter(l -> l.contains("anchor:")).toList();
-        assertThat(anchors1).hasSize(3).isEqualTo(anchors2);
+        // No sample[N] keys, no anchor comments anywhere in the body.
+        assertThat(yaml).doesNotContain("sample[0]", "sample[1]", "anchor:");
     }
 }

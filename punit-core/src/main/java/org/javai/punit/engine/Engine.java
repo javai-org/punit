@@ -237,6 +237,7 @@ public final class Engine {
                 }
             }
             recordPostconditionFailures(index, classification);
+            FailureLineEmitter.emit(index, classification);
             tokensConsumed += classification.tokens() + tracker.tokenCharge();
         }
 

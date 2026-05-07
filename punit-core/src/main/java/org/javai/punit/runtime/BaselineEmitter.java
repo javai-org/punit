@@ -26,7 +26,6 @@ import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Spec;
-import org.javai.punit.api.spec.Trial;
 import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.engine.baseline.BaselineRecord;
 import org.javai.punit.engine.baseline.BaselineWriter;
@@ -117,8 +116,7 @@ final class BaselineEmitter {
                 return composeRecord(typed, summary, experiment.experimentId());
             }
         });
-        List<? extends Trial<?, ?>> trials = summary.trials();
-        sink.accept(record.filename(), new BaselineWriter().toYaml(record, trials));
+        sink.accept(record.filename(), new BaselineWriter().toYaml(record));
     }
 
     @SuppressWarnings("unchecked")
