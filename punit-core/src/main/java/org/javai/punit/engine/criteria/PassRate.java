@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.Supplier;
 
 import org.javai.punit.api.ThresholdOrigin;
@@ -141,6 +142,24 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
      */
     public double confidence() {
         return confidence;
+    }
+
+    /**
+     * The contractual target rate when this criterion was built with
+     * {@link #meeting(double, ThresholdOrigin)}; empty for empirical
+     * criteria, whose target is resolved from the baseline at
+     * evaluate time.
+     *
+     * <p>Surfaced for the framework's pre-flight feasibility check:
+     * a contractual SLA / SLO / POLICY threshold is no less in need
+     * of statistical underwriting than an empirical one — n=50 with
+     * a 99.99% target at 95% confidence is infeasible regardless of
+     * where the 99.99% came from.
+     */
+    public OptionalDouble contractualTarget() {
+        return mode == Mode.CONTRACTUAL
+                ? OptionalDouble.of(threshold)
+                : OptionalDouble.empty();
     }
 
     @Override
