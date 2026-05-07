@@ -587,6 +587,25 @@ public final class PUnit {
             return this;
         }
 
+        /** See {@link ProbabilisticTest.Builder#expectedOutputs(List)}. */
+        public TestBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
+            delegate.expectedOutputs(outputs);
+            return this;
+        }
+
+        /** See {@link ProbabilisticTest.Builder#expectedOutputs(Object[])}. */
+        @SafeVarargs
+        public final TestBuilder<FT, IT, OT> expectedOutputs(OT... outputs) {
+            delegate.expectedOutputs(outputs);
+            return this;
+        }
+
+        /** See {@link ProbabilisticTest.Builder#matcher(ValueMatcher)}. */
+        public TestBuilder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
+            delegate.matcher(matcher);
+            return this;
+        }
+
         /**
          * Enables verbose statistical reporting on every verdict —
          * including PASS — with the framework's hypothesis-test

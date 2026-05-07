@@ -339,11 +339,17 @@ public final class Experiment implements Spec {
         /**
          * Expected outputs, parallel to {@code sampling.inputs()}.
          * Enables instance-conformance checking when supplied. A
-         * length mismatch is rejected at {@link #build()} with
-         * {@link IllegalStateException}.
+         * length mismatch is rejected at the call site with
+         * {@link IllegalArgumentException}; the {@link #build()} guard
+         * is preserved as defence-in-depth.
          */
         public MeasureBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
             Objects.requireNonNull(outputs, "outputs");
+            if (!outputs.isEmpty() && outputs.size() != sampling.inputs().size()) {
+                throw new IllegalArgumentException(
+                        "expectedOutputs (" + outputs.size() + ") and sampling.inputs() ("
+                                + sampling.inputs().size() + ") must be the same length");
+            }
             this.expected = List.copyOf(outputs);
             return this;
         }
@@ -827,6 +833,11 @@ public final class Experiment implements Spec {
             if (inputs.isEmpty()) {
                 throw new IllegalArgumentException("inputs must be non-empty");
             }
+            if (!expected.isEmpty() && expected.size() != inputs.size()) {
+                throw new IllegalArgumentException(
+                        "expectedOutputs (" + expected.size() + ") and sampling.inputs() ("
+                                + inputs.size() + ") must be the same length");
+            }
             sampling.inputs = List.copyOf(inputs);
             return this;
         }
@@ -881,8 +892,22 @@ public final class Experiment implements Spec {
             return this;
         }
 
+        /**
+         * Expected outputs, parallel to {@code inputs()}. Length is
+         * checked at the call site when {@code inputs} has already been
+         * set on this inline builder; otherwise the check defers to a
+         * subsequent {@code inputs(...)} call (symmetric guard) or to
+         * {@link #build()} (defence-in-depth).
+         */
         public InlineMeasureBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
-            this.expected = List.copyOf(Objects.requireNonNull(outputs, "outputs"));
+            Objects.requireNonNull(outputs, "outputs");
+            if (!outputs.isEmpty() && sampling.inputs != null
+                    && outputs.size() != sampling.inputs.size()) {
+                throw new IllegalArgumentException(
+                        "expectedOutputs (" + outputs.size() + ") and sampling.inputs() ("
+                                + sampling.inputs.size() + ") must be the same length");
+            }
+            this.expected = List.copyOf(outputs);
             return this;
         }
 

@@ -15,6 +15,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ValueMatcher;
 
 /**
  * A probabilistic test: runs a {@link Sampling} bound to a factor
@@ -136,6 +137,8 @@ public final class ProbabilisticTest implements Spec {
 
         private final Sampling<FT, IT, OT> sampling;
         private final FT factors;
+        private final List<OT> expected;
+        private final Optional<ValueMatcher<OT>> matcher;
         private final List<Registered<OT>> registered;
         private final TestIntent intent;
 
@@ -144,6 +147,8 @@ public final class ProbabilisticTest implements Spec {
         private Internal(Builder<FT, IT, OT> b) {
             this.sampling = b.sampling;
             this.factors = b.factors;
+            this.expected = b.expected;
+            this.matcher = Optional.ofNullable(b.matcher);
             this.registered = List.copyOf(b.registered);
             this.intent = b.intent;
         }
@@ -152,9 +157,11 @@ public final class ProbabilisticTest implements Spec {
             return sampling.useCaseFactory();
         }
 
+        @Override public Optional<ValueMatcher<OT>> matcher() { return matcher; }
+
         @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
-            return List.of(Configuration.<FT, IT, OT>of(factors, sampling.inputs(), sampling.samples()))
-                    .iterator();
+            return List.of(new Configuration<>(
+                    factors, sampling.inputs(), expected, sampling.samples())).iterator();
         }
 
         @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
@@ -336,6 +343,8 @@ public final class ProbabilisticTest implements Spec {
 
         private final Sampling<FT, IT, OT> sampling;
         private final FT factors;
+        private List<OT> expected = List.of();
+        private ValueMatcher<OT> matcher;
         private final List<Registered<OT>> registered = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
 
@@ -359,6 +368,40 @@ public final class ProbabilisticTest implements Spec {
         }
 
         /**
+         * Expected outputs, parallel to {@code sampling.inputs()}.
+         * Enables instance-conformance checking on the test path: the
+         * engine attaches a {@link org.javai.punit.api.MatchResult} to
+         * each sample and pass-rate criteria see match-driven pass/fail.
+         * Length is checked at the call site with
+         * {@link IllegalArgumentException}.
+         */
+        public Builder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
+            Objects.requireNonNull(outputs, "outputs");
+            if (!outputs.isEmpty() && outputs.size() != sampling.inputs().size()) {
+                throw new IllegalArgumentException(
+                        "expectedOutputs (" + outputs.size() + ") and sampling.inputs() ("
+                                + sampling.inputs().size() + ") must be the same length");
+            }
+            this.expected = List.copyOf(outputs);
+            return this;
+        }
+
+        @SafeVarargs
+        public final Builder<FT, IT, OT> expectedOutputs(OT... outputs) {
+            return expectedOutputs(List.of(outputs));
+        }
+
+        /**
+         * Instance-conformance matcher, invoked per sample when
+         * {@code expectedOutputs} is supplied. Defaults to
+         * {@link ValueMatcher#equality()}.
+         */
+        public Builder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
+            this.matcher = Objects.requireNonNull(matcher, "matcher");
+            return this;
+        }
+
+        /**
          * Declares the test's intent. Defaults to
          * {@link TestIntent#VERIFICATION}. Authors of sentinel-grade
          * smoke checks against external providers opt into
@@ -370,6 +413,9 @@ public final class ProbabilisticTest implements Spec {
         }
 
         public ProbabilisticTest build() {
+            if (!expected.isEmpty() && matcher == null) {
+                matcher = ValueMatcher.equality();
+            }
             return new ProbabilisticTest(new Internal<>(this));
         }
     }
@@ -396,6 +442,8 @@ public final class ProbabilisticTest implements Spec {
         private BudgetExhaustionPolicy budgetPolicy = BudgetExhaustionPolicy.FAIL;
         private ExceptionPolicy exceptionPolicy = ExceptionPolicy.ABORT_TEST;
         private int maxExampleFailures = 10;
+        private List<OT> expected = List.of();
+        private ValueMatcher<OT> matcher;
         private final List<Registered<OT>> registered = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
 
@@ -408,6 +456,11 @@ public final class ProbabilisticTest implements Spec {
             Objects.requireNonNull(inputs, "inputs");
             if (inputs.isEmpty()) {
                 throw new IllegalArgumentException("inputs must be non-empty");
+            }
+            if (!expected.isEmpty() && expected.size() != inputs.size()) {
+                throw new IllegalArgumentException(
+                        "expectedOutputs (" + expected.size() + ") and sampling.inputs() ("
+                                + inputs.size() + ") must be the same length");
             }
             this.inputs = List.copyOf(inputs);
             return this;
@@ -473,6 +526,35 @@ public final class ProbabilisticTest implements Spec {
             return this;
         }
 
+        /**
+         * Expected outputs, parallel to {@code inputs()}. Length is
+         * checked at the call site when {@code inputs} has already been
+         * set on this inline builder; otherwise the check defers to a
+         * subsequent {@code inputs(...)} call (symmetric guard) or to
+         * {@link #build()} (defence-in-depth).
+         */
+        public InlineBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
+            Objects.requireNonNull(outputs, "outputs");
+            if (!outputs.isEmpty() && inputs != null
+                    && outputs.size() != inputs.size()) {
+                throw new IllegalArgumentException(
+                        "expectedOutputs (" + outputs.size() + ") and sampling.inputs() ("
+                                + inputs.size() + ") must be the same length");
+            }
+            this.expected = List.copyOf(outputs);
+            return this;
+        }
+
+        @SafeVarargs
+        public final InlineBuilder<FT, IT, OT> expectedOutputs(OT... outputs) {
+            return expectedOutputs(List.of(outputs));
+        }
+
+        public InlineBuilder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
+            this.matcher = Objects.requireNonNull(matcher, "matcher");
+            return this;
+        }
+
         public ProbabilisticTest build() {
             // Empirical-criterion guard. The integrity guarantee for an
             // empirical comparison comes from sharing a Sampling value
@@ -521,6 +603,12 @@ public final class ProbabilisticTest implements Spec {
 
             Builder<FT, IT, OT> delegate = new Builder<>(sampling, factors);
             delegate.intent(intent);
+            if (!expected.isEmpty()) {
+                delegate.expectedOutputs(expected);
+            }
+            if (matcher != null) {
+                delegate.matcher(matcher);
+            }
             for (Registered<OT> r : registered) {
                 if (r.role() == CriterionRole.REQUIRED) {
                     delegate.criterion(r.criterion());

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.MatchResult;
@@ -250,24 +251,197 @@ class EngineIntegrationTest {
     }
 
     @Test
-    @DisplayName("Experiment rejects expectedOutputs whose length does not match sampling.inputs")
+    @DisplayName("MeasureBuilder.expectedOutputs: length mismatch throws IllegalArgumentException at the call site")
     void rejectsMismatchedExpectedOutputsLength() {
+        Sampling<LlmFactors, String, String> sampling = identityStringSampling("a", "b");
+        assertThatThrownBy(() -> Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("A")) // only one; inputs has two
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expectedOutputs (1) and sampling.inputs() (2) must be the same length");
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTest: custom matcher drives the verdict's pass-rate criterion")
+    void testPathInstanceConformanceUsesCustomMatcher() {
+        UseCase<LlmFactors, String, String> returnSameCase = new UseCase<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
+        ValueMatcher<String> caseInsensitive =
+                (exp, act) -> exp.equalsIgnoreCase(act)
+                        ? MatchResult.pass("equalsIgnoreCase", exp, act)
+                        : MatchResult.fail("equalsIgnoreCase", exp, act,
+                                "case-insensitive comparison failed");
+
         Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
-                .useCaseFactory(f -> new UseCase<LlmFactors, String, String>() {
-                    @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
-                    @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
-                        return Outcome.ok(input);
-                    }
-                })
-                .inputs("a", "b")
+                .useCaseFactory(f -> returnSameCase)
+                .inputs("HELLO", "WORLD")
+                .samples(10)
                 .build();
-        assertThatThrownBy(() -> Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
-                .expectedOutputs("A") // only one; inputs has two
-                .build())
+
+        ProbabilisticTest spec = ProbabilisticTest
+                .testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("hello", "world")
+                .matcher(caseInsensitive)
+                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
+                .build();
+
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsEntry("successes", 10);
+        assertThat(detail).containsEntry("failures", 0);
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTest: expectedOutputs without explicit matcher defaults to equality")
+    void testPathDefaultsToEqualityMatcher() {
+        UseCase<LlmFactors, String, String> upperCase = new UseCase<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input.toUpperCase());
+            }
+        };
+
+        Sampling<LlmFactors, String, String> sampling = Sampling
+                .<LlmFactors, String, String>builder()
+                .useCaseFactory(f -> upperCase)
+                .inputs("a", "b")
+                .samples(4)
+                .build();
+
+        ProbabilisticTest spec = ProbabilisticTest
+                .testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("A", "Q") // first matches under equality, second doesn't
+                .criterion(PassRate.<String>meeting(0.4, ThresholdOrigin.SLA))
+                .build();
+
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
+        // 4 samples cycle through 2 expectations: 2 match (A==A), 2 mismatch (B!=Q)
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsEntry("successes", 2);
+        assertThat(detail).containsEntry("failures", 2);
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTest.Builder.expectedOutputs: length mismatch throws IllegalArgumentException at the call site")
+    void testPathBoundExpectedOutputsRejectsLengthMismatch() {
+        Sampling<LlmFactors, String, String> sampling = identityStringSampling("a", "b");
+        assertThatThrownBy(() -> ProbabilisticTest.testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("A"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expectedOutputs (1) and sampling.inputs() (2) must be the same length");
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTest.Builder.expectedOutputs(varargs): length mismatch throws IllegalArgumentException at the call site")
+    void testPathBoundExpectedOutputsVarargsRejectsLengthMismatch() {
+        Sampling<LlmFactors, String, String> sampling = identityStringSampling("a", "b");
+        assertThatThrownBy(() -> ProbabilisticTest.testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs(new String[] {"A", "B", "C"}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expectedOutputs (3) and sampling.inputs() (2) must be the same length");
+    }
+
+    @Test
+    @DisplayName("InlineMeasureBuilder: expectedOutputs after inputs with mismatched length throws IllegalArgumentException at the call site")
+    void inlineMeasureRejectsMismatchedExpectedOutputsAfterInputs() {
+        assertThatThrownBy(() -> Experiment.measuring(
+                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        new LlmFactors("gpt-4o", 0.0))
+                .inputs("a", "b")
+                .expectedOutputs("A"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expectedOutputs (1) and sampling.inputs() (2) must be the same length");
+    }
+
+    @Test
+    @DisplayName("InlineMeasureBuilder: expectedOutputs before inputs is accepted; mismatched inputs(...) afterwards throws")
+    void inlineMeasureDefersThenSymmetricallyRejects() {
+        var builder = Experiment.measuring(
+                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("A");   // no throw — inputs not yet set
+        assertThatThrownBy(() -> builder.inputs("a", "b"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expectedOutputs (1) and sampling.inputs() (2) must be the same length");
+    }
+
+    @Test
+    @DisplayName("InlineMeasureBuilder: expectedOutputs before inputs with matching length builds successfully")
+    void inlineMeasureDeferredCheckPassesOnMatchingInputs() {
+        Experiment spec = Experiment.measuring(
+                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("A", "B")     // set before inputs
+                .inputs("a", "b")               // matching length — symmetric check passes
+                .samples(2)
+                .build();
+        // Run to completion — proves the configured matcher pipeline survives the inline assembly.
+        new Engine().run(spec);
+        assertThat(spec.lastSummary()).isPresent();
+    }
+
+    @Test
+    @DisplayName("InlineProbabilisticTest builder: expectedOutputs after inputs with mismatched length throws at the call site")
+    void inlineTestRejectsMismatchedExpectedOutputsAfterInputs() {
+        assertThatThrownBy(() -> ProbabilisticTest.testing(
+                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        new LlmFactors("gpt-4o", 0.0))
+                .inputs("a", "b")
+                .expectedOutputs("A"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expectedOutputs (1) and sampling.inputs() (2) must be the same length");
+    }
+
+    @Test
+    @DisplayName("InlineProbabilisticTest builder: expectedOutputs before inputs is accepted; mismatched inputs(...) afterwards throws")
+    void inlineTestDefersThenSymmetricallyRejects() {
+        var builder = ProbabilisticTest.testing(
+                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("A");   // no throw — inputs not yet set
+        assertThatThrownBy(() -> builder.inputs("a", "b"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expectedOutputs (1) and sampling.inputs() (2) must be the same length");
+    }
+
+    @Test
+    @DisplayName("MeasureBuilder.build(): defence-in-depth IllegalStateException still fires when expected/inputs disagree at build time")
+    void measureBuildTimeGuardStillFiresAsDefenceInDepth() throws Exception {
+        // The call-time check on expectedOutputs(...) means the build-time
+        // guard at MeasureBuilder.build() is unreachable through the public
+        // API. Reflection lets us bypass the call-time check to confirm the
+        // build-time guard remains in place — defence-in-depth coverage.
+        Sampling<LlmFactors, String, String> sampling = identityStringSampling("a", "b");
+        var builder = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0));
+        var expectedField = Experiment.MeasureBuilder.class.getDeclaredField("expected");
+        expectedField.setAccessible(true);
+        expectedField.set(builder, List.of("A"));   // bypass call-time check
+
+        assertThatThrownBy(builder::build)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("expectedOutputs")
-                .hasMessageContaining("inputs");
+                .hasMessage("expectedOutputs (1) and sampling.inputs() (2) must be the same length");
+    }
+
+    private Sampling<LlmFactors, String, String> identityStringSampling(String... inputs) {
+        return Sampling.<LlmFactors, String, String>builder()
+                .useCaseFactory(f -> identityStringUseCase())
+                .inputs(inputs)
+                .samples(inputs.length)
+                .build();
+    }
+
+    private static UseCase<LlmFactors, String, String> identityStringUseCase() {
+        return new UseCase<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
     }
 
     @Test
