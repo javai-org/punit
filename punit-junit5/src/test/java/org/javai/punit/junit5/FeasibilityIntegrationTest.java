@@ -106,6 +106,48 @@ class FeasibilityIntegrationTest {
                 .isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("VERIFICATION + contractual SLA threshold + undersized sample — feasibility fails fast")
+    void contractualVerificationInfeasibleFailsFast() {
+        // No baseline written — contractual targets do not consult one.
+        // n=50 against a contractual 99.99% target at default 95%
+        // confidence is infeasible (Wilson at observed=1.0, n=50 ≈
+        // 0.949 < 0.9999). The pre-flight gate must abort before any
+        // samples execute.
+        Events events = run(FeasibilitySubjects.ContractualVerificationInfeasible.class);
+        events.assertStatistics(stats -> stats.started(1).failed(1));
+        events.failed()
+                .assertThatEvents()
+                .anySatisfy(event -> {
+                    var throwable = event.getRequiredPayload(
+                            org.junit.platform.engine.TestExecutionResult.class)
+                            .getThrowable().orElseThrow();
+                    assertThat(throwable).isInstanceOf(IllegalStateException.class);
+                    assertThat(throwable.getMessage())
+                            .contains("INFEASIBLE VERIFICATION")
+                            .contains(FeasibilitySubjects.USE_CASE_ID)
+                            .contains("(50)")
+                            .contains("99.99%")
+                            .contains("At least")
+                            .contains("Increase samples")
+                            .contains("intent = SMOKE");
+                });
+    }
+
+    @Test
+    @DisplayName("SMOKE + contractual SLA threshold + undersized sample — engine runs; warning printed")
+    void contractualSmokeInfeasibleAllowed() {
+        Events events = run(FeasibilitySubjects.ContractualSmokeInfeasible.class);
+        // Subject's use case always passes; contractual evaluator does
+        // observed >= threshold, so observed=1.0 >= 0.9999 → PASS.
+        // The point of this test is the run wasn't *aborted*.
+        events.assertStatistics(stats -> stats.started(1));
+        long failedOrSucceeded = events.failed().count() + events.succeeded().count();
+        assertThat(failedOrSucceeded)
+                .as("contractual SMOKE-intent test runs to verdict; not aborted/skipped")
+                .isEqualTo(1);
+    }
+
     private void writeBaselineAt(double rate, int sampleCount) throws IOException {
         BaselineRecord record = new BaselineRecord(
                 FeasibilitySubjects.USE_CASE_ID,

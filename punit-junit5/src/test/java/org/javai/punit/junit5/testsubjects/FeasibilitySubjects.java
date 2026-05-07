@@ -3,6 +3,7 @@ package org.javai.punit.junit5.testsubjects;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
@@ -86,6 +87,40 @@ public final class FeasibilitySubjects {
             // a warning is printed to stderr.
             PUnit.testing(sampling(10))
                     .criterion(PassRate.<Boolean>empirical())
+                    .intent(TestIntent.SMOKE)
+                    .assertPasses();
+        }
+    }
+
+    /**
+     * VERIFICATION + contractual threshold + undersized sample:
+     * a declared SLA / SLO / POLICY threshold is no less in need
+     * of statistical underwriting than an empirical one. n=50
+     * against a 99.99% target at 95% confidence has Wilson lower
+     * bound at observed=1.0 ≈ 0.949, well below 0.9999 → infeasible.
+     * Default intent is VERIFICATION → must throw IllegalStateException
+     * before the engine runs any samples.
+     */
+    public static final class ContractualVerificationInfeasible {
+        @ProbabilisticTest
+        void shouldFailFast() {
+            PUnit.testing(sampling(50))
+                    .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
+                    .assertPasses();
+        }
+    }
+
+    /**
+     * SMOKE + contractual threshold + undersized sample: same
+     * configuration as {@link ContractualVerificationInfeasible}
+     * but with explicit SMOKE intent. The framework warns and
+     * proceeds; the engine runs to a real verdict.
+     */
+    public static final class ContractualSmokeInfeasible {
+        @ProbabilisticTest
+        void shouldRunWithWarning() {
+            PUnit.testing(sampling(50))
+                    .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .intent(TestIntent.SMOKE)
                     .assertPasses();
         }
