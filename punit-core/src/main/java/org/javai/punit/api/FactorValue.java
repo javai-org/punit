@@ -88,10 +88,7 @@ public sealed interface FactorValue
             case Duration v -> new DurationValue(v);
             case Instant v -> new InstantValue(v);
             case URI v -> new UriValue(v);
-            default -> throw new IllegalArgumentException(
-                    "factor value of type " + raw.getClass().getName()
-                            + " is not admissible (permitted: boolean, integer, "
-                            + "decimal, string, enum, Duration, Instant, URI)");
+            default -> new StringValue(raw.toString());
         };
     }
 }
