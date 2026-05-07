@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.7.0] - 2026-XX-XX
+## [0.7.0-alpha] - 2026-05-07
+
+> **🧪 Experimental release.** The first cut of the 0.7.0 typed-builder API. Core authoring surface and statistical engine are ready for evaluation; some optimisations are deferred — see **Known gaps** below. v0.x means breaking changes are still possible: pin to this exact version if you depend on its surface today, and check the issue tracker before upgrading. Feedback at https://github.com/javai-org/punit/issues.
 
 > **⚠️ Breaking changes** — punit 0.7.0 replaces the annotation-driven authoring style of 0.6.x with a typed, builder-based one. See [MIGRATION-0.6-to-0.7.md](docs/MIGRATION-0.6-to-0.7.md) — it carries a coding-assistant prompt that walks your codebase and applies the migration, plus per-change discussion and FAQ. There is no deprecation cycle and no 0.6.x-compatible shim. Maven coordinates are unchanged.
 
@@ -38,9 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Postcondition failure histograms** on `SampleSummary`, `ProbabilisticTestResult`, verdict text, verdict XML (`<postcondition-failures>`), and the HTML report. Failures broken down by named clause with bounded exemplars.
 - **`EngineRunSummary` on `ProbabilisticTestResult`** — run-level scalars (planned/executed samples, elapsed, tokens, latency, termination, confidence, matched baseline filename).
 - **Covariate-aware best-match baseline selection.** Baseline filenames carry a covariate hash; the resolver picks the best-aligned baseline.
-- **Feasibility evaluation.** A test that cannot reach its declared minimum detectable effect at the configured sample size yields INCONCLUSIVE rather than misleading PASS / FAIL.
+- **Pre-flight feasibility gate.** A VERIFICATION-intent test whose configured (samples, threshold, confidence) tuple cannot underwrite a verification claim aborts pre-flight with an `INFEASIBLE VERIFICATION` diagnostic — no samples execute, no misleading PASS / FAIL is produced. Applies to both contractual (`SLA` / `SLO` / `POLICY`) and empirical thresholds. SMOKE-intent runs are silent: the developer has explicitly opted into the sizing gap.
 - **RP07 XML verdict on every test.** Each `@ProbabilisticTest` produces a `{className}.{methodName}.xml` file under `build/reports/punit/xml/` (configurable via `punit.report.dir` / `PUNIT_REPORT_DIR`, suppressible with `punit.report.enabled=false`). The HTML report (`./gradlew punitReport`) consumes these files. See Part 11 of the user guide for the field reference.
 - **`BaselineLookup.sourceFile`.** Matched baseline filename threaded from `BaselineResolver` through `Spec.conclude` to the verdict XML's `<provenance spec-filename>` attribute.
+
+### Known gaps in this experimental release
+
+These are the rough edges that justify the `-alpha` qualifier. Each is tracked for restoration in a subsequent release.
+
+- **Statistical early termination is not yet wired.** The 0.6.x sample loop stopped early when the outcome became impossible (failure inevitable) or guaranteed (success guaranteed); the spec-engine refactor preserved the supporting model (the `TerminationReason` enum, scenario fixtures, rendering paths) but the per-sample evaluator and the `disableEarlyTermination()` builder method on the probabilistic-test surface have not yet been re-added. Verdicts are correct — every test runs to its configured sample count and produces the right answer — but configurations that could have terminated after a few samples now run all of them.
+- **Wider feasibility-gate audit.** The pre-flight gate (see *Added* above) is wired correctly for the failure shape that motivated this release, but the catalog defines a family of related invariants — soundness floor (implied confidence < 80%, cross-intent), parameter-bounds validation, configuration-coherence checks across the threshold-first / sample-size-first / confidence-first approaches. Some of these remain unchecked. Configurations whose implied confidence falls below 80% are not yet rejected across all intents.
 
 ## [0.6.0] - 2026-04-16
 

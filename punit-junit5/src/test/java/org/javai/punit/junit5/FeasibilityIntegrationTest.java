@@ -27,7 +27,7 @@ import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Events;
 
-@DisplayName("Feasibility — VERIFICATION fails fast, SMOKE warns")
+@DisplayName("Feasibility — VERIFICATION fails fast, SMOKE proceeds silently")
 class FeasibilityIntegrationTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
@@ -86,11 +86,12 @@ class FeasibilityIntegrationTest {
     }
 
     @Test
-    @DisplayName("SMOKE + undersized sample — engine runs; warning printed to stderr; verdict still produced")
+    @DisplayName("SMOKE + undersized sample — engine runs silently; verdict produced")
     void smokeInfeasibleAllowed() throws IOException {
-        // Same config as VerificationInfeasible but intent=SMOKE. The check
-        // warns instead of failing fast; the engine runs; the verdict is
-        // produced as if feasibility had been met.
+        // Same config as VerificationInfeasible but intent=SMOKE. The
+        // developer has declared "I know this is undersized; treat as
+        // a sentinel" — the gate produces no warning and the run
+        // proceeds.
         writeBaselineAt(0.95, 1000);
 
         Events events = run(FeasibilitySubjects.SmokeInfeasible.class);
@@ -103,6 +104,48 @@ class FeasibilityIntegrationTest {
         long failedOrSucceeded = events.failed().count() + events.succeeded().count();
         assertThat(failedOrSucceeded)
                 .as("SMOKE-intent test runs to verdict; not aborted/skipped")
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("VERIFICATION + contractual SLA threshold + undersized sample — feasibility fails fast")
+    void contractualVerificationInfeasibleFailsFast() {
+        // No baseline written — contractual targets do not consult one.
+        // n=50 against a contractual 99.99% target at default 95%
+        // confidence is infeasible (Wilson at observed=1.0, n=50 ≈
+        // 0.949 < 0.9999). The pre-flight gate must abort before any
+        // samples execute.
+        Events events = run(FeasibilitySubjects.ContractualVerificationInfeasible.class);
+        events.assertStatistics(stats -> stats.started(1).failed(1));
+        events.failed()
+                .assertThatEvents()
+                .anySatisfy(event -> {
+                    var throwable = event.getRequiredPayload(
+                            org.junit.platform.engine.TestExecutionResult.class)
+                            .getThrowable().orElseThrow();
+                    assertThat(throwable).isInstanceOf(IllegalStateException.class);
+                    assertThat(throwable.getMessage())
+                            .contains("INFEASIBLE VERIFICATION")
+                            .contains(FeasibilitySubjects.USE_CASE_ID)
+                            .contains("(50)")
+                            .contains("99.99%")
+                            .contains("At least")
+                            .contains("Increase samples")
+                            .contains("intent = SMOKE");
+                });
+    }
+
+    @Test
+    @DisplayName("SMOKE + contractual SLA threshold + undersized sample — engine runs silently")
+    void contractualSmokeInfeasibleAllowed() {
+        Events events = run(FeasibilitySubjects.ContractualSmokeInfeasible.class);
+        // Subject's use case always passes; contractual evaluator does
+        // observed >= threshold, so observed=1.0 >= 0.9999 → PASS.
+        // The point of this test is the run wasn't *aborted*.
+        events.assertStatistics(stats -> stats.started(1));
+        long failedOrSucceeded = events.failed().count() + events.succeeded().count();
+        assertThat(failedOrSucceeded)
+                .as("contractual SMOKE-intent test runs to verdict; not aborted/skipped")
                 .isEqualTo(1);
     }
 

@@ -3,6 +3,7 @@ package org.javai.punit.junit5.testsubjects;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
@@ -75,17 +76,50 @@ public final class FeasibilitySubjects {
     }
 
     /**
-     * SMOKE + undersized sample: feasibility check warns but allows
-     * the engine to run; the test passes (or whatever verdict).
+     * SMOKE + undersized sample: feasibility check is silent; the
+     * engine runs; the test passes (or whatever verdict). The
+     * developer has declared SMOKE — "I know it's undersized" — so
+     * no warning is emitted.
      */
     public static final class SmokeInfeasible {
         @ProbabilisticTest
-        void shouldRunWithWarning() {
-            // Same configuration as VerificationInfeasible — n=10 against
-            // baseline 0.95 — but explicitly SMOKE intent. Run proceeds;
-            // a warning is printed to stderr.
+        void shouldRunSilently() {
             PUnit.testing(sampling(10))
                     .criterion(PassRate.<Boolean>empirical())
+                    .intent(TestIntent.SMOKE)
+                    .assertPasses();
+        }
+    }
+
+    /**
+     * VERIFICATION + contractual threshold + undersized sample:
+     * a declared SLA / SLO / POLICY threshold is no less in need
+     * of statistical underwriting than an empirical one. n=50
+     * against a 99.99% target at 95% confidence has Wilson lower
+     * bound at observed=1.0 ≈ 0.949, well below 0.9999 → infeasible.
+     * Default intent is VERIFICATION → must throw IllegalStateException
+     * before the engine runs any samples.
+     */
+    public static final class ContractualVerificationInfeasible {
+        @ProbabilisticTest
+        void shouldFailFast() {
+            PUnit.testing(sampling(50))
+                    .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
+                    .assertPasses();
+        }
+    }
+
+    /**
+     * SMOKE + contractual threshold + undersized sample: same
+     * configuration as {@link ContractualVerificationInfeasible}
+     * but with explicit SMOKE intent. The framework is silent and
+     * the engine runs to a real verdict.
+     */
+    public static final class ContractualSmokeInfeasible {
+        @ProbabilisticTest
+        void shouldRunSilently() {
+            PUnit.testing(sampling(50))
+                    .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .intent(TestIntent.SMOKE)
                     .assertPasses();
         }
