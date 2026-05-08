@@ -262,13 +262,23 @@ public final class PUnit {
         VerdictSinkBus.dispatch(verdict);
     }
 
-    private static void translate(ProbabilisticTestResult result) {
+    static void translate(ProbabilisticTestResult result, String useCaseId) {
         Verdict verdict = result.verdict();
         if (verdict == Verdict.PASS) {
             return;
         }
         String message = formatMessage(result);
         if (verdict == Verdict.INCONCLUSIVE) {
+            // INCONCLUSIVE diagnostics are echoed to stderr regardless
+            // of which JUnit-side throwable the trichotomy below
+            // selects — the abort exception's message reaches the IDE
+            // pane but not necessarily the build console (Gradle's
+            // default text reporter only surfaces the throwable's
+            // message for FAIL-style outcomes, leaving aborts silent).
+            // Mirrors the PASS-with-warnings stderr emission so the
+            // operator's view of an INCONCLUSIVE run is symmetric with
+            // PASS and FAIL.
+            emitInconclusiveDiagnostics(result, useCaseId, message);
             // The covariate-alignment contract has three INCONCLUSIVE
             // sub-cases that we resolve here — see the project's
             // covariate-misalignment trichotomy:
@@ -295,6 +305,15 @@ public final class PUnit {
             throw new TestAbortedException(message);
         }
         throw new AssertionFailedError(message);
+    }
+
+    private static void emitInconclusiveDiagnostics(
+            ProbabilisticTestResult result, String useCaseId, String message) {
+        String header = useCaseId == null || useCaseId.isBlank()
+                ? "[PUNIT-INCONCLUSIVE]"
+                : "[PUNIT-INCONCLUSIVE] " + useCaseId;
+        System.err.println(header);
+        System.err.println(message);
     }
 
     private static boolean candidatesWereRejected(ProbabilisticTestResult result) {
@@ -675,8 +694,9 @@ public final class PUnit {
                                     observed, typed.covariates().baseline()))
                     .withContractRef(contractRef);
             maybeRenderTransparentStats(stamped);
-            emitVerdict(stamped, sampling.useCaseFactory().apply(factors).id());
-            translate(stamped);
+            String useCaseId = sampling.useCaseFactory().apply(factors).id();
+            emitVerdict(stamped, useCaseId);
+            translate(stamped, useCaseId);
         }
 
         private void maybeRenderTransparentStats(ProbabilisticTestResult result) {
@@ -803,8 +823,9 @@ public final class PUnit {
                                     observed, typed.covariates().baseline()))
                     .withContractRef(contractRef);
             maybeRenderTransparentStats(spec, stamped);
-            emitVerdict(stamped, resolveUseCaseId(spec));
-            translate(stamped);
+            String useCaseId = resolveUseCaseId(spec);
+            emitVerdict(stamped, useCaseId);
+            translate(stamped, useCaseId);
         }
 
         @SuppressWarnings("unchecked")
