@@ -318,29 +318,27 @@ class TestVerdictEvaluatorTest {
         @Test
         @DisplayName("test failure with qualified interpretation")
         void testFailureWithQualifiedInterpretation() {
-            // From STATISTICAL-COMPANION:
-            // Baseline: 951/1000 (95.1%)
-            // Threshold: ≈93.6% (Wilson lower bound at 95% confidence)
-            // Test result: 90/100 (90%)
-            
+            // STATISTICAL-COMPANION §3.4: threshold is Wilson lower at n_test
+            // applied to the baseline rate. Baseline 951/1000 → threshold
+            // ≈ 0.902 at n_test=100, 95% confidence. Test result 80/100.
             DerivedThreshold threshold = deriver.deriveSampleSizeFirst(
                 1000, 951, 100, 0.95);
-            
-            VerdictWithConfidence verdict = evaluator.evaluate(90, 100, threshold);
-            
-            // Decision: FAIL (90% < 93.6%)
+
+            VerdictWithConfidence verdict = evaluator.evaluate(80, 100, threshold);
+
+            // Decision: FAIL (0.80 < ~0.902)
             assertThat(verdict.passed()).isFalse();
-            
+
             // False positive probability: 5%
             assertThat(verdict.falsePositiveProbability()).isCloseTo(0.05, within(0.001));
-            
+
             // Interpretation should be qualified
             assertThat(verdict.interpretation())
                 .as("Interpretation should include qualification")
-                .containsPattern("0\\.9000 < 0\\.9[34]\\d+")  // observed < threshold
-                .contains("95%")                               // confidence level
-                .contains("5.0%")                              // false positive probability
-                .contains("sampling variance");                // statistical caveat
+                .containsPattern("0\\.8000 < 0\\.90\\d+")     // observed < threshold
+                .contains("95%")                              // confidence level
+                .contains("5.0%")                             // false positive probability
+                .contains("sampling variance");               // statistical caveat
         }
     }
 }

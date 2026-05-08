@@ -117,17 +117,38 @@ public class BinomialProportionEstimator {
      */
     public double lowerBound(int successes, int trials, double confidenceLevel) {
         validateInputs(successes, trials);
-        validateConfidenceLevel(confidenceLevel);
-        
         double pHat = (double) successes / trials;
-        
-        // z-score for one-sided bound: z_α
-        // For 95% confidence: α = 0.05, so we need z_{0.95} ≈ 1.645
+        return lowerBoundFromRate(pHat, trials, confidenceLevel);
+    }
+
+    /**
+     * Computes the one-sided Wilson lower bound from a continuous rate.
+     *
+     * <p>Same Wilson formula as {@link #lowerBound}, but takes a continuous
+     * proportion {@code pHat} rather than discrete successes. Used by the
+     * two-step threshold construction (statistical companion §4.3.2),
+     * where the second step needs to apply Wilson at {@code n_test} with
+     * a rate already derived from the baseline.
+     *
+     * @param pHat            the rate to wrap, in [0, 1]
+     * @param trials          the sample size n at which to evaluate Wilson
+     * @param confidenceLevel one-sided confidence level (1 − α)
+     * @return Wilson one-sided lower bound at the given rate and sample size
+     */
+    public double lowerBoundFromRate(double pHat, int trials, double confidenceLevel) {
+        if (Double.isNaN(pHat) || pHat < 0.0 || pHat > 1.0) {
+            throw new IllegalArgumentException(
+                    "pHat must be in [0, 1], got: " + pHat);
+        }
+        if (trials <= 0) {
+            throw new IllegalArgumentException("Trials must be positive, got: " + trials);
+        }
+        validateConfidenceLevel(confidenceLevel);
+
         double alpha = 1.0 - confidenceLevel;
         double z = STANDARD_NORMAL.inverseCumulativeProbability(1.0 - alpha);
-		CenterMargin centerMargin = getCenterMargin(trials, z, pHat);
-
-		return Math.max(0.0, centerMargin.lower());
+        CenterMargin centerMargin = getCenterMargin(trials, z, pHat);
+        return Math.max(0.0, centerMargin.lower());
     }
     
     /**
