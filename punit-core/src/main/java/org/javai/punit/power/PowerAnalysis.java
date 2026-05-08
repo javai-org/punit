@@ -2,11 +2,16 @@ package org.javai.punit.power;
 
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.Configuration;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
@@ -14,6 +19,7 @@ import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.engine.baseline.BaselineResolver;
 import org.javai.punit.engine.baseline.FactorsFingerprint;
+import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.statistics.SampleSizeCalculator;
 
 /**
@@ -137,10 +143,14 @@ public final class PowerAnalysis {
                 lookup.useCaseId(),
                 lookup.factorsFingerprint(),
                 PASS_RATE_CRITERION,
-                PassRateStatistics.class)
+                PassRateStatistics.class,
+                lookup.profile(),
+                lookup.declarations())
                 .orElseThrow(() -> new IllegalStateException(
                         "no baseline found for use case '" + lookup.useCaseId()
                                 + "' (factors fingerprint " + lookup.factorsFingerprint()
+                                + (lookup.profile().isEmpty() ? ""
+                                        : ", covariates " + formatProfile(lookup.profile()))
                                 + ") under " + baselineDir
                                 + " — run the baseline measure before planning a test against it."));
 
@@ -171,15 +181,26 @@ public final class PowerAnalysis {
         }
     }
 
-    /** Carrier for the two identity values the resolver needs. */
-    private record BaselineLookup(String useCaseId, String factorsFingerprint) { }
+    /**
+     * Carrier for the identity values and covariate context the
+     * resolver needs. The covariate fields are required so the
+     * authoring-time resolution path matches the JUnit-extension test
+     * pipeline: a covariate-stamped baseline only matches when the
+     * caller supplies the same profile + declarations the test would
+     * supply at run time.
+     */
+    private record BaselineLookup(
+            String useCaseId,
+            String factorsFingerprint,
+            CovariateProfile profile,
+            List<Covariate> declarations) { }
 
     /**
      * Dispatcher that captures the {@code <FT>} type parameter from the
      * spec's engine-facing view long enough to call
-     * {@code useCaseFactory.apply(factors).id()} and compute the
-     * factors fingerprint, then collapses the result back to a
-     * non-generic carrier.
+     * {@code useCaseFactory.apply(factors).id()}, compute the factors
+     * fingerprint, and resolve the use case's covariate profile, then
+     * collapses the result back to a non-generic carrier.
      */
     private static final Spec.Dispatcher<BaselineLookup> LOOKUP_DISPATCHER =
             new Spec.Dispatcher<>() {
@@ -196,7 +217,19 @@ public final class PowerAnalysis {
                     UseCase<FT, IT, OT> useCase = spec.useCaseFactory().apply(factors);
                     String useCaseId = useCase.id();
                     String fingerprint = FactorsFingerprint.of(FactorBundle.of(factors));
-                    return new BaselineLookup(useCaseId, fingerprint);
+                    List<Covariate> declarations = useCase.covariates();
+                    CovariateProfile profile = declarations.isEmpty()
+                            ? CovariateProfile.empty()
+                            : CovariateResolver.defaults().resolve(
+                                    declarations, useCase.customCovariateResolvers());
+                    return new BaselineLookup(useCaseId, fingerprint, profile, declarations);
                 }
             };
+
+    private static String formatProfile(CovariateProfile profile) {
+        Map<String, String> values = profile.values();
+        return values.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(Collectors.joining(", "));
+    }
 }
