@@ -75,19 +75,35 @@ public class ThresholdDeriver {
             int baselineSuccesses,
             int testSamples,
             double thresholdConfidence) {
-        
+
         validateInputs(baselineSamples, baselineSuccesses, testSamples, thresholdConfidence);
-        
+
         double baselineRate = (double) baselineSuccesses / baselineSamples;
-        
-        // Derive threshold as Wilson one-sided lower bound
-        // This accounts for uncertainty in the baseline estimate
-        double threshold = estimator.lowerBound(baselineSuccesses, baselineSamples, thresholdConfidence);
-        
+        double effectiveBaselineRate = effectiveBaselineRate(
+                baselineSuccesses, baselineSamples, thresholdConfidence);
+        double threshold = estimator.lowerBoundFromRate(
+                effectiveBaselineRate, testSamples, thresholdConfidence);
+
         DerivationContext context = new DerivationContext(
             baselineRate, baselineSamples, testSamples, thresholdConfidence);
-        
+
         return new DerivedThreshold(threshold, OperationalApproach.SAMPLE_SIZE_FIRST, context, true);
+    }
+
+    /**
+     * Effective baseline rate per the statistical companion's two-step
+     * construction (§4.3.2): when the baseline observed perfect success
+     * (k = n) the raw rate of 1.0 has zero variance and would force the
+     * threshold to 1.0; instead the discrete one-sided Wilson lower
+     * bound at {@code n_baseline} carries forward as the rate. Otherwise
+     * the effective rate is simply the observed proportion.
+     */
+    private double effectiveBaselineRate(
+            int baselineSuccesses, int baselineSamples, double confidence) {
+        if (baselineSuccesses == baselineSamples) {
+            return estimator.lowerBound(baselineSuccesses, baselineSamples, confidence);
+        }
+        return (double) baselineSuccesses / baselineSamples;
     }
     
     /**
@@ -128,79 +144,52 @@ public class ThresholdDeriver {
         }
         
         double baselineRate = (double) baselineSuccesses / baselineSamples;
-        
-        // Compute implied confidence by finding what confidence level would
-        // produce this threshold from the baseline data
+
         double impliedConfidence = computeImpliedConfidence(
-            baselineSuccesses, baselineSamples, explicitThreshold);
-        
+            baselineSuccesses, baselineSamples, testSamples, explicitThreshold);
+
         // Consider statistically sound if implied confidence ≥ 80%
         boolean isStatisticallySound = impliedConfidence >= 0.80;
-        
+
         DerivationContext context = new DerivationContext(
             baselineRate, baselineSamples, testSamples, impliedConfidence);
-        
+
         return new DerivedThreshold(
             explicitThreshold, OperationalApproach.THRESHOLD_FIRST, context, isStatisticallySound);
     }
-    
+
     /**
-     * Computes the implied confidence level for a given threshold.
-     * 
-     * <p>This inverts the Wilson lower bound calculation: given a threshold,
-     * find what confidence level would produce it.
-     * 
-     * <p>Uses binary search since the inverse has no closed form.
-     * 
-     * @param successes Baseline successes
-     * @param trials Baseline trials
-     * @param threshold The target threshold
-     * @return Implied confidence level
+     * Implied confidence level for a given target threshold (statistical
+     * companion §6.3): the confidence at which
+     * {@link #deriveSampleSizeFirst} would produce the same threshold.
+     *
+     * <p>Uses binary search; the inverse has no closed form.
      */
-    private double computeImpliedConfidence(int successes, int trials, double threshold) {
-        double pHat = (double) successes / trials;
-        
-        // If threshold >= baseline rate, implied confidence is very low
-        if (threshold >= pHat) {
-            // Find the exact value by binary search
-            // Lower bound on confidence = 0.5 (50%) when threshold = baseline
-            return binarySearchConfidence(successes, trials, threshold, 0.01, 0.5);
-        }
-        
-        // Binary search for the confidence level that produces this threshold
-        // Use a very high upper bound to handle thresholds well below the point estimate
-        return binarySearchConfidence(successes, trials, threshold, 0.5, 0.9999999);
-    }
-    
-    /**
-     * Binary search to find confidence level that produces target threshold.
-     */
-    private double binarySearchConfidence(
-            int successes, int trials, double targetThreshold,
-            double lowConf, double highConf) {
-        
+    private double computeImpliedConfidence(
+            int baselineSuccesses, int baselineSamples, int testSamples, double targetThreshold) {
         double tolerance = 1e-10;
         int maxIterations = 100;
-        
+        double lowConf = 1e-6;
+        double highConf = 1.0 - 1e-6;
+
         for (int i = 0; i < maxIterations; i++) {
             double midConf = (lowConf + highConf) / 2.0;
-            double derivedThreshold = estimator.lowerBound(successes, trials, midConf);
-            
+            double effectiveRate = effectiveBaselineRate(
+                    baselineSuccesses, baselineSamples, midConf);
+            double derivedThreshold = estimator.lowerBoundFromRate(
+                    effectiveRate, testSamples, midConf);
+
             if (Math.abs(derivedThreshold - targetThreshold) < tolerance) {
                 return midConf;
             }
-            
-            // Wilson lower bound DECREASES with confidence level:
-            // Higher confidence → higher z-score → larger margin → lower lower bound
+            // Derived threshold decreases with confidence: higher z → larger margin.
             if (derivedThreshold > targetThreshold) {
-                // Current lower bound is too high → need more confidence to lower it
                 lowConf = midConf;
             } else {
-                // Current lower bound is too low → need less confidence to raise it
                 highConf = midConf;
             }
         }
-        
+
         return (lowConf + highConf) / 2.0;
     }
     

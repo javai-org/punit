@@ -46,26 +46,27 @@ class ThresholdDeriverTest {
         void derivesThresholdFromBaselineData() {
             // Baseline: 951 successes out of 1000 trials (95.1%)
             // Test: 100 samples at 95% confidence
+            // Companion §3.4: threshold is Wilson lower at n_test from
+            // baseline rate ≈ 0.902.
             DerivedThreshold threshold = deriver.deriveSampleSizeFirst(
                 1000, 951, 100, 0.95);
-            
-            // Threshold should be the Wilson lower bound ≈ 93.6%
-            assertThat(threshold.value()).isCloseTo(0.936, within(0.01));
+
+            assertThat(threshold.value()).isCloseTo(0.902, within(0.01));
             assertThat(threshold.approach()).isEqualTo(OperationalApproach.SAMPLE_SIZE_FIRST);
             assertThat(threshold.isStatisticallySound()).isTrue();
         }
-        
+
         @Test
         @DisplayName("threshold is lower than baseline rate")
         void thresholdIsLowerThanBaselineRate() {
             DerivedThreshold threshold = deriver.deriveSampleSizeFirst(
                 1000, 951, 100, 0.95);
-            
-            // Gap accounts for sampling uncertainty
+
+            // Gap accounts for sampling uncertainty at the test sample size.
             assertThat(threshold.value()).isLessThan(0.951);
             assertThat(threshold.gapFromBaseline()).isGreaterThan(0);
         }
-        
+
         @Test
         @DisplayName("higher confidence produces lower threshold")
         void higherConfidenceProducesLowerThreshold() {
@@ -73,36 +74,36 @@ class ThresholdDeriverTest {
                 1000, 951, 100, 0.95);
             DerivedThreshold threshold99 = deriver.deriveSampleSizeFirst(
                 1000, 951, 100, 0.99);
-            
+
             // 99% confidence → more conservative threshold
             assertThat(threshold99.value()).isLessThan(threshold95.value());
         }
-        
+
         @Test
-        @DisplayName("larger baseline sample produces higher threshold (more precise)")
-        void largerBaselineSampleProducesHigherThreshold() {
-            // Same observed rate (95%), different baseline sample sizes
-            DerivedThreshold smallBaseline = deriver.deriveSampleSizeFirst(
-                100, 95, 50, 0.95);
-            DerivedThreshold largeBaseline = deriver.deriveSampleSizeFirst(
-                10000, 9500, 50, 0.95);
-            
-            // Larger baseline → narrower CI → higher lower bound
-            assertThat(largeBaseline.value()).isGreaterThan(smallBaseline.value());
+        @DisplayName("smaller test sample size produces lower threshold")
+        void smallerTestSampleProducesLowerThreshold() {
+            // Companion §3.5 / §3.4: the threshold is Wilson lower at the
+            // test sample size. A smaller test produces a wider interval
+            // and therefore a lower bound, regardless of baseline size.
+            DerivedThreshold smallTest = deriver.deriveSampleSizeFirst(
+                1000, 950, 50, 0.95);
+            DerivedThreshold largeTest = deriver.deriveSampleSizeFirst(
+                1000, 950, 200, 0.95);
+
+            assertThat(largeTest.value()).isGreaterThan(smallTest.value());
         }
-        
+
         @Test
         @DisplayName("handles perfect baseline (100% success) correctly")
         void handlesPerfectBaseline() {
-            // All 1000 trials succeeded
+            // All 1000 trials succeeded; test 100 at 95%.
+            // Companion §4.3.2: p₀ = Wilson_lower(1000, 1000) ≈ 0.9973,
+            // then Wilson_lower_from_rate(p₀, 100, 0.95) ≈ 0.9686.
             DerivedThreshold threshold = deriver.deriveSampleSizeFirst(
                 1000, 1000, 100, 0.95);
-            
-            // Should NOT be 1.0 (that would cause every failure to fail)
+
             assertThat(threshold.value()).isLessThan(1.0);
-            
-            // Wilson one-sided lower bound for 1000/1000 at 95% ≈ 99.73%
-            assertThat(threshold.value()).isCloseTo(0.9973, within(0.001));
+            assertThat(threshold.value()).isCloseTo(0.9686, within(0.001));
         }
         
         @Test
@@ -126,18 +127,16 @@ class ThresholdDeriverTest {
         @Test
         @DisplayName("computes implied confidence for given threshold")
         void computesImpliedConfidenceForGivenThreshold() {
-            // Baseline: 951/1000 (95.1%)
-            // Explicit threshold: 93% (slightly below the 95% CI lower bound of ~93.6%)
+            // Baseline: 951/1000 (95.1%); test=100; explicit threshold 0.85.
+            // Companion §6.3: the implied confidence is the conf at which
+            // deriveSampleSizeFirst would produce 0.85. With baseline rate
+            // 0.951 at n_test=100, that confidence sits comfortably above
+            // 90% and the result is statistically sound.
             DerivedThreshold result = deriver.deriveThresholdFirst(
-                1000, 951, 100, 0.93);
-            
-            // Threshold should be exactly what was specified
-            assertThat(result.value()).isEqualTo(0.93);
+                1000, 951, 100, 0.85);
+
+            assertThat(result.value()).isEqualTo(0.85);
             assertThat(result.approach()).isEqualTo(OperationalApproach.THRESHOLD_FIRST);
-            
-            // Implied confidence should be high (threshold slightly below the 95% CI lower bound)
-            // Since the Wilson lower bound at 95% is about 93.6%, 
-            // a threshold of 93% implies a confidence level around 97-99%
             assertThat(result.context().confidence()).isGreaterThan(0.90);
             assertThat(result.isStatisticallySound()).isTrue();
         }
@@ -225,27 +224,21 @@ class ThresholdDeriverTest {
         @Test
         @DisplayName("baseline experiment: 951/1000 with 100-sample test")
         void baselineExperimentWorkedExample() {
-            // From STATISTICAL-COMPANION document:
-            // Baseline: 951 successes in 1000 trials (p̂ = 0.951)
-            // Test samples: 100
-            // Confidence: 95%
-            
+            // Statistical companion §3.4: threshold is Wilson one-sided
+            // lower bound at the test sample size, applied to the baseline
+            // rate. For 951/1000 baseline → p̂_baseline = 0.951; at
+            // n_test=100 and 95% confidence → threshold ≈ 0.902.
+
             DerivedThreshold threshold = deriver.deriveSampleSizeFirst(
                 1000, 951, 100, 0.95);
-            
-            // The document states threshold should be around 93-94%
-            // This accounts for:
-            // 1. Uncertainty in baseline (Wilson lower bound)
-            // 2. 95% confidence level
+
             assertThat(threshold.value())
-                .as("Threshold for 951/1000 baseline at 95% confidence")
-                .isCloseTo(0.936, within(0.01));
-            
-            // Gap from baseline should be meaningful
+                .as("Threshold for 951/1000 baseline at n_test=100, 95% confidence")
+                .isCloseTo(0.902, within(0.01));
+
             assertThat(threshold.gapFromBaseline())
                 .as("Gap from baseline")
-                .isGreaterThan(0.01)
-                .isLessThan(0.05);
+                .isGreaterThan(0.01);
         }
     }
 
@@ -254,16 +247,17 @@ class ThresholdDeriverTest {
     class ScenarioValidation {
 
         @Test
-        @DisplayName("derives π₀=0.9374 from baseline 950/1000 at 95% confidence")
+        @DisplayName("derives π₀ ≈ 0.9008 from baseline 950/1000 at n_test=100, 95% confidence")
         void scenarioAB_thresholdMatchesPlanValue() {
-            // Scenarios A and B use baseline: 1000 samples, 950 successes, rate=0.9500
-            // At 95% confidence, Wilson one-sided lower bound → π₀ ≈ 0.9374
+            // Scenarios A and B use baseline: 1000 samples, 950 successes,
+            // p̂_baseline = 0.95. Companion §3.4: Wilson one-sided lower
+            // bound at n_test=100, conf=0.95 → π₀ ≈ 0.9008.
             DerivedThreshold result =
                     deriver.deriveSampleSizeFirst(1000, 950, 100, 0.95);
 
             assertThat(result.value())
                     .as("Threshold used in Scenarios A and B")
-                    .isCloseTo(0.9374, within(0.001));
+                    .isCloseTo(0.9008, within(0.001));
         }
     }
 }

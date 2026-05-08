@@ -101,8 +101,10 @@ class EmpiricalEndToEndIntegrationTest {
         assertThat(result.verdict()).isEqualTo(Verdict.PASS);
         var detail = result.criterionResults().get(0).result().detail();
         assertThat(detail).containsEntry("origin", "EMPIRICAL");
-        assertThat(detail).containsEntry("threshold", 0.80);
         assertThat(detail).containsEntry("baselineSampleCount", 1000);
+        assertThat(detail).containsEntry("baselineRate", 0.80);
+        // Companion §3.4: derived threshold sits below the baseline rate.
+        assertThat((double) detail.get("threshold")).isLessThan(0.80);
     }
 
     @Test
