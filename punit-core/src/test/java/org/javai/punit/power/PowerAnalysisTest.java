@@ -7,15 +7,19 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
+import org.javai.punit.api.covariate.Covariate;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
@@ -200,15 +204,44 @@ class PowerAnalysisTest {
     }
 
     @Test
-    @DisplayName("rejects an MDE incompatible with the resolved baseline rate")
+    @DisplayName("rejects an MDE that pushes the alternative-hypothesis rate to or below 0")
     void rejectsIncompatibleMde(@TempDir Path dir) throws IOException {
-        writeBaselineWithRate(dir, 0.50, 1000);
-        // rate=0.5 + mde=0.5 → upper bound 1.0, outside (0, 1).
+        writeBaselineWithRate(dir, 0.10, 1000);
+        // rate=0.10 with mde=0.10 → p1 = 0; rate=0.10 with mde=0.50 → p1 < 0.
+        // Both must be rejected; the diagnostic names the one-sided
+        // alternative-hypothesis rate invariant rather than the obsolete
+        // symmetric [rate-mde, rate+mde] interval.
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.5, 0.80))
-                .withMessageContaining("incompatible");
+                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.10, 0.80))
+                .withMessageContaining("alternative-hypothesis rate");
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.6, 0.80));
+                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.50, 0.80));
+    }
+
+    @Test
+    @DisplayName("accepts a perfect baseline (rate = 1.0) — the verdict path is one-sided")
+    void acceptsPerfectBaseline(@TempDir Path dir) throws IOException {
+        // The previous symmetric precondition rejected rate = 1.0
+        // because rate + mde >= 1; the relaxed one-sided check admits
+        // it. Downstream, σ0 = 0 collapses the sample-size formula to
+        // n = (z_β · σ1)² / δ², which the calculator now accepts.
+        writeBaselineWithRate(dir, 1.0, 1000);
+
+        int n = PowerAnalysis.sampleSize(dir, baseline(), 0.05, 0.80);
+
+        assertThat(n).isPositive();
+    }
+
+    @Test
+    @DisplayName("accepts a baseline whose rate is strictly above 1 − mde (rate = 0.99, mde = 0.05)")
+    void acceptsBaselineRateAboveOneMinusMde(@TempDir Path dir) throws IOException {
+        // Previously rejected by the symmetric two-sided check; the
+        // formula handles 0.99 cleanly (both σ0 and σ1 are positive).
+        writeBaselineWithRate(dir, 0.99, 1000);
+
+        int n = PowerAnalysis.sampleSize(dir, baseline(), 0.05, 0.80);
+
+        assertThat(n).isPositive();
     }
 
     @Test
@@ -222,5 +255,105 @@ class PowerAnalysisTest {
         };
         PowerAnalysis.sampleSize(dir, counting, 0.05, 0.80);
         assertThat(callCount[0]).isEqualTo(1);
+    }
+
+    // ── Covariate-aware resolution ────────────────────────────────────
+
+    private static final String COVARIATE_USE_CASE_ID = "covariate-echo";
+
+    /**
+     * Use case declaring a single CONFIGURATION covariate whose
+     * resolver returns a fixed value chosen at construction time.
+     * Modelled on the punitexamples ShoppingBasketUseCase pattern.
+     */
+    private static UseCase<Factors, String, String> covariateUseCase(String resolvedRegion) {
+        return new UseCase<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+            @Override public String id() { return COVARIATE_USE_CASE_ID; }
+            @Override public List<Covariate> covariates() {
+                return List.of(Covariate.custom("region", CovariateCategory.CONFIGURATION));
+            }
+            @Override public Map<String, Supplier<String>> customCovariateResolvers() {
+                return Map.of("region", () -> resolvedRegion);
+            }
+        };
+    }
+
+    private static Supplier<Experiment> covariateBaseline(String resolvedRegion) {
+        return () -> {
+            UseCase<Factors, String, String> useCase = covariateUseCase(resolvedRegion);
+            Sampling<Factors, String, String> sampling = Sampling
+                    .<Factors, String, String>builder()
+                    .useCaseFactory(f -> useCase)
+                    .inputs("a")
+                    .samples(100)
+                    .build();
+            return Experiment.measuring(sampling, FACTORS).build();
+        };
+    }
+
+    /**
+     * Writes a covariate-stamped baseline record to {@code dir} with
+     * the given covariate profile values. The filename includes the
+     * covariate hashes so it byte-matches what the resolver expects
+     * for a covariate-aware lookup.
+     */
+    private static void writeCovariateStampedBaseline(
+            Path dir, double passRate, int sampleCount, Map<String, String> profileValues)
+            throws IOException {
+        String fingerprint = FactorsFingerprint.of(FactorBundle.of(FACTORS));
+        BaselineRecord record = new BaselineRecord(
+                COVARIATE_USE_CASE_ID, "measureBaseline", fingerprint,
+                "sha256:any", sampleCount, Instant.parse("2026-04-26T15:30:00Z"),
+                Map.<String, BaselineStatistics>of(
+                        "bernoulli-pass-rate",
+                        new PassRateStatistics(passRate, sampleCount)),
+                CovariateProfile.of(profileValues));
+        new BaselineWriter().write(record, dir);
+    }
+
+    @Test
+    @DisplayName("resolves a covariate-stamped baseline whose profile aligns with the use case")
+    void resolvesCovariateStampedBaseline(@TempDir Path dir) throws IOException {
+        writeCovariateStampedBaseline(dir, 0.80, 1000, Map.of("region", "EU"));
+
+        int n = PowerAnalysis.sampleSize(dir, covariateBaseline("EU"), 0.05, 0.80);
+
+        assertThat(n).isPositive();
+    }
+
+    @Test
+    @DisplayName("covariate-stamped baseline whose profile does not align → IllegalStateException naming the profile")
+    void coVariateMismatchThrowsAndNamesProfile(@TempDir Path dir) throws IOException {
+        // Baseline is stamped with region=US; the use case resolves
+        // region=EU. The selector rejects the EU candidate (no
+        // matching baseline for the resolved profile) and the
+        // diagnostic must surface the resolved profile so the
+        // operator knows *which* configuration went unmatched.
+        writeCovariateStampedBaseline(dir, 0.80, 1000, Map.of("region", "US"));
+
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> PowerAnalysis.sampleSize(
+                        dir, covariateBaseline("EU"), 0.05, 0.80))
+                .withMessageContaining(COVARIATE_USE_CASE_ID)
+                .withMessageContaining("region=EU");
+    }
+
+    @Test
+    @DisplayName("covariate-naïve use case still resolves an unstamped baseline (no regression)")
+    void covariateNaiveUseCaseStillResolvesUnstampedBaseline(@TempDir Path dir) throws IOException {
+        // The original ECHO use case declares no covariates. Its
+        // baseline has no covariate stamp. The covariate-aware
+        // resolver path still selects an unstamped candidate when
+        // declarations are empty — this is the no-regression case
+        // for the existing PowerAnalysis call sites.
+        writeBaselineWithRate(dir, 0.80, 1000);
+
+        int n = PowerAnalysis.sampleSize(dir, baseline(), 0.05, 0.80);
+
+        assertThat(n).isPositive();
     }
 }
