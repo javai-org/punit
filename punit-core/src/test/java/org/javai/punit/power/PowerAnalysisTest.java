@@ -204,15 +204,44 @@ class PowerAnalysisTest {
     }
 
     @Test
-    @DisplayName("rejects an MDE incompatible with the resolved baseline rate")
+    @DisplayName("rejects an MDE that pushes the alternative-hypothesis rate to or below 0")
     void rejectsIncompatibleMde(@TempDir Path dir) throws IOException {
-        writeBaselineWithRate(dir, 0.50, 1000);
-        // rate=0.5 + mde=0.5 → upper bound 1.0, outside (0, 1).
+        writeBaselineWithRate(dir, 0.10, 1000);
+        // rate=0.10 with mde=0.10 → p1 = 0; rate=0.10 with mde=0.50 → p1 < 0.
+        // Both must be rejected; the diagnostic names the one-sided
+        // alternative-hypothesis rate invariant rather than the obsolete
+        // symmetric [rate-mde, rate+mde] interval.
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.5, 0.80))
-                .withMessageContaining("incompatible");
+                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.10, 0.80))
+                .withMessageContaining("alternative-hypothesis rate");
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.6, 0.80));
+                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline(), 0.50, 0.80));
+    }
+
+    @Test
+    @DisplayName("accepts a perfect baseline (rate = 1.0) — the verdict path is one-sided")
+    void acceptsPerfectBaseline(@TempDir Path dir) throws IOException {
+        // The previous symmetric precondition rejected rate = 1.0
+        // because rate + mde >= 1; the relaxed one-sided check admits
+        // it. Downstream, σ0 = 0 collapses the sample-size formula to
+        // n = (z_β · σ1)² / δ², which the calculator now accepts.
+        writeBaselineWithRate(dir, 1.0, 1000);
+
+        int n = PowerAnalysis.sampleSize(dir, baseline(), 0.05, 0.80);
+
+        assertThat(n).isPositive();
+    }
+
+    @Test
+    @DisplayName("accepts a baseline whose rate is strictly above 1 − mde (rate = 0.99, mde = 0.05)")
+    void acceptsBaselineRateAboveOneMinusMde(@TempDir Path dir) throws IOException {
+        // Previously rejected by the symmetric two-sided check; the
+        // formula handles 0.99 cleanly (both σ0 and σ1 are positive).
+        writeBaselineWithRate(dir, 0.99, 1000);
+
+        int n = PowerAnalysis.sampleSize(dir, baseline(), 0.05, 0.80);
+
+        assertThat(n).isPositive();
     }
 
     @Test
