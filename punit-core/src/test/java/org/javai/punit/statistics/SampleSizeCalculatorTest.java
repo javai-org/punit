@@ -177,15 +177,47 @@ class SampleSizeCalculatorTest {
     class InputValidation {
         
         @Test
-        @DisplayName("rejects baseline rate outside (0, 1)")
+        @DisplayName("rejects baseline rate outside (0, 1] — perfect baselines (rate = 1.0) are admissible")
         void rejectsInvalidBaselineRate() {
+            // rate = 0 has no signal to plan against — keep it rejected.
             assertThatThrownBy(() -> calculator.calculateForPower(0.0, 0.05, 0.95, 0.80))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Baseline rate");
-            
-            assertThatThrownBy(() -> calculator.calculateForPower(1.0, 0.05, 0.95, 0.80))
+
+            // rate > 1 is structurally invalid.
+            assertThatThrownBy(() -> calculator.calculateForPower(1.01, 0.05, 0.95, 0.80))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Baseline rate");
+
+            // rate = 1.0 is admissible — see acceptsPerfectBaseline below.
+        }
+
+        @Test
+        @DisplayName("accepts perfect baseline (rate = 1.0) — σ0 = 0 collapses formula to n = (z_β · σ1)² / δ²")
+        void acceptsPerfectBaseline() {
+            // For rate = 1.0, σ0 = √(1·0) = 0; the first term of the
+            // sample-size formula vanishes. The expected n is
+            // ⌈(z_β · √(p1(1−p1)))² / δ²⌉ where p1 = 1 − mde.
+            SampleSizeRequirement req = calculator.calculateForPower(1.0, 0.05, 0.95, 0.80);
+            assertThat(req.requiredSamples()).isPositive();
+            // Closed-form for σ0 = 0: n = (z_β · σ1 / δ)²
+            double zBeta = 0.8416212335729143; // qnorm(0.80)
+            double p1 = 0.95;
+            double sigma1 = Math.sqrt(p1 * (1.0 - p1));
+            int expected = (int) Math.ceil(Math.pow(zBeta * sigma1 / 0.05, 2));
+            assertThat(req.requiredSamples()).isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName("accepts rate = 0.99 with mde = 0.05 — formerly rejected by the symmetric two-sided check")
+        void acceptsRateAboveOneMinusMde() {
+            // Under the previous symmetric precondition this combination
+            // failed at PowerAnalysis. SampleSizeCalculator itself never
+            // rejected rate = 0.99, so this test pins that the relaxed
+            // upstream precondition reaches the formula and produces a
+            // sensible n. The full formula (σ0, σ1 both nonzero) governs.
+            SampleSizeRequirement req = calculator.calculateForPower(0.99, 0.05, 0.95, 0.80);
+            assertThat(req.requiredSamples()).isPositive();
         }
         
         @Test

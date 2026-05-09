@@ -164,11 +164,23 @@ public class SampleSizeCalculator {
         return STANDARD_NORMAL.cumulativeProbability(zBeta);
     }
     
+    /**
+     * Validates inputs for {@link #calculateForPower}.
+     *
+     * <p>{@code baselineRate ∈ (0, 1]} — perfect baselines (rate = 1.0)
+     * are admissible. The formula handles {@code σ0 = √(p0(1−p0)) = 0}
+     * cleanly: the first term of {@code n = ((z_α · σ0 + z_β · σ1) / δ)²}
+     * vanishes and the calculation reduces to {@code n = (z_β · σ1)² / δ²},
+     * which is well-defined for any {@code p1 = rate − mde > 0}. The
+     * companion {@code p1 > 0} invariant is enforced separately at the
+     * call site (line 89 below) so the two checks document independently
+     * meaningful preconditions.
+     */
     private void validateInputs(double baselineRate, double minDetectableEffect,
                                 double confidence, double power) {
-        if (baselineRate <= 0.0 || baselineRate >= 1.0) {
+        if (baselineRate <= 0.0 || baselineRate > 1.0) {
             throw new IllegalArgumentException(
-                "Baseline rate must be in (0, 1), got: " + baselineRate);
+                "Baseline rate must be in (0, 1], got: " + baselineRate);
         }
         if (minDetectableEffect <= 0.0 || minDetectableEffect >= 1.0) {
             throw new IllegalArgumentException(

@@ -111,10 +111,9 @@ public final class PowerAnalysis {
      * @throws IllegalArgumentException if {@code mde} ∉ (0, 1) or
      *                                  {@code power} ∉ (0, 1) or the
      *                                  supplier yields a non-MEASURE
-     *                                  experiment, or the resolved
-     *                                  baseline rate is incompatible
-     *                                  with the requested MDE
-     *                                  ({@code rate ± mde} outside (0, 1))
+     *                                  experiment, or the alternative-
+     *                                  hypothesis rate {@code rate − mde}
+     *                                  is not strictly positive
      * @throws IllegalStateException    if no matching baseline file is
      *                                  resolvable under {@code baselineDir}
      */
@@ -155,11 +154,19 @@ public final class PowerAnalysis {
                                 + " — run the baseline measure before planning a test against it."));
 
         double observedRate = stats.observedPassRate();
-        if (observedRate - mde <= 0.0 || observedRate + mde >= 1.0) {
+        // One-sided check: degradation testing only cares about the
+        // lower side, so the alternative-hypothesis rate p1 = rate − mde
+        // must be strictly positive. The upper side (rate + mde) is
+        // never used by the formula and intentionally not bounded —
+        // perfect baselines (rate = 1.0) are valid input here, with
+        // σ0 = 0 collapsing the formula to n = (z_β · σ1)² / δ²
+        // inside SampleSizeCalculator.
+        if (observedRate - mde <= 0.0) {
             throw new IllegalArgumentException(
                     "baseline observed rate " + observedRate
                             + " is incompatible with mde=" + mde
-                            + " — the [rate-mde, rate+mde] interval must lie in (0, 1)");
+                            + " — the alternative-hypothesis rate (rate − mde) "
+                            + "must be > 0 for one-sided degradation detection.");
         }
 
         // The sample-size formula lives in SampleSizeCalculator — the
