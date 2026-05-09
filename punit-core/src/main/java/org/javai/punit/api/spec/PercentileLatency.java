@@ -132,8 +132,12 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
             LatencyStatistics stats = ctx.baseline().orElse(null);
             if (stats == null) {
                 return inconclusive(
-                        "no matching baseline was resolvable for empirical thresholds; "
-                                + "see DG02 §'Baseline relationship' for the resolution mechanism",
+                        "no baseline was resolvable for the empirical thresholds — "
+                                + "the framework matches by use-case id, factors "
+                                + "fingerprint, and (when declared) covariate profile; "
+                                + "no on-disk baseline aligned with the run's "
+                                + "configuration. Run a measure experiment under this "
+                                + "configuration first.",
                         Map.of("assertedPercentiles", assertedCsv(), "origin", ThresholdOrigin.EMPIRICAL.name()));
             }
             Map<String, Object> empiricalDetail = Map.of("assertedPercentiles", assertedCsv());

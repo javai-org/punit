@@ -206,8 +206,12 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
                 detail.put(InconclusiveReasons.DETAIL_KEY,
                         InconclusiveReasons.NO_BASELINE_AVAILABLE);
                 return inconclusive(
-                        "no matching baseline was resolvable for empirical threshold; "
-                                + "see DG02 §'Baseline relationship' for the resolution mechanism",
+                        "no baseline was resolvable for the empirical threshold — "
+                                + "the framework matches by use-case id, factors "
+                                + "fingerprint, and (when declared) covariate profile; "
+                                + "no on-disk baseline aligned with the run's "
+                                + "configuration. Run a measure experiment under this "
+                                + "configuration first.",
                         detail);
             }
             Map<String, Object> empiricalDetail = Map.of("confidence", confidence);

@@ -131,16 +131,23 @@ class PassRateTest {
 
     @Test
     @DisplayName("empirical() with no baseline returns INCONCLUSIVE with the "
-            + "'no baseline available' RP01 discriminant on the detail map")
+            + "'no baseline available' discriminant on the detail map")
     void empiricalNoBaselineInconclusive() {
         PassRate<String> criterion = PassRate.empirical();
 
         CriterionResult result = criterion.evaluate(ctx(summary(90, 10), Optional.empty()));
 
         assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
-        assertThat(result.explanation()).contains("baseline");
+        // The diagnostic must explain what happened in domain language
+        // (no orchestrator-internal requirement codes leaking into the
+        // developer-facing message — see the project family's
+        // requirement-ID convention in the orchestrator's CLAUDE.md).
+        assertThat(result.explanation())
+                .contains("no baseline was resolvable")
+                .contains("Run a measure experiment under this configuration first")
+                .doesNotContainPattern("\\b[A-Z]{2,3}\\d{2}\\b");
         assertThat(result.detail())
-                .as("RP01 vocabulary discriminant for the verdict-builder")
+                .as("verdict-builder vocabulary discriminant")
                 .containsEntry(
                         org.javai.punit.api.spec.InconclusiveReasons.DETAIL_KEY,
                         org.javai.punit.api.spec.InconclusiveReasons.NO_BASELINE_AVAILABLE);
