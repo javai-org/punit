@@ -148,6 +148,13 @@ class PercentileLatencyTest {
 
         assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
         assertThat(result.detail()).containsEntry("assertedPercentiles", "p95,p99");
+        // The diagnostic must explain what happened in domain language
+        // (no orchestrator-internal requirement codes leaking into the
+        // developer-facing message).
+        assertThat(result.explanation())
+                .contains("no baseline was resolvable")
+                .contains("Run a measure experiment under this configuration first")
+                .doesNotContainPattern("\\b[A-Z]{2,3}\\d{2}\\b");
     }
 
     @Test
