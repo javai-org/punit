@@ -1,4 +1,4 @@
-package org.javai.punit.controls.budget;
+package org.javai.punit.engine.budget;
 
 import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.reporting.RateFormat;

@@ -1,4 +1,4 @@
-package org.javai.punit.controls.budget;
+package org.javai.punit.engine.budget;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;

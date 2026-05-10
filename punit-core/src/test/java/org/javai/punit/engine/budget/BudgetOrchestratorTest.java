@@ -1,8 +1,8 @@
-package org.javai.punit.controls.budget;
+package org.javai.punit.engine.budget;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.controls.budget.BudgetOrchestrator.BudgetCheckResult;
+import org.javai.punit.engine.budget.BudgetOrchestrator.BudgetCheckResult;
 import org.javai.punit.verdict.TerminationReason;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

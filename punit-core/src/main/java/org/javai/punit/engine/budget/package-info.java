@@ -22,4 +22,4 @@
  * @see org.javai.punit.api.ProbabilisticTestBudget
  * @see org.javai.punit.api.TokenChargeRecorder
  */
-package org.javai.punit.controls.budget;
+package org.javai.punit.engine.budget;

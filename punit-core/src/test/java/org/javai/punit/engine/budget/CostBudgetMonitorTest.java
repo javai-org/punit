@@ -1,4 +1,4 @@
-package org.javai.punit.controls.budget;
+package org.javai.punit.engine.budget;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Optional;

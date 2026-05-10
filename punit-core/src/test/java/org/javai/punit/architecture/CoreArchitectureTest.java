@@ -136,7 +136,6 @@ class CoreArchitectureTest {
                             "org.javai.punit.experiment..",
                             "org.javai.punit.spec..",
                             "org.javai.punit.statistics..",
-                            "org.javai.punit.controls..",
                             "org.javai.punit.reporting.."
                     )
                     .because("utilities must be self-contained and not depend on framework internals");

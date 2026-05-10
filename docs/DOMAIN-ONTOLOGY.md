@@ -376,7 +376,7 @@ ArchUnit-style architecture test).
 
 - family: Budget
   java_type: ResourceControls + ResourceControlsBuilder + BudgetTracker (engine)
-  package: org.javai.punit.api.spec + org.javai.punit.engine + org.javai.punit.controls.budget
+  package: org.javai.punit.api.spec + org.javai.punit.engine + org.javai.punit.engine.budget
   role_notes: |
     Time / token / sample-count flavours. Suite / class / method
     scopes; first exhausted budget triggers termination.
@@ -389,7 +389,7 @@ ArchUnit-style architecture test).
 
 - family: Pacing
   java_type: Pacing record + per-pacing-mode strategies
-  package: org.javai.punit.api + org.javai.punit.controls.pacing
+  package: org.javai.punit.api + org.javai.punit.engine.pacing
   role_notes: |
     Pacing belongs on the Use Case (`UseCase#pacing()`), not on
     the spec — every test of the same service should respect the

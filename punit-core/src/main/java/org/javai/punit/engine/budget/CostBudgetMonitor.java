@@ -1,4 +1,4 @@
-package org.javai.punit.controls.budget;
+package org.javai.punit.engine.budget;
 
 import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
