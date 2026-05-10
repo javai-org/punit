@@ -129,7 +129,7 @@ public final class BaselineWriter {
         // p95 / p99).
         LatencyIndicator latency = record.latencyIndicator();
         if (latency.hasData()) {
-            org.javai.punit.engine.output.LatencySection.blockFor(
+            org.javai.punit.engine.emit.LatencySection.blockFor(
                     latency.passingPercentiles(),
                     latency.contributingSamples(),
                     latency.totalSamples())

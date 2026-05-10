@@ -13,8 +13,8 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.PerConfigSummary;
 import org.javai.punit.api.spec.SampleSummary;
-import org.javai.punit.engine.output.LatencySection;
-import org.javai.punit.engine.output.ResultProjections;
+import org.javai.punit.engine.emit.LatencySection;
+import org.javai.punit.engine.emit.ResultProjections;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 

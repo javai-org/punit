@@ -10,7 +10,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.engine.budget.CostBudgetMonitor.TokenMode;
-import org.javai.punit.engine.output.LatencySection;
+import org.javai.punit.engine.emit.LatencySection;
 import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.api.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;

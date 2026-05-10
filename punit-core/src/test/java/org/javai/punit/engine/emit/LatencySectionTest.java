@@ -1,4 +1,4 @@
-package org.javai.punit.engine.output;
+package org.javai.punit.engine.emit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

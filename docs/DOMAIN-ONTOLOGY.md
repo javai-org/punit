@@ -571,7 +571,8 @@ differently).
     Criterion, EvaluationContext, FactorsStepper, …). `engine.*`
     is internal — engine.criteria, engine.baseline,
     engine.explore, engine.optimize, engine.covariate,
-    engine.output. Authors should never import from `engine.*`.
+    engine.emit, engine.budget, engine.pacing, engine.spec.
+    Authors should never import from `engine.*`.
   enforcement: |
     `CoreArchitectureTest` (package-level rules in punit-core) +
     `Junit5ApiPackageContentsTest` (junit5 abstraction-level
