@@ -11,17 +11,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Architecture rules for {@code org.javai.punit.runtime}.
+ * Architecture rules for {@code org.javai.punit.runtime} and
+ * {@code org.javai.punit.internal.runtime}.
  *
- * <p>The runtime package hosts the authoring entry point
- * ({@code PUnit}) and its supporting classes. It must remain
- * importable from a sentinel-deployed class — i.e. without
- * dragging in JUnit Jupiter or JUnit Platform on the runtime
- * classpath.
+ * <p>The runtime package hosts the authoring entry point ({@code PUnit})
+ * — the only public class there. The supporting emitters, resolvers,
+ * and composer live under {@code internal.runtime}. Both must remain
+ * importable from a sentinel-deployed class — i.e. without dragging
+ * in JUnit Jupiter or JUnit Platform on the runtime classpath.
  *
- * <p>Class-level rule: nothing in {@code org.javai.punit.runtime} may
- * import any class in {@code org.junit..}. The {@code opentest4j}
- * exception types ({@link org.opentest4j.AssertionFailedError},
+ * <p>Class-level rule: nothing in either runtime package may import
+ * any class in {@code org.junit..}. The {@code opentest4j} exception
+ * types ({@link org.opentest4j.AssertionFailedError},
  * {@link org.opentest4j.TestAbortedException}) are permitted — they
  * are the standard contract for non-JUnit test-failure signalling
  * and carry no JUnit Platform dependency themselves.
@@ -30,12 +31,16 @@ import org.junit.jupiter.api.Test;
 class RuntimeArchitectureTest {
 
     private static JavaClasses runtimeClasses;
+    private static JavaClasses internalRuntimeClasses;
 
     @BeforeAll
     static void importClasses() {
         runtimeClasses = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages("org.javai.punit.runtime");
+        internalRuntimeClasses = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("org.javai.punit.internal.runtime");
     }
 
     @Test
@@ -50,5 +55,19 @@ class RuntimeArchitectureTest {
                         + "without bringing JUnit Jupiter or JUnit Platform along");
 
         rule.check(runtimeClasses);
+    }
+
+    @Test
+    @DisplayName("internal.runtime classes must not import any JUnit type")
+    void internalRuntimeMustNotImportJUnit() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("org.javai.punit.internal.runtime..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("org.junit..")
+                .because("internal.runtime hosts the emitters and resolvers that "
+                        + "PUnit drives; it shares the runtime package's JUnit-free "
+                        + "deployability constraint");
+
+        rule.check(internalRuntimeClasses);
     }
 }

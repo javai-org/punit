@@ -3,8 +3,8 @@ package org.javai.punit.sentinel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import org.javai.punit.reporting.CompositeVerdictSink;
-import org.javai.punit.reporting.LogVerdictSink;
+import org.javai.punit.internal.reporting.CompositeVerdictSink;
+import org.javai.punit.internal.reporting.LogVerdictSink;
 import org.javai.punit.verdict.VerdictSink;
 
 /**

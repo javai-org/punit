@@ -15,7 +15,7 @@ import java.util.Optional;
 
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.reporting.ConsoleVerdictSink;
+import org.javai.punit.internal.reporting.ConsoleVerdictSink;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 
 /**

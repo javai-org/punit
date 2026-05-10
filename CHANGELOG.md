@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (package layout — breaking FQN change)
+
+- The public/internal split is now structural. Every framework-internal
+  package moved under `org.javai.punit.internal.*`:
+  - `org.javai.punit.engine.*` → `org.javai.punit.internal.engine.*`
+    (criteria, baseline, explore, optimize, covariate, spec, budget,
+    pacing, emit, …).
+  - `org.javai.punit.reporting` → `org.javai.punit.internal.reporting`.
+  - `org.javai.punit.util` → `org.javai.punit.internal.util`.
+  - The non-`PUnit` residents of `runtime/` (the emitters
+    `BaselineEmitter`, `ExploreEmitter`, `OptimizeEmitter`; the
+    resolvers `BaselineProviderResolver`, `TestIdentityResolver`; the
+    composer `EmpiricalTestComposer`) moved to
+    `org.javai.punit.internal.runtime.*`. `PUnit` itself stays public
+    at `org.javai.punit.runtime.PUnit`.
+- The public packages — `api`, `api.spec`, `api.covariate`, `api.match`,
+  `runtime` (for `PUnit`), `verdict`, `statistics`,
+  `statistics.transparent` — keep their FQNs.
+- Migration for code that imported any of the moved packages: prepend
+  `internal.` to the package path. The migration is mechanical and a
+  find-and-replace pattern resolves every affected import:
+  - `org.javai.punit.engine` → `org.javai.punit.internal.engine`
+  - `org.javai.punit.reporting` → `org.javai.punit.internal.reporting`
+  - `org.javai.punit.util` → `org.javai.punit.internal.util`
+
 ### Changed (verdict XML wire format — breaking)
 
 - `<statistics>` now carries `wilson-lower` (the one-sided Wilson

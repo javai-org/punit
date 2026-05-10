@@ -210,7 +210,7 @@ ArchUnit-style architecture test).
 - family: Sample
   java_type: per-sample tuple (Outcome<OT> + duration + token diff)
               materialised inside Engine; surfaced via SampleSummary
-  package: org.javai.punit.engine + org.javai.punit.api.spec
+  package: org.javai.punit.internal.engine + org.javai.punit.api.spec
   role_notes: |
     Authors do not write Sample — the framework produces it.
     `SampleSummary<OT>` is the aggregated form a criterion sees.
@@ -282,7 +282,7 @@ ArchUnit-style architecture test).
 
 - family: Threshold (pass-rate)
   java_type: PassRate (criterion factory family)
-  package: org.javai.punit.engine.criteria
+  package: org.javai.punit.internal.engine.criteria
   role_notes: |
     Three forms: `PassRate.meeting(threshold, ThresholdOrigin)`
     (NORMATIVE, declared); `PassRate.empirical()` (closest-match
@@ -301,7 +301,7 @@ ArchUnit-style architecture test).
 
 - family: Threshold (latency)
   java_type: PercentileLatency (criterion family) + LatencySpec / Latency (annotation form)
-  package: org.javai.punit.engine.criteria + org.javai.punit.api
+  package: org.javai.punit.internal.engine.criteria + org.javai.punit.api
   role_notes: |
     The `@Latency` annotation form sits in `api`; the criterion
     factory and evaluation in `engine.criteria`.
@@ -324,7 +324,7 @@ ArchUnit-style architecture test).
 
 - family: Feasibility Gate
   java_type: VerificationFeasibilityEvaluator + Feasibility (engine criterion adapter)
-  package: org.javai.punit.statistics (evaluator) + org.javai.punit.engine.criteria (adapter)
+  package: org.javai.punit.statistics (evaluator) + org.javai.punit.internal.engine.criteria (adapter)
   role_notes: |
     The pre-execution gate. Verification + NORMATIVE → reject;
     Smoke + NORMATIVE → run with caveat; any + EMPIRICAL → run.
@@ -345,7 +345,7 @@ ArchUnit-style architecture test).
 
 - family: Latency Population
   java_type: LatencyDistribution (statistics) + LatencyPercentileComputer (engine)
-  package: org.javai.punit.statistics + org.javai.punit.engine
+  package: org.javai.punit.statistics + org.javai.punit.internal.engine
   role_notes: |
     **Family invariant — Latency Population purity.** Only
     successful Samples contribute. The `LatencyPercentileComputer`
@@ -367,7 +367,7 @@ ArchUnit-style architecture test).
 ```yaml
 - family: Token
   java_type: TokenTracker (interface) + InMemoryTokenTracker (engine impl) + TokenChargeRecorder (annotation-driven static charge)
-  package: org.javai.punit.api (tracker, recorder) + org.javai.punit.engine (impl)
+  package: org.javai.punit.api (tracker, recorder) + org.javai.punit.internal.engine (impl)
   role_notes: |
     Generic unit of cost — not LLM-specific (family ambiguous
     term: `Token`). Authors call `tracker.recordTokens(n)` inside
@@ -376,7 +376,7 @@ ArchUnit-style architecture test).
 
 - family: Budget
   java_type: ResourceControls + ResourceControlsBuilder + BudgetTracker (engine)
-  package: org.javai.punit.api.spec + org.javai.punit.engine + org.javai.punit.engine.budget
+  package: org.javai.punit.api.spec + org.javai.punit.internal.engine + org.javai.punit.internal.engine.budget
   role_notes: |
     Time / token / sample-count flavours. Suite / class / method
     scopes; first exhausted budget triggers termination.
@@ -389,7 +389,7 @@ ArchUnit-style architecture test).
 
 - family: Pacing
   java_type: Pacing record + per-pacing-mode strategies
-  package: org.javai.punit.api + org.javai.punit.engine.pacing
+  package: org.javai.punit.api + org.javai.punit.internal.engine.pacing
   role_notes: |
     Pacing belongs on the Use Case (`UseCase#pacing()`), not on
     the spec — every test of the same service should respect the
@@ -423,7 +423,7 @@ ArchUnit-style architecture test).
 
 - family: Empirical Baseline
   java_type: BaselineProvider + BaselineLookup (api) + BaselineEmitter (runtime)
-  package: org.javai.punit.api.spec + org.javai.punit.runtime + org.javai.punit.engine.baseline
+  package: org.javai.punit.api.spec + org.javai.punit.runtime + org.javai.punit.internal.engine.baseline
   role_notes: |
     Emitted by MeasureBuilder.run() via BaselineEmitter; loaded
     via BaselineProvider; selected via covariate-aware resolver
@@ -431,14 +431,14 @@ ArchUnit-style architecture test).
 
 - family: Footprint
   java_type: footprint hash inside engine.baseline + serialised as the EX09 field
-  package: org.javai.punit.engine.baseline
+  package: org.javai.punit.internal.engine.baseline
   role_notes: |
     Internal to the engine; surfaces in baseline YAML. Authors
     do not compute footprints by hand.
 
 - family: Content Fingerprint
   java_type: contentFingerprint field on baseline YAML (EX10)
-  package: org.javai.punit.engine.baseline
+  package: org.javai.punit.internal.engine.baseline
   role_notes: |
     Soft-warning on mismatch (per 2026-05 catalog amendments),
     not hard abort.

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import org.javai.punit.junit5.testsubjects.CovariateSubjects;
-import org.javai.punit.engine.baseline.BaselineResolver;
+import org.javai.punit.internal.engine.baseline.BaselineResolver;
 import org.javai.punit.runtime.PUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.javai.punit.junit5.testsubjects.CovariateSubjects;
-import org.javai.punit.engine.baseline.BaselineResolver;
+import org.javai.punit.internal.engine.baseline.BaselineResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import org.javai.punit.reporting.CompositeVerdictSink;
+import org.javai.punit.internal.reporting.CompositeVerdictSink;
 
 /**
  * Singleton-style registry of {@link VerdictSink}s that

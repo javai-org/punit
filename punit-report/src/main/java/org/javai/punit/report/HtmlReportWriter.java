@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
-import org.javai.punit.engine.emit.LatencySection;
+import org.javai.punit.internal.engine.emit.LatencySection;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;

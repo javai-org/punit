@@ -1,6 +1,6 @@
 package org.javai.punit.statistics;
 
-import org.javai.punit.reporting.RateFormat;
+import org.javai.punit.internal.reporting.RateFormat;
 
 /**
  * Generates human-readable interpretations of test verdicts.

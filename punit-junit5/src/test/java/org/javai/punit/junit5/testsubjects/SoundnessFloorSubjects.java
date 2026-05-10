@@ -11,7 +11,7 @@ import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
-import org.javai.punit.engine.criteria.PassRate;
+import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**

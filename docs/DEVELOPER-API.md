@@ -319,8 +319,8 @@ A criterion is a spec-level claim evaluated against the observed
 sample aggregate. Criteria live in
 `org.javai.punit.api.spec.Criterion<OT, S extends BaselineStatistics>`
 as the abstract surface; concrete criteria with statistical
-machinery live in `org.javai.punit.engine.criteria` (so the api
-package stays free of statistical dependencies — see
+machinery live in `org.javai.punit.internal.engine.criteria` (so the
+api package stays free of statistical dependencies — see
 [Statistics isolation rule](#statistics-isolation-rule)).
 
 ### PassRate (Bernoulli pass-rate)
@@ -434,13 +434,13 @@ The packages an author imports and what each one carries.
 | `org.javai.punit.api`                                                                 | Annotations, UseCase, Contract, ContractBuilder, Sampling, Factor support, ValueMatcher, TestIntent, ThresholdOrigin, Pacing, TokenTracker, … | yes                                                           |
 | `org.javai.punit.api.spec`                                                            | Spec types (Spec, Experiment, ProbabilisticTest, Criterion, EvaluationContext, FactorsStepper, NextFactor, BaselineProvider, …)               | yes                                                           |
 | `org.javai.punit.api.covariate`                                                       | Covariate (interface) and built-in covariate categories                                                                                       | yes                                                           |
-| `org.javai.punit.runtime`                                                             | `PUnit` entry point + emitters                                                                                                                | yes — for `PUnit` only                                        |
-| `org.javai.punit.verdict`                                                             | Verdict types, sinks, RunMetadata                                                                                                             | yes — for sink registration                                   |
-| `org.javai.punit.statistics`                                                          | Wilson, percentile, threshold derivation, feasibility evaluation                                                                              | yes — but rarely needed; the criteria already wrap statistics |
-| `org.javai.punit.engine.*` (criteria, baseline, explore, optimize, covariate, output) | Engine internals and concrete criterion impls                                                                                                 | **no** — internal                                             |
-| `org.javai.punit.contract.*`                                                          | Dead parallel stack, scheduled for deletion                                                                                                   | **no** — do not reference                                     |
-| `org.javai.punit.reporting`                                                           | Internal rendering helpers                                                                                                                    | **no** — internal                                             |
-| `org.javai.punit.util`                                                                | Internal utilities                                                                                                                            | **no** — internal                                             |
+| `org.javai.punit.runtime`                                                                      | `PUnit` entry point only — emitters live under `internal.runtime`                                                                             | yes — for `PUnit` only                                        |
+| `org.javai.punit.verdict`                                                                      | Verdict types, sinks, RunMetadata                                                                                                             | yes — for sink registration                                   |
+| `org.javai.punit.statistics`                                                                   | Wilson, percentile, threshold derivation, feasibility evaluation                                                                              | yes — but rarely needed; the criteria already wrap statistics |
+| `org.javai.punit.internal.engine.*` (criteria, baseline, explore, optimize, covariate, spec, …) | Engine internals and concrete criterion impls                                                                                                 | **no** — internal                                             |
+| `org.javai.punit.internal.reporting`                                                           | Internal rendering helpers                                                                                                                    | **no** — internal                                             |
+| `org.javai.punit.internal.runtime`                                                             | Emitters (`BaselineEmitter`, `ExploreEmitter`, `OptimizeEmitter`), resolvers, composer — driven by `PUnit`                                    | **no** — internal                                             |
+| `org.javai.punit.internal.util`                                                                | Internal utilities                                                                                                                            | **no** — internal                                             |
 | `org.javai.punit.junit5.*` (in punit-junit5)                                          | JUnit 5 extensions; one author-facing type (`UseCaseProvider`); annotations live in `punit-core`                                              | yes — for `UseCaseProvider` only                              |
 | `org.javai.punit.report.*` (in punit-report)                                          | Verdict XML reader / writer; HTML report                                                                                                      | yes — for sink consumption                                    |
 | `org.javai.punit.sentinel.*` (in punit-sentinel)                                      | Sentinel runtime + CLI                                                                                                                        | author-side: for reliability spec authoring; no JUnit deps    |
@@ -512,8 +512,8 @@ without tracing through the rest of the codebase. Enforced by
   api-side type needs a statistical calculation, the implementation
   belongs in the engine layer, not in the api package. Concrete
   `Criterion` implementations whose `evaluate()` consumes statistics
-  live in `org.javai.punit.engine.criteria` (e.g. `PassRate`) — the
-  `Criterion` interface stays in `org.javai.punit.api.spec`, the
+  live in `org.javai.punit.internal.engine.criteria` (e.g. `PassRate`)
+  — the `Criterion` interface stays in `org.javai.punit.api.spec`, the
   statistical machinery stays in `org.javai.punit.statistics`, and
   the criterion bridges the two.
 
@@ -543,7 +543,7 @@ test-harness dependencies**. The Sentinel reaches the engine through
 `PUnit` / `runtime`, not through any JUnit extension. Enforced by:
 
 - `RuntimeArchitectureTest` — zero `org.junit` deps in
-  `org.javai.punit.runtime`.
+  `org.javai.punit.runtime` and `org.javai.punit.internal.runtime`.
 - `SentinelArchitectureTest` — zero `org.junit` deps in
   `punit-sentinel`.
 
