@@ -30,30 +30,32 @@ import org.junit.platform.testkit.engine.Events;
 
 /**
  * Audits each pre-flight invariant the framework upholds, end-to-end
- * through the typed authoring surface. Each test constructs a
- * configuration that should trip the invariant (or be feasible by
- * construction, in PT03's case) and asserts the framework's response —
- * including, where the gate aborts, that no samples ran.
+ * through the typed authoring surface — declared-threshold
+ * feasibility, declared-sample-size feasibility, power-analysis-derived
+ * feasibility, parameter validation, and configuration coherence. Each
+ * test constructs a configuration that should trip the invariant (or
+ * be feasible by construction, in the power-analysis case) and asserts
+ * the framework's response — including, where the gate aborts, that no
+ * samples ran.
  *
- * <p>The directive {@code DIR-BUG-FEASIBILITY-VERIFICATION-punit}
- * Part 3 motivates this class: the original regression slipped past
- * existing unit tests because the gate was wired only at the
- * evaluator level, not exercised end-to-end against the
+ * <p>The original feasibility regression slipped past existing unit
+ * tests because the gate was wired only at the evaluator level, not
+ * exercised end-to-end against the
  * {@code PUnit.testing(...).criterion(...).assertPasses()} surface.
  * One test per audited invariant guards against the same shape of
  * regression in the future.
  *
- * <p>PT08 soundness floor is intentionally absent — the audit
- * recorded it as a gap (configurations whose configured confidence
- * falls below 80% should abort regardless of intent; the framework
- * does not enforce this today). Implementing the floor would force
- * reworks in {@code CovariateRoundTripTest} and {@code PreflightSubjects}
- * — two classes that use {@code .atConfidence(0.50)} as a workaround
- * to make small-n configurations feasible. The directive's
- * "do not silently expand scope" instruction makes that a follow-up
- * directive, not a fix folded into this PR.
+ * <p>The soundness floor (≥ 80% confidence regardless of intent) is
+ * intentionally absent — the audit recorded it as a gap (configurations
+ * whose configured confidence falls below the floor should abort
+ * regardless of intent; the framework does not enforce this today).
+ * The fix is tracked in a separate orchestrator directive that also
+ * handles the consequential reworks in two existing test classes that
+ * use {@code .atConfidence(0.50)} as a feasibility workaround. The
+ * "do not silently expand scope" instruction in the parent directive
+ * makes that a follow-up, not a fix folded into this PR.
  */
-@DisplayName("Pre-flight invariants — end-to-end audit (PT01 / PT02 / PT03 / PT12 / PT13)")
+@DisplayName("Pre-flight invariants — end-to-end audit")
 class PreflightInvariantsTest {
 
     private static final String JUNIT_ENGINE_ID = "junit-jupiter";
@@ -78,41 +80,41 @@ class PreflightInvariantsTest {
     }
 
     @Test
-    @DisplayName("PT01: declared (samples, threshold) infeasible under VERIFICATION → abort, no samples")
-    void pt01ThresholdFirstAbortsBeforeSampling() {
+    @DisplayName("declared (samples, threshold) infeasible under VERIFICATION → abort, no samples")
+    void declaredThresholdInfeasibleAbortsBeforeSampling() {
         Events events = run(
-                PreflightInvariantSubjects.PT01ThresholdFirstInfeasibleTest.class);
+                PreflightInvariantSubjects.DeclaredThresholdInfeasibleTest.class);
         events.assertStatistics(stats -> stats.started(1).failed(1));
         assertInfeasibilityException(events);
         assertThat(PreflightInvariantSubjects.INVOKE_COUNT.get())
-                .as("PT01 abort must precede sampling — engine never runs")
+                .as("declared-threshold abort must precede sampling — engine never runs")
                 .isZero();
     }
 
     @Test
-    @DisplayName("PT02: declared (samples, confidence) + empirical baseline rate too high → abort, no samples")
-    void pt02SampleSizeFirstAbortsBeforeSampling() throws IOException {
+    @DisplayName("declared (samples, confidence) + empirical baseline rate too high → abort, no samples")
+    void declaredSampleSizeInfeasibleAbortsBeforeSampling() throws IOException {
         // Hand-write a baseline at rate 0.95: the always-passing use
         // case would have produced rate 1.0, which Feasibility skips
-        // as degenerate. The PT02 invariant fires when an
-        // empirical-derived threshold sits above what the configured
-        // sample size can underwrite.
+        // as degenerate. The invariant fires when an empirical-derived
+        // threshold sits above what the configured sample size can
+        // underwrite.
         writeBaselineAt(0.95, 1000);
 
         Events events = run(
-                PreflightInvariantSubjects.PT02SampleSizeFirstInfeasibleTest.class);
+                PreflightInvariantSubjects.DeclaredSampleSizeInfeasibleTest.class);
         events.assertStatistics(stats -> stats.started(1).failed(1));
         assertInfeasibilityException(events);
         assertThat(PreflightInvariantSubjects.INVOKE_COUNT.get())
-                .as("PT02 abort must precede sampling — engine never runs")
+                .as("declared-sample-size abort must precede sampling — engine never runs")
                 .isZero();
     }
 
     @Test
-    @DisplayName("PT03: PowerAnalysis-derived sample count is feasible by construction → engine runs")
-    void pt03ConfidenceFirstFeasibleByConstruction() {
+    @DisplayName("PowerAnalysis-derived sample count is feasible by construction → engine runs")
+    void powerAnalysisDerivedSampleSizeIsFeasible() {
         // Phase 1: seed the baseline PowerAnalysis will read from.
-        run(PreflightInvariantSubjects.PT03BaselineMeasure.class)
+        run(PreflightInvariantSubjects.PowerAnalysisBaselineMeasure.class)
                 .assertStatistics(stats -> stats.started(1).succeeded(1));
         int afterMeasure = PreflightInvariantSubjects.INVOKE_COUNT.get();
 
@@ -120,22 +122,22 @@ class PreflightInvariantsTest {
         // sample count and configures itself with that. The
         // configuration is feasible by construction; the engine runs.
         Events events = run(
-                PreflightInvariantSubjects.PT03ConfidenceFirstFeasibleTest.class);
+                PreflightInvariantSubjects.PowerAnalysisDerivedFeasibleTest.class);
         events.assertStatistics(stats -> stats.started(1));
         long terminal = events.failed().count() + events.succeeded().count();
         assertThat(terminal)
-                .as("PT03 feasible-by-construction config runs to a verdict, not aborted")
+                .as("feasible-by-construction config runs to a verdict, not aborted")
                 .isEqualTo(1);
         assertThat(PreflightInvariantSubjects.INVOKE_COUNT.get())
-                .as("PT03 engine runs the configured number of samples")
+                .as("engine runs the configured number of samples")
                 .isGreaterThan(afterMeasure);
     }
 
     @Test
-    @DisplayName("PT12: out-of-range threshold rejected at construction → IllegalArgumentException")
-    void pt12ParameterValidationRejectsOutOfRange() {
+    @DisplayName("out-of-range threshold rejected at construction → IllegalArgumentException")
+    void parameterValidationRejectsOutOfRange() {
         Events events = run(
-                PreflightInvariantSubjects.PT12ParameterValidationTest.class);
+                PreflightInvariantSubjects.ParameterValidationTest.class);
         events.assertStatistics(stats -> stats.started(1).failed(1));
         events.failed()
                 .assertThatEvents()
@@ -146,15 +148,15 @@ class PreflightInvariantsTest {
                     assertThat(t.getMessage()).contains("threshold").contains("[0, 1]");
                 });
         assertThat(PreflightInvariantSubjects.INVOKE_COUNT.get())
-                .as("PT12 rejection precedes any framework wiring — engine never runs")
+                .as("parameter rejection precedes any framework wiring — engine never runs")
                 .isZero();
     }
 
     @Test
-    @DisplayName("PT13: incoherent ThresholdOrigin.EMPIRICAL on contractual factory → rejected at construction")
-    void pt13ConfigurationCoherenceRejectsEmpiricalOnContractual() {
+    @DisplayName("incoherent ThresholdOrigin.EMPIRICAL on contractual factory → rejected at construction")
+    void configurationCoherenceRejectsEmpiricalOriginOnContractualFactory() {
         Events events = run(
-                PreflightInvariantSubjects.PT13ConfigurationCoherenceTest.class);
+                PreflightInvariantSubjects.ConfigurationCoherenceTest.class);
         events.assertStatistics(stats -> stats.started(1).failed(1));
         events.failed()
                 .assertThatEvents()
@@ -167,7 +169,7 @@ class PreflightInvariantsTest {
                             .contains("empirical factories");
                 });
         assertThat(PreflightInvariantSubjects.INVOKE_COUNT.get())
-                .as("PT13 rejection precedes any framework wiring — engine never runs")
+                .as("coherence rejection precedes any framework wiring — engine never runs")
                 .isZero();
     }
 

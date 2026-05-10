@@ -1,7 +1,6 @@
 package org.javai.punit.junit5.testsubjects;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
@@ -16,15 +15,17 @@ import org.javai.punit.power.PowerAnalysis;
 import org.javai.punit.runtime.PUnit;
 
 /**
- * Test subjects for {@code PreflightInvariantsTest}, which audits each
- * pre-flight invariant the framework upholds (PT01 / PT02 / PT03 / PT12
- * / PT13). The hosting test counts samples actually executed via
- * {@link #INVOKE_COUNT} so the abort-before-sampling guarantee can be
- * asserted directly.
+ * Test subjects for {@code PreflightInvariantsTest}, which audits the
+ * pre-flight invariants the framework upholds end-to-end through the
+ * typed authoring surface — declared-threshold feasibility,
+ * declared-sample-size feasibility, power-analysis-derived feasibility,
+ * parameter validation, and configuration coherence. The hosting test
+ * counts samples actually executed via {@link #INVOKE_COUNT} so the
+ * abort-before-sampling guarantee can be asserted directly.
  *
- * <p>PT08 soundness floor is intentionally not exercised here — see
- * {@code DIR-BUG-FEASIBILITY-VERIFICATION-punit} for the audit
- * outcome (gap; deferred to a follow-up directive).
+ * <p>The soundness floor (≥ 80% confidence regardless of intent) is
+ * intentionally not exercised here — the audit recorded it as a gap
+ * tracked in a separate orchestrator directive.
  */
 public final class PreflightInvariantSubjects {
 
@@ -53,12 +54,12 @@ public final class PreflightInvariantSubjects {
     }
 
     /**
-     * PT01 — declared (samples, threshold) pair under a normative
-     * origin. The configured sample size is too small to underwrite
-     * the declared threshold at the default confidence; the
-     * pre-flight gate must abort before the engine runs any samples.
+     * Declared (samples, threshold) pair under a normative origin.
+     * The configured sample size is too small to underwrite the
+     * declared threshold at the default confidence; the pre-flight
+     * gate must abort before the engine runs any samples.
      */
-    public static final class PT01ThresholdFirstInfeasibleTest {
+    public static final class DeclaredThresholdInfeasibleTest {
         @ProbabilisticTest
         void undersizedAgainstNormativeThreshold() {
             // n=50 against 0.9999 at 95% confidence: Wilson upper-of-perfect
@@ -70,12 +71,12 @@ public final class PreflightInvariantSubjects {
     }
 
     /**
-     * PT02 — declared (samples, confidence) pair against an empirical
+     * Declared (samples, confidence) pair against an empirical
      * baseline. The baseline rate is too high relative to the
      * configured sample size; the criterion would derive a threshold
      * the test cannot underwrite. Pre-flight aborts before sampling.
      */
-    public static final class PT02SampleSizeFirstInfeasibleTest {
+    public static final class DeclaredSampleSizeInfeasibleTest {
         @ProbabilisticTest
         void undersizedAgainstHighBaselineRate() {
             // n=10 against baseline 0.95 at default 95% confidence:
@@ -87,15 +88,15 @@ public final class PreflightInvariantSubjects {
     }
 
     /**
-     * PT03 — confidence-first via {@code PowerAnalysis.sampleSize}
-     * against a real baseline. The framework returns a sample count
-     * sized for the requested (mde, power) tuple; using that count
-     * configures the test to be feasible by construction. The
-     * pre-flight gate does not fire and the engine runs.
+     * Power-analysis-derived sample size against a real baseline.
+     * The framework returns a sample count sized for the requested
+     * (mde, power) tuple; using that count configures the test to be
+     * feasible by construction. The pre-flight gate does not fire and
+     * the engine runs.
      */
-    public static final class PT03ConfidenceFirstFeasibleTest {
+    public static final class PowerAnalysisDerivedFeasibleTest {
 
-        public static final String EXPERIMENT_ID = "pt03-baseline";
+        public static final String EXPERIMENT_ID = "power-analysis-baseline";
 
         private org.javai.punit.api.spec.Experiment baseline() {
             return PUnit.measuring(sampling(200))
@@ -104,7 +105,7 @@ public final class PreflightInvariantSubjects {
         }
 
         @ProbabilisticTest
-        void confidenceFirstSampleSizeFeasible() {
+        void powerAnalysisSampleSizeIsFeasible() {
             // PowerAnalysis derives n from (baseline rate, mde, power);
             // the test then runs with that n. By construction the
             // (n, baseline-rate, default-confidence) tuple is feasible.
@@ -116,28 +117,28 @@ public final class PreflightInvariantSubjects {
     }
 
     /**
-     * Companion @Experiment for PT03's baseline. The hosting test
-     * runs this first to seed the baseline, then runs
-     * {@link PT03ConfidenceFirstFeasibleTest} which consumes it.
+     * Companion @Experiment for the power-analysis baseline. The
+     * hosting test runs this first to seed the baseline, then runs
+     * {@link PowerAnalysisDerivedFeasibleTest} which consumes it.
      */
-    public static final class PT03BaselineMeasure {
+    public static final class PowerAnalysisBaselineMeasure {
         @org.javai.punit.api.Experiment
         void seedBaseline() {
             PUnit.measuring(sampling(200))
-                    .experimentId(PT03ConfidenceFirstFeasibleTest.EXPERIMENT_ID)
+                    .experimentId(PowerAnalysisDerivedFeasibleTest.EXPERIMENT_ID)
                     .run();
         }
     }
 
     /**
-     * PT12 — parameter validation at construction time. The framework
+     * Parameter validation at construction time. The framework
      * rejects out-of-range parameter values with
      * {@link IllegalArgumentException} before any pre-flight gate
      * runs. This subject demonstrates the catch in a TestKit-driven
      * frame: the {@code @ProbabilisticTest} method itself throws on
      * invocation.
      */
-    public static final class PT12ParameterValidationTest {
+    public static final class ParameterValidationTest {
         @ProbabilisticTest
         void rejectsOutOfRangeThreshold() {
             // PassRate.meeting validates threshold ∈ [0, 1] at
@@ -150,13 +151,13 @@ public final class PreflightInvariantSubjects {
     }
 
     /**
-     * PT13 — configuration coherence. The framework rejects
-     * incoherent combinations at the criterion factory: passing
+     * Configuration coherence. The framework rejects incoherent
+     * combinations at the criterion factory: passing
      * {@code ThresholdOrigin.EMPIRICAL} to {@link PassRate#meeting}
      * is a category error (EMPIRICAL is reserved for the empirical
      * factory), and the criterion throws on construction.
      */
-    public static final class PT13ConfigurationCoherenceTest {
+    public static final class ConfigurationCoherenceTest {
         @ProbabilisticTest
         void rejectsEmpiricalOriginOnContractualFactory() {
             PUnit.testing(sampling(50))
