@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0-alpha2] - 2026-05-10
+
+> **🧪 Experimental release.** Patch over 0.7.0-alpha. Closes the
+> wider feasibility-gate audit listed as a "Known gap" in the
+> 0.7.0-alpha entry; corrects the empirical-threshold-derivation
+> methodology against the javai-R oracle; tightens cost / UX on
+> empirical runs that have no resolvable baseline; and removes
+> orchestrator-internal requirement codes from public source. No
+> breaking API changes vs 0.7.0-alpha.
+
+### Fixed
+- **Empirical threshold derivation now applies Wilson at the test
+  sample size**, per Statistical Companion §3.4 / §4.3.2. The 0.7.0-alpha
+  path applied Wilson at the baseline sample size and compared the
+  test's Wilson lower bound against that; this could yield a
+  threshold that the test's own confidence machinery couldn't
+  underwrite. The fix matches javai-R's reference implementation;
+  the conformance fixtures pass tolerance 1e-6.
+- **PowerAnalysis.sampleSize now resolves covariate-stamped
+  baselines.** A use case declaring covariates could not use the
+  confidence-first authoring pattern — `PowerAnalysis.sampleSize`
+  threw `IllegalStateException("no baseline found …")` even when a
+  matching covariate-stamped baseline existed and was findable by
+  the test pipeline's own resolver. Fixed by threading the use
+  case's covariate profile + declarations through to the four-arg
+  `BaselineResolver` overload.
+- **PowerAnalysis admits perfect baselines.** A two-sided
+  precondition rejected baselines whose recorded `observedPassRate`
+  sat within `mde` of 1.0 — including the common case of a
+  `rate = 1.0` baseline. Relaxed to one-sided so the threshold
+  path's existing perfect-baseline two-step is reachable from the
+  power path too.
+- **INCONCLUSIVE verdicts emit a `[PUNIT-INCONCLUSIVE]` line to
+  stderr** before the `TestAbortedException` is thrown. Earlier the
+  IDE per-test detail pane showed the explanation but the build
+  console saw only the four ⊘ icons; a developer watching the build
+  log had no account of why a test was skipped.
+- **Empirical runs with no resolvable baseline short-circuit
+  pre-flight.** Earlier the framework drove the spec through the
+  engine — taking *all configured samples* — before the criterion's
+  `evaluate` returned INCONCLUSIVE. Each sample is an LLM API call
+  in the typical use case; the framework now skips sampling when the
+  verdict is structurally guaranteed to be INCONCLUSIVE-no-baseline.
+
+### Added — feasibility-gate audit closes
+- **Pre-flight feasibility now applies to contractual criteria too.**
+  0.7.0-alpha's `Feasibility.check` silently early-returned for any
+  criterion where `!isEmpirical()`; a contractual test with a 99.99%
+  SLA at n=50 produced a verdict instead of aborting. Both
+  contractual and empirical paths now go through the same gate.
+- **Soundness floor enforced regardless of intent.** A configured
+  confidence below `StatisticalDefaults.SOUNDNESS_FLOOR_CONFIDENCE`
+  (= 0.80) aborts pre-flight in both VERIFICATION and SMOKE intents.
+  This was listed as a known gap in 0.7.0-alpha; closes the wider
+  feasibility-gate audit.
+- **End-to-end audit tests** in `punit-junit5` cover each pre-flight
+  invariant via TestKit, with abort-before-sampling verified by a
+  counter probe on the use case. The original regression slipped
+  past existing unit tests because the gate was wired only at the
+  evaluator level — these guard against the same shape of regression
+  recurring.
+
+### Changed
+- **Orchestrator-internal requirement codes** (the project family's
+  internal feature-tracking shorthand) removed from public source —
+  javadoc, inline comments, `@DisplayName` strings, assertion
+  messages. These tracking codes are interpretable only via an
+  internal catalog and were noise to an open-source reader. An
+  ArchUnit-style regression guard scans both production and test
+  source to keep them out.
+
+### Known gaps still in this experimental release
+- **Statistical early termination** (early termination on
+  failure-inevitable / success-guaranteed) is still not wired. The
+  supporting model is in place but the per-sample evaluator and the
+  builder method that opts out have not yet been re-added. Tracked
+  for restoration in a subsequent release.
+
 ## [0.7.0-alpha] - 2026-05-07
 
 > **🧪 Experimental release.** The first cut of the 0.7.0 typed-builder API. Core authoring surface and statistical engine are ready for evaluation; some optimisations are deferred — see **Known gaps** below. v0.x means breaking changes are still possible: pin to this exact version if you depend on its surface today, and check the issue tracker before upgrading. Feedback at https://github.com/javai-org/punit/issues.
