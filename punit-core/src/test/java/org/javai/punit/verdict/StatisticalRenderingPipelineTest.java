@@ -45,7 +45,7 @@ class StatisticalRenderingPipelineTest {
             assertThat(analysis).contains("0.9374 (Wilson)");
             assertThat(analysis).contains(lv("Confidence level:", "95.0%"));
             assertThat(analysis).contains("0.0196");
-            assertThat(analysis).contains(lv("CI lower bound:", "0.9016"));
+            assertThat(analysis).contains(lv("Wilson lower bound:", "0.9016"));
             assertThat(analysis).contains(lv("Z:", "0.9331"));
             assertThat(analysis).contains(lv("p-value:", "0.8246"));
             assertThat(analysis).doesNotContain("Covariate");
@@ -58,7 +58,7 @@ class StatisticalRenderingPipelineTest {
 
             assertThat(html).contains("<span class=\"tip\" data-tip=");
             assertThat(html).contains("SE(p\u0302):");
-            assertThat(html).contains("CI lower bound:");
+            assertThat(html).contains("Wilson lower bound:");
             assertThat(html).contains("Z:");
             assertThat(html).contains("p-value:");
             // Values should not be inside spans
@@ -108,7 +108,7 @@ class StatisticalRenderingPipelineTest {
             assertThat(analysis).contains("1000 (950 successes, rate: 0.9500)");
             assertThat(analysis).contains("0.9374 (Wilson)");
             assertThat(analysis).contains("0.0357");
-            assertThat(analysis).contains(lv("CI lower bound:", "0.7672"));
+            assertThat(analysis).contains(lv("Wilson lower bound:", "0.7672"));
             assertThat(analysis).contains(lv("Z:", "-3.6080"));
             assertThat(analysis).contains(lv("p-value:", "0.0002"));
         }
@@ -139,7 +139,7 @@ class StatisticalRenderingPipelineTest {
             assertThat(analysis).doesNotContain("Baseline spec:");
             assertThat(analysis).contains(lv("Confidence level:", "95.0%"));
             assertThat(analysis).contains("0.0566");
-            assertThat(analysis).contains(lv("CI lower bound:", "0.6696"));
+            assertThat(analysis).contains(lv("Wilson lower bound:", "0.6696"));
             assertThat(analysis).contains(lv("Z:", "-2.3570"));
             assertThat(analysis).contains(lv("p-value:", "0.0092"));
         }
@@ -169,7 +169,7 @@ class StatisticalRenderingPipelineTest {
             assertThat(analysis).doesNotContain("Derived threshold:");
             assertThat(analysis).contains(lv("Confidence level:", "95.0%"));
             assertThat(analysis).contains("0.0212");
-            assertThat(analysis).contains(lv("CI lower bound:", "0.8506"));
+            assertThat(analysis).contains(lv("Wilson lower bound:", "0.8506"));
             assertThat(analysis).contains(lv("Z:", "1.9802"));
             assertThat(analysis).contains(lv("p-value:", "0.9762"));
         }
@@ -199,7 +199,7 @@ class StatisticalRenderingPipelineTest {
 
             assertThat(analysis).contains(lv("Confidence level:", "95.0%"));
             assertThat(analysis).contains("0.0218");
-            assertThat(analysis).contains(lv("CI lower bound:", "0.8883"));
+            assertThat(analysis).contains(lv("Wilson lower bound:", "0.8883"));
             assertThat(analysis).contains(lv("Z:", "1.6667"));
             assertThat(analysis).contains(lv("p-value:", "0.9522"));
 
@@ -234,7 +234,7 @@ class StatisticalRenderingPipelineTest {
 
             assertThat(analysis).contains(lv("Confidence level:", "95.0%"));
             assertThat(analysis).contains("0.0255");
-            assertThat(analysis).contains(lv("CI lower bound:", "0.8625"));
+            assertThat(analysis).contains(lv("Wilson lower bound:", "0.8625"));
             assertThat(analysis).contains(lv("Z:", "1.0000"));
             assertThat(analysis).contains(lv("p-value:", "0.8413"));
 
@@ -267,7 +267,7 @@ class StatisticalRenderingPipelineTest {
             assertThat(analysis).doesNotContain("Baseline spec:");
             assertThat(analysis).contains(lv("Confidence level:", "95.0%"));
             assertThat(analysis).contains("0.0861");
-            assertThat(analysis).contains(lv("CI lower bound:", "0.4880"));
+            assertThat(analysis).contains(lv("Wilson lower bound:", "0.4880"));
             assertThat(analysis).contains(lv("Z:", "-4.2597"));
             assertThat(analysis).contains(lv("p-value:", "0.0000"));
         }

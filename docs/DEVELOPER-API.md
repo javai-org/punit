@@ -625,11 +625,12 @@ When modifying the XML format:
 - **Consult the RP07 specification in the orchestrator first.**
 - Changes that affect schema semantics should be proposed in the
   orchestrator, not made unilaterally in punit.
-- Currently `<statistics>` carries `ci-lower` / `ci-upper`; the
-  canonical XSD declares `wilson-lower` (no upper). Alignment is in
-  flight under `DIR-RP07-WILSON-LOWER-VERDICT-XML` (in 0.7.x scope).
-  Until that lands, expect linter / schema-validation failures
-  against the canonical XSD.
+- `<statistics>` carries `wilson-lower` only — the one-sided Wilson
+  lower bound at the verdict's `confidence-level`. The upper bound
+  carries no operational meaning under a left-tailed test and is
+  not emitted. The local XSD is diff-clean against the canonical
+  XSD; round-trip and schema-validation tests live in
+  `punit-report`.
 
 ---
 

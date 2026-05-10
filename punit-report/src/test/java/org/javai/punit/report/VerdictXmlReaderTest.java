@@ -1,6 +1,7 @@
 package org.javai.punit.report;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -94,6 +95,8 @@ class VerdictXmlReaderTest {
             StatisticalAnalysis stats = result.statistics();
             assertThat(stats.confidenceLevel()).isEqualTo(0.95);
             assertThat(stats.standardError()).isEqualTo(0.0218);
+            assertThat(stats.wilsonLower())
+                    .isEqualTo(original.statistics().wilsonLower());
             assertThat(stats.testStatistic()).isPresent();
             assertThat(stats.pValue()).isPresent();
         }
@@ -330,6 +333,31 @@ class VerdictXmlReaderTest {
         }
     }
 
+    @Nested
+    @DisplayName("required attributes")
+    class RequiredAttributes {
+
+        @Test
+        @DisplayName("rejects document missing wilson-lower with a clear diagnostic")
+        void rejectsMissingWilsonLower() throws Exception {
+            // Write a normal verdict and then strip the wilson-lower
+            // attribute from <statistics>. The reader must refuse it with
+            // a message that names the missing attribute.
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            writer.write(original, baos);
+            String xml = baos.toString(StandardCharsets.UTF_8);
+            String stripped = xml.replaceAll("\\s+wilson-lower=\"[^\"]*\"", "");
+
+            assertThatThrownBy(() -> reader.read(
+                    new ByteArrayInputStream(stripped.getBytes(StandardCharsets.UTF_8))))
+                    .isInstanceOf(XmlReadException.class)
+                    .hasRootCauseInstanceOf(IllegalArgumentException.class)
+                    .getRootCause()
+                    .hasMessageContaining("wilson-lower");
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private ProbabilisticTestVerdict roundTrip(ProbabilisticTestVerdict verdict) throws XMLStreamException {
@@ -347,7 +375,7 @@ class VerdictXmlReaderTest {
                         Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
-                new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
+                new StatisticalAnalysis(0.95, 0.0218, 0.8948,
                         Optional.of(2.29), Optional.of(0.011),
                         Optional.empty(), Optional.empty(), List.of()),
                 CovariateStatus.allAligned(),
@@ -415,7 +443,7 @@ class VerdictXmlReaderTest {
     private ProbabilisticTestVerdict verdictWithBaseline() {
         ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         StatisticalAnalysis stats = new StatisticalAnalysis(
-                0.95, 0.0218, 0.8948, 0.9798,
+                0.95, 0.0218, 0.8948,
                 Optional.of(2.29), Optional.of(0.011),
                 Optional.of("Wilson score lower bound"),
                 Optional.of(new BaselineSummary(
@@ -501,7 +529,7 @@ class VerdictXmlReaderTest {
         SpecProvenance prov = new SpecProvenance("SLA", "SLA-PAY-001", "payment-gateway.yaml",
                 Optional.of(new ExpirationInfo(expiringStatus, Optional.of(Instant.parse("2026-04-15T00:00:00Z")))));
         StatisticalAnalysis stats = new StatisticalAnalysis(
-                0.95, 0.0218, 0.8948, 0.9798,
+                0.95, 0.0218, 0.8948,
                 Optional.of(2.29), Optional.of(0.011),
                 Optional.of("Wilson score lower bound"),
                 Optional.of(new BaselineSummary("payment-gateway.yaml",

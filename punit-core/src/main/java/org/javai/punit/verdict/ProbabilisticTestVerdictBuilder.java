@@ -24,7 +24,6 @@ import org.javai.punit.spec.expiration.ExpirationEvaluator;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
-import org.javai.punit.statistics.ProportionEstimate;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
@@ -408,13 +407,9 @@ public class ProbabilisticTestVerdictBuilder {
                 ? estimator.standardError(successes, samplesExecuted)
                 : 0.0;
 
-        double ciLower = 0.0;
-        double ciUpper = 0.0;
-        if (samplesExecuted > 0) {
-            ProportionEstimate estimate = estimator.estimate(successes, samplesExecuted, confidenceLevel);
-            ciLower = estimate.lowerBound();
-            ciUpper = estimate.upperBound();
-        }
+        double wilsonLower = samplesExecuted > 0
+                ? estimator.lowerBound(successes, samplesExecuted, confidenceLevel)
+                : 0.0;
 
         Optional<Double> testStatistic = Optional.empty();
         Optional<Double> pValue = Optional.empty();
@@ -441,7 +436,7 @@ public class ProbabilisticTestVerdictBuilder {
         List<String> caveats = buildCaveats(covariates);
 
         return new StatisticalAnalysis(
-                confidenceLevel, standardError, ciLower, ciUpper,
+                confidenceLevel, standardError, wilsonLower,
                 testStatistic, pValue, thresholdDerivation, baselineSummary, caveats
         );
     }

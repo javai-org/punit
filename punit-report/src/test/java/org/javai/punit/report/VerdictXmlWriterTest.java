@@ -223,6 +223,21 @@ class VerdictXmlWriterTest {
         }
 
         @Test
+        @DisplayName("emits one-sided wilson-lower; never emits ci-upper")
+        void emitsWilsonLowerNotCiUpper() throws Exception {
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
+
+            Document doc = writeAndParse(verdict);
+            Element stats = firstElement(doc, "statistics");
+
+            assertThat(stats.hasAttribute("wilson-lower")).isTrue();
+            assertThat(stats.getAttribute("wilson-lower"))
+                    .isEqualTo(String.valueOf(verdict.statistics().wilsonLower()));
+            assertThat(stats.hasAttribute("ci-upper")).isFalse();
+            assertThat(stats.hasAttribute("ci-lower")).isFalse();
+        }
+
+        @Test
         @DisplayName("serialises baseline as sibling of statistics")
         void serialisesBaseline() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithBaseline();
@@ -584,7 +599,7 @@ class VerdictXmlWriterTest {
                         Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
-                new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
+                new StatisticalAnalysis(0.95, 0.0218, 0.8948,
                         Optional.of(2.29), Optional.of(0.011),
                         Optional.empty(), Optional.empty(), List.of()),
                 CovariateStatus.allAligned(),
@@ -650,7 +665,7 @@ class VerdictXmlWriterTest {
     private ProbabilisticTestVerdict verdictWithBaseline() {
         ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         StatisticalAnalysis stats = new StatisticalAnalysis(
-                0.95, 0.0218, 0.8948, 0.9798,
+                0.95, 0.0218, 0.8948,
                 Optional.of(2.29), Optional.of(0.011),
                 Optional.of("Wilson score lower bound"),
                 Optional.of(new BaselineSummary(
@@ -744,7 +759,7 @@ class VerdictXmlWriterTest {
     private ProbabilisticTestVerdict verdictWithCaveats() {
         ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         StatisticalAnalysis stats = new StatisticalAnalysis(
-                0.95, 0.0218, 0.8948, 0.9798,
+                0.95, 0.0218, 0.8948,
                 Optional.of(2.29), Optional.of(0.011),
                 Optional.empty(), Optional.empty(),
                 List.of("Covariate aligned")
@@ -767,7 +782,7 @@ class VerdictXmlWriterTest {
         SpecProvenance prov = new SpecProvenance("SLA", "SLA-PAY-001", "payment-gateway.yaml",
                 Optional.of(new ExpirationInfo(expiringStatus, Optional.of(Instant.parse("2026-04-15T00:00:00Z")))));
         StatisticalAnalysis stats = new StatisticalAnalysis(
-                0.95, 0.0218, 0.8948, 0.9798,
+                0.95, 0.0218, 0.8948,
                 Optional.of(2.29), Optional.of(0.011),
                 Optional.of("Wilson score lower bound"),
                 Optional.of(new BaselineSummary("payment-gateway.yaml",

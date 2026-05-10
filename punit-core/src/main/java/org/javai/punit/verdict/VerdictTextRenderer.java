@@ -148,8 +148,8 @@ public final class VerdictTextRenderer {
                 String.format("%.1f%%", stats.confidenceLevel() * 100)));
         sb.append(PUnitReporter.labelValueLn("SE(p\u0302):",
                 String.format("%.4f", stats.standardError())));
-        sb.append(PUnitReporter.labelValueLn("CI lower bound:",
-                String.format("%.4f", stats.ciLower())));
+        sb.append(PUnitReporter.labelValueLn("Wilson lower bound:",
+                String.format("%.4f", stats.wilsonLower())));
 
         stats.testStatistic().ifPresent(t ->
                 sb.append(PUnitReporter.labelValueLn("Z:", String.format("%.4f", t))));
@@ -208,7 +208,7 @@ public final class VerdictTextRenderer {
             Map.entry("Derived threshold:", "Minimum pass rate derived from the baseline"),
             Map.entry("Confidence level:", "Probability that the CI method captures the true rate"),
             Map.entry("SE(p\u0302):", "Standard error of the observed proportion — measures sampling noise in p\u0302"),
-            Map.entry("CI lower bound:", "Wilson score lower bound — we are this confident the true rate is at least this value"),
+            Map.entry("Wilson lower bound:", "One-sided Wilson lower bound on the true pass rate — we are this confident the true rate is at least this value"),
             Map.entry("Z:", "How many standard errors p\u0302 is from the threshold \u03C0\u2080 — negative means below"),
             Map.entry("p-value:", "Probability of seeing a rate this low or lower if the system truly meets the threshold — small = evidence of degradation"),
             Map.entry("Threshold derivation:", "Method used to derive the threshold from baseline data"),
@@ -384,10 +384,11 @@ public final class VerdictTextRenderer {
                         symbols.sqrt(), pHat, symbols.times(), (1 - pHat), n,
                         stats.standardError())));
 
-        // CI lower bound only (upper is noise)
-        sb.append(statLabel("CI lower bound:",
-                String.format("%.0f%% Wilson lower = %.3f",
-                        stats.confidenceLevel() * 100, stats.ciLower())));
+        // One-sided Wilson lower bound (the verdict path is left-tailed —
+        // an upper bound carries no operational meaning).
+        sb.append(statLabel("Wilson lower bound:",
+                String.format("%.0f%% one-sided lower = %.3f",
+                        stats.confidenceLevel() * 100, stats.wilsonLower())));
 
         renderZTestCalculation(sb, verdict);
 

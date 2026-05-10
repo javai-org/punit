@@ -90,7 +90,7 @@ class VerdictTextRendererTest {
 
             assertThat(result.body()).contains("STATISTICAL INFERENCE");
             assertThat(result.body()).contains("SE(p̂):");
-            assertThat(result.body()).contains("CI lower bound:");
+            assertThat(result.body()).contains("Wilson lower bound:");
         }
 
         @Test
@@ -164,7 +164,7 @@ class VerdictTextRendererTest {
 
             assertThat(result.body()).doesNotContain("STATISTICAL INFERENCE");
             assertThat(result.body()).doesNotContain("SE(p̂):");
-            assertThat(result.body()).doesNotContain("CI lower bound:");
+            assertThat(result.body()).doesNotContain("Wilson lower bound:");
         }
 
         @Test
@@ -399,12 +399,12 @@ class VerdictTextRendererTest {
         }
 
         @Test
-        @DisplayName("wraps CI lower bound label in span with tooltip")
-        void wrapsCiLowerBoundWithTooltip() {
+        @DisplayName("wraps Wilson lower bound label in span with tooltip")
+        void wrapsWilsonLowerBoundWithTooltip() {
             String html = VerdictTextRenderer.renderStatisticalAnalysisHtml(passingVerdict());
 
-            assertThat(html).contains("data-tip=\"Wilson score lower bound");
-            assertThat(html).contains("\">CI lower bound:</span>");
+            assertThat(html).contains("data-tip=\"One-sided Wilson lower bound");
+            assertThat(html).contains("\">Wilson lower bound:</span>");
         }
 
         @Test
@@ -488,7 +488,7 @@ class VerdictTextRendererTest {
                         0.9, observedRate, 150,
                         Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
-                new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
+                new StatisticalAnalysis(0.95, 0.0218, 0.8948,
                         Optional.of(2.29), Optional.of(0.011),
                         Optional.empty(), Optional.empty(), List.of()),
                 CovariateStatus.allAligned(),
@@ -505,7 +505,7 @@ class VerdictTextRendererTest {
     private ProbabilisticTestVerdict verdictWithBaseline() {
         ProbabilisticTestVerdict base = passingVerdict();
         StatisticalAnalysis stats = new StatisticalAnalysis(
-                0.95, 0.0218, 0.8948, 0.9798,
+                0.95, 0.0218, 0.8948,
                 Optional.of(2.29), Optional.of(0.011),
                 Optional.of("Wilson score lower bound"),
                 Optional.of(new BaselineSummary(
