@@ -29,6 +29,54 @@ public final class EmpiricalChecks {
     private EmpiricalChecks() {}
 
     /**
+     * No-baseline rule: an empirical criterion has no resolvable
+     * baseline matching the run's (use-case-id, factors fingerprint,
+     * covariate profile) lookup tuple. The criterion cannot proceed —
+     * an empirical comparison requires a baseline to compare against.
+     *
+     * <p>Single source of truth for the INCONCLUSIVE-no-baseline
+     * shape. Called by each empirical criterion's {@code evaluate}
+     * (the post-sampling fallback) and by the framework's preflight
+     * existence probe (which short-circuits before the engine takes
+     * any samples — there is nothing the sampling step can contribute
+     * when the verdict is structurally guaranteed to be INCONCLUSIVE).
+     *
+     * <p>Returns {@link Verdict#INCONCLUSIVE} rather than
+     * {@link Verdict#FAIL}: missing baseline is a configuration gap,
+     * not service degradation. The diagnostic names the corrective
+     * action (run a measure experiment under this configuration).
+     *
+     * @param criterionName    the criterion's stable name
+     *                         ({@link Criterion#name()}) — used in the
+     *                         returned {@code CriterionResult}
+     * @param additionalDetail criterion-specific entries to include in
+     *                         the no-baseline detail map (e.g.
+     *                         {@code confidence}, {@code assertedPercentiles}).
+     *                         May be empty.
+     * @return an INCONCLUSIVE {@code CriterionResult} carrying the
+     *         {@link InconclusiveReasons#NO_BASELINE_AVAILABLE}
+     *         discriminant on its detail map
+     */
+    public static CriterionResult noBaseline(
+            String criterionName,
+            Map<String, Object> additionalDetail) {
+        Objects.requireNonNull(criterionName, "criterionName");
+        Objects.requireNonNull(additionalDetail, "additionalDetail");
+        Map<String, Object> detail = new LinkedHashMap<>(additionalDetail);
+        detail.putIfAbsent("origin", ThresholdOrigin.EMPIRICAL.name());
+        detail.put(InconclusiveReasons.DETAIL_KEY,
+                InconclusiveReasons.NO_BASELINE_AVAILABLE);
+        String reason = "no baseline was resolvable for the empirical "
+                + "comparison — the framework matches by use-case id, "
+                + "factors fingerprint, and (when declared) covariate "
+                + "profile; no on-disk baseline aligned with the run's "
+                + "configuration. Run a measure experiment under this "
+                + "configuration first.";
+        return new CriterionResult(
+                criterionName, Verdict.INCONCLUSIVE, reason, detail);
+    }
+
+    /**
      * Sample-size rule: the test's sample count must not exceed the
      * resolved baseline's sample count. In punit's authoring model
      * the baseline is the rigorous-truth measurement; the test is a

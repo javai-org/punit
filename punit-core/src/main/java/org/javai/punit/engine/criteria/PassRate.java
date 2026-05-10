@@ -13,7 +13,6 @@ import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.EmpiricalChecks;
 import org.javai.punit.api.spec.EvaluationContext;
 import org.javai.punit.api.spec.Experiment;
-import org.javai.punit.api.spec.InconclusiveReasons;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Verdict;
@@ -181,6 +180,14 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
     }
 
     @Override
+    public Map<String, Object> empiricalDetail() {
+        if (mode == Mode.CONTRACTUAL) {
+            return Map.of();
+        }
+        return Map.of("confidence", confidence);
+    }
+
+    @Override
     public CriterionResult evaluate(EvaluationContext<OT, PassRateStatistics> ctx) {
         Objects.requireNonNull(ctx, "ctx");
         SampleSummary<OT> summary = ctx.summary();
@@ -200,19 +207,7 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
         } else {
             PassRateStatistics stats = ctx.baseline().orElse(null);
             if (stats == null) {
-                Map<String, Object> detail = new LinkedHashMap<>();
-                detail.put("confidence", confidence);
-                detail.put("origin", ThresholdOrigin.EMPIRICAL.name());
-                detail.put(InconclusiveReasons.DETAIL_KEY,
-                        InconclusiveReasons.NO_BASELINE_AVAILABLE);
-                return inconclusive(
-                        "no baseline was resolvable for the empirical threshold — "
-                                + "the framework matches by use-case id, factors "
-                                + "fingerprint, and (when declared) covariate profile; "
-                                + "no on-disk baseline aligned with the run's "
-                                + "configuration. Run a measure experiment under this "
-                                + "configuration first.",
-                        detail);
+                return EmpiricalChecks.noBaseline(NAME, empiricalDetail());
             }
             Map<String, Object> empiricalDetail = Map.of("confidence", confidence);
             // Inputs-identity rule precedes the sample-size rule: an identity
