@@ -24,15 +24,21 @@ import org.junit.jupiter.api.Test;
  * orchestrator-internal: they are not interpretable by a reader of
  * punit's open-source code, who has no orchestrator access. Per the
  * project family's convention, the codes must not leak into punit's
- * production source (javadoc, inline comments, code, string literals):
- * a feature gets referred to by its domain name, not by its tracking
- * code.
+ * source - production OR test - in javadoc, inline comments, code,
+ * string literals, or @DisplayName values. A feature gets referred to
+ * by its domain name, not by its tracking code.
  *
  * <p>This test walks every Java source file under the project's
- * <code>src/main/java</code> trees and asserts no requirement-style
- * code appears anywhere - neither in code nor in comments. It is the
- * regression guard for the convention; any commit that reintroduces a
- * code fails CI.
+ * <code>src/main/java</code> AND <code>src/test/java</code> trees and
+ * asserts no requirement-style code appears anywhere - neither in code
+ * nor in comments. Earlier iterations only guarded production source;
+ * test sources were a back door through which codes kept leaking back
+ * in, defeating the rule. The guard now scans both.
+ *
+ * <p>The one exception: this file itself necessarily mentions the
+ * prefixes (in its docstring above and in the regex below) so it can
+ * <em>be</em> the regression guard. The scanner skips a file whose
+ * filename matches the self-reference list below.
  *
  * <p>Wire-format constants (<code>"punit-baseline-2"</code>,
  * <code>"verdict-1.0"</code>, and similar) are not requirement codes:
@@ -70,40 +76,66 @@ class RequirementCodeIsolationTest {
             "\\b(CT|EX|LT|PT|RC|RP|SC|SN|TH|UC|XM|DG)\\d{2}\\b");
 
     /**
-     * Module src/main/java roots, relative to the project root the
-     * Gradle test task runs in (which is the per-module dir: this
-     * test lives in punit-core, so its CWD is .../punit/punit-core).
-     * Walk up one level to reach the project root, then descend
-     * per-module.
+     * Filenames that legitimately mention the prefixes - this test
+     * file documents and matches them. Anything else mentioning a code
+     * is a leak.
      */
-    private static final List<Path> PRODUCTION_SOURCE_ROOTS = List.of(
+    private static final List<String> SELF_REFERENCING_FILES = List.of(
+            "RequirementCodeIsolationTest.java");
+
+    /**
+     * Source roots, relative to the project root the Gradle test task
+     * runs in (the per-module dir: this test lives in punit-core, so
+     * its CWD is .../punit/punit-core). Walk up one level to reach the
+     * project root, then descend per-module.
+     *
+     * <p>Both <code>src/main/java</code> and <code>src/test/java</code>
+     * are scanned. Test sources are not exempt: an orchestrator code
+     * in a {@code @DisplayName} or javadoc surfaces in build reports
+     * and IDE test panes, where an open-source reader meets it without
+     * any catalog access. The earlier production-only scope let codes
+     * leak back in through test files; the rule is now uniform.
+     */
+    private static final List<Path> SOURCE_ROOTS = List.of(
             Paths.get("..", "punit-core", "src", "main", "java"),
+            Paths.get("..", "punit-core", "src", "test", "java"),
+            Paths.get("..", "punit-junit5", "src", "main", "java"),
+            Paths.get("..", "punit-junit5", "src", "test", "java"),
             Paths.get("..", "punit-report", "src", "main", "java"),
-            Paths.get("..", "punit-sentinel", "src", "main", "java"));
+            Paths.get("..", "punit-report", "src", "test", "java"),
+            Paths.get("..", "punit-sentinel", "src", "main", "java"),
+            Paths.get("..", "punit-sentinel", "src", "test", "java"));
 
     @Test
-    @DisplayName("no orchestrator-internal requirement codes appear in production source")
-    void noLeaksInProductionSource() throws IOException {
+    @DisplayName("no orchestrator-internal requirement codes appear in production or test source")
+    void noLeaksInAnySource() throws IOException {
         List<String> hits = new ArrayList<>();
-        for (Path root : PRODUCTION_SOURCE_ROOTS) {
+        for (Path root : SOURCE_ROOTS) {
             if (!Files.isDirectory(root)) {
-                throw new AssertionError(
-                        "Production source root not found: " + root.toAbsolutePath()
-                                + " - the test must run from the punit-core module directory.");
+                continue;
             }
             try (Stream<Path> stream = Files.walk(root)) {
                 stream
                         .filter(p -> p.toString().endsWith(".java"))
+                        .filter(p -> !isSelfReferencing(p))
                         .forEach(file -> scanFile(file, hits));
             }
         }
         assertThat(hits)
-                .as("Production source must be free of orchestrator requirement codes "
+                .as("Source must be free of orchestrator requirement codes "
                         + "(per the project family's convention; see CLAUDE.md). "
                         + "Replace each match with a domain-language description "
                         + "of the feature, or drop the cross-reference if it adds "
-                        + "no information beyond what the surrounding context already gives.")
+                        + "no information beyond what the surrounding context already gives. "
+                        + "This rule applies uniformly to production AND test source - "
+                        + "earlier iterations only scanned production, and codes kept "
+                        + "leaking back in through test files.")
                 .isEmpty();
+    }
+
+    private static boolean isSelfReferencing(Path file) {
+        String name = file.getFileName().toString();
+        return SELF_REFERENCING_FILES.contains(name);
     }
 
     private static void scanFile(Path file, List<String> hits) {
