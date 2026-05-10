@@ -257,4 +257,40 @@ class PackageStructureArchitectureTest {
             freeze(rule).check(classes);
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //   API root — abstraction-layer invariants
+    // ─────────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("API root — abstraction-layer invariants")
+    class ApiRoot {
+
+        @Test
+        @DisplayName("api root depends only on the JDK and other api code")
+        void apiRootIsStdlibOnly() {
+            // The api root carries the abstraction layer (ValueMatcher,
+            // MatchResult, Expectation, …). Concrete implementations and
+            // their third-party dependencies belong in api subpackages
+            // (api.spec, api.covariate, api.match, …). Allowed companions
+            // for the root: the org.javai.outcome library (a sibling
+            // abstraction the api leans on by design) and
+            // org.junit.jupiter.api (meta-annotation targets only, already
+            // governed by CoreArchitectureTest.apiPackageMustNotDependOnJUnitExtensions).
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("org.javai.punit.api")
+                    .should().dependOnClassesThat()
+                    .resideOutsideOfPackages(
+                            "java..",
+                            "javax..",
+                            "org.javai.punit.api..",
+                            "org.javai.outcome..",
+                            "org.junit.jupiter.api..")
+                    .because("the api root carries the abstraction layer; concrete "
+                            + "implementations and their third-party dependencies live "
+                            + "in api subpackages (api.spec, api.covariate, api.match, …)");
+
+            freeze(rule).check(classes);
+        }
+    }
 }

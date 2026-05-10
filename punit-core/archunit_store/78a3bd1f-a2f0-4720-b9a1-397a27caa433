@@ -1,0 +1,8 @@
+Field <org.javai.punit.api.OutcomeCaptor.contractOutcome> has type <org.javai.punit.contract.UseCaseOutcome> in (OutcomeCaptor.java:0)
+Method <org.javai.punit.api.OutcomeCaptor.allPostconditionsPassed()> calls method <org.javai.punit.contract.UseCaseOutcome.allPostconditionsSatisfied()> in (OutcomeCaptor.java:165)
+Method <org.javai.punit.api.OutcomeCaptor.getContractOutcome()> has return type <org.javai.punit.contract.UseCaseOutcome> in (OutcomeCaptor.java:0)
+Method <org.javai.punit.api.OutcomeCaptor.getPostconditionResults()> calls method <org.javai.punit.contract.UseCaseOutcome.evaluatePostconditions()> in (OutcomeCaptor.java:149)
+Method <org.javai.punit.api.OutcomeCaptor.getPostconditionResults()> has generic return type <java.util.List<org.javai.punit.contract.PostconditionResult>> with type argument depending on <org.javai.punit.contract.PostconditionResult> in (OutcomeCaptor.java:0)
+Method <org.javai.punit.api.OutcomeCaptor.record(org.javai.punit.contract.UseCaseOutcome)> has generic parameter type <org.javai.punit.contract.UseCaseOutcome<R>> with type argument depending on <org.javai.punit.contract.UseCaseOutcome> in (OutcomeCaptor.java:0)
+Method <org.javai.punit.api.OutcomeCaptor.record(org.javai.punit.contract.UseCaseOutcome)> has parameter of type <org.javai.punit.contract.UseCaseOutcome> in (OutcomeCaptor.java:0)
+Method <org.javai.punit.api.OutcomeCaptor.record(org.javai.punit.contract.UseCaseOutcome)> has return type <org.javai.punit.contract.UseCaseOutcome> in (OutcomeCaptor.java:0)

@@ -1,0 +1,6 @@
+Class <org.javai.punit.runtime.BaselineEmitter> does not have simple name 'PUnit' in (BaselineEmitter.java:0)
+Class <org.javai.punit.runtime.BaselineProviderResolver> does not have simple name 'PUnit' in (BaselineProviderResolver.java:0)
+Class <org.javai.punit.runtime.EmpiricalTestComposer> does not have simple name 'PUnit' in (EmpiricalTestComposer.java:0)
+Class <org.javai.punit.runtime.ExploreEmitter> does not have simple name 'PUnit' in (ExploreEmitter.java:0)
+Class <org.javai.punit.runtime.OptimizeEmitter> does not have simple name 'PUnit' in (OptimizeEmitter.java:0)
+Class <org.javai.punit.runtime.TestIdentityResolver> does not have simple name 'PUnit' in (TestIdentityResolver.java:0)
