@@ -240,19 +240,39 @@ class PackageStructureArchitectureTest {
         @Test
         @DisplayName("no non-internal package may import from org.javai.punit.internal")
         void publicMustNotImportInternal() {
-            // The structural enforcement of the public/internal split, once
-            // the namespace move lands. Pre-namespace, this rule has nothing
-            // to bite against (the internal/ namespace doesn't exist) — the
-            // freeze captures the empty violation set and the rule is inert.
-            // Post-namespace, every import from a public package into
-            // internal.* fails.
+            // The structural enforcement of the public/internal split.
+            // Post-namespace move (steps 1–4), the rule is live as a
+            // regression guard: any new cross-boundary dependency from a
+            // public-named package into internal/* fails.
+            //
+            // The freeze store is not empty at the moment the rule first
+            // goes live. The namespace move surfaces three pre-existing
+            // categories of cross-boundary dependency that the rename
+            // alone cannot resolve:
+            //   1. runtime/PUnit drives the engine — by design. PUnit is
+            //      the public entry point that orchestrates internals;
+            //      its dependencies on internal.engine/, internal.runtime/,
+            //      internal.reporting/, internal.util/ are intentional.
+            //   2. verdict/ types embed engine configuration state
+            //      (CostBudgetMonitor.TokenMode, PacingConfiguration) for
+            //      serialisation. This is package drift: the embedded
+            //      types should live in a public location. Cleanup is
+            //      tracked as follow-up.
+            //   3. api.covariate.CovariateDeclaration reaches into
+            //      internal.util.HashUtils. Small util reach; either
+            //      promote HashUtils' sha256/truncate methods to a public
+            //      location or inline them. Follow-up cleanup.
+            // The freeze captures all three. As each is addressed, the
+            // store shrinks. When empty, the freeze() wrapper can be
+            // removed and the rule becomes a fully-strict live check.
             ArchRule rule = noClasses()
                     .that().resideOutsideOfPackage("org.javai.punit.internal..")
                     .should().dependOnClassesThat()
                     .resideInAPackage("org.javai.punit.internal..")
                     .because("the internal/ namespace is the structural marker for "
-                            + "framework internals; consumers must not reach in. Enforced "
-                            + "after DIR-INTERNAL-NAMESPACE-punit lands.");
+                            + "framework internals; consumers must not reach in. Live "
+                            + "regression guard after DIR-INTERNAL-NAMESPACE-punit; "
+                            + "frozen residue tracks remaining cross-boundary cleanup.");
 
             freeze(rule).check(classes);
         }

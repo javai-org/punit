@@ -67,14 +67,13 @@ class CoreArchitectureTest {
         }
 
         /**
-         * punit-core packages (statistics, model) must not depend on JUnit
-         * extension types. The controls package is excluded because
-         * ProbabilisticTestBudgetExtension in punit-junit5 shares the controls.budget
-         * package namespace.
+         * The statistics package must not depend on JUnit extension types.
+         * It is the framework's statistical core and must stay reachable
+         * from a sentinel-deployed classpath that has no JUnit on it.
          */
         @Test
-        @DisplayName("punit-core packages must not depend on JUnit extension API")
-        void corePackagesMustNotDependOnJUnitExtensions() {
+        @DisplayName("statistics package must not depend on JUnit extension API")
+        void statisticsPackageMustNotDependOnJUnitExtensions() {
             ArchRule rule = noClasses()
                     .that().resideInAnyPackage(
                             "org.javai.punit.statistics.."
@@ -107,45 +106,49 @@ class CoreArchitectureTest {
         @Test
         @DisplayName("Statistics module must not depend on any framework packages")
         void statisticsModuleMustBeIsolated() {
+            // Conservative restoration of the pre-namespace-refresh rule:
+            // statistics must not depend on the api/runtime/verdict public
+            // surfaces or on internal.engine. The drift case (statistics
+            // VerdictInterpreter calling into internal.reporting.RateFormat)
+            // is pre-existing and is tracked as separate follow-up cleanup —
+            // tightening the rule here without resolving the drift would
+            // simply block the cleanup arc.
             ArchRule rule = noClasses()
                     .that().resideInAPackage("org.javai.punit.statistics..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage(
                             "org.javai.punit.api..",
-                            "org.javai.punit.ptest.engine..",
-                            "org.javai.punit.experiment..",
-                            "org.javai.punit.spec.."
+                            "org.javai.punit.internal.engine..",
+                            "org.javai.punit.verdict..",
+                            "org.javai.punit.runtime.."
                     );
 
             rule.check(classes);
         }
 
         /**
-         * The util package contains general-purpose utilities (hashing, lazy evaluation).
-         * It must not depend on any framework-specific packages.
+         * The util package contains general-purpose utilities (hashing,
+         * lazy evaluation). It lives under {@code internal.util} after
+         * the internal-namespace refactor and must not depend on any
+         * other framework package.
          */
         @Test
         @DisplayName("util package must be self-contained")
         void utilPackageMustBeSelfContained() {
             ArchRule rule = noClasses()
-                    .that().resideInAPackage("..util..")
+                    .that().resideInAPackage("org.javai.punit.internal.util..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage(
                             "org.javai.punit.api..",
-                            "org.javai.punit.ptest..",
-                            "org.javai.punit.experiment..",
-                            "org.javai.punit.spec..",
+                            "org.javai.punit.runtime..",
+                            "org.javai.punit.verdict..",
                             "org.javai.punit.statistics..",
-                            "org.javai.punit.reporting.."
+                            "org.javai.punit.internal.engine..",
+                            "org.javai.punit.internal.reporting.."
                     )
                     .because("utilities must be self-contained and not depend on framework internals");
 
             rule.check(classes);
         }
-
-        /**
-         * The usecase package in punit-core must not depend on JUnit engine types.
-         * It provides JUnit-free factory logic for use case creation.
-         */
     }
 }
