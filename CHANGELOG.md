@@ -5,7 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0-alpha3] - 2026-05-10
+
+> **🧪 Experimental release.** The 0.7.x structural-cleanup arc:
+> dead-code excision, package-drift resolution, the
+> wire-format alignment with the canonical RP07 schema, and the
+> public/internal split made visible at every import statement
+> via the new `org.javai.punit.internal.*` namespace. Four merged
+> PRs (#140, #141, #142, #143), 25 commits, net ~−4,400 lines.
+> Mechanical migration: most consumer changes are find-and-replace
+> on import statements. No new framework behaviour; no oracle
+> changes.
+
+### Removed (breaking)
+
+- **The `org.javai.punit.contract.*` parallel stack is gone.**
+  The package was a stillborn second authoring surface (14
+  production classes, 13 test classes) that had been deprecated
+  but never excised. Replaced where authors actually used it by
+  the new `org.javai.punit.api.match` subpackage carrying
+  `ValueMatcher`, `MatchResult`, `StringMatcher`, `JsonMatcher`.
+  If you were reaching into `contract.*`, the typed authoring
+  surface (`Sampling.matching(...)`, `UseCase.postconditions(...)`)
+  is the supported path; `api.match` covers the value-matcher
+  use case directly.
 
 ### Changed (package layout — breaking FQN change)
 
@@ -51,6 +74,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   confidence interval.
 - The local `verdict-1.0.xsd` is now diff-clean against the
   canonical RP07 schema in the orchestrator.
+
+### Changed (package drift — breaking FQN change)
+
+A coordinated sweep ahead of the internal-namespace move resolved
+every long-standing package-drift case. Six steps, mostly mechanical
+relocations; consumers that imported any of these specific FQNs need
+to update.
+
+- `org.javai.punit.power.PowerAnalysis` folded into
+  `org.javai.punit.engine.baseline` (then relocated to
+  `internal.engine.baseline` under the namespace move). The class is
+  a baseline-resolution bridge; co-locating with its primary
+  collaborators removed an awkward single-class package.
+- The `org.javai.punit.model.*` catch-all is dispersed:
+  - `CovariateProfile` consolidated on the typed
+    `api.covariate.CovariateProfile` (the duplicate is gone).
+  - Covariate-shaped types moved to `api.covariate.*`.
+  - `UseCaseAttributes` moved to `api.*`.
+  - Verdict-lifecycle types moved to `verdict.*`.
+  - The `model/` directory is deleted.
+- `org.javai.punit.controls.budget/pacing` collapsed into
+  `org.javai.punit.engine.budget/pacing` (then under
+  `internal.engine.*`); `controls/` is deleted.
+- The top-level `org.javai.punit.spec.{registry,expiration,model,criteria}`
+  runtime tree relocated under `engine.spec.*` (then under
+  `internal.engine.spec.*`); `api.spec.*` is the public typed-spec
+  surface and is unchanged.
+- `org.javai.punit.engine.output` folded into
+  `org.javai.punit.engine.emit` (then under
+  `internal.engine.emit`); `engine/output/` is deleted.
+
+### Added
+
+- `org.javai.punit.api.match` subpackage with `ValueMatcher`,
+  `MatchResult`, `StringMatcher`, `JsonMatcher`. Wired through
+  `Sampling.matching(...)` for instance conformance.
+- `PackageStructureArchitectureTest` carrying the cleanup-arc rules
+  with `FreezingArchRule` violation stores under `archunit_store/`.
+  Each rule's frozen exception list shrinks as cleanup commits land;
+  the rules become permanent regression guards when the stores
+  reach empty.
+- `RuntimeArchitectureTest.internalRuntimeMustNotImportJUnit` —
+  parallel JUnit-free rule for `internal.runtime`.
+
+### Internal
+
+- ArchUnit rule refresh: `CoreArchitectureTest.statisticsModuleMustBeIsolated`
+  and `utilPackageMustBeSelfContained` updated to the post-namespace
+  layout. `corePackagesMustNotDependOnJUnitExtensions` renamed to
+  `statisticsPackageMustNotDependOnJUnitExtensions` (the rule body
+  always covered only the statistics package; the old name was stale).
+- Six static methods promoted from package-private to `public` to
+  cross the new package boundary out of `runtime/` into
+  `internal.runtime/`: `BaselineEmitter.emit`,
+  `BaselineProviderResolver.resolveDir`/`resolve`,
+  `EmpiricalTestComposer.compose`, `TestIdentityResolver.resolve`,
+  the `*Emitter.emit` methods. All inside `internal.*` and so still
+  off-limits to authors via `publicMustNotImportInternal`.
+
+### Known follow-up
+
+- The `publicMustNotImportInternal` ArchUnit rule's frozen store is
+  not empty at release time (116 entries across three categories):
+  `runtime.PUnit` driving internals by design; `verdict/*` types
+  embedding `internal.engine.budget` / `internal.engine.pacing`
+  configuration state for serialisation (package drift, candidate
+  for follow-up); `api.covariate.CovariateDeclaration` reaching into
+  `internal.util.HashUtils` (small util reach). The rule is a live
+  regression guard via `freeze()`; the residue tracks the remaining
+  cross-boundary cleanup. Resolving the verdict-embedding drift is
+  the prerequisite for adopting JPMS modularisation.
 
 ## [0.7.0-alpha2] - 2026-05-10
 
