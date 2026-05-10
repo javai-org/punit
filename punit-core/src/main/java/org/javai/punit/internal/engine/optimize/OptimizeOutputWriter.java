@@ -19,7 +19,7 @@ import org.yaml.snakeyaml.Yaml;
 /**
  * Serialises a completed OPTIMIZE run's history to the
  * optimize-output YAML schema. Pure — performs no I/O. The
- * {@link org.javai.punit.runtime.OptimizeEmitter OPTIMIZE emitter}
+ * {@link org.javai.punit.internal.runtime.OptimizeEmitter OPTIMIZE emitter}
  * orchestrates persistence (writing to disk or to an in-memory sink
  * for tests).
  *

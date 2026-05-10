@@ -1,4 +1,4 @@
-package org.javai.punit.runtime;
+package org.javai.punit.internal.runtime;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -62,11 +62,11 @@ import org.javai.punit.internal.engine.covariate.CovariateResolver;
  *   <li>{@code generatedAt} — {@code Instant.now()}</li>
  * </ul>
  */
-final class BaselineEmitter {
+public final class BaselineEmitter {
 
     private BaselineEmitter() { }
 
-    static void emit(Experiment experiment, Path baselineDir) {
+    public static void emit(Experiment experiment, Path baselineDir) {
         Objects.requireNonNull(baselineDir, "baselineDir");
         emit(experiment, (relativePath, content) -> {
             try {
@@ -86,7 +86,7 @@ final class BaselineEmitter {
      * single {@code (relativePath, yamlContent)} pair where
      * {@code relativePath} is the canonical baseline filename.
      */
-    static void emit(Experiment experiment, BiConsumer<String, String> sink) {
+    public static void emit(Experiment experiment, BiConsumer<String, String> sink) {
         Objects.requireNonNull(experiment, "experiment");
         Objects.requireNonNull(sink, "sink");
         if (experiment.kind() != Experiment.Kind.MEASURE) {

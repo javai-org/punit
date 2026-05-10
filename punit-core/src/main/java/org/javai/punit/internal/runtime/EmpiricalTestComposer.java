@@ -1,4 +1,4 @@
-package org.javai.punit.runtime;
+package org.javai.punit.internal.runtime;
 
 import java.util.Iterator;
 
@@ -32,11 +32,11 @@ import org.javai.punit.api.spec.TypedSpec;
  * construct a typed test spec without unchecked casts on the spec
  * machinery.
  */
-final class EmpiricalTestComposer {
+public final class EmpiricalTestComposer {
 
     private EmpiricalTestComposer() { }
 
-    static ProbabilisticTest compose(
+    public static ProbabilisticTest compose(
             Experiment baseline, int testSamples,
             Criterion<?, ?> criterion, TestIntent intent) {
         if (baseline.kind() != Experiment.Kind.MEASURE) {

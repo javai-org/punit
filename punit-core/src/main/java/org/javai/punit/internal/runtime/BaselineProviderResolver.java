@@ -1,4 +1,4 @@
-package org.javai.punit.runtime;
+package org.javai.punit.internal.runtime;
 
 import java.nio.file.Path;
 
@@ -35,7 +35,7 @@ import org.javai.punit.internal.engine.baseline.YamlBaselineProvider;
  * experiments still run; their baseline write is silently skipped
  * (see {@link PUnit.MeasureBuilder#run}).
  */
-final class BaselineProviderResolver {
+public final class BaselineProviderResolver {
 
     private BaselineProviderResolver() { }
 
@@ -46,7 +46,7 @@ final class BaselineProviderResolver {
      *         {@link BaselineResolver} downstream handles missing
      *         directories (returns empty for any lookup).
      */
-    static Path resolveDir() {
+    public static Path resolveDir() {
         return BaselineResolver.defaultDir();
     }
 
@@ -58,7 +58,7 @@ final class BaselineProviderResolver {
      *         {@code INCONCLUSIVE} — the same outcome as a hard
      *         {@link BaselineProvider#EMPTY}.
      */
-    static BaselineProvider resolve() {
+    public static BaselineProvider resolve() {
         return new YamlBaselineProvider(resolveDir());
     }
 }

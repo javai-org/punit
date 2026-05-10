@@ -1,4 +1,4 @@
-package org.javai.punit.runtime;
+package org.javai.punit.internal.runtime;
 
 import java.lang.reflect.Method;
 import java.util.Optional;
@@ -25,7 +25,7 @@ import org.javai.punit.verdict.RunMetadata;
  * integration test or a REPL demo). Callers should fall back to a
  * generic identity in that case.
  */
-final class TestIdentityResolver {
+public final class TestIdentityResolver {
 
     private TestIdentityResolver() { }
 
@@ -35,7 +35,7 @@ final class TestIdentityResolver {
      *         method on the current call stack, or
      *         {@link Optional#empty()} if none is found
      */
-    static Optional<RunMetadata> resolve() {
+    public static Optional<RunMetadata> resolve() {
         return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
                 .walk(frames -> frames
                         .map(TestIdentityResolver::asMetadata)

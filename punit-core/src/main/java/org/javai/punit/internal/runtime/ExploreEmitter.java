@@ -1,4 +1,4 @@
-package org.javai.punit.runtime;
+package org.javai.punit.internal.runtime;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

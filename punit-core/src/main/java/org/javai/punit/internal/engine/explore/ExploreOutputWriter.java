@@ -24,7 +24,7 @@ import org.yaml.snakeyaml.Yaml;
  * filename.
  *
  * <p>Both methods are pure — the writer performs no I/O. The
- * {@link org.javai.punit.runtime.ExploreEmitter EXPLORE emitter}
+ * {@link org.javai.punit.internal.runtime.ExploreEmitter EXPLORE emitter}
  * orchestrates persistence (writing to disk or to an in-memory
  * sink for tests).
  *

@@ -17,7 +17,7 @@ import org.javai.punit.api.UseCase;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PerConfigSummary;
 import org.javai.punit.internal.engine.Engine;
-import org.javai.punit.runtime.ExploreEmitter;
+import org.javai.punit.internal.runtime.ExploreEmitter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;

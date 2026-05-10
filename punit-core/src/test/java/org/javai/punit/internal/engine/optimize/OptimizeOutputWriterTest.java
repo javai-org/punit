@@ -16,7 +16,7 @@ import org.javai.punit.api.UseCase;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.internal.engine.Engine;
-import org.javai.punit.runtime.OptimizeEmitter;
+import org.javai.punit.internal.runtime.OptimizeEmitter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
