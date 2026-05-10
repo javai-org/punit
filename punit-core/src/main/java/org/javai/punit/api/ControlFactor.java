@@ -25,10 +25,9 @@ import java.lang.annotation.Target;
  * )
  * void optimizePrompt(
  *     ShoppingUseCase useCase,
- *     @ControlFactor String currentPrompt,
- *     OutcomeCaptor captor
+ *     @ControlFactor String currentPrompt
  * ) {
- *     captor.record(useCase.searchProducts("headphones"));
+ *     useCase.searchProducts("headphones");
  * }
  *
  * static String initialPrompt() { return "You are an assistant."; }
@@ -40,8 +39,7 @@ import java.lang.annotation.Target;
  * void optimizeMultiple(
  *     ShoppingUseCase useCase,
  *     @ControlFactor("systemPrompt") String prompt,
- *     @ControlFactor("temperature") double temp,
- *     OutcomeCaptor captor
+ *     @ControlFactor("temperature") double temp
  * ) { ... }
  * }</pre>
  */

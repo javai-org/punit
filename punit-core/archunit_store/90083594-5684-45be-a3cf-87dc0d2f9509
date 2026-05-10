@@ -12,7 +12,6 @@ Class <org.javai.punit.model.ExpirationStatus$ExpiringSoon> does reside in a pac
 Class <org.javai.punit.model.ExpirationStatus$NoExpiration> does reside in a package 'org.javai.punit.model..' in (ExpirationStatus.java:0)
 Class <org.javai.punit.model.ExpirationStatus$Valid> does reside in a package 'org.javai.punit.model..' in (ExpirationStatus.java:0)
 Class <org.javai.punit.model.ExpirationStatus> does reside in a package 'org.javai.punit.model..' in (ExpirationStatus.java:0)
-Class <org.javai.punit.model.FailureObservation> does reside in a package 'org.javai.punit.model..' in (FailureObservation.java:0)
 Class <org.javai.punit.model.RegionGroupDefinition> does reside in a package 'org.javai.punit.model..' in (RegionGroupDefinition.java:0)
 Class <org.javai.punit.model.TerminationReason> does reside in a package 'org.javai.punit.model..' in (TerminationReason.java:0)
 Class <org.javai.punit.model.TimePeriodDefinition> does reside in a package 'org.javai.punit.model..' in (TimePeriodDefinition.java:0)

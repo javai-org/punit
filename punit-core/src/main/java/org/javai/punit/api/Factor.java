@@ -19,13 +19,12 @@ import java.lang.annotation.Target;
  * void exploreModelConfigs(
  *     @Factor("model") String model,
  *     @Factor("temperature") double temperature,
- *     ShoppingUseCase useCase,
- *     OutcomeCaptor captor
+ *     ShoppingUseCase useCase
  * ) {
  *     // Factors configure the use case
  *     useCase.setModel(model);
  *     useCase.setTemperature(temperature);
- *     captor.record(useCase.execute());
+ *     useCase.execute();
  * }
  *
  * static Stream<Arguments> configurations() {

@@ -67,8 +67,8 @@ class CoreArchitectureTest {
         }
 
         /**
-         * punit-core packages (statistics, model, contract) must not depend
-         * on JUnit extension types. The controls package is excluded because
+         * punit-core packages (statistics, model) must not depend on JUnit
+         * extension types. The controls package is excluded because
          * ProbabilisticTestBudgetExtension in punit-junit5 shares the controls.budget
          * package namespace.
          */
@@ -78,8 +78,7 @@ class CoreArchitectureTest {
             ArchRule rule = noClasses()
                     .that().resideInAnyPackage(
                             "org.javai.punit.statistics..",
-                            "org.javai.punit.model..",
-                            "org.javai.punit.contract.."
+                            "org.javai.punit.model.."
                     )
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("org.junit.jupiter.api.extension..")
