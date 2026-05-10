@@ -1,4 +1,4 @@
-package org.javai.punit.spec.registry;
+package org.javai.punit.engine.spec.registry;
 
 /**
  * Exception thrown when a specification cannot be found.

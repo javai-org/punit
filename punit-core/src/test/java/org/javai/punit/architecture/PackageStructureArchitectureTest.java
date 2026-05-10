@@ -137,7 +137,7 @@ class PackageStructureArchitectureTest {
             ArchRule rule = noClasses()
                     .should().resideInAnyPackage(
                             "org.javai.punit.spec",
-                            "org.javai.punit.spec.registry..",
+                            "org.javai.punit.engine.spec.registry..",
                             "org.javai.punit.spec.expiration..",
                             "org.javai.punit.spec.model..",
                             "org.javai.punit.spec.criteria..")

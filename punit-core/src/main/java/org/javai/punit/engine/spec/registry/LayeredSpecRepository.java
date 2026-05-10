@@ -1,4 +1,4 @@
-package org.javai.punit.spec.registry;
+package org.javai.punit.engine.spec.registry;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

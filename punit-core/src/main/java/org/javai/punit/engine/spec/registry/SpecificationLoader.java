@@ -1,4 +1,4 @@
-package org.javai.punit.spec.registry;
+package org.javai.punit.engine.spec.registry;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

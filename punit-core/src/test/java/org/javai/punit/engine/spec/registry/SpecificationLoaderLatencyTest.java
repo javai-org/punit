@@ -1,4 +1,4 @@
-package org.javai.punit.spec.registry;
+package org.javai.punit.engine.spec.registry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
