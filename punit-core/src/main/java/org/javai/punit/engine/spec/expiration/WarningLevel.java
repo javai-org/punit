@@ -1,4 +1,4 @@
-package org.javai.punit.spec.expiration;
+package org.javai.punit.engine.spec.expiration;
 
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig.DetailLevel;

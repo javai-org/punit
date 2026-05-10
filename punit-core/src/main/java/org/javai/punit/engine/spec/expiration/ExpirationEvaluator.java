@@ -1,4 +1,4 @@
-package org.javai.punit.spec.expiration;
+package org.javai.punit.engine.spec.expiration;
 
 import java.time.Instant;
 import org.javai.punit.verdict.ExpirationPolicy;

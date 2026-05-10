@@ -1,4 +1,4 @@
-package org.javai.punit.spec.expiration;
+package org.javai.punit.engine.spec.expiration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;

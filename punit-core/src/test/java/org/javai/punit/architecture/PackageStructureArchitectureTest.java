@@ -138,7 +138,7 @@ class PackageStructureArchitectureTest {
                     .should().resideInAnyPackage(
                             "org.javai.punit.spec",
                             "org.javai.punit.engine.spec.registry..",
-                            "org.javai.punit.spec.expiration..",
+                            "org.javai.punit.engine.spec.expiration..",
                             "org.javai.punit.spec.model..",
                             "org.javai.punit.spec.criteria..")
                     .because("runtime spec materialisation relocates under engine/spec/ "

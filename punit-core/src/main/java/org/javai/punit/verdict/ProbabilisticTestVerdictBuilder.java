@@ -20,7 +20,7 @@ import org.javai.punit.engine.pacing.PacingConfiguration;
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.reporting.RateFormat;
-import org.javai.punit.spec.expiration.ExpirationEvaluator;
+import org.javai.punit.engine.spec.expiration.ExpirationEvaluator;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
