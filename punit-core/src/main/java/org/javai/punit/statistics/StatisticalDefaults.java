@@ -78,6 +78,22 @@ public final class StatisticalDefaults {
      */
     public static final double DEFAULT_ALPHA = 1.0 - DEFAULT_CONFIDENCE;
 
+    /**
+     * Soundness floor for the configured confidence level: 80%.
+     *
+     * <p>Configurations whose confidence falls below this floor cannot
+     * underwrite a verdict — even a Smoke-intent test should not
+     * silently produce results at confidence levels this low. The
+     * framework rejects such configurations pre-flight, regardless of
+     * declared {@code TestIntent}. This is the only feasibility check
+     * that is not intent-gated; every other infeasibility (sample-size
+     * adequacy, threshold achievability) is silent under Smoke.
+     *
+     * <p>Authors who want to assert against this floor in tests can
+     * reference the constant directly rather than hard-coding 0.8.
+     */
+    public static final double SOUNDNESS_FLOOR_CONFIDENCE = 0.80;
+
     private StatisticalDefaults() {
         // utility class
     }

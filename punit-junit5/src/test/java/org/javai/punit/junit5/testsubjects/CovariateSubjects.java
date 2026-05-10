@@ -88,15 +88,15 @@ public final class CovariateSubjects {
     public static final class TestWithMatchingCovariate {
         @ProbabilisticTest
         void shouldMatchBaseline() {
-            // Wilson lower bound at observed=1.0, n=20, c=0.95 ≈ 0.83;
-            // baseline observed rate is 1.0 → bound 0.83 < threshold
-            // 1.0 → would FAIL on a strict-rate baseline. We instead
-            // assert resolution-time correctness: when the baseline
-            // matches we get a real verdict (not INCONCLUSIVE), and
-            // when it doesn't we get INCONCLUSIVE.
-            PUnit.testing(sampling(20))
-                    .criterion(PassRate.<Boolean>empirical()
-                            .atConfidence(0.50))
+            // The point of this subject is resolution-time correctness:
+            // when the baseline matches we get a real verdict (not
+            // INCONCLUSIVE), and when it doesn't we get INCONCLUSIVE.
+            // Sample count matches the measure phase (100) so the
+            // sample-size constraint holds; baseline rate is 1.0
+            // (always-passes), so feasibility silently skips the
+            // degenerate-rate case.
+            PUnit.testing(sampling(100))
+                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
