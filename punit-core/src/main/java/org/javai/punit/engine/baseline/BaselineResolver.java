@@ -53,7 +53,7 @@ public final class BaselineResolver {
      *
      * <p>Exposed for utilities that consume the same baseline directory
      * the test pipeline does (e.g.
-     * {@link org.javai.punit.power.PowerAnalysis}). The JUnit
+     * {@link PowerAnalysis}). The JUnit
      * extension's {@code BaselineProviderResolver} delegates here too
      * so framework and user code resolve the same path through one
      * implementation.

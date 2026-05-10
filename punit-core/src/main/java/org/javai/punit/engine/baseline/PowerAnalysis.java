@@ -1,4 +1,4 @@
-package org.javai.punit.power;
+package org.javai.punit.engine.baseline;
 
 import java.nio.file.Path;
 import java.util.Iterator;
@@ -17,8 +17,6 @@ import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
-import org.javai.punit.engine.baseline.BaselineResolver;
-import org.javai.punit.engine.baseline.FactorsFingerprint;
 import org.javai.punit.engine.covariate.CovariateResolver;
 import org.javai.punit.statistics.SampleSizeCalculator;
 

@@ -1,4 +1,4 @@
-package org.javai.punit.power;
+package org.javai.punit.engine.baseline;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -23,9 +23,6 @@ import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
-import org.javai.punit.engine.baseline.BaselineRecord;
-import org.javai.punit.engine.baseline.BaselineWriter;
-import org.javai.punit.engine.baseline.FactorsFingerprint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
