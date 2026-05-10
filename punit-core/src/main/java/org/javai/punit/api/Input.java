@@ -11,8 +11,8 @@ import java.lang.annotation.Target;
  *
  * <p>In most experiment methods this annotation is unnecessary. The framework
  * auto-detects the input parameter by excluding known framework types
- * ({@link OutcomeCaptor}, UseCase, {@link TokenChargeRecorder}) and annotated
- * parameters ({@link Factor @Factor}, {@link ControlFactor @ControlFactor}).
+ * (UseCase, {@link TokenChargeRecorder}) and annotated parameters
+ * ({@link Factor @Factor}, {@link ControlFactor @ControlFactor}).
  * When exactly one candidate remains, it receives the input automatically.
  *
  * <p>Use {@code @Input} only when the method signature leaves more than one
@@ -25,8 +25,7 @@ import java.lang.annotation.Target;
  * void explore(
  *         MyUseCase useCase,
  *         @Input GoldenInput input,   // disambiguates — Context would be chosen otherwise
- *         Context context,
- *         OutcomeCaptor captor
+ *         Context context
  * ) { ... }
  * }</pre>
  *

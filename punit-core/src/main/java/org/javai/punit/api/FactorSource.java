@@ -36,14 +36,13 @@ import java.lang.annotation.Target;
  * void exploreAllCombinations(
  *     @Factor("model") String model,
  *     @Factor("temperature") double temperature,
- *     UseCaseProvider provider,
- *     OutcomeCaptor captor
+ *     UseCaseProvider provider
  * ) {
  *     // Configure use case with factor values
  *     provider.register(ShoppingUseCase.class, () ->
  *         new ShoppingUseCase(createAssistant(model, temperature)));
  *     ShoppingUseCase useCase = provider.getInstance(ShoppingUseCase.class);
- *     captor.record(useCase.searchProducts("headphones"));
+ *     useCase.searchProducts("headphones");
  * }
  *
  * static Stream<FactorArguments> fullFactorial() {
@@ -104,7 +103,7 @@ public @interface FactorSource {
      * <h2>Example</h2>
      * <pre>{@code
      * @FactorSource(value = "configs", factors = {"model", "temp", "query"})
-     * void exploreConfigs(ShoppingUseCase useCase, OutcomeCaptor captor) {
+     * void exploreConfigs(ShoppingUseCase useCase) {
      *     // useCase is pre-configured with model/temp
      *     // query can be obtained from the factor values if needed
      * }

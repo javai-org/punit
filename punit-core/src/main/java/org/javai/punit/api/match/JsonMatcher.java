@@ -1,4 +1,9 @@
-package org.javai.punit.contract.match;
+package org.javai.punit.api.match;
+
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -6,59 +11,78 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
+import org.javai.punit.api.MatchResult;
+import org.javai.punit.api.ValueMatcher;
 
 /**
- * Internal delegate that performs JSON comparison using Jackson.
+ * Semantic JSON comparison matcher.
  *
- * <p>This class is package-private. It compares two JSON trees semantically
- * (ignoring property ordering and whitespace) and produces a human-readable
- * diff describing any differences.
+ * <p>Compares JSON strings as parsed trees, ignoring property
+ * ordering and insignificant whitespace. Mismatches produce a
+ * human-readable diff describing add / remove / replace operations
+ * with JSON-pointer-like paths.
+ *
+ * <p>Backed by Jackson; punit-core declares Jackson as a hard
+ * runtime dependency, so {@link #create()} always succeeds.
+ *
+ * @see ValueMatcher
+ * @see StringMatcher
  */
-final class JsonMatcherDelegate {
+public final class JsonMatcher implements ValueMatcher<String> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private JsonMatcherDelegate() {
-        // Utility class
+    private static final String DESCRIPTION = "json equals expected (structural)";
+
+    private JsonMatcher() {
+        // construct via create()
     }
 
-    /**
-     * Compares two JSON strings semantically.
-     *
-     * @param expected the expected JSON string
-     * @param actual the actual JSON string
-     * @return the match result
-     */
-    static VerificationMatcher.MatchResult compare(String expected, String actual) {
+    /** Creates a JSON matcher. */
+    public static JsonMatcher create() {
+        return new JsonMatcher();
+    }
+
+    @Override
+    public MatchResult match(String expected, String actual) {
+        if (expected == null && actual == null) {
+            return MatchResult.pass(DESCRIPTION, null, null);
+        }
+        if (expected == null) {
+            return MatchResult.fail(DESCRIPTION, null, actual,
+                    "expected null but got JSON");
+        }
+        if (actual == null) {
+            return MatchResult.fail(DESCRIPTION, expected, null,
+                    "expected JSON but got null");
+        }
+
         JsonNode expectedNode;
         JsonNode actualNode;
 
         try {
             expectedNode = OBJECT_MAPPER.readTree(expected);
         } catch (JsonProcessingException e) {
-            return VerificationMatcher.MatchResult.mismatch(
-                    "expected value is not valid JSON: " + e.getMessage()
-            );
+            return MatchResult.fail(DESCRIPTION, expected, actual,
+                    "expected value is not valid JSON: " + e.getMessage());
         }
 
         try {
             actualNode = OBJECT_MAPPER.readTree(actual);
         } catch (JsonProcessingException e) {
-            return VerificationMatcher.MatchResult.mismatch(
-                    "actual value is not valid JSON: " + e.getMessage()
-            );
+            return MatchResult.fail(DESCRIPTION, expected, actual,
+                    "actual value is not valid JSON: " + e.getMessage());
         }
 
         if (expectedNode.equals(actualNode)) {
-            return VerificationMatcher.MatchResult.match();
+            return MatchResult.pass(DESCRIPTION, expected, actual);
         }
 
-        return VerificationMatcher.MatchResult.mismatch(buildDiff(expectedNode, actualNode));
+        return MatchResult.fail(DESCRIPTION, expected, actual,
+                buildDiff(expectedNode, actualNode));
     }
+
+    // ── Diff construction ────────────────────────────────────────────
 
     private static String buildDiff(JsonNode expected, JsonNode actual) {
         StringBuilder sb = new StringBuilder();

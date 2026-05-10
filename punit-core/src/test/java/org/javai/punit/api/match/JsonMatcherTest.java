@@ -1,25 +1,14 @@
-package org.javai.punit.contract.match;
+package org.javai.punit.api.match;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.javai.punit.contract.match.VerificationMatcher.MatchResult;
+import org.javai.punit.api.MatchResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("JsonMatcher")
 class JsonMatcherTest {
-
-    @Nested
-    @DisplayName("availability")
-    class AvailabilityTests {
-
-        @Test
-        @DisplayName("isAvailable() always returns true")
-        void isAvailableAlwaysReturnsTrue() {
-            assertThat(JsonMatcher.isAvailable()).isTrue();
-        }
-    }
 
     @Nested
     @DisplayName("creation")
@@ -49,6 +38,7 @@ class JsonMatcherTest {
             );
 
             assertThat(result.matches()).isTrue();
+            assertThat(result.diff()).isEmpty();
         }
 
         @Test
@@ -75,7 +65,8 @@ class JsonMatcherTest {
             );
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("add").contains("age");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("add").contains("age"));
         }
 
         @Test
@@ -89,7 +80,8 @@ class JsonMatcherTest {
             );
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("remove").contains("age");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("remove").contains("age"));
         }
 
         @Test
@@ -103,7 +95,8 @@ class JsonMatcherTest {
             );
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("replace").contains("name");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("replace").contains("name"));
         }
 
         @Test
@@ -143,7 +136,8 @@ class JsonMatcherTest {
             );
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("expected value is not valid JSON");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("expected value is not valid JSON"));
         }
 
         @Test
@@ -157,7 +151,8 @@ class JsonMatcherTest {
             );
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("actual value is not valid JSON");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("actual value is not valid JSON"));
         }
     }
 
@@ -181,7 +176,8 @@ class JsonMatcherTest {
             MatchResult result = matcher.match(null, "{\"key\":\"value\"}");
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("expected null");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("expected null"));
         }
 
         @Test
@@ -190,7 +186,8 @@ class JsonMatcherTest {
             MatchResult result = matcher.match("{\"key\":\"value\"}", null);
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("got null");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("got null"));
         }
     }
 }

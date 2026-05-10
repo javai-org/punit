@@ -1,8 +1,8 @@
-package org.javai.punit.contract.match;
+package org.javai.punit.api.match;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.javai.punit.contract.match.VerificationMatcher.MatchResult;
+import org.javai.punit.api.MatchResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +22,7 @@ class StringMatcherTest {
             MatchResult result = matcher.match("hello", "hello");
 
             assertThat(result.matches()).isTrue();
+            assertThat(result.diff()).isEmpty();
         }
 
         @Test
@@ -30,7 +31,8 @@ class StringMatcherTest {
             MatchResult result = matcher.match("hello", "world");
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("hello").contains("world");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("hello").contains("world"));
         }
 
         @Test
@@ -195,6 +197,7 @@ class StringMatcherTest {
             MatchResult result = matcher.match(null, null);
 
             assertThat(result.matches()).isTrue();
+            assertThat(result.diff()).isEmpty();
         }
 
         @Test
@@ -203,7 +206,8 @@ class StringMatcherTest {
             MatchResult result = matcher.match(null, "actual");
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("null").contains("actual");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("null").contains("actual"));
         }
 
         @Test
@@ -212,7 +216,8 @@ class StringMatcherTest {
             MatchResult result = matcher.match("expected", null);
 
             assertThat(result.matches()).isFalse();
-            assertThat(result.diff()).contains("expected").contains("null");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("expected").contains("null"));
         }
     }
 
@@ -230,9 +235,8 @@ class StringMatcherTest {
 
             MatchResult result = matcher.match(longExpected, longActual);
 
-            assertThat(result.diff())
-                    .contains("...")
-                    .contains("150 chars");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).contains("...").contains("150 chars"));
         }
 
         @Test
@@ -240,9 +244,8 @@ class StringMatcherTest {
         void doesNotTruncateShortValues() {
             MatchResult result = matcher.match("short", "value");
 
-            assertThat(result.diff())
-                    .doesNotContain("...")
-                    .doesNotContain("chars");
+            assertThat(result.diff()).hasValueSatisfying(diff ->
+                    assertThat(diff).doesNotContain("...").doesNotContain("chars"));
         }
     }
 }

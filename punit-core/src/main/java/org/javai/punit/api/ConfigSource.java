@@ -16,8 +16,8 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @ExploreExperiment(useCase = MyUseCase.class, samplesPerConfig = 20)
  * @ConfigSource("modelConfigurations")
- * void compareModels(MyUseCase useCase, OutcomeCaptor captor) {
- *     captor.record(useCase.execute(input));
+ * void compareModels(MyUseCase useCase) {
+ *     useCase.execute(input);
  * }
  *
  * static Stream<NamedConfig<MyUseCase>> modelConfigurations() {
