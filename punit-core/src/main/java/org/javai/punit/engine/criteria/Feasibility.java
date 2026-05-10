@@ -10,6 +10,7 @@ import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.Criterion;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.reporting.InfeasibilityMessageRenderer;
+import org.javai.punit.statistics.StatisticalDefaults;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityResult;
 
@@ -29,6 +30,13 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  *       undersized; treat it as a sentinel." The gate produces no
  *       warning and the run proceeds.</li>
  * </ul>
+ *
+ * <p>The one exception is the <strong>soundness floor</strong>: a
+ * configured confidence level below
+ * {@link StatisticalDefaults#SOUNDNESS_FLOOR_CONFIDENCE} aborts
+ * regardless of intent. A test that cannot make a claim at the floor's
+ * confidence level cannot underwrite a verdict, and Smoke-intent does
+ * not buy past that.
  *
  * <p>The check applies to {@link PassRate} criteria — both contractual
  * (declared SLA / SLO / POLICY threshold) and empirical (threshold
@@ -71,6 +79,20 @@ public final class Feasibility {
             BaselineProvider provider) {
         if (!(criterion instanceof PassRate<?> bernoulli)) {
             return List.of();
+        }
+        // Soundness floor — applies regardless of intent. A test
+        // configured below the framework's confidence floor cannot
+        // underwrite a verdict; even a Smoke-intent test does not
+        // silently produce results at that confidence. This check
+        // runs before the rate resolution below, so an empirical
+        // criterion configured below the floor aborts here regardless
+        // of whether its baseline is on disk yet.
+        if (bernoulli.confidence() < StatisticalDefaults.SOUNDNESS_FLOOR_CONFIDENCE) {
+            throw new IllegalStateException(
+                    InfeasibilityMessageRenderer.renderSoundnessFloorBreach(
+                            useCaseId,
+                            bernoulli.confidence(),
+                            StatisticalDefaults.SOUNDNESS_FLOOR_CONFIDENCE));
         }
         double rate;
         if (bernoulli.isEmpirical()) {

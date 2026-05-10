@@ -115,8 +115,14 @@ public final class PreflightSubjects {
     public static final class EmpiricalWithBaselineTest {
         @ProbabilisticTest
         void empiricalWithBaseline() {
-            PUnit.testing(sampling(20))
-                    .criterion(PassRate.<Boolean>empirical().atConfidence(0.50))
+            // Sample count matches the measure phase (100) so the
+            // sample-size constraint holds; baseline rate is 1.0
+            // (always-passes), which silently skips feasibility's
+            // degenerate-rate case. No .atConfidence(...) override —
+            // the framework default sits comfortably above the
+            // soundness floor.
+            PUnit.testing(sampling(100))
+                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
