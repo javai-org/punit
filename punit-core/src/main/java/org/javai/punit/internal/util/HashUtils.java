@@ -1,4 +1,4 @@
-package org.javai.punit.util;
+package org.javai.punit.internal.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

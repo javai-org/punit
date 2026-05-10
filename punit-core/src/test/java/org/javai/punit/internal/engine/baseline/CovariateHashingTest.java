@@ -83,7 +83,7 @@ class CovariateHashingTest {
         // value. SHA-256("region=DE_FR") = the well-known digest;
         // first 4 hex chars are stable across platforms.
         String input = "region=DE_FR";
-        String full = org.javai.punit.util.HashUtils.sha256(input);
+        String full = org.javai.punit.internal.util.HashUtils.sha256(input);
         String expected = full.substring(0, 4);
 
         assertThat(CovariateHashing.hashOne("region", "DE_FR"))

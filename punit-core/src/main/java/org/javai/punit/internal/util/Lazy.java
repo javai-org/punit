@@ -1,4 +1,4 @@
-package org.javai.punit.util;
+package org.javai.punit.internal.util;
 
 import java.util.Objects;
 import java.util.function.Supplier;

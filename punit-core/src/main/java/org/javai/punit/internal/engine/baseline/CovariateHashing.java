@@ -6,7 +6,7 @@ import java.util.Map;
 
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
-import org.javai.punit.util.HashUtils;
+import org.javai.punit.internal.util.HashUtils;
 
 /**
  * Per-covariate-value hashing for the baseline filename schema.

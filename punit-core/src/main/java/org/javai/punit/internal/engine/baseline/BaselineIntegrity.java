@@ -5,7 +5,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.javai.punit.util.HashUtils;
+import org.javai.punit.internal.util.HashUtils;
 
 /**
  * Baseline-integrity helper. Computes and verifies the

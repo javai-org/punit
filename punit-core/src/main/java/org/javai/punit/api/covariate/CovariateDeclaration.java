@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.UseCaseAttributes;
-import org.javai.punit.util.HashUtils;
+import org.javai.punit.internal.util.HashUtils;
 
 /**
  * The set of covariates declared by a use case.

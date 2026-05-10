@@ -1,4 +1,4 @@
-package org.javai.punit.util;
+package org.javai.punit.internal.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
