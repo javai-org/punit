@@ -11,7 +11,7 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.engine.criteria.PassRate;
-import org.javai.punit.power.PowerAnalysis;
+import org.javai.punit.engine.baseline.PowerAnalysis;
 import org.javai.punit.runtime.PUnit;
 
 /**

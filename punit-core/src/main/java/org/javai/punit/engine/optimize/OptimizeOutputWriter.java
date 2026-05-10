@@ -11,8 +11,8 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.spec.FactorsStepper.IterationResult;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Trial;
-import org.javai.punit.engine.output.LatencySection;
-import org.javai.punit.engine.output.ResultProjections;
+import org.javai.punit.engine.emit.LatencySection;
+import org.javai.punit.engine.emit.ResultProjections;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 

@@ -10,9 +10,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
-import org.javai.punit.model.TerminationReason;
-import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.engine.budget.CostBudgetMonitor.TokenMode;
+import org.javai.punit.verdict.TerminationReason;
+import org.javai.punit.api.UseCaseAttributes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

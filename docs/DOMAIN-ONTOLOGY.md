@@ -109,10 +109,9 @@ ArchUnit-style architecture test).
       that emits or consumes a baseline for that Use Case MUST
       carry the covariate profile (family invariant —
       "Covariate-as-identity").
-    - `model.CovariateProfile` exists alongside
-      `api.covariate.CovariateProfile` as a duplicate. Flagged for
-      a follow-up directive (see family ontology — implementation
-      mapping; not in current 0.7.x cleanup scope).
+    - The duplicate `model.CovariateProfile` was removed under
+      DIR-PACKAGE-DRIFT-FIX-punit step 2; `api.covariate.CovariateProfile`
+      is the sole canonical home.
 
 - family: Input Source
   java_type: InputSource<IT> + InputSupplier<IT>
@@ -377,7 +376,7 @@ ArchUnit-style architecture test).
 
 - family: Budget
   java_type: ResourceControls + ResourceControlsBuilder + BudgetTracker (engine)
-  package: org.javai.punit.api.spec + org.javai.punit.engine + org.javai.punit.controls.budget
+  package: org.javai.punit.api.spec + org.javai.punit.engine + org.javai.punit.engine.budget
   role_notes: |
     Time / token / sample-count flavours. Suite / class / method
     scopes; first exhausted budget triggers termination.
@@ -390,7 +389,7 @@ ArchUnit-style architecture test).
 
 - family: Pacing
   java_type: Pacing record + per-pacing-mode strategies
-  package: org.javai.punit.api + org.javai.punit.controls.pacing
+  package: org.javai.punit.api + org.javai.punit.engine.pacing
   role_notes: |
     Pacing belongs on the Use Case (`UseCase#pacing()`), not on
     the spec — every test of the same service should respect the
@@ -572,7 +571,8 @@ differently).
     Criterion, EvaluationContext, FactorsStepper, …). `engine.*`
     is internal — engine.criteria, engine.baseline,
     engine.explore, engine.optimize, engine.covariate,
-    engine.output. Authors should never import from `engine.*`.
+    engine.emit, engine.budget, engine.pacing, engine.spec.
+    Authors should never import from `engine.*`.
   enforcement: |
     `CoreArchitectureTest` (package-level rules in punit-core) +
     `Junit5ApiPackageContentsTest` (junit5 abstraction-level
@@ -713,13 +713,17 @@ lands, current violations are captured in `archunit_store/` via
   scope: editorial; sweep when next editing those files.
 
 - item: model.CovariateProfile vs api.covariate.CovariateProfile
-  locations:
-    - org.javai.punit.model.CovariateProfile
-    - org.javai.punit.api.covariate.CovariateProfile
+  status: resolved
   fix: |
-    Same dual-stack pattern as the dead `contract` package.
-    Separable cleanup; not currently in 0.7.x scope. Flagged in
-    the family ontology's implementation-mapping section.
+    Resolved under DIR-PACKAGE-DRIFT-FIX-punit step 2.
+    `model.CovariateProfile` was deleted; the engine consumers
+    (`spec.registry.SpecificationLoader`, `spec.model.ExecutionSpecification`,
+    `model.BaselineProvenance`) migrated to the canonical
+    `api.covariate.CovariateProfile`. The `Builder` and the
+    typed-`CovariateValue` capability were dropped (sole production
+    use was String-wrapping; the in-flight `parseCovariateValue`
+    output is now coerced to String at the put site via
+    `toCanonicalString()`).
 
 - item: org.javai.punit.contract.* (dead parallel stack)
   fix: |

@@ -22,7 +22,7 @@ import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.api.spec.InconclusiveReasons;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
