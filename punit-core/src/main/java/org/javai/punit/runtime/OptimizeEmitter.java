@@ -18,9 +18,10 @@ import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.engine.optimize.OptimizeOutputWriter;
 
 /**
- * Translates a completed OPTIMIZE {@link Experiment} into the EX06
- * YAML artefact. Called from {@link PUnit.OptimizeBuilder#run} after
- * the engine finishes the iteration loop.
+ * Translates a completed OPTIMIZE {@link Experiment} into the
+ * optimize-output YAML artefact. Called from
+ * {@link PUnit.OptimizeBuilder#run} after the engine finishes the
+ * iteration loop.
  *
  * <p>One file per optimize run at
  * {@code {baseDir}/{useCaseId}/{experimentId}.yaml}. The file

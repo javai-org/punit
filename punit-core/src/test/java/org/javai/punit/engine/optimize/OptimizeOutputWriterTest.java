@@ -22,12 +22,12 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * Pure / in-memory tests for the EX06 optimize output writer.
+ * Pure / in-memory tests for the optimize output writer.
  *
  * <p>The writer is exercised through {@link OptimizeEmitter}'s
  * in-memory sink overload — neither test touches disk.
  */
-@DisplayName("OptimizeOutputWriter — EX06 schema, end-to-end via in-memory sink")
+@DisplayName("OptimizeOutputWriter — schema, end-to-end via in-memory sink")
 class OptimizeOutputWriterTest {
 
     record LlmFactors(String model, double temperature) {}

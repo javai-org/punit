@@ -74,13 +74,13 @@ class VerdictTextRendererTest {
         }
 
         @Test
-        @DisplayName("includes contract line and LT01 descriptive latency one-liner")
+        @DisplayName("includes contract line and descriptive latency one-liner")
         void includesDimensionBreakdown() {
             String text = VerdictTextRenderer.renderSummary(verdictWithBothDimensions());
 
             assertThat(text).contains("Contract:");
             assertThat(text).contains("95/100 passed");
-            // LT01 descriptive line: passing-only count + percentiles
+            // Descriptive line: passing-only count + percentiles
             // surfaced alongside the pass/fail block.
             assertThat(text).contains("Latency:");
             assertThat(text).contains("(90/100 passing)");
@@ -94,7 +94,7 @@ class VerdictTextRendererTest {
         void contractAloneWhenZeroPassing() {
             String text = VerdictTextRenderer.renderSummary(verdictWithSkippedLatency());
 
-            // Per LT01, the Contract line is independent of latency
+            // The Contract line is independent of latency
             // emission; it shows whenever functional dimension is
             // populated. The descriptive Latency line is omitted
             // when no samples passed (no contributing population).

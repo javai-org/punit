@@ -143,7 +143,7 @@ class VerdictAdapterTest {
 
         @Test
         @DisplayName("INCONCLUSIVE with the 'no baseline available' criterion discriminant "
-                + "renders that reason on the verdict (RP01 vocabulary)")
+                + "renders that reason on the verdict (verdict-reason vocabulary)")
         void inconclusiveNoBaselineAvailable() {
             ProbabilisticTestVerdict verdict = adapt(inconclusiveWithReason(
                     InconclusiveReasons.NO_BASELINE_AVAILABLE));
@@ -187,7 +187,7 @@ class VerdictAdapterTest {
 
         @Test
         @DisplayName("INCONCLUSIVE with no discriminant on the criterion-result detail "
-                + "map falls back to 'insufficient evidence' — RP01 catch-all "
+                + "map falls back to 'insufficient evidence' — the catch-all "
                 + "(backward compat for criteria pre-dating the vocabulary expansion)")
         void inconclusiveNoDiscriminantFallsBack() {
             // No criterion result on the test result — the builder's
@@ -200,15 +200,15 @@ class VerdictAdapterTest {
 
         @Test
         @DisplayName("INCONCLUSIVE with aligned covariates produces PUnitVerdict.INCONCLUSIVE "
-                + "with reason 'insufficient evidence' (RP01 verdict-fidelity regression)")
+                + "with reason 'insufficient evidence' (verdict-fidelity regression)")
         void inconclusiveSurvivesAlignedCovariates() {
             // The reproducer: a criterion that returns Verdict.INCONCLUSIVE
             // for a non-covariate reason (no baseline, sample-size violation,
             // identity mismatch) must not silently collapse to FAIL just
-            // because the run's covariates happen to be aligned. RP01
-            // requires the punit verdict to be consistent with the
-            // statistical analysis and the verdict reason to be consistent
-            // with the verdict enum.
+            // because the run's covariates happen to be aligned. The
+            // punit verdict must be consistent with the statistical
+            // analysis and the verdict reason must be consistent with
+            // the verdict enum.
             ProbabilisticTestVerdict verdict = adapt(minimalResult(Verdict.INCONCLUSIVE));
 
             assertThat(verdict.covariates().aligned())
@@ -216,7 +216,7 @@ class VerdictAdapterTest {
                     .isTrue();
             assertThat(verdict.punitVerdict()).isEqualTo(PUnitVerdict.INCONCLUSIVE);
             assertThat(verdict.verdictReason())
-                    .as("RP01: verdict reason consistent with verdict enum value")
+                    .as("verdict reason consistent with verdict enum value")
                     .isEqualTo("insufficient evidence");
         }
 
@@ -275,7 +275,7 @@ class VerdictAdapterTest {
         }
 
         @Test
-        @DisplayName("LT01 minimum-samples rule: at n=50 contributing, p99Ms is the omit-sentinel")
+        @DisplayName("minimum-samples rule: at n=50 contributing, p99Ms is the omit-sentinel")
         void omitsP99BelowThreshold() {
             // 50 contributing samples → p50 (≥ 1) and p90 (≥ 10)
             // and p95 (≥ 20) all emit; p99 (≥ 100) does not.

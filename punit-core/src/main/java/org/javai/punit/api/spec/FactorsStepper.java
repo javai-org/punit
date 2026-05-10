@@ -81,7 +81,7 @@ public interface FactorsStepper<FT> {
          * {@code samplesExecuted}) to {@code 0}; call sites that
          * have access to the iteration's {@link SampleSummary}
          * should use the canonical 7-field constructor so the
-         * counts reach the optimize artefact (EX06).
+         * counts reach the optimize-experiment output artefact.
          */
         public IterationResult(
                 FT factors,

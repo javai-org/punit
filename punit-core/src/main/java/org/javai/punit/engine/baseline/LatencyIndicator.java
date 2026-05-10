@@ -5,7 +5,7 @@ import java.util.Objects;
 import org.javai.punit.api.LatencyResult;
 
 /**
- * Bundles a passing-only {@link LatencyResult} with the LT01
+ * Bundles a passing-only {@link LatencyResult} with the
  * population-indicator counts ({@code contributingSamples},
  * {@code totalSamples}). Carried on a {@link BaselineRecord} so the
  * baseline writer can emit the normative {@code latency:} YAML

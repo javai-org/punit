@@ -21,11 +21,8 @@ import java.util.function.Supplier;
  * framework can't tell). Hashing the content removes the gap —
  * identity equality strictly implies sampling-frame equivalence.
  *
- * <p>See {@code docs/DES-INPUTS-IDENTITY-SUPPLIER.md} for the
- * design intent and {@code DG01-sampling/README.md} for the
- * integrity mechanism on top of which this type sits. The user
- * guide will document the authoring patterns (TODO when the user
- * guide lands).
+ * <p>The user guide will document the authoring patterns (TODO when
+ * the user guide lands).
  *
  * <h2>Two authoring shapes</h2>
  *

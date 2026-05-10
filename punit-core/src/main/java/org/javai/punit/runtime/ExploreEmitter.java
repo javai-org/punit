@@ -18,8 +18,8 @@ import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.engine.explore.ExploreOutputWriter;
 
 /**
- * Translates a completed EXPLORE {@link Experiment} into one EX05
- * YAML file per configuration. Called from
+ * Translates a completed EXPLORE {@link Experiment} into one
+ * explore-output YAML file per configuration. Called from
  * {@link PUnit.ExploreBuilder#run} after the engine finishes the
  * sampling loop across the grid.
  *

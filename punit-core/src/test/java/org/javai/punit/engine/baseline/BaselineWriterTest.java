@@ -156,7 +156,7 @@ class BaselineWriterTest {
 
     @Test
     @DisplayName("emits a contentFingerprint: line as the last field — SHA-256 of the body "
-            + "preceding it (EX10 integrity)")
+            + "preceding it (integrity check)")
     void emitsContentFingerprintAsLastField() {
         String yaml = writer.toYaml(recordWith(Map.of(
                 "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))));

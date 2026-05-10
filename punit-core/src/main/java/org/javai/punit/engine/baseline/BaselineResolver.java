@@ -156,9 +156,9 @@ public final class BaselineResolver {
                     Optional.empty());
         }
         Optional<String> sourceFile = Optional.of(selected.get().filename());
-        // EX10: surface the integrity warning (if any) for the
-        // *selected* candidate only — warnings about candidates that
-        // didn't influence the verdict would be noise.
+        // Surface the integrity warning (if any) for the *selected*
+        // candidate only — warnings about candidates that didn't
+        // influence the verdict would be noise.
         List<String> notes = withIntegrityWarning(
                 report.notes(), enumerated, selected.get());
         CovariateProfile baselineProfile = selected.get().covariateProfile();

@@ -17,8 +17,8 @@ import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * Serialises a completed OPTIMIZE run's history to the EX06 YAML
- * schema. Pure — performs no I/O. The
+ * Serialises a completed OPTIMIZE run's history to the
+ * optimize-output YAML schema. Pure — performs no I/O. The
  * {@link org.javai.punit.runtime.OptimizeEmitter OPTIMIZE emitter}
  * orchestrates persistence (writing to disk or to an in-memory sink
  * for tests).
@@ -34,7 +34,8 @@ public final class OptimizeOutputWriter {
     public static final String SCHEMA_VERSION = "punit-spec-1";
 
     /**
-     * Build the EX06 YAML for one optimize run. Pure — no I/O.
+     * Build the optimize-output YAML for one optimize run. Pure —
+     * no I/O.
      *
      * @param useCaseId the use case identifier
      * @param experimentId the experiment identifier (becomes the
@@ -51,7 +52,7 @@ public final class OptimizeOutputWriter {
      *                          {@code NO_IMPROVEMENT},
      *                          {@code STEPPER_STOP}, or another
      *                          framework-recognised value)
-     * @return YAML matching the EX06 canonical schema
+     * @return YAML matching the canonical optimize-output schema
      */
     public String writeYaml(
             String useCaseId,
@@ -104,7 +105,7 @@ public final class OptimizeOutputWriter {
             entry.put("failures", ir.failures());
             entry.put("samplesExecuted", ir.samplesExecuted());
             // Per-iteration latency block — passing-only percentiles
-            // + LT01 indicator, scoped to this iteration's samples.
+            // + population indicator, scoped to this iteration's samples.
             // Omitted when zero samples passed in the iteration.
             // Per-iteration result projection: one sample[N]: block
             // per trial, carrying input / postconditions / etc. The

@@ -174,7 +174,8 @@ public final class Experiment implements Spec {
      * {@link SampleSummary} parallel to {@link #history()}, in the
      * same execution order. Empty for measure and explore. Consumed
      * by the OPTIMIZE artefact emitter when it needs per-sample
-     * trial detail (the {@code resultProjection:} block of EX06).
+     * trial detail (the {@code resultProjection:} block of the
+     * optimize-experiment output).
      */
     public List<SampleSummary<?>> iterationSummaries() {
         if (internal instanceof OptimizeInternal<?, ?, ?> o) {

@@ -9,7 +9,7 @@ import org.javai.punit.util.HashUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("BaselineIntegrity — EX10 fingerprint emission and verification")
+@DisplayName("BaselineIntegrity — fingerprint emission and verification")
 class BaselineIntegrityTest {
 
     private static final Path FAKE_FILE = Path.of("/baselines/ShoppingBasket.measure-a1b2c3d4.yaml");
@@ -77,7 +77,7 @@ class BaselineIntegrityTest {
 
     @Test
     @DisplayName("verify returns the softer missing warning when no contentFingerprint: "
-            + "field is present (legacy pre-EX10 baseline)")
+            + "field is present (legacy baseline pre-dating the integrity feature)")
     void verifyMissingOnLegacyBaseline() {
         String legacy = "schemaVersion: punit-baseline-2\nuseCaseId: X\n";
 

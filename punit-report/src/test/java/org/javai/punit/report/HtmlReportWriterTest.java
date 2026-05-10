@@ -475,9 +475,9 @@ class HtmlReportWriterTest {
         }
 
         @Test
-        @DisplayName("unavailable percentile (LT01 below-minimum sentinel) renders as a dash")
+        @DisplayName("unavailable percentile (below-minimum sentinel) renders as a dash")
         void unavailablePercentileRendersAsDash() {
-            // p99 below LT01 minimum (100 contributing samples) is
+            // p99 below the minimum (100 contributing samples) is
             // emitted as PERCENTILE_UNAVAILABLE_MS by the adapter; the
             // HTML cell must show "-" rather than "-1ms" or a literal
             // sentinel value.

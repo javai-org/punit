@@ -208,9 +208,9 @@ public record ProbabilisticTestVerdict(
         /**
          * Backward-compatible 13-arg constructor that defaults
          * {@link #basis()} to {@code "passing-samples"} (the only
-         * currently defined population per LT01). Test fixtures and
-         * older call sites that haven't yet adopted the canonical
-         * 14-field shape can construct via this overload.
+         * currently defined population). Test fixtures and older
+         * call sites that haven't yet adopted the canonical 14-field
+         * shape can construct via this overload.
          */
         public LatencyDimension(
                 int successfulSamples,

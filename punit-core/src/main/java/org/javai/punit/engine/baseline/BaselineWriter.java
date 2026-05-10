@@ -71,18 +71,18 @@ public final class BaselineWriter {
      *
      * <p>The MEASURE baseline carries aggregate signal only —
      * pass-rate statistics, latency percentiles, covariate profile,
-     * footprint, fingerprint. Per-sample diagnostic detail (the EX07
+     * footprint, fingerprint. Per-sample diagnostic detail (the
      * result-projection shape) lives on EXPLORE / OPTIMIZE artefacts;
      * MEASURE per-sample failure context is emitted to {@code System.err}
      * as the engine processes each sample (one {@code [PUNIT-FAIL]}
      * line per failed clause), keeping the baseline file size constant
-     * in sample count and keeping the EX10 integrity fingerprint over
+     * in sample count and keeping the integrity fingerprint over
      * content the resolver actually reads.
      */
     public String toYaml(BaselineRecord record) {
         Objects.requireNonNull(record, "record");
         String body = yaml().dump(toYamlMap(record));
-        // EX10: append the SHA-256 of the body as the last field. The
+        // Append the SHA-256 of the body as the last field. The
         // reader recomputes the digest over the same prefix at load
         // time and surfaces a verdict warning when the file has been
         // modified since the measure produced it.
@@ -100,8 +100,8 @@ public final class BaselineWriter {
         root.put(FIELD_GENERATED_AT, DateTimeFormatter.ISO_INSTANT.format(record.generatedAt()));
 
         // The legacy criterion-named "percentile-latency" entry is
-        // no longer emitted to YAML — the canonical EX04 location
-        // for latency data is the top-level `latency:` block written
+        // no longer emitted to YAML — the canonical location for
+        // latency data is the top-level `latency:` block written
         // below. The in-memory map keeps the entry for the
         // PercentileLatency criterion's lookup; the reader
         // re-synthesises it from the top-level block on load.
@@ -121,13 +121,12 @@ public final class BaselineWriter {
             root.put(FIELD_COVARIATES,
                     new LinkedHashMap<>(record.covariateProfile().values()));
         }
-        // EX04 latency block — passing-only percentiles + LT01
-        // population indicator. Emitted top-level (not under
-        // statistics) per the catalog amendment landed via
-        // orchestrator PR #21. The block is omitted entirely when
-        // zero samples passed; individual percentiles within it are
-        // omitted per LT01's minimum-samples rule (1 / 10 / 20 /
-        // 100 for p50 / p90 / p95 / p99).
+        // Latency block — passing-only percentiles + population
+        // indicator. Emitted top-level (not under statistics). The
+        // block is omitted entirely when zero samples passed;
+        // individual percentiles within it are omitted per the
+        // minimum-samples rule (1 / 10 / 20 / 100 for p50 / p90 /
+        // p95 / p99).
         LatencyIndicator latency = record.latencyIndicator();
         if (latency.hasData()) {
             org.javai.punit.engine.output.LatencySection.blockFor(

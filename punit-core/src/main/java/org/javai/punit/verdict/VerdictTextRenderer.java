@@ -848,7 +848,7 @@ public final class VerdictTextRenderer {
     /**
      * Format a percentile's milliseconds value, rendering the
      * {@link LatencySection#PERCENTILE_UNAVAILABLE_MS} sentinel as
-     * {@code "-"} (LT01: contributingSamples below this percentile's
+     * {@code "-"} (contributingSamples below this percentile's
      * minimum threshold means the value is not reliably estimated).
      */
     private static String formatMsOrDash(long ms) {
@@ -869,10 +869,10 @@ public final class VerdictTextRenderer {
                         func.successes(), func.successes() + func.failures())));
 
         verdict.latency().ifPresent(lat -> {
-            // LT01 descriptive one-liner: surfaces the passing-only
+            // Descriptive one-liner: surfaces the passing-only
             // percentiles + indicator counts alongside the pass/fail
             // block so a reader sees latency at a glance, independent
-            // of LT04 activation. Percentiles below LT01's
+            // of latency-assertion activation. Percentiles below the
             // minimum-samples threshold render as "-" rather than a
             // misleading number.
             if (lat.successfulSamples() > 0) {
@@ -883,8 +883,8 @@ public final class VerdictTextRenderer {
                                 formatMsOrDash(lat.p95Ms()),
                                 formatMsOrDash(lat.p99Ms()))));
             }
-            // LT04 threshold-side summary — only when latency
-            // assertions are actually configured.
+            // Threshold-side summary - only when latency assertions
+            // are actually configured.
             if (!lat.skipped() && !lat.assertions().isEmpty()) {
                 sb.append(PUnitReporter.labelValueLn("Latency assertions:",
                         String.format("%d/%d within limit",

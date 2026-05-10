@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 import org.javai.punit.util.HashUtils;
 
 /**
- * EX10 baseline-integrity helper. Computes and verifies the
+ * Baseline-integrity helper. Computes and verifies the
  * {@code contentFingerprint:} field appended as the last line of
  * every measure baseline.
  *
@@ -19,17 +19,16 @@ import org.javai.punit.util.HashUtils;
  * measure produced it. The check is a soft warning on the verdict —
  * not a hard abort. The live test data is independently informative;
  * a verdict warning is loud, durable, and routes through the same
- * observability channel as every other test signal (per the EX10
- * "consequence of failure" prose).
+ * observability channel as every other test signal.
  *
  * <p>Three states:
  *
  * <ol>
  *   <li><b>OK</b> — line present, computed digest matches stored
  *       value. {@link #verify} returns {@link Optional#empty()}.</li>
- *   <li><b>MISSING</b> — line absent (typically a pre-EX10 baseline
- *       on disk). Returns the softer "predates integrity verification"
- *       wording.</li>
+ *   <li><b>MISSING</b> — line absent (typically a baseline on disk
+ *       that predates the integrity-verification feature). Returns
+ *       the softer "predates integrity verification" wording.</li>
  *   <li><b>MISMATCH</b> — line present, computed digest disagrees.
  *       Returns the louder "modified since generation" wording with
  *       expected and computed digests in the diagnostic.</li>

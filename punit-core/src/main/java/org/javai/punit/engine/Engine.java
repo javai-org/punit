@@ -143,10 +143,11 @@ public final class Engine {
         // from every sample so the all-samples latency stats never
         // skew on drop. passingForLatency holds durations from samples
         // that passed (Outcome.Ok at the contract layer per
-        // UseCaseOutcome.value()), feeding the LT01 passing-only
-        // descriptive percentiles emitted into EX04 / EX05 / EX06 /
-        // RP01 artefacts. trials carries the full ordered (input,
-        // outcome, duration) history regardless of the failure cap.
+        // UseCaseOutcome.value()), feeding the passing-only descriptive
+        // percentiles emitted into baseline, exploration, optimize,
+        // and verdict artefacts. trials carries the full ordered
+        // (input, outcome, duration) history regardless of the failure
+        // cap.
         private final List<UseCaseOutcome<?, OT>> retained = new ArrayList<>();
         private final List<UseCaseOutcome<?, OT>> allForLatency = new ArrayList<>();
         private final List<UseCaseOutcome<?, OT>> passingForLatency = new ArrayList<>();
