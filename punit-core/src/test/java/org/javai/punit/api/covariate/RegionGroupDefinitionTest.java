@@ -1,4 +1,4 @@
-package org.javai.punit.model;
+package org.javai.punit.api.covariate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.javai.punit.api.covariate.CovariateProfile;
-import org.javai.punit.model.CovariateValue;
+import org.javai.punit.api.covariate.CovariateValue;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.spec.model.ExecutionSpecification;
 import org.javai.punit.spec.model.LatencyBaseline;

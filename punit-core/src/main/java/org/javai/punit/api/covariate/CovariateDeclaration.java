@@ -1,4 +1,4 @@
-package org.javai.punit.model;
+package org.javai.punit.api.covariate;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.javai.punit.api.CovariateCategory;
+import org.javai.punit.model.UseCaseAttributes;
 import org.javai.punit.util.HashUtils;
 
 /**

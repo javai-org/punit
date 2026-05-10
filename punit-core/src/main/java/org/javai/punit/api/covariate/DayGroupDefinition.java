@@ -1,4 +1,4 @@
-package org.javai.punit.model;
+package org.javai.punit.api.covariate;
 
 import java.time.DayOfWeek;
 import java.util.EnumSet;

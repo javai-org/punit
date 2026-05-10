@@ -1,4 +1,4 @@
-package org.javai.punit.model;
+package org.javai.punit.api.covariate;
 
 import java.util.Objects;
 import java.util.Set;
