@@ -1,4 +1,4 @@
-package org.javai.punit.model;
+package org.javai.punit.api;
 
 /**
  * Bundles use-case-level attributes declared on {@code @UseCase}.

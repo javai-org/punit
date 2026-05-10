@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.api.UseCaseAttributes;
 import org.javai.punit.util.HashUtils;
 
 /**

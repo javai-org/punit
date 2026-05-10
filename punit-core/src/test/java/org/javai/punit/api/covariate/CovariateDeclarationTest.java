@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.api.UseCaseAttributes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

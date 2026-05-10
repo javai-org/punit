@@ -12,7 +12,7 @@ import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.TerminationReason;
-import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.api.UseCaseAttributes;
 
 /**
  * The single source of truth for a probabilistic test verdict.

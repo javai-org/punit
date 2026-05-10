@@ -146,7 +146,7 @@ class VerdictAdapterFidelityTest {
 
             assertThat(verdict.execution().warmup()).isZero();
             assertThat(verdict.execution().useCaseAttributes())
-                    .isEqualTo(org.javai.punit.model.UseCaseAttributes.DEFAULT);
+                    .isEqualTo(org.javai.punit.api.UseCaseAttributes.DEFAULT);
         }
 
         @Test

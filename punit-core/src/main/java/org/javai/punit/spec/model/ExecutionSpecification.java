@@ -10,7 +10,7 @@ import org.javai.punit.api.covariate.CovariateDeclaration;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.model.ExpirationStatus;
-import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.api.UseCaseAttributes;
 
 /**
  * An execution specification containing empirical data for probabilistic testing.

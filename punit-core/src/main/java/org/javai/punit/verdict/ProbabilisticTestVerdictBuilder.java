@@ -13,7 +13,7 @@ import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.InconclusiveReasons;
 import org.javai.punit.api.spec.Verdict;
-import org.javai.punit.model.UseCaseAttributes;
+import org.javai.punit.api.UseCaseAttributes;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
 import org.javai.punit.controls.budget.SharedBudgetMonitor;
 import org.javai.punit.controls.pacing.PacingConfiguration;
