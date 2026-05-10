@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed (verdict XML wire format — breaking)
+
+- `<statistics>` now carries `wilson-lower` (the one-sided Wilson
+  lower bound at the verdict's `confidence-level`). The legacy
+  `ci-lower` / `ci-upper` attribute pair has been retired.
+  Consumers reading verdict XML must update their parsers; the
+  reader rejects documents missing `wilson-lower` with a clear
+  diagnostic.
+- `ProbabilisticTestVerdict.StatisticalAnalysis.ciLower` /
+  `ciUpper` record components renamed to `wilsonLower` (single
+  one-sided lower bound). The two-sided
+  `BinomialProportionEstimator.estimate(...)` is unchanged and
+  still validated against the javai-R `wilson_ci` fixture; only
+  the verdict path moves to one-sided.
+- Verdict text rendering replaces the "CI lower bound:" label with
+  "Wilson lower bound:" and drops the prose framing the value as a
+  confidence interval.
+- The local `verdict-1.0.xsd` is now diff-clean against the
+  canonical RP07 schema in the orchestrator.
+
 ## [0.7.0-alpha2] - 2026-05-10
 
 > **🧪 Experimental release.** Patch over 0.7.0-alpha. Closes the

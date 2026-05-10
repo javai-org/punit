@@ -119,7 +119,7 @@ class VerdictVerifierTest {
                         Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
-                new StatisticalAnalysis(0.95, 0.02, 0.85, 0.98,
+                new StatisticalAnalysis(0.95, 0.02, 0.85,
                         Optional.empty(), Optional.empty(),
                         Optional.empty(), Optional.empty(), List.of()),
                 CovariateStatus.allAligned(),

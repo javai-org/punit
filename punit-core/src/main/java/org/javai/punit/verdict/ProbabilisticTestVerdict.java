@@ -259,8 +259,11 @@ public record ProbabilisticTestVerdict(
      *
      * @param confidenceLevel the confidence level used (e.g., 0.95)
      * @param standardError SE = √(p̂(1-p̂)/n)
-     * @param ciLower Wilson score confidence interval lower bound
-     * @param ciUpper Wilson score confidence interval upper bound
+     * @param wilsonLower Wilson one-sided lower bound on the test
+     *                    observation's pass rate at {@code confidenceLevel}.
+     *                    The verdict path is one-sided (degradation only);
+     *                    the upper bound carries no operational meaning under
+     *                    a left-tailed test and is not emitted.
      * @param testStatistic z-test statistic, if computable
      * @param pValue one-sided p-value, if computable
      * @param thresholdDerivation description of how the threshold was derived, if spec-driven
@@ -270,8 +273,7 @@ public record ProbabilisticTestVerdict(
     public record StatisticalAnalysis(
             double confidenceLevel,
             double standardError,
-            double ciLower,
-            double ciUpper,
+            double wilsonLower,
             Optional<Double> testStatistic,
             Optional<Double> pValue,
             Optional<String> thresholdDerivation,

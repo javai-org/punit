@@ -97,7 +97,7 @@ class VerdictXmlSinkTest {
                         Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
-                new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
+                new StatisticalAnalysis(0.95, 0.0218, 0.8948,
                         Optional.of(2.29), Optional.of(0.011),
                         Optional.empty(), Optional.empty(), List.of()),
                 CovariateStatus.allAligned(),

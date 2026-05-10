@@ -222,8 +222,7 @@
   <xs:complexType name="StatisticsType">
     <xs:attribute name="confidence-level" type="xs:double"               use="required"/>
     <xs:attribute name="standard-error"   type="xs:double"               use="required"/>
-    <xs:attribute name="ci-lower"         type="xs:double"               use="required"/>
-    <xs:attribute name="ci-upper"         type="xs:double"               use="required"/>
+    <xs:attribute name="wilson-lower"     type="xs:double"               use="required"/>
     <xs:attribute name="threshold"        type="xs:double"               use="required"/>
     <xs:attribute name="threshold-origin" type="tns:ThresholdOriginEnum" use="required"/>
     <xs:attribute name="test-statistic"   type="xs:double"               use="optional"/>

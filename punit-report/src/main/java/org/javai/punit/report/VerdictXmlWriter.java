@@ -192,8 +192,7 @@ public final class VerdictXmlWriter {
         w.writeStartElement("statistics");
         w.writeAttribute("confidence-level", formatDouble(stats.confidenceLevel()));
         w.writeAttribute("standard-error", formatDouble(stats.standardError()));
-        w.writeAttribute("ci-lower", formatDouble(stats.ciLower()));
-        w.writeAttribute("ci-upper", formatDouble(stats.ciUpper()));
+        w.writeAttribute("wilson-lower", formatDouble(stats.wilsonLower()));
         w.writeAttribute("threshold", formatRate(v.execution().minPassRate()));
         String thresholdOrigin = v.provenance()
                 .map(SpecProvenance::thresholdOriginName)

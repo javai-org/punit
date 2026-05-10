@@ -144,11 +144,11 @@ class VerdictTextRendererTest {
         }
 
         @Test
-        @DisplayName("includes CI lower bound")
-        void includesCiLowerBound() {
+        @DisplayName("includes Wilson lower bound")
+        void includesWilsonLowerBound() {
             String text = VerdictTextRenderer.renderStatisticalAnalysis(passingVerdict());
 
-            assertThat(text).contains("CI lower bound:");
+            assertThat(text).contains("Wilson lower bound:");
         }
 
         @Test
@@ -212,7 +212,7 @@ class VerdictTextRendererTest {
                 new ExecutionSummary(100, 100, successes, failures, 0.9, observedRate, 150,
                         Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
-                new StatisticalAnalysis(0.95, 0.0218, 0.8948, 0.9798,
+                new StatisticalAnalysis(0.95, 0.0218, 0.8948,
                         Optional.of(2.29), Optional.of(0.011),
                         Optional.empty(), Optional.empty(), List.of()),
                 CovariateStatus.allAligned(),
@@ -281,7 +281,7 @@ class VerdictTextRendererTest {
     private ProbabilisticTestVerdict verdictWithBaseline() {
         ProbabilisticTestVerdict base = passingVerdict();
         StatisticalAnalysis stats = new StatisticalAnalysis(
-                0.95, 0.0218, 0.8948, 0.9798,
+                0.95, 0.0218, 0.8948,
                 Optional.of(2.29), Optional.of(0.011),
                 Optional.of("Wilson score lower bound"),
                 Optional.of(new BaselineSummary(

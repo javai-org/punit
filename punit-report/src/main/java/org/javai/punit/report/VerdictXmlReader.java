@@ -192,11 +192,16 @@ public final class VerdictXmlReader {
                 .map(this::readBaseline);
         List<String> caveats = readWarnings(root);
 
+        String wilsonLowerAttr = el.getAttribute("wilson-lower");
+        if (wilsonLowerAttr == null || wilsonLowerAttr.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "verdict <statistics> element is missing required attribute 'wilson-lower' "
+                            + "(the verdict XML schema requires it on every verdict document)");
+        }
         return new StatisticalAnalysis(
                 Double.parseDouble(el.getAttribute("confidence-level")),
                 Double.parseDouble(el.getAttribute("standard-error")),
-                Double.parseDouble(el.getAttribute("ci-lower")),
-                Double.parseDouble(el.getAttribute("ci-upper")),
+                Double.parseDouble(wilsonLowerAttr),
                 optionalAttribute(el, "test-statistic").map(Double::parseDouble),
                 optionalAttribute(el, "p-value").map(Double::parseDouble),
                 Optional.empty(), // threshold-derivation

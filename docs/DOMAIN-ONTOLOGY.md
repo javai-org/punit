@@ -341,9 +341,8 @@ ArchUnit-style architecture test).
     one-sided Wilson in the verdict path). The two-sided form
     is preserved for SC01 (catalog) + diagnostics.
   gotchas:
-    - Verdict XML must emit `wilson-lower`, not `ci-lower`/`ci-upper`.
-      That alignment is in flight under
-      `DIR-RP07-WILSON-LOWER-VERDICT-XML` (in 0.7.x scope).
+    - Verdict XML emits `wilson-lower` only; the legacy
+      `ci-lower`/`ci-upper` pair was retired with the 0.7.x cleanup.
 
 - family: Latency Population
   java_type: LatencyDistribution (statistics) + LatencyPercentileComputer (engine)
@@ -486,9 +485,9 @@ ArchUnit-style architecture test).
     diff clean against the canonical at
     `inventory/catalog/reporting/RP07-verdict-xml-interchange/verdict-1.0.xsd`.
   gotchas:
-    - Currently emits `ci-lower` / `ci-upper`; alignment to
-      `wilson-lower` is in flight under
-      `DIR-RP07-WILSON-LOWER-VERDICT-XML`.
+    - Emits `wilson-lower` only on `<statistics>`; the upper bound
+      is not emitted (the verdict path is left-tailed). Aligned to
+      the canonical XSD as of the 0.7.x cleanup.
 
 - family: Verdict Sink
   java_type: VerdictSink (interface) + VerdictSinkBus (dispatcher)
@@ -729,9 +728,12 @@ lands, current violations are captured in `archunit_store/` via
     reference, extend, or re-import.
 
 - item: Verdict XML attribute names (ci-lower / ci-upper)
+  status: resolved
   fix: |
-    Owned by DIR-RP07-WILSON-LOWER-VERDICT-XML (in 0.7.x scope).
-    The surviving attribute will be `wilson-lower`.
+    Resolved in the 0.7.x cleanup window. `<statistics>` now
+    emits `wilson-lower` only; the legacy `ci-lower` / `ci-upper`
+    pair was retired and the local XSD is diff-clean against
+    canonical RP07.
 
 - item: Statistical early termination (PT09 / PT10) regression
   fix: |

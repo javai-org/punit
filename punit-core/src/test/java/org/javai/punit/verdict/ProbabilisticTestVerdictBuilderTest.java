@@ -17,6 +17,7 @@ import org.javai.punit.controls.pacing.PacingConfiguration;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.model.TerminationReason;
 import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.*;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 class ProbabilisticTestVerdictBuilderTest {
 
@@ -216,11 +218,14 @@ class ProbabilisticTestVerdictBuilderTest {
                     .build();
 
             StatisticalAnalysis stats = verdict.statistics();
+            double expectedWilsonLower =
+                    new BinomialProportionEstimator().lowerBound(95, 100, 0.95);
             assertThat(stats.confidenceLevel()).isEqualTo(0.95);
             assertThat(stats.standardError()).isGreaterThan(0.0);
-            assertThat(stats.ciLower()).isGreaterThan(0.0);
-            assertThat(stats.ciUpper()).isLessThanOrEqualTo(1.0);
-            assertThat(stats.ciLower()).isLessThan(stats.ciUpper());
+            assertThat(stats.wilsonLower())
+                    .isGreaterThan(0.0)
+                    .isLessThan(0.95)        // strictly below the observed rate
+                    .isCloseTo(expectedWilsonLower, within(1e-9));
             assertThat(stats.testStatistic()).isPresent();
             assertThat(stats.pValue()).isPresent();
         }
@@ -233,8 +238,7 @@ class ProbabilisticTestVerdictBuilderTest {
 
             StatisticalAnalysis stats = verdict.statistics();
             assertThat(stats.standardError()).isEqualTo(0.0);
-            assertThat(stats.ciLower()).isEqualTo(0.0);
-            assertThat(stats.ciUpper()).isEqualTo(0.0);
+            assertThat(stats.wilsonLower()).isEqualTo(0.0);
             assertThat(stats.testStatistic()).isEmpty();
             assertThat(stats.pValue()).isEmpty();
         }
