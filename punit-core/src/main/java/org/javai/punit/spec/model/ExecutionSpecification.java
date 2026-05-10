@@ -6,8 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.model.CovariateDeclaration;
-import org.javai.punit.model.CovariateProfile;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.model.ExpirationStatus;
 import org.javai.punit.model.UseCaseAttributes;
@@ -244,19 +244,17 @@ public final class ExecutionSpecification {
 	public CovariateProfile getCovariateProfile() {
 		boolean hasImplicit = useCaseAttributes.hasWarmup() || useCaseAttributes.hasMaxConcurrent();
 		if (hasImplicit) {
-			var builder = CovariateProfile.builder();
+			LinkedHashMap<String, String> merged = new LinkedHashMap<>();
 			if (useCaseAttributes.hasWarmup()) {
-				builder.put(CovariateDeclaration.KEY_WARMUP, String.valueOf(useCaseAttributes.warmup()));
+				merged.put(CovariateDeclaration.KEY_WARMUP, String.valueOf(useCaseAttributes.warmup()));
 			}
 			if (useCaseAttributes.hasMaxConcurrent()) {
-				builder.put(CovariateDeclaration.KEY_MAX_CONCURRENT, String.valueOf(useCaseAttributes.maxConcurrent()));
+				merged.put(CovariateDeclaration.KEY_MAX_CONCURRENT, String.valueOf(useCaseAttributes.maxConcurrent()));
 			}
 			if (covariateProfile != null) {
-				for (String key : covariateProfile.orderedKeys()) {
-					builder.put(key, covariateProfile.get(key));
-				}
+				merged.putAll(covariateProfile.values());
 			}
-			return builder.build();
+			return CovariateProfile.of(merged);
 		}
 		return covariateProfile;
 	}

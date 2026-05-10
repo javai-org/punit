@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.javai.punit.model.CovariateProfile;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.model.CovariateValue;
 import org.javai.punit.model.ExpirationPolicy;
 import org.javai.punit.spec.model.ExecutionSpecification;
@@ -158,7 +158,7 @@ public final class SpecificationLoader {
 		long[] latencySorted = null;
 
 		// Covariate fields
-		CovariateProfile.Builder covariateProfileBuilder = CovariateProfile.builder();
+		LinkedHashMap<String, String> covariateProfileEntries = new LinkedHashMap<>();
 		String footprint = null;
 
 		for (String line : lines) {
@@ -317,7 +317,7 @@ public final class SpecificationLoader {
 					}
 					// Parse covariate value
 					CovariateValue covValue = parseCovariateValue(value);
-					covariateProfileBuilder.put(key, covValue);
+					covariateProfileEntries.put(key, covValue.toCanonicalString());
 				}
 			} else if (inLatency) {
 				if (trimmed.startsWith("sampleCount:")) {
@@ -392,7 +392,7 @@ public final class SpecificationLoader {
 		}
 
 		// Set covariate profile and footprint
-		CovariateProfile covariateProfile = covariateProfileBuilder.build();
+		CovariateProfile covariateProfile = CovariateProfile.of(covariateProfileEntries);
 		if (!covariateProfile.isEmpty()) {
 			builder.covariateProfile(covariateProfile);
 		}

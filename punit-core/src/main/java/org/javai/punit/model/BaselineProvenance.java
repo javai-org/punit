@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import org.javai.punit.api.covariate.CovariateProfile;
 
 /**
  * Records the provenance of a baseline used in a probabilistic test.
@@ -61,9 +62,8 @@ public record BaselineProvenance(
             props.put("punit.baseline.generatedAt", DATE_FORMATTER.format(generatedAt));
         }
         if (covariateProfile != null && !covariateProfile.isEmpty()) {
-            for (String key : covariateProfile.orderedKeys()) {
-                var value = covariateProfile.get(key);
-                props.put("punit.baseline.covariate." + key, value.toCanonicalString());
+            for (Map.Entry<String, String> entry : covariateProfile.values().entrySet()) {
+                props.put("punit.baseline.covariate." + entry.getKey(), entry.getValue());
             }
         }
         return props;

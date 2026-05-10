@@ -2,6 +2,8 @@ package org.javai.punit.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import org.javai.punit.api.covariate.CovariateProfile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -78,10 +80,10 @@ class BaselineProvenanceTest {
         @Test
         @DisplayName("should include covariate properties")
         void shouldIncludeCovariateProperties() {
-            var profile = CovariateProfile.builder()
-                .put("region", "EU")
-                .put("timezone", "Europe/London")
-                .build();
+            var entries = new LinkedHashMap<String, String>();
+            entries.put("region", "EU");
+            entries.put("timezone", "Europe/London");
+            var profile = CovariateProfile.of(entries);
             
             var provenance = new BaselineProvenance(
                 "test.yaml",
