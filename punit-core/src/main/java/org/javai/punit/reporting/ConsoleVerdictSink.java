@@ -1,7 +1,7 @@
 package org.javai.punit.reporting;
 
 import java.io.PrintStream;
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.VerdictSink;

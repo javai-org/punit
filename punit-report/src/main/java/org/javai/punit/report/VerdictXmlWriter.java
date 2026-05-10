@@ -347,7 +347,7 @@ public final class VerdictXmlWriter {
     /**
      * Maps punit's termination reasons to verdict XML standard reasons.
      */
-    private static String mapTerminationReason(org.javai.punit.model.TerminationReason reason) {
+    private static String mapTerminationReason(org.javai.punit.verdict.TerminationReason reason) {
         return switch (reason) {
             case COMPLETED, MAX_ITERATIONS, NO_IMPROVEMENT,
                  SCORE_THRESHOLD_REACHED -> "COMPLETED";
@@ -436,13 +436,13 @@ public final class VerdictXmlWriter {
 
     // ── ExpirationStatus mapping ─────────────────────────────────────────
 
-    private static String expirationStatusName(org.javai.punit.model.ExpirationStatus status) {
+    private static String expirationStatusName(org.javai.punit.verdict.ExpirationStatus status) {
         return switch (status) {
-            case org.javai.punit.model.ExpirationStatus.NoExpiration n -> "NO_EXPIRATION";
-            case org.javai.punit.model.ExpirationStatus.Valid v -> "VALID";
-            case org.javai.punit.model.ExpirationStatus.ExpiringSoon s -> "EXPIRING_SOON";
-            case org.javai.punit.model.ExpirationStatus.ExpiringImminently i -> "EXPIRING_IMMINENTLY";
-            case org.javai.punit.model.ExpirationStatus.Expired e -> "EXPIRED";
+            case org.javai.punit.verdict.ExpirationStatus.NoExpiration n -> "NO_EXPIRATION";
+            case org.javai.punit.verdict.ExpirationStatus.Valid v -> "VALID";
+            case org.javai.punit.verdict.ExpirationStatus.ExpiringSoon s -> "EXPIRING_SOON";
+            case org.javai.punit.verdict.ExpirationStatus.ExpiringImminently i -> "EXPIRING_IMMINENTLY";
+            case org.javai.punit.verdict.ExpirationStatus.Expired e -> "EXPIRED";
         };
     }
 }

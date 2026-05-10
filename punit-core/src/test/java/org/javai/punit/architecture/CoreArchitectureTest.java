@@ -77,8 +77,7 @@ class CoreArchitectureTest {
         void corePackagesMustNotDependOnJUnitExtensions() {
             ArchRule rule = noClasses()
                     .that().resideInAnyPackage(
-                            "org.javai.punit.statistics..",
-                            "org.javai.punit.model.."
+                            "org.javai.punit.statistics.."
                     )
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("org.junit.jupiter.api.extension..")
@@ -115,8 +114,7 @@ class CoreArchitectureTest {
                             "org.javai.punit.api..",
                             "org.javai.punit.ptest.engine..",
                             "org.javai.punit.experiment..",
-                            "org.javai.punit.spec..",
-                            "org.javai.punit.model.."
+                            "org.javai.punit.spec.."
                     );
 
             rule.check(classes);
@@ -138,7 +136,6 @@ class CoreArchitectureTest {
                             "org.javai.punit.experiment..",
                             "org.javai.punit.spec..",
                             "org.javai.punit.statistics..",
-                            "org.javai.punit.model..",
                             "org.javai.punit.controls..",
                             "org.javai.punit.reporting.."
                     )

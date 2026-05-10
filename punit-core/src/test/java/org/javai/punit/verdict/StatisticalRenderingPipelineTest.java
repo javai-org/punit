@@ -318,7 +318,7 @@ class StatisticalRenderingPipelineTest {
         @DisplayName("formatTerminationMessage produces distinct text for every termination reason")
         void formatTerminationMessage_allReasonsDistinct() {
             var reasons = java.util.EnumSet.allOf(
-                    org.javai.punit.model.TerminationReason.class);
+                    org.javai.punit.verdict.TerminationReason.class);
             var messages = new java.util.HashSet<String>();
 
             for (var reason : reasons) {

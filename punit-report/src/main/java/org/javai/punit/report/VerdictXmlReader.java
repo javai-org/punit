@@ -14,7 +14,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.api.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
@@ -249,17 +249,17 @@ public final class VerdictXmlReader {
     private ExpirationInfo readExpiration(Element el) {
         String statusName = el.getAttribute("status");
         Optional<Instant> expiresAt = optionalAttribute(el, "expires-at").map(Instant::parse);
-        org.javai.punit.model.ExpirationStatus status = parseExpirationStatus(statusName);
+        org.javai.punit.verdict.ExpirationStatus status = parseExpirationStatus(statusName);
         return new ExpirationInfo(status, expiresAt);
     }
 
-    private org.javai.punit.model.ExpirationStatus parseExpirationStatus(String name) {
+    private org.javai.punit.verdict.ExpirationStatus parseExpirationStatus(String name) {
         return switch (name) {
-            case "NO_EXPIRATION" -> org.javai.punit.model.ExpirationStatus.noExpiration();
-            case "VALID" -> org.javai.punit.model.ExpirationStatus.valid(Duration.ZERO);
-            case "EXPIRING_SOON" -> org.javai.punit.model.ExpirationStatus.expiringSoon(Duration.ZERO, 0.0);
-            case "EXPIRING_IMMINENTLY" -> org.javai.punit.model.ExpirationStatus.expiringImminently(Duration.ZERO, 0.0);
-            case "EXPIRED" -> org.javai.punit.model.ExpirationStatus.expired(Duration.ZERO);
+            case "NO_EXPIRATION" -> org.javai.punit.verdict.ExpirationStatus.noExpiration();
+            case "VALID" -> org.javai.punit.verdict.ExpirationStatus.valid(Duration.ZERO);
+            case "EXPIRING_SOON" -> org.javai.punit.verdict.ExpirationStatus.expiringSoon(Duration.ZERO, 0.0);
+            case "EXPIRING_IMMINENTLY" -> org.javai.punit.verdict.ExpirationStatus.expiringImminently(Duration.ZERO, 0.0);
+            case "EXPIRED" -> org.javai.punit.verdict.ExpirationStatus.expired(Duration.ZERO);
             default -> throw new XmlReadException("Unknown expiration status: " + name, null);
         };
     }

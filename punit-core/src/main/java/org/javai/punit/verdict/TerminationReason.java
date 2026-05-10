@@ -1,4 +1,4 @@
-package org.javai.punit.model;
+package org.javai.punit.verdict;
 
 /**
  * Reasons why a probabilistic test or optimization terminated.

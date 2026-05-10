@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.Objects;
 import org.javai.punit.api.covariate.CovariateDeclaration;
 import org.javai.punit.api.covariate.CovariateProfile;
-import org.javai.punit.model.ExpirationPolicy;
-import org.javai.punit.model.ExpirationStatus;
+import org.javai.punit.verdict.ExpirationPolicy;
+import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.api.UseCaseAttributes;
 
 /**

@@ -2,7 +2,7 @@ package org.javai.punit.spec.expiration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
-import org.javai.punit.model.ExpirationStatus;
+import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig.DetailLevel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

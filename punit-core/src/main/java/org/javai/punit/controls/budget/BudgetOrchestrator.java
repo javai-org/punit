@@ -2,7 +2,7 @@ package org.javai.punit.controls.budget;
 
 import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 
 /**
  * Coordinates budget checking across suite, class, and method scopes.

@@ -3,7 +3,7 @@ package org.javai.punit.controls.budget;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.javai.punit.api.BudgetExhaustedBehavior;
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 
 /**
  * Thread-safe budget monitor for shared budgets at class or suite level.

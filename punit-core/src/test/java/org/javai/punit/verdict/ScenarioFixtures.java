@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.controls.budget.CostBudgetMonitor.TokenMode;
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.api.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.BaselineSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CostSummary;

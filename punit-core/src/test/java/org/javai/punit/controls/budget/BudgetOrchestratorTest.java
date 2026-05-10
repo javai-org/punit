@@ -3,7 +3,7 @@ package org.javai.punit.controls.budget;
 import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.controls.budget.BudgetOrchestrator.BudgetCheckResult;
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

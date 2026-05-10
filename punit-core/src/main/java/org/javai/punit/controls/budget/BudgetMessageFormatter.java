@@ -1,6 +1,6 @@
 package org.javai.punit.controls.budget;
 
-import org.javai.punit.model.TerminationReason;
+import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.reporting.RateFormat;
 
 /**

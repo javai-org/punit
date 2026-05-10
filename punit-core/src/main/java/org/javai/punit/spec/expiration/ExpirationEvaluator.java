@@ -1,8 +1,8 @@
 package org.javai.punit.spec.expiration;
 
 import java.time.Instant;
-import org.javai.punit.model.ExpirationPolicy;
-import org.javai.punit.model.ExpirationStatus;
+import org.javai.punit.verdict.ExpirationPolicy;
+import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.spec.model.ExecutionSpecification;
 
 /**

@@ -1,4 +1,4 @@
-package org.javai.punit.model;
+package org.javai.punit.verdict;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
