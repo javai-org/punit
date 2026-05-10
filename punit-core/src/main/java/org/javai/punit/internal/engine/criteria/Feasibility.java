@@ -9,7 +9,7 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.Criterion;
 import org.javai.punit.api.spec.PassRateStatistics;
-import org.javai.punit.reporting.InfeasibilityMessageRenderer;
+import org.javai.punit.internal.reporting.InfeasibilityMessageRenderer;
 import org.javai.punit.statistics.StatisticalDefaults;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityResult;

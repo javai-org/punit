@@ -1,7 +1,7 @@
 package org.javai.punit.internal.engine.budget;
 
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.reporting.RateFormat;
+import org.javai.punit.internal.reporting.RateFormat;
 
 /**
  * Formats human-readable messages for budget exhaustion scenarios.

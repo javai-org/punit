@@ -42,7 +42,7 @@ import org.javai.punit.internal.engine.baseline.ProfileBoundBaselineProvider;
 import org.javai.punit.internal.engine.covariate.CovariateResolver;
 import org.javai.punit.internal.engine.criteria.Feasibility;
 import org.javai.punit.internal.engine.criteria.PassRate;
-import org.javai.punit.reporting.TransparentStatsRenderer;
+import org.javai.punit.internal.reporting.TransparentStatsRenderer;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.RunMetadata;

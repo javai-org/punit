@@ -19,7 +19,7 @@ import org.javai.punit.internal.engine.budget.SharedBudgetMonitor;
 import org.javai.punit.internal.engine.pacing.PacingConfiguration;
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.reporting.RateFormat;
+import org.javai.punit.internal.reporting.RateFormat;
 import org.javai.punit.internal.engine.spec.expiration.ExpirationEvaluator;
 import org.javai.punit.internal.engine.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.BinomialProportionEstimator;

@@ -1,4 +1,4 @@
-package org.javai.punit.reporting;
+package org.javai.punit.internal.reporting;
 
 import java.util.LinkedHashMap;
 import java.util.List;

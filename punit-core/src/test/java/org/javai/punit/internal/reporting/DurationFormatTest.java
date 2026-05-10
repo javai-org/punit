@@ -1,4 +1,4 @@
-package org.javai.punit.reporting;
+package org.javai.punit.internal.reporting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;

@@ -1,4 +1,4 @@
-package org.javai.punit.reporting;
+package org.javai.punit.internal.reporting;
 
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityResult;
 

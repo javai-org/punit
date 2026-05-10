@@ -1,4 +1,4 @@
-package org.javai.punit.reporting;
+package org.javai.punit.internal.reporting;
 
 /**
  * Central formatting utility for pass rates and thresholds.

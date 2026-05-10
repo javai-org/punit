@@ -2,7 +2,7 @@ package org.javai.punit.verdict;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
-import org.javai.punit.reporting.PUnitReporter;
+import org.javai.punit.internal.reporting.PUnitReporter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

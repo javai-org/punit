@@ -6,8 +6,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import org.javai.punit.verdict.ExpirationPolicy;
 import org.javai.punit.verdict.ExpirationStatus;
-import org.javai.punit.reporting.DurationFormat;
-import org.javai.punit.reporting.PUnitReporter;
+import org.javai.punit.internal.reporting.DurationFormat;
+import org.javai.punit.internal.reporting.PUnitReporter;
 import org.javai.punit.internal.engine.spec.model.ExecutionSpecification;
 
 /**
