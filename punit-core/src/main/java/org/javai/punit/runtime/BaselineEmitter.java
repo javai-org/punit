@@ -27,11 +27,11 @@ import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
-import org.javai.punit.engine.baseline.BaselineRecord;
-import org.javai.punit.engine.baseline.BaselineWriter;
-import org.javai.punit.engine.baseline.FactorsFingerprint;
-import org.javai.punit.engine.baseline.LatencyIndicator;
-import org.javai.punit.engine.covariate.CovariateResolver;
+import org.javai.punit.internal.engine.baseline.BaselineRecord;
+import org.javai.punit.internal.engine.baseline.BaselineWriter;
+import org.javai.punit.internal.engine.baseline.FactorsFingerprint;
+import org.javai.punit.internal.engine.baseline.LatencyIndicator;
+import org.javai.punit.internal.engine.covariate.CovariateResolver;
 
 /**
  * Translates a completed MEASURE {@link Experiment} into a

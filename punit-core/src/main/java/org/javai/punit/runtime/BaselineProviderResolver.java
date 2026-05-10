@@ -3,8 +3,8 @@ package org.javai.punit.runtime;
 import java.nio.file.Path;
 
 import org.javai.punit.api.spec.BaselineProvider;
-import org.javai.punit.engine.baseline.BaselineResolver;
-import org.javai.punit.engine.baseline.YamlBaselineProvider;
+import org.javai.punit.internal.engine.baseline.BaselineResolver;
+import org.javai.punit.internal.engine.baseline.YamlBaselineProvider;
 
 /**
  * Resolves the {@link BaselineProvider} consumed by
@@ -12,7 +12,7 @@ import org.javai.punit.engine.baseline.YamlBaselineProvider;
  * {@link PUnit#measuring}-style experiments. Directory resolution
  * delegates to {@link BaselineResolver#defaultDir()} — the same
  * implementation any other consumer (e.g.
- * {@link org.javai.punit.engine.baseline.PowerAnalysis}) calls — so framework
+ * {@link org.javai.punit.internal.engine.baseline.PowerAnalysis}) calls — so framework
  * and user code resolve the same path through one source of truth.
  *
  * <p>Precedence (defined in {@code BaselineResolver}):

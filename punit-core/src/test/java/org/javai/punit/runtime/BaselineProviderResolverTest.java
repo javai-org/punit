@@ -6,8 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.javai.punit.engine.baseline.YamlBaselineProvider;
-import org.javai.punit.engine.baseline.BaselineResolver;
+import org.javai.punit.internal.engine.baseline.YamlBaselineProvider;
+import org.javai.punit.internal.engine.baseline.BaselineResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,7 +48,7 @@ class BaselineProviderResolverTest {
     @DisplayName("with no property set, falls back to the convention path")
     void noPropertyConvention() {
         assertThat(BaselineProviderResolver.resolveDir())
-                .isEqualTo(Paths.get(org.javai.punit.engine.baseline.BaselineResolver.CONVENTION_PATH));
+                .isEqualTo(Paths.get(org.javai.punit.internal.engine.baseline.BaselineResolver.CONVENTION_PATH));
         assertThat(BaselineProviderResolver.resolve()).isInstanceOf(YamlBaselineProvider.class);
     }
 

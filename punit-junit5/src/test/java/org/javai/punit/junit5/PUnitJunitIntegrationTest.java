@@ -3,7 +3,7 @@ package org.javai.punit.junit5;
 import java.nio.file.Path;
 
 import org.javai.punit.junit5.testsubjects.PUnitSubjects;
-import org.javai.punit.engine.baseline.BaselineResolver;
+import org.javai.punit.internal.engine.baseline.BaselineResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import org.javai.punit.engine.baseline.BaselineResolver;
+import org.javai.punit.internal.engine.baseline.BaselineResolver;
 import org.javai.punit.junit5.testsubjects.PreflightSubjects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

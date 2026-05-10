@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.engine.emit.LatencySection;
+import org.javai.punit.internal.engine.emit.LatencySection;
 import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.reporting.PUnitReporter;
 import org.javai.punit.reporting.RateFormat;

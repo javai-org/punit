@@ -15,7 +15,7 @@ import org.javai.punit.api.spec.FactorsStepper.IterationResult;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
-import org.javai.punit.engine.optimize.OptimizeOutputWriter;
+import org.javai.punit.internal.engine.optimize.OptimizeOutputWriter;
 
 /**
  * Translates a completed OPTIMIZE {@link Experiment} into the

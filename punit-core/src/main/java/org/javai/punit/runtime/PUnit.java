@@ -37,11 +37,11 @@ import org.javai.punit.api.spec.Scorer;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
-import org.javai.punit.engine.Engine;
-import org.javai.punit.engine.baseline.ProfileBoundBaselineProvider;
-import org.javai.punit.engine.covariate.CovariateResolver;
-import org.javai.punit.engine.criteria.Feasibility;
-import org.javai.punit.engine.criteria.PassRate;
+import org.javai.punit.internal.engine.Engine;
+import org.javai.punit.internal.engine.baseline.ProfileBoundBaselineProvider;
+import org.javai.punit.internal.engine.covariate.CovariateResolver;
+import org.javai.punit.internal.engine.criteria.Feasibility;
+import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.reporting.TransparentStatsRenderer;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
@@ -170,13 +170,13 @@ public final class PUnit {
     private static void driveAndEmitExplore(Experiment experiment) {
         drive(experiment);
         ExploreEmitter.emit(experiment,
-                org.javai.punit.engine.explore.ExplorationsResolver.resolveDir());
+                org.javai.punit.internal.engine.explore.ExplorationsResolver.resolveDir());
     }
 
     private static void driveAndEmitOptimize(Experiment experiment) {
         drive(experiment);
         OptimizeEmitter.emit(experiment,
-                org.javai.punit.engine.optimize.OptimizationsResolver.resolveDir());
+                org.javai.punit.internal.engine.optimize.OptimizationsResolver.resolveDir());
     }
 
     /**

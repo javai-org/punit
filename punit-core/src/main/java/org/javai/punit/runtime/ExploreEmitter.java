@@ -15,7 +15,7 @@ import org.javai.punit.api.spec.PerConfigSummary;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
-import org.javai.punit.engine.explore.ExploreOutputWriter;
+import org.javai.punit.internal.engine.explore.ExploreOutputWriter;
 
 /**
  * Translates a completed EXPLORE {@link Experiment} into one
