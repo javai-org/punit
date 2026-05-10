@@ -1,5 +1,7 @@
 package org.javai.punit.api.spec;
 
+import java.util.Map;
+
 /**
  * A spec-level claim evaluated against the observed sample aggregate.
  *
@@ -56,5 +58,29 @@ public interface Criterion<OT, S extends BaselineStatistics> {
      */
     default boolean isEmpirical() {
         return false;
+    }
+
+    /**
+     * Snapshot of this criterion's configuration as a flat detail map.
+     * Empirical criteria override to surface keys like
+     * {@code confidence} (Bernoulli pass-rate) or
+     * {@code assertedPercentiles} (percentile latency); contractual
+     * criteria return an empty map.
+     *
+     * <p>Used wherever the framework synthesises an INCONCLUSIVE
+     * {@link CriterionResult} on this criterion's behalf (e.g. the
+     * preflight short-circuit when no baseline is resolvable) so the
+     * result carries the same diagnostic shape the criterion's own
+     * post-sampling path would have produced. Each empirical
+     * criterion's {@code evaluate} also reads this map to populate
+     * the corresponding keys on its own results, keeping one source
+     * of truth.
+     *
+     * @return an ordered map of detail keys — possibly empty — that
+     *         the criterion contributes to any diagnostic result
+     *         produced on its behalf
+     */
+    default Map<String, Object> empiricalDetail() {
+        return Map.of();
     }
 }

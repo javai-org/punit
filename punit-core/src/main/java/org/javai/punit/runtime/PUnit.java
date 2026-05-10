@@ -2,7 +2,9 @@ package org.javai.punit.runtime;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
@@ -15,10 +17,15 @@ import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.UseCase;
 import org.javai.punit.api.ValueMatcher;
+import org.javai.punit.api.spec.BaselineLookup;
 import org.javai.punit.api.spec.BaselineProvider;
+import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.Criterion;
 import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.CriterionRole;
+import org.javai.punit.api.spec.EmpiricalChecks;
 import org.javai.punit.api.spec.EngineResult;
+import org.javai.punit.api.spec.EngineRunSummary;
 import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.FactorsStepper;
@@ -173,33 +180,29 @@ public final class PUnit {
     }
 
     /**
-     * Resolves the use case's covariate profile from {@code spec}'s
-     * first configuration. Returns {@link CovariateProfile#empty()}
-     * when the use case declared no covariates.
+     * Generic-binding helper for the baseline-existence probe. The
+     * caller has a {@code Criterion<?, ?>} (statistics type wildcarded);
+     * this method binds {@code S} via the criterion's
+     * {@link Criterion#statisticsType() statisticsType} so the typed
+     * {@link BaselineProvider#baselineLookup} call compiles.
      *
-     * <p>The profile is resolved once per run, before any samples
-     * execute.
+     * <p>{@code baselineLookup} (not {@code baselineFor}) is used so
+     * the lookup's rejection notes flow through to the synthesised
+     * result's warnings. {@link #translate} reads those notes to
+     * distinguish "no candidates existed" (legitimate INCONCLUSIVE
+     * → JUnit-aborted) from "candidates existed but all rejected"
+     * (misconfiguration → JUnit-failed).
      */
-    private static CovariateProfile resolveCovariateProfile(
-            Spec spec) {
-        return spec.dispatch(new Spec.Dispatcher<CovariateProfile>() {
-            @Override
-            public <FT, IT, OT> CovariateProfile apply(
-                    TypedSpec<FT, IT, OT> typed) {
-                var configs = typed.configurations();
-                if (!configs.hasNext()) {
-                    return CovariateProfile.empty();
-                }
-                FT factors = configs.next().factors();
-                UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
-                List<Covariate> declarations = useCase.covariates();
-                if (declarations.isEmpty()) {
-                    return CovariateProfile.empty();
-                }
-                return CovariateResolver.defaults()
-                        .resolve(declarations, useCase.customCovariateResolvers());
-            }
-        });
+    private static <S extends BaselineStatistics> BaselineLookup<S> probeBaseline(
+            BaselineProvider provider,
+            String useCaseId,
+            FactorBundle bundle,
+            Criterion<?, S> criterion,
+            CovariateProfile profile,
+            List<Covariate> declarations) {
+        return provider.baselineLookup(
+                useCaseId, bundle, criterion.name(),
+                criterion.statisticsType(), profile, declarations);
     }
 
     /**
@@ -676,25 +679,46 @@ public final class PUnit {
 
         public void assertPasses() {
             ProbabilisticTest spec = build();
-            List<String> warnings = preflightFeasibility();
+            UseCase<FT, IT, OT> useCase = sampling.useCaseFactory().apply(factors);
+            String useCaseId = useCase.id();
+            CovariateProfile observed = resolveCovariates(useCase);
+            BaselineProvider provider = boundProvider(useCase, observed);
+
+            // Existence probe runs before sampling: when any required
+            // empirical criterion has no resolvable baseline the verdict
+            // is structurally guaranteed to be INCONCLUSIVE-no-baseline,
+            // and sampling cannot influence the outcome — every sample
+            // would just be charged to the user's account before the
+            // criterion's evaluate() discovered the missing baseline.
+            // Short-circuit through the same emitVerdict / translate
+            // pipeline the post-sampling path uses; the operator-visible
+            // diagnostic is byte-equivalent modulo samplesExecuted = 0.
+            Optional<ProbabilisticTestResult> shortCircuit =
+                    baselineExistencePreflight(useCase, observed, provider);
+            if (shortCircuit.isPresent()) {
+                ProbabilisticTestResult synthesised = shortCircuit.get();
+                maybeRenderTransparentStats(synthesised);
+                emitVerdict(synthesised, useCaseId);
+                translate(synthesised, useCaseId);
+                return;
+            }
+
+            List<String> warnings = preflightFeasibility(useCase, provider);
             EngineResult result = drive(spec);
             if (!(result instanceof ProbabilisticTestResult typed)) {
                 throw new IllegalStateException(
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
-            // Resolve the run's observed covariate profile and stamp
-            // it onto the result alongside the baseline profile that
-            // conclude collected. The structured CovariateAlignment
-            // flows downstream — to the verbose renderer here, and
-            // to HTML / XML / JSON sinks.
-            CovariateProfile observed = resolveCovariateProfile(spec);
+            // Stamp the run's observed covariate profile onto the result
+            // alongside the baseline profile conclude collected. The
+            // structured CovariateAlignment flows downstream — to the
+            // verbose renderer here, and to HTML / XML / JSON sinks.
             ProbabilisticTestResult stamped = typed.withCovariates(
                             CovariateAlignment.compute(
                                     observed, typed.covariates().baseline()))
                     .withContractRef(contractRef);
             maybeRenderTransparentStats(stamped);
-            String useCaseId = sampling.useCaseFactory().apply(factors).id();
             emitVerdict(stamped, useCaseId);
             translate(stamped, useCaseId);
         }
@@ -707,21 +731,87 @@ public final class PUnit {
             System.err.println(TransparentStatsRenderer.render(testIdentity, result));
         }
 
-        private List<String> preflightFeasibility() {
-            UseCase<FT, IT, OT> useCase = sampling.useCaseFactory().apply(factors);
+        private CovariateProfile resolveCovariates(UseCase<FT, IT, OT> useCase) {
+            List<Covariate> declarations = useCase.covariates();
+            if (declarations.isEmpty()) {
+                return CovariateProfile.empty();
+            }
+            return CovariateResolver.defaults()
+                    .resolve(declarations, useCase.customCovariateResolvers());
+        }
+
+        private BaselineProvider boundProvider(
+                UseCase<FT, IT, OT> useCase, CovariateProfile observed) {
+            BaselineProvider raw = BaselineProviderResolver.resolve();
+            return ProfileBoundBaselineProvider.bind(
+                    raw, observed, useCase.covariates());
+        }
+
+        /**
+         * Probes baseline existence per required empirical criterion.
+         * Returns a synthesised INCONCLUSIVE-no-baseline result when
+         * any required empirical criterion is missing its baseline;
+         * empty when sampling can proceed.
+         *
+         * <p>Lookup notes (rejected candidates, partial-match
+         * announcements) are pulled from each probed criterion and
+         * propagated into the synthesised result's
+         * {@link ProbabilisticTestResult#warnings()} list — that's
+         * what {@link #translate} reads to distinguish the
+         * "candidates existed but all rejected" misconfiguration FAIL
+         * from the "no candidates at all" legitimate-skip ABORT.
+         */
+        private Optional<ProbabilisticTestResult> baselineExistencePreflight(
+                UseCase<FT, IT, OT> useCase,
+                CovariateProfile observed,
+                BaselineProvider provider) {
             String useCaseId = useCase.id();
             FactorBundle bundle = FactorBundle.of(factors);
-            BaselineProvider raw = BaselineProviderResolver.resolve();
-            // Bind the run's covariate profile so Feasibility sees the
-            // baseline that will actually drive evaluation, not a sibling
-            // covariate-tagged file that happens to share useCaseId+ff.
             List<Covariate> declarations = useCase.covariates();
-            CovariateProfile profile = declarations.isEmpty()
-                    ? CovariateProfile.empty()
-                    : CovariateResolver.defaults()
-                            .resolve(declarations, useCase.customCovariateResolvers());
-            BaselineProvider provider = ProfileBoundBaselineProvider.bind(
-                    raw, profile, declarations);
+            List<EvaluatedCriterion> noBaselineResults = new ArrayList<>();
+            List<String> notes = new ArrayList<>();
+            for (Criterion<OT, ?> c : requiredCriteria) {
+                if (!c.isEmpirical()) {
+                    continue;
+                }
+                BaselineLookup<?> lookup = probeBaseline(
+                        provider, useCaseId, bundle, c, observed, declarations);
+                if (lookup.selected().isPresent()) {
+                    continue;
+                }
+                CriterionResult r = EmpiricalChecks.noBaseline(c.name(), c.empiricalDetail());
+                noBaselineResults.add(new EvaluatedCriterion(r, CriterionRole.REQUIRED));
+                notes.addAll(lookup.notes());
+            }
+            if (noBaselineResults.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(synthesiseNoBaselineResult(noBaselineResults, notes, observed));
+        }
+
+        private ProbabilisticTestResult synthesiseNoBaselineResult(
+                List<EvaluatedCriterion> noBaselineResults,
+                List<String> warnings,
+                CovariateProfile observed) {
+            Optional<String> contractRefOpt = (contractRef == null || contractRef.isBlank())
+                    ? Optional.empty()
+                    : Optional.of(contractRef);
+            return new ProbabilisticTestResult(
+                    Verdict.compose(noBaselineResults),
+                    FactorBundle.of(factors),
+                    noBaselineResults,
+                    intent,
+                    warnings,
+                    CovariateAlignment.compute(observed, CovariateProfile.empty()),
+                    contractRefOpt,
+                    Map.of(),
+                    EngineRunSummary.empty());
+        }
+
+        private List<String> preflightFeasibility(
+                UseCase<FT, IT, OT> useCase, BaselineProvider provider) {
+            String useCaseId = useCase.id();
+            FactorBundle bundle = FactorBundle.of(factors);
             List<String> warnings = new ArrayList<>();
             for (Criterion<OT, ?> c : requiredCriteria) {
                 warnings.addAll(Feasibility.check(
@@ -810,36 +900,72 @@ public final class PUnit {
 
         public void assertPasses() {
             ProbabilisticTest spec = build();
-            List<String> warnings = preflightFeasibility(spec);
+            SpecContext ctx = resolveSpecContext(spec);
+
+            // Existence probe runs before sampling: see TestBuilder.assertPasses
+            // for the rationale.
+            Optional<ProbabilisticTestResult> shortCircuit =
+                    baselineExistencePreflight(ctx);
+            if (shortCircuit.isPresent()) {
+                ProbabilisticTestResult synthesised = shortCircuit.get();
+                maybeRenderTransparentStats(ctx, synthesised);
+                emitVerdict(synthesised, ctx.useCaseId);
+                translate(synthesised, ctx.useCaseId);
+                return;
+            }
+
+            List<String> warnings = preflightFeasibility(ctx);
             EngineResult result = drive(spec);
             if (!(result instanceof ProbabilisticTestResult typed)) {
                 throw new IllegalStateException(
                         "Engine produced unexpected result type: " + result.getClass().getName());
             }
             warnings.forEach(System.err::println);
-            CovariateProfile observed = resolveCovariateProfile(spec);
             ProbabilisticTestResult stamped = typed.withCovariates(
                             CovariateAlignment.compute(
-                                    observed, typed.covariates().baseline()))
+                                    ctx.profile, typed.covariates().baseline()))
                     .withContractRef(contractRef);
-            maybeRenderTransparentStats(spec, stamped);
-            String useCaseId = resolveUseCaseId(spec);
-            emitVerdict(stamped, useCaseId);
-            translate(stamped, useCaseId);
+            maybeRenderTransparentStats(ctx, stamped);
+            emitVerdict(stamped, ctx.useCaseId);
+            translate(stamped, ctx.useCaseId);
         }
 
-        @SuppressWarnings("unchecked")
-        private List<String> preflightFeasibility(ProbabilisticTest spec) {
+        /**
+         * Captures the per-run state every preflight step needs:
+         * useCaseId, factor bundle, configured samples, resolved
+         * covariate profile, declarations, and a profile-bound
+         * baseline provider.
+         */
+        private static final class SpecContext {
+            final String useCaseId;
+            final FactorBundle bundle;
+            final int samples;
+            final CovariateProfile profile;
+            final List<Covariate> declarations;
+            final BaselineProvider provider;
+            final FactorBundle resultFactors;
+
+            SpecContext(String useCaseId, FactorBundle bundle, int samples,
+                    CovariateProfile profile, List<Covariate> declarations,
+                    BaselineProvider provider, FactorBundle resultFactors) {
+                this.useCaseId = useCaseId;
+                this.bundle = bundle;
+                this.samples = samples;
+                this.profile = profile;
+                this.declarations = declarations;
+                this.provider = provider;
+                this.resultFactors = resultFactors;
+            }
+        }
+
+        private SpecContext resolveSpecContext(ProbabilisticTest spec) {
             BaselineProvider raw = BaselineProviderResolver.resolve();
-            List<String> warnings = new ArrayList<>();
-            spec.dispatch(new Spec.Dispatcher<Void>() {
+            return spec.dispatch(new Spec.Dispatcher<SpecContext>() {
                 @Override
-                public <FT, IT, OT> Void apply(
-                        TypedSpec<FT, IT, OT> typed) {
+                public <FT, IT, OT> SpecContext apply(TypedSpec<FT, IT, OT> typed) {
                     var cfg = typed.configurations().next();
                     FT factors = cfg.factors();
                     UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
-                    String useCaseId = useCase.id();
                     FactorBundle bundle = FactorBundle.of(factors);
                     List<Covariate> declarations = useCase.covariates();
                     CovariateProfile profile = declarations.isEmpty()
@@ -848,35 +974,64 @@ public final class PUnit {
                                     .resolve(declarations, useCase.customCovariateResolvers());
                     BaselineProvider provider = ProfileBoundBaselineProvider.bind(
                             raw, profile, declarations);
-                    warnings.addAll(Feasibility.check(
-                            cfg.samples(),
-                            (Criterion<Object, ?>) criterion,
-                            useCaseId, bundle, intent, provider));
-                    return null;
+                    return new SpecContext(
+                            useCase.id(), bundle, cfg.samples(),
+                            profile, declarations, provider, bundle);
                 }
             });
-            return warnings;
+        }
+
+        @SuppressWarnings("unchecked")
+        private Optional<ProbabilisticTestResult> baselineExistencePreflight(
+                SpecContext ctx) {
+            // EmpiricalTestBuilder enforces criterion.isEmpirical() at
+            // .criterion(...) time, so the wildcarded cast is safe.
+            Criterion<Object, ?> c = (Criterion<Object, ?>) criterion;
+            BaselineLookup<?> lookup = probeBaseline(
+                    ctx.provider, ctx.useCaseId, ctx.bundle,
+                    c, ctx.profile, ctx.declarations);
+            if (lookup.selected().isPresent()) {
+                return Optional.empty();
+            }
+            CriterionResult r = EmpiricalChecks.noBaseline(c.name(), c.empiricalDetail());
+            EvaluatedCriterion evaluated = new EvaluatedCriterion(r, CriterionRole.REQUIRED);
+            return Optional.of(synthesiseNoBaselineResult(
+                    ctx, List.of(evaluated), lookup.notes()));
+        }
+
+        private ProbabilisticTestResult synthesiseNoBaselineResult(
+                SpecContext ctx,
+                List<EvaluatedCriterion> noBaselineResults,
+                List<String> warnings) {
+            Optional<String> contractRefOpt = (contractRef == null || contractRef.isBlank())
+                    ? Optional.empty()
+                    : Optional.of(contractRef);
+            return new ProbabilisticTestResult(
+                    Verdict.compose(noBaselineResults),
+                    ctx.resultFactors,
+                    noBaselineResults,
+                    intent,
+                    warnings,
+                    CovariateAlignment.compute(ctx.profile, CovariateProfile.empty()),
+                    contractRefOpt,
+                    Map.of(),
+                    EngineRunSummary.empty());
+        }
+
+        @SuppressWarnings("unchecked")
+        private List<String> preflightFeasibility(SpecContext ctx) {
+            return new ArrayList<>(Feasibility.check(
+                    ctx.samples,
+                    (Criterion<Object, ?>) criterion,
+                    ctx.useCaseId, ctx.bundle, intent, ctx.provider));
         }
 
         private void maybeRenderTransparentStats(
-                ProbabilisticTest spec, ProbabilisticTestResult result) {
+                SpecContext ctx, ProbabilisticTestResult result) {
             if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
                 return;
             }
-            System.err.println(TransparentStatsRenderer.render(
-                    resolveUseCaseId(spec), result));
-        }
-
-        private String resolveUseCaseId(ProbabilisticTest spec) {
-            return spec.dispatch(
-                    new Spec.Dispatcher<String>() {
-                        @Override
-                        public <FT, IT, OT> String apply(
-                                TypedSpec<FT, IT, OT> typed) {
-                            FT factors = typed.configurations().next().factors();
-                            return typed.useCaseFactory().apply(factors).id();
-                        }
-                    });
+            System.err.println(TransparentStatsRenderer.render(ctx.useCaseId, result));
         }
     }
 }
