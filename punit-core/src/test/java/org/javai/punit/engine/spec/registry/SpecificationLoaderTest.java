@@ -2,7 +2,7 @@ package org.javai.punit.engine.spec.registry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -695,7 +695,7 @@ class SpecificationLoaderTest {
             ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
 
             assertThatThrownBy(spec::validate)
-                    .isInstanceOf(org.javai.punit.spec.model.SpecificationValidationException.class)
+                    .isInstanceOf(org.javai.punit.engine.spec.model.SpecificationValidationException.class)
                     .hasMessageContaining("invalid minPassRate");
         }
     }

@@ -1,4 +1,4 @@
-package org.javai.punit.spec.model;
+package org.javai.punit.engine.spec.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

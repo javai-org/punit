@@ -5,7 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import org.javai.punit.verdict.ExpirationPolicy;
 import org.javai.punit.verdict.ExpirationStatus;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

@@ -3,7 +3,7 @@ package org.javai.punit.engine.spec.expiration;
 import java.time.Instant;
 import org.javai.punit.verdict.ExpirationPolicy;
 import org.javai.punit.verdict.ExpirationStatus;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 
 /**
  * Evaluates expiration status for execution specifications.

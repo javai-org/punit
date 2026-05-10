@@ -1,13 +1,13 @@
-package org.javai.punit.spec.model;
+package org.javai.punit.engine.spec.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import org.javai.punit.spec.model.ExecutionSpecification.CostEnvelope;
-import org.javai.punit.spec.model.ExecutionSpecification.EmpiricalBasis;
-import org.javai.punit.spec.model.ExecutionSpecification.SpecRequirements;
+import org.javai.punit.engine.spec.model.ExecutionSpecification.CostEnvelope;
+import org.javai.punit.engine.spec.model.ExecutionSpecification.EmpiricalBasis;
+import org.javai.punit.engine.spec.model.ExecutionSpecification.SpecRequirements;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

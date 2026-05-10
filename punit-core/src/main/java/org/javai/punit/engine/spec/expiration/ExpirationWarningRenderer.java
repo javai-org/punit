@@ -8,7 +8,7 @@ import org.javai.punit.verdict.ExpirationPolicy;
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.reporting.DurationFormat;
 import org.javai.punit.reporting.PUnitReporter;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 
 /**
  * Renders expiration warnings for display in test output.

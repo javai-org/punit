@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.javai.punit.verdict.ExpirationPolicy;
 import org.javai.punit.verdict.ExpirationStatus;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 
 /**
  * Publishes expiration-related properties to JUnit test reports.

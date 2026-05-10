@@ -1,7 +1,7 @@
 package org.javai.punit.engine.spec.registry;
 
 import java.util.Optional;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 
 /**
  * Abstraction for resolving execution specifications by ID.

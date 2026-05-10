@@ -1,4 +1,4 @@
-package org.javai.punit.spec.model;
+package org.javai.punit.engine.spec.model;
 
 import java.util.Map;
 import java.util.Objects;

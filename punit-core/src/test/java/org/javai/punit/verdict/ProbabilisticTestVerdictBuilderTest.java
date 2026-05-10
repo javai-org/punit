@@ -16,7 +16,7 @@ import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.engine.pacing.PacingConfiguration;
 import org.javai.punit.verdict.ExpirationPolicy;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 import org.javai.punit.statistics.BinomialProportionEstimator;
 import org.javai.punit.statistics.transparent.BaselineData;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;

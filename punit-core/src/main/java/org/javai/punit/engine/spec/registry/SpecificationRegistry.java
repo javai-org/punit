@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import org.javai.punit.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
 
 /**
  * Registry for loading and resolving execution specifications.
@@ -93,7 +93,7 @@ public class SpecificationRegistry implements SpecRepository {
 	 * @param specId the specification ID (the use case ID, e.g., "ShoppingUseCase")
 	 * @return the loaded specification
 	 * @throws SpecificationNotFoundException if not found
-	 * @throws org.javai.punit.spec.model.SpecificationValidationException if invalid
+	 * @throws org.javai.punit.engine.spec.model.SpecificationValidationException if invalid
 	 */
 	public ExecutionSpecification resolveOrThrow(String specId) {
 		Objects.requireNonNull(specId, "specId must not be null");

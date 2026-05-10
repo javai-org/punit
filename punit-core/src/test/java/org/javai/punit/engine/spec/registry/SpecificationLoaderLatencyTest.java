@@ -2,8 +2,8 @@ package org.javai.punit.engine.spec.registry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.javai.punit.spec.model.ExecutionSpecification;
-import org.javai.punit.spec.model.LatencyBaseline;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.LatencyBaseline;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

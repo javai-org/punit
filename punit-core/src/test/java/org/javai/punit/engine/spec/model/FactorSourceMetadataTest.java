@@ -1,8 +1,8 @@
-package org.javai.punit.spec.model;
+package org.javai.punit.engine.spec.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
-import org.javai.punit.spec.model.ExecutionSpecification.FactorSourceMetadata;
+import org.javai.punit.engine.spec.model.ExecutionSpecification.FactorSourceMetadata;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

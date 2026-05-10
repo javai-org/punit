@@ -19,8 +19,8 @@ import java.util.regex.Pattern;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.covariate.CovariateValue;
 import org.javai.punit.verdict.ExpirationPolicy;
-import org.javai.punit.spec.model.ExecutionSpecification;
-import org.javai.punit.spec.model.LatencyBaseline;
+import org.javai.punit.engine.spec.model.ExecutionSpecification;
+import org.javai.punit.engine.spec.model.LatencyBaseline;
 
 /**
  * Loads execution specifications from YAML files.
