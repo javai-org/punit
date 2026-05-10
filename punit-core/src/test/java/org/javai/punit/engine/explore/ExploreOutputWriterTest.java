@@ -23,14 +23,14 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * Pure / in-memory tests for the EX05 explore output writer.
+ * Pure / in-memory tests for the explore output writer.
  *
  * <p>The writer is exercised both directly ({@link #writeYamlAndFilenameForOneConfig})
  * and through {@link ExploreEmitter}'s in-memory sink overload
  * ({@link #emitterCapturesOnePerConfig}) — neither test touches
  * disk.
  */
-@DisplayName("ExploreOutputWriter — EX05 schema, filename, end-to-end via in-memory sink")
+@DisplayName("ExploreOutputWriter — schema, filename, end-to-end via in-memory sink")
 class ExploreOutputWriterTest {
 
     record LlmFactors(String model, double temperature) {}
@@ -44,7 +44,7 @@ class ExploreOutputWriterTest {
     }
 
     @Test
-    @DisplayName("writeYaml emits the EX05 schema with factors / execution / statistics / cost / resultProjection blocks")
+    @DisplayName("writeYaml emits the schema with factors / execution / statistics / cost / resultProjection blocks")
     void writeYamlAndFilenameForOneConfig() {
         // Drive a 1-config explore through the engine to produce a
         // real PerConfigSummary, then feed the writer directly.
@@ -93,7 +93,7 @@ class ExploreOutputWriterTest {
         assertThat(projection).containsKeys("sample[0]", "sample[1]");
         @SuppressWarnings("unchecked")
         Map<String, Object> sample0 = (Map<String, Object>) projection.get("sample[0]");
-        // EX07 per-sample fields: input, postconditions, executionTimeMs;
+        // Per-sample fields: input, postconditions, executionTimeMs;
         // content present on success, failureDetail on failure (LengthUseCase
         // never fails so content is the expected key here).
         assertThat(sample0).containsKeys("inputIndex", "postconditions", "executionTimeMs", "content");
@@ -199,7 +199,7 @@ class ExploreOutputWriterTest {
         assertThat(sink).containsKeys(
                 "explore-test/model-gpt-4o_temperature-0.3.yaml",
                 "explore-test/model-gpt-4o_temperature-0.7.yaml");
-        // Each captured value parses as YAML carrying the EX05 schema header.
+        // Each captured value parses as YAML carrying the explore-output schema header.
         for (String yaml : sink.values()) {
             Map<String, Object> parsed = new Yaml().load(yaml);
             assertThat(parsed).containsEntry("schemaVersion", "punit-spec-1");

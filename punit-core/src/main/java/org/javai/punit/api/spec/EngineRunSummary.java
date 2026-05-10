@@ -119,10 +119,10 @@ public record EngineRunSummary(
      * {@link #passingLatencyResult()} to the supplied
      * {@code latencyResult} so callers that haven't yet
      * differentiated passing-only data see the descriptive latency
-     * dimension populated as it was before the LT01 amendment.
-     * Production code in the engine constructs summaries via the
-     * canonical 12-arg constructor with the proper passing-only
-     * result.
+     * dimension populated as it was before the passing/all-samples
+     * split landed. Production code in the engine constructs
+     * summaries via the canonical 12-arg constructor with the proper
+     * passing-only result.
      */
     public EngineRunSummary(
             int plannedSamples,

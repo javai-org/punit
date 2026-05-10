@@ -53,9 +53,9 @@ public final class BaselineReader {
     /**
      * Reads, parses, and integrity-verifies the file at
      * {@code baselineFile}. Returns the parsed {@link BaselineRecord}
-     * paired with an optional integrity warning per EX10 — empty
-     * when the {@code contentFingerprint:} field's stored digest
-     * matches the recomputed body digest, populated otherwise.
+     * paired with an optional integrity warning — empty when the
+     * {@code contentFingerprint:} field's stored digest matches the
+     * recomputed body digest, populated otherwise.
      *
      * <p>Integrity failure does <em>not</em> propagate as an
      * exception; the warning is reported through the verdict's
@@ -116,7 +116,7 @@ public final class BaselineReader {
             entries.put(e.getKey(), parseStatisticsEntry(e.getKey(), e.getValue()));
         }
 
-        // Canonical EX04 location for latency: the top-level
+        // Canonical location for latency: the top-level
         // `latency:` block. When present, it sources the
         // PercentileLatency criterion's in-memory entry under
         // "percentile-latency" and overrides any legacy entry that
@@ -138,11 +138,11 @@ public final class BaselineReader {
     }
 
     /**
-     * Parse the top-level {@code latency:} block (the canonical EX04
-     * location post-LT01). Returns {@link LatencyIndicator#empty()}
-     * when the block is absent — legacy baselines that carry latency
-     * only under {@code statistics.percentile-latency} continue to
-     * load via the regular statistics-map path.
+     * Parse the top-level {@code latency:} block (the canonical
+     * location). Returns {@link LatencyIndicator#empty()} when the
+     * block is absent — legacy baselines that carry latency only
+     * under {@code statistics.percentile-latency} continue to load
+     * via the regular statistics-map path.
      */
     private LatencyIndicator parseLatencyIndicator(Map<String, Object> root) {
         if (!root.containsKey("latency")) {

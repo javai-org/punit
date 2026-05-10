@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit tests for the LT01 {@code latency:} block builder.
+ * Unit tests for the {@code latency:} block builder.
  *
  * <p>Three cases:
  * <ul>
@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  *   <li>All samples passing → contributingSamples == totalSamples.</li>
  * </ul>
  */
-@DisplayName("LatencySection — LT01 block shape, indicator triple, zero-passing edge case")
+@DisplayName("LatencySection — block shape, indicator triple, zero-passing edge case")
 class LatencySectionTest {
 
     @Test
@@ -55,7 +55,7 @@ class LatencySectionTest {
     }
 
     @Test
-    @DisplayName("LT01 minimum-sample rule: 18 passing → only p50 / p90 keys emitted")
+    @DisplayName("minimum-sample rule: 18 passing → only p50 / p90 keys emitted")
     void omitsPercentilesBelowThreshold() {
         LatencyResult passing = new LatencyResult(
                 Duration.ofMillis(42),
@@ -89,7 +89,7 @@ class LatencySectionTest {
     }
 
     @Test
-    @DisplayName("isPercentileEmittable encodes the LT01 thresholds (1 / 10 / 20 / 100)")
+    @DisplayName("isPercentileEmittable encodes the thresholds (1 / 10 / 20 / 100)")
     void thresholdRule() {
         assertThat(LatencySection.isPercentileEmittable("p50", 1)).isTrue();
         assertThat(LatencySection.isPercentileEmittable("p90", 9)).isFalse();

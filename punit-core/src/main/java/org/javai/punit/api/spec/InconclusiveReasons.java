@@ -1,10 +1,10 @@
 package org.javai.punit.api.spec;
 
 /**
- * The RP01 vocabulary for the verdict-reason field on an
- * INCONCLUSIVE verdict.
+ * The vocabulary for the verdict-reason field on an INCONCLUSIVE
+ * verdict.
  *
- * <p>RP01 distinguishes six reasons. Two are detected at the run
+ * <p>Six reasons are distinguished. Two are detected at the run
  * level (covariate alignment and budget exhaustion); the other four
  * arise inside a criterion's {@link Criterion#evaluate} and are
  * surfaced via the criterion's {@link CriterionResult#detail()}
@@ -20,11 +20,7 @@ package org.javai.punit.api.spec;
  * package; placing the vocabulary anywhere else would force one
  * direction of the dependency to go upward through the layering.
  *
- * <p>This class is the single point of change for any future
- * RP01-vocabulary tweak — the catalog text and these constants
- * must stay in lockstep.
- *
- * @see <a href="https://github.com/javai-org/javai-orchestrator/blob/main/inventory/catalog/reporting/RP01-verdict-record/README.md">RP01 — Verdict record</a>
+ * <p>This class is the single point of change for the vocabulary.
  */
 public final class InconclusiveReasons {
 

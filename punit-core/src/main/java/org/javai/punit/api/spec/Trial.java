@@ -23,8 +23,8 @@ import org.javai.punit.api.UseCaseOutcome;
  * round-robin across samples, so for a run with N samples and M
  * inputs the trial at sample index i has
  * {@code inputIndex == (cycleStart + i) mod M}. Stored explicitly so
- * downstream artefacts (per EX07) can correlate a sample to its
- * driver without re-deriving the cycling formula.
+ * downstream artefacts can correlate a sample to its driver without
+ * re-deriving the cycling formula.
  *
  * @param input      the per-sample input that drove this trial
  * @param outcome    the outcome the use case returned (success or fail)

@@ -16,15 +16,14 @@ import org.javai.punit.api.spec.Trial;
 
 /**
  * Shared helpers for the per-sample {@code resultProjection:} block
- * emitted by EXPLORE and OPTIMIZE artefacts (per the EX07 catalog
- * shape). Used by both
+ * emitted by EXPLORE and OPTIMIZE artefacts. Used by both
  * {@link org.javai.punit.engine.explore.ExploreOutputWriter} and
  * {@link org.javai.punit.engine.optimize.OptimizeOutputWriter}.
  *
  * <p>Two responsibilities:
  *
  * <ol>
- *   <li>{@link #projectionFor(Trial)} renders one trial as the EX07
+ *   <li>{@link #projectionFor(Trial)} renders one trial as the
  *       per-sample map (input / postconditions / executionTimeMs /
  *       content-or-failureDetail / optional tokensUsed).</li>
  *   <li>{@link #injectAnchorComments(String, List)} post-processes
@@ -47,7 +46,7 @@ public final class ResultProjections {
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
     /**
-     * Render one trial as the EX07 per-sample projection map.
+     * Render one trial as the per-sample projection map.
      *
      * @param trial one per-sample observation
      * @return ordered map carrying {@code input},
@@ -58,8 +57,8 @@ public final class ResultProjections {
      */
     public static Map<String, Object> projectionFor(Trial<?, ?> trial) {
         Map<String, Object> entry = new LinkedHashMap<>();
-        // EX07: emit the input's position in the inputs list, not
-        // the input's value. Punit's deterministic-inputs-list model
+        // Emit the input's position in the inputs list, not the
+        // input's value. Punit's deterministic-inputs-list model
         // means the developer has the inputs in hand; rendering
         // arbitrary IT types as canonical strings is fragile
         // (Object.toString → "com.example.Foo@1a2b3c4d") and bulks
@@ -106,10 +105,9 @@ public final class ResultProjections {
      * {@code SHA-256(i + ":" + inputIndex)}. Same trial position +
      * same inputIndex → same anchor → diff aligns. The hash uses
      * the inputIndex rather than a canonical-string rendering of
-     * the input value (per EX07): the input value itself isn't
-     * persisted to the artefact, and two runs of the same spec
-     * produce identical inputIndex sequences by virtue of
-     * deterministic cycling.
+     * the input value: the input value itself isn't persisted to
+     * the artefact, and two runs of the same spec produce identical
+     * inputIndex sequences by virtue of deterministic cycling.
      */
     public static List<String> anchorsFor(List<? extends Trial<?, ?>> trials) {
         List<String> anchors = new ArrayList<>(trials.size());

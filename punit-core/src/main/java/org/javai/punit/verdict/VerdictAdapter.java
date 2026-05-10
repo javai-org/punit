@@ -68,8 +68,8 @@ import org.javai.punit.verdict.ProbabilisticTestVerdictBuilder.MisalignmentInput
  *       INCONCLUSIVE regardless of what the criterion concluded).
  *       This preserves a non-covariate INCONCLUSIVE — no baseline,
  *       sample-size violation, identity mismatch — through to the
- *       rendered verdict, per the RP01 invariant that "the verdict
- *       is consistent with the statistical analysis."</li>
+ *       rendered verdict, preserving the invariant that the verdict
+ *       is consistent with the statistical analysis.</li>
  * </ul>
  *
  * <h2>What the adapter cannot fill</h2>
@@ -203,14 +203,15 @@ public final class VerdictAdapter {
     }
 
     private static LatencyInput toLatencyInput(EngineRunSummary engine) {
-        // LT01: only samples whose contract evaluated to Outcome.ok
+        // Only samples whose contract evaluated to Outcome.ok
         // contribute to the percentiles. Emit the descriptive
-        // dimension whenever ≥ 1 sample passed, independent of LT04
-        // activation; threshold/verdict sub-fields stay LT04-gated
-        // and are populated separately when assertions are configured.
-        // Each percentile is set to LatencySection.PERCENTILE_UNAVAILABLE_MS
-        // (the "unavailable" sentinel) when contributingSamples is below
-        // the LT01 minimum-samples threshold for that percentile.
+        // dimension whenever ≥ 1 sample passed, independent of
+        // latency-assertion activation; threshold/verdict sub-fields
+        // stay assertion-gated and are populated separately when
+        // assertions are configured. Each percentile is set to
+        // LatencySection.PERCENTILE_UNAVAILABLE_MS (the "unavailable"
+        // sentinel) when contributingSamples is below the
+        // minimum-samples threshold for that percentile.
         LatencyResult lat = engine.passingLatencyResult();
         if (lat.sampleCount() == 0) {
             return null;
@@ -219,14 +220,14 @@ public final class VerdictAdapter {
         return new LatencyInput(
                 contributing,                          // contributing (passing) samples
                 engine.samplesExecuted(),              // total samples
-                false,                                 // skipped (LT04 concept; descriptive emitted regardless)
+                false,                                 // skipped (assertion-side concept; descriptive emitted regardless)
                 null,                                  // skipReason
                 msIfEmittable("p50", lat.p50(), contributing),
                 msIfEmittable("p90", lat.p90(), contributing),
                 msIfEmittable("p95", lat.p95(), contributing),
                 msIfEmittable("p99", lat.p99(), contributing),
                 LatencySection.PERCENTILE_UNAVAILABLE_MS, // maxMs unavailable
-                List.of(),                             // assertions (LT04-gated; populated separately when active)
+                List.of(),                             // assertions (gated; populated separately when active)
                 List.of(),                             // caveats
                 contributing,                          // dimensionSuccesses
                 0);                                    // dimensionFailures
@@ -234,7 +235,7 @@ public final class VerdictAdapter {
 
     /**
      * Returns {@code duration.toMillis()} when the contributing-sample
-     * count meets the LT01 minimum-samples threshold for the named
+     * count meets the minimum-samples threshold for the named
      * percentile; otherwise returns
      * {@link LatencySection#PERCENTILE_UNAVAILABLE_MS} to signal "not
      * computed reliably." Renderers and serialisers recognise this

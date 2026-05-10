@@ -19,21 +19,22 @@ import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * Serialises one EXPLORE configuration's outcome to the EX05 YAML
- * schema and resolves its readable-stem filename.
+ * Serialises one EXPLORE configuration's outcome to the
+ * explore-output YAML schema and resolves its readable-stem
+ * filename.
  *
  * <p>Both methods are pure — the writer performs no I/O. The
  * {@link org.javai.punit.runtime.ExploreEmitter EXPLORE emitter}
  * orchestrates persistence (writing to disk or to an in-memory
  * sink for tests).
  *
- * <p>Schema follows the canonical EX05 YAML shape: {@code factors:}
- * block in {@code FT}-component declaration order, descriptive
- * statistics only (no inferential statistics), small sample counts
- * accepted without warning. Per-sample result projections (EX07)
- * are not emitted here yet — when the trial path threads projection
- * metadata through, a {@code resultProjection:} block can be
- * appended additively.
+ * <p>Schema follows the canonical explore-output YAML shape:
+ * {@code factors:} block in factor-record declaration order,
+ * descriptive statistics only (no inferential statistics), small
+ * sample counts accepted without warning. Per-sample result
+ * projections are not emitted here yet — when the trial path threads
+ * projection metadata through, a {@code resultProjection:} block can
+ * be appended additively.
  */
 public final class ExploreOutputWriter {
 
@@ -50,14 +51,15 @@ public final class ExploreOutputWriter {
     private static final String EMPTY_BUNDLE_STEM = "no-factors";
 
     /**
-     * Build the EX05 YAML for one configuration. Pure — no I/O.
+     * Build the explore-output YAML for one configuration. Pure -
+     * no I/O.
      *
      * @param useCaseId the use case identifier (becomes the
      *                  {@code useCaseId:} field).
      * @param factorBundle the configuration's factor bundle (becomes
      *                     the {@code factors:} block).
      * @param entry the per-config summary plus planned sample count.
-     * @return YAML matching the EX05 canonical schema.
+     * @return YAML matching the canonical explore-output schema.
      */
     public String writeYaml(String useCaseId, FactorBundle factorBundle, PerConfigSummary<?, ?> entry) {
         Map<String, Object> root = new LinkedHashMap<>();
@@ -68,7 +70,7 @@ public final class ExploreOutputWriter {
         root.put("execution", executionBlock(entry));
         root.put("statistics", statisticsBlock(entry.summary()));
         root.put("cost", costBlock(entry.summary()));
-        // EX05 latency block — passing-only percentiles + LT01
+        // Latency block - passing-only percentiles + population
         // indicator. Inserted before resultProjection so the
         // aggregate latency precedes the per-sample timing data.
         // Omitted entirely when zero samples passed.
@@ -83,7 +85,7 @@ public final class ExploreOutputWriter {
 
     /**
      * Compute the readable-stem filename (without extension) for a
-     * factor bundle, per the algorithm in EX05 §Configuration naming.
+     * factor bundle.
      *
      * <p>For each entry in declaration order: produce
      * {@code {fieldName}-{canonicalValue}}, optionally truncated and

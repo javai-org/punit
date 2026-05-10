@@ -108,7 +108,7 @@ class YamlBaselineProviderTest {
                 "ShoppingBasket", bundle, "bernoulli-pass-rate", PassRateStatistics.class);
 
         assertThat(lookup.selected())
-                .as("test runs to completion — verdict is not dismissed out of hand (EX10)")
+                .as("test runs to completion — verdict is not dismissed out of hand on integrity warning")
                 .isPresent();
         assertThat(lookup.notes())
                 .as("integrity warning lands in notes → ProbabilisticTestResult.warnings()")
@@ -117,13 +117,13 @@ class YamlBaselineProviderTest {
 
     @Test
     @DisplayName("baselineLookup propagates the softer missing-fingerprint warning when "
-            + "the selected baseline predates EX10")
+            + "the selected baseline predates the integrity-verification feature")
     void lookupSurfacesMissingWarning(@TempDir Path dir) throws IOException {
         FactorBundle bundle = FactorBundle.of(new Factors("gpt-4o", 0.0));
         BaselineRecord record = baseline("ShoppingBasket", FactorsFingerprint.of(bundle),
                 Map.of("bernoulli-pass-rate", new PassRateStatistics(0.88, 500)));
         Path file = writer.write(record, dir);
-        // Strip the trailing fingerprint line — synthesises a pre-EX10 baseline.
+        // Strip the trailing fingerprint line — synthesises a pre-integrity baseline.
         String stripped = Files.readString(file)
                 .replaceAll("(?m)^contentFingerprint:.*\\R?", "");
         Files.writeString(file, stripped);

@@ -144,8 +144,8 @@ final class BaselineEmitter {
         // LatencyStatistics retained on the in-memory record under
         // the criterion-name "percentile-latency" so the
         // PercentileLatency criterion's lookup path keeps working.
-        // Sourced from passingLatencyResult per LT01 — only samples
-        // whose contract evaluated to Outcome.ok contribute. The
+        // Sourced from passingLatencyResult: only samples whose
+        // contract evaluated to Outcome.ok contribute. The
         // legacy YAML emission of this entry under
         // statistics.percentile-latency is retired; the data lives
         // canonically in the top-level latency: block, and the
@@ -168,10 +168,9 @@ final class BaselineEmitter {
                 : CovariateResolver.defaults()
                         .resolve(declarations, useCase.customCovariateResolvers());
 
-        // EX04 descriptive latency: passing-only percentiles plus
-        // the LT01 population indicator. Empty when no samples
-        // passed; BaselineWriter omits the block entirely in that
-        // case.
+        // Descriptive latency: passing-only percentiles plus the
+        // population indicator. Empty when no samples passed;
+        // BaselineWriter omits the block entirely in that case.
         LatencyResult passing = summary.passingLatencyResult();
         LatencyIndicator latencyIndicator = passing.sampleCount() == 0
                 ? LatencyIndicator.empty()

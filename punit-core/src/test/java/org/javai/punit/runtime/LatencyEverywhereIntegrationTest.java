@@ -26,12 +26,12 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * End-to-end integration test for the LT01 directive: every artefact
- * type — EX04 (MEASURE baseline), EX05 (EXPLORE per-row), EX06
- * (OPTIMIZE per-iteration), and RP01 (probabilistic-test verdict
- * descriptive latency dimension) — must emit a {@code latency:}
- * block carrying the population-indicator triple, computed from
- * passing samples only.
+ * End-to-end integration test for the descriptive-latency
+ * surfaces: every artefact type — MEASURE baseline, EXPLORE
+ * per-row, OPTIMIZE per-iteration, and the probabilistic-test
+ * verdict's descriptive latency dimension — must emit a
+ * {@code latency:} block carrying the population-indicator triple,
+ * computed from passing samples only.
  *
  * <p>Uses a deliberately mixed pass/fail population (input length
  * triggers the contract's failure clause for some inputs, success
@@ -41,14 +41,14 @@ import org.yaml.snakeyaml.Yaml;
  *
  * <p>All assertions run against in-memory sinks (no disk).
  */
-@DisplayName("LT01 — passing-only latency block surfaces in EX04 / EX05 / EX06 / RP01")
+@DisplayName("passing-only latency block surfaces in baseline / explore / optimize / verdict")
 class LatencyEverywhereIntegrationTest {
 
     record F(String label) {}
 
     /** Use case that succeeds when input length is even, fails otherwise. */
     private static class EvenLengthUseCase implements UseCase<F, String, Integer> {
-        @Override public String id() { return "lt01-test"; }
+        @Override public String id() { return "latency-everywhere-test"; }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
@@ -63,7 +63,7 @@ class LatencyEverywhereIntegrationTest {
             "ab", "cdef", "ghij", "klmn", "x", "yz1");
 
     @Test
-    @DisplayName("EX05 EXPLORE row carries latency block with passing-only indicator")
+    @DisplayName("EXPLORE row carries latency block with passing-only indicator")
     void exploreRowCarriesLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
@@ -84,7 +84,7 @@ class LatencyEverywhereIntegrationTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> latency = (Map<String, Object>) parsed.get("latency");
         assertThat(latency)
-                .as("EX05 row must carry latency block when at least one sample passed")
+                .as("EXPLORE row must carry latency block when at least one sample passed")
                 .isNotNull();
         assertThat(latency).containsEntry("basis", "passing-samples");
         assertThat(latency).containsEntry("totalSamples", 6);
@@ -93,7 +93,7 @@ class LatencyEverywhereIntegrationTest {
                 .as("contributingSamples must be ≤ totalSamples and > 0")
                 .isPositive()
                 .isLessThanOrEqualTo(6);
-        // LT01 minimum-samples rule: with ≤ 6 contributing samples,
+        // Minimum-samples rule: with ≤ 6 contributing samples,
         // only p50Ms (needs ≥ 1) is emittable. p90 / p95 / p99 keys
         // are correctly absent — explore is the canonical
         // small-sample case the rule protects.
@@ -102,7 +102,7 @@ class LatencyEverywhereIntegrationTest {
     }
 
     @Test
-    @DisplayName("EX06 OPTIMIZE iterations each carry a latency block")
+    @DisplayName("OPTIMIZE iterations each carry a latency block")
     void optimizeIterationsCarryLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
@@ -117,7 +117,7 @@ class LatencyEverywhereIntegrationTest {
                         : NextFactor.stop())
                 .maximize(s -> 1.0 * s.successes() / Math.max(1, s.total()))
                 .maxIterations(3)
-                .experimentId("lt01-opt")
+                .experimentId("latency-everywhere-opt")
                 .build();
         new Engine().run(experiment);
 
@@ -143,7 +143,7 @@ class LatencyEverywhereIntegrationTest {
     }
 
     @Test
-    @DisplayName("EX04 MEASURE baseline carries latency block")
+    @DisplayName("MEASURE baseline carries latency block")
     void measureBaselineCarriesLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
@@ -162,18 +162,18 @@ class LatencyEverywhereIntegrationTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> latency = (Map<String, Object>) parsed.get("latency");
         assertThat(latency)
-                .as("EX04 baseline must carry latency block when at least one sample passed")
+                .as("MEASURE baseline must carry latency block when at least one sample passed")
                 .isNotNull();
         assertThat(latency).containsEntry("basis", "passing-samples");
         assertThat(latency).containsKey("contributingSamples");
         assertThat(latency).containsKey("totalSamples");
-        // LT01: 6 samples, ≤ 6 contributing → only p50Ms emits.
+        // 6 samples, ≤ 6 contributing → only p50Ms emits.
         assertThat(latency).containsKey("p50Ms");
         assertThat(latency).doesNotContainKeys("p95Ms", "p99Ms");
     }
 
     @Test
-    @DisplayName("RP01 verdict carries descriptive latency dimension when ≥1 passing sample")
+    @DisplayName("verdict record carries descriptive latency dimension when ≥1 passing sample")
     void verdictCarriesDescriptiveLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
@@ -201,7 +201,7 @@ class LatencyEverywhereIntegrationTest {
                 .isEqualTo(verdict.functional().get().successes());
         assertThat(lat.totalSamples()).isEqualTo(6);
         assertThat(lat.assertions())
-                .as("descriptive verdict must not carry assertions when LT04 is not active")
+                .as("descriptive verdict must not carry assertions when latency assertions are not active")
                 .isEmpty();
     }
 

@@ -9,16 +9,15 @@ import org.javai.punit.api.spec.SampleSummary;
 
 /**
  * Produces the normative {@code latency:} YAML block emitted by
- * EX04 (baseline spec), EX05 (exploration row), EX06 (optimize
- * iteration), and the descriptive latency dimension of RP01
- * verdict records.
+ * the baseline spec, exploration rows, optimize iterations, and
+ * the descriptive latency dimension of verdict records.
  *
- * <p>Every emitted block carries the LT01 population-indicator
- * triple — {@code basis} (currently always {@code passing-samples}),
+ * <p>Every emitted block carries the population-indicator triple —
+ * {@code basis} (currently always {@code passing-samples}),
  * {@code contributingSamples}, and {@code totalSamples} — alongside
  * the four percentiles. The percentiles are computed from passing
- * samples only (per LT01); the indicator names that population so
- * a reader can verify it without external context.
+ * samples only; the indicator names that population so a reader
+ * can verify it without external context.
  *
  * <p>When zero samples passed, no block is emitted —
  * {@link #blockFor(SampleSummary)} returns {@link Optional#empty()}.
@@ -34,7 +33,7 @@ public final class LatencySection {
     /** The only currently defined population basis. */
     public static final String BASIS_PASSING_SAMPLES = "passing-samples";
 
-    /** Minimum contributing samples required to emit each percentile (LT01). */
+    /** Minimum contributing samples required to emit each percentile. */
     public static final int MIN_SAMPLES_P50 = 1;
     public static final int MIN_SAMPLES_P90 = 10;
     public static final int MIN_SAMPLES_P95 = 20;
@@ -44,8 +43,8 @@ public final class LatencySection {
      * Sentinel value carried in latency-percentile fields (e.g.
      * {@code p50Ms}, {@code p95Ms}, {@code p99Ms}, {@code maxMs}) to
      * mean "not reliably estimated" — the contributing-sample count
-     * fell below this percentile's LT01 minimum, so no value is
-     * emitted. Producers (the verdict adapter) write this; consumers
+     * fell below this percentile's minimum, so no value is emitted.
+     * Producers (the verdict adapter) write this; consumers
      * (text and HTML renderers) recognise it and substitute a dash
      * rather than the literal {@code -1}.
      */
@@ -54,7 +53,7 @@ public final class LatencySection {
     private LatencySection() { }
 
     /**
-     * Whether {@code contributingSamples} meets the LT01
+     * Whether {@code contributingSamples} meets the
      * minimum-sample threshold for the given percentile.
      *
      * @param percentileLabel one of {@code "p50"}, {@code "p90"},
@@ -63,14 +62,14 @@ public final class LatencySection {
      *                            available for the percentile
      *                            computation.
      * @return {@code true} if the count meets or exceeds the
-     *         minimum for that percentile per LT01's
+     *         minimum for that percentile per the
      *         {@code n ≥ 1 / (1 − p)} rule.
      */
     public static boolean isPercentileEmittable(String percentileLabel, int contributingSamples) {
         return contributingSamples >= minimumSamplesFor(percentileLabel);
     }
 
-    /** The LT01 minimum-contributing-samples threshold for a percentile label. */
+    /** The minimum-contributing-samples threshold for a percentile label. */
     public static int minimumSamplesFor(String percentileLabel) {
         return switch (percentileLabel) {
             case "p50" -> MIN_SAMPLES_P50;
@@ -108,10 +107,10 @@ public final class LatencySection {
         block.put("basis", BASIS_PASSING_SAMPLES);
         block.put("contributingSamples", contributingSamples);
         block.put("totalSamples", totalSamples);
-        // Per LT01, omit each percentile key when contributingSamples
-        // is below that percentile's minimum (1 / 10 / 20 / 100 for
-        // p50 / p90 / p95 / p99). The artefact carries only the
-        // percentiles that can be estimated reliably.
+        // Omit each percentile key when contributingSamples is below
+        // that percentile's minimum (1 / 10 / 20 / 100 for p50 / p90 /
+        // p95 / p99). The artefact carries only the percentiles that
+        // can be estimated reliably.
         if (isPercentileEmittable("p50", contributingSamples)) {
             block.put("p50Ms", passingPercentiles.p50().toMillis());
         }

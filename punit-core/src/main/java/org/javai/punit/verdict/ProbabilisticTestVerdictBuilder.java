@@ -109,9 +109,8 @@ public class ProbabilisticTestVerdictBuilder {
     // run can override via criterionVerdict(...).
     private Verdict criterionVerdict = Verdict.FAIL;
     // The criterion results carry the inconclusive-reason discriminant
-    // (per RP01 / InconclusiveReasons.DETAIL_KEY). When empty, the
-    // reason synthesis falls back to "insufficient evidence" — the
-    // RP01 catch-all.
+    // (see InconclusiveReasons.DETAIL_KEY). When empty, the reason
+    // synthesis falls back to "insufficient evidence" — the catch-all.
     private List<EvaluatedCriterion> criterionResults = List.of();
 
     // ── Postcondition failure histogram ───────────────────────────────────
@@ -263,8 +262,8 @@ public class ProbabilisticTestVerdictBuilder {
      * value is preserved through to {@link #derivePUnitVerdict} so an
      * INCONCLUSIVE result from the criterion (no baseline, sample-size
      * violation, identity mismatch) does not silently collapse to FAIL
-     * just because the run's covariates happen to be aligned (per
-     * RP01's verdict-consistent-with-statistical-analysis invariant).
+     * just because the run's covariates happen to be aligned, keeping
+     * the verdict consistent with the statistical analysis.
      */
     public ProbabilisticTestVerdictBuilder criterionVerdict(Verdict verdict) {
         this.criterionVerdict = java.util.Objects.requireNonNull(verdict, "verdict");
@@ -282,7 +281,7 @@ public class ProbabilisticTestVerdictBuilder {
      * violation, statistical insufficiency).
      *
      * <p>When unset, the verdict reason falls back to
-     * {@link InconclusiveReasons#INSUFFICIENT_EVIDENCE} — the RP01
+     * {@link InconclusiveReasons#INSUFFICIENT_EVIDENCE} — the
      * catch-all.
      */
     public ProbabilisticTestVerdictBuilder criterionResults(List<EvaluatedCriterion> results) {
