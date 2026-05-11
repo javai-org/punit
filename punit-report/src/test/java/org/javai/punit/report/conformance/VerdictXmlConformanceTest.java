@@ -28,7 +28,6 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
-import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.StatisticalAnalysis;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.TestIdentity;
@@ -206,9 +205,7 @@ class VerdictXmlConformanceTest {
         LatencyDimension latency = new LatencyDimension(
                 95, 100, false, Optional.empty(),
                 120, 340, 420, 810, -1,
-                List.of(new PercentileAssertion(
-                        "p95", 420, 500, true, false, "explicit")),
-                List.of(), 95, 0);
+                List.of());
         StatisticalAnalysis statistics = new StatisticalAnalysis(
                 0.95, 0.0218, 0.8883,
                 Optional.of(1.6667), Optional.of(0.9522),

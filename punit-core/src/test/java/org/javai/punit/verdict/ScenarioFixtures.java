@@ -15,7 +15,6 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
-import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.StatisticalAnalysis;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
@@ -177,7 +176,7 @@ final class ScenarioFixtures {
         );
     }
 
-    // ── Scenario E: PASS with functional + latency dimensions ────────────
+    // ── Scenario E: PASS with descriptive latency dimension ──────────────
 
     static ProbabilisticTestVerdict scenarioE() {
         return new ProbabilisticTestVerdict(
@@ -190,12 +189,7 @@ final class ScenarioFixtures {
                 Optional.of(new LatencyDimension(
                         90, 100, false, Optional.empty(),
                         120, 340, 420, 810, 1250,
-                        List.of(
-                                new PercentileAssertion("p95", 420, 500, true, false, "from baseline"),
-                                new PercentileAssertion("p99", 810, 700, false, false, "from baseline")
-                        ),
-                        List.of(),
-                        90, 10
+                        List.of()
                 )),
                 new StatisticalAnalysis(
                         0.95,

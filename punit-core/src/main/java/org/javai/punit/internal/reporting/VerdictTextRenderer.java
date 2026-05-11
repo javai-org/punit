@@ -22,7 +22,6 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
-import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.StatisticalAnalysis;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
@@ -157,21 +156,6 @@ public final class VerdictTextRenderer {
                 sb.append(PUnitReporter.labelValueLn("Z:", String.format("%.4f", t))));
         stats.pValue().ifPresent(p ->
                 sb.append(PUnitReporter.labelValueLn("p-value:", String.format("%.4f", p))));
-
-        verdict.latency().ifPresent(lat -> {
-            if (!lat.skipped() && !lat.assertions().isEmpty()) {
-                sb.append("\n");
-                sb.append("Latency assertions:\n");
-                for (PercentileAssertion pa : lat.assertions()) {
-                    String status = pa.passed() ? "PASS" : "FAIL";
-                    String indicator = pa.indicative() ? " (indicative)" : "";
-                    sb.append(String.format("  %s: %dms %s threshold %dms [%s]%s\n",
-                            pa.label(), pa.observedMs(),
-                            pa.passed() ? "<=" : ">",
-                            pa.thresholdMs(), status, indicator));
-                }
-            }
-        });
 
         if (!stats.caveats().isEmpty()) {
             sb.append("\nCaveats:\n");
@@ -468,35 +452,6 @@ public final class VerdictTextRenderer {
         if (isPercentileAvailable(lat.maxMs())) sb.append(statLabel("max:", lat.maxMs() + "ms"));
         sb.append("\n");
 
-        // Percentile thresholds
-        if (!lat.assertions().isEmpty()) {
-            boolean anyBaseline = lat.assertions().stream()
-                    .anyMatch(a -> a.source() != null && a.source().contains("baseline"));
-            String thresholdHeader = anyBaseline
-                    ? "Percentile thresholds (from baseline):"
-                    : "Percentile thresholds:";
-            sb.append("  ").append(thresholdHeader).append("\n");
-
-            for (PercentileAssertion assertion : lat.assertions()) {
-                String comparison = assertion.passed()
-                        ? assertion.observedMs() + "ms <= " + assertion.thresholdMs() + "ms"
-                        : assertion.observedMs() + "ms > " + assertion.thresholdMs() + "ms";
-
-                String result = assertion.passed() ? "PASS" : "FAIL";
-                if (assertion.indicative() && assertion.passed()) {
-                    result = "PASS (indicative)";
-                }
-
-                String labelAndComparison = String.format("%-" + PUnitReporter.DETAIL_LABEL_WIDTH + "s%s",
-                        assertion.label() + ":", comparison);
-                int padding = LINE_WIDTH - 2 - labelAndComparison.length() - result.length();
-                if (padding < 1) padding = 1;
-                sb.append("  ").append(labelAndComparison)
-                  .append(" ".repeat(padding)).append(result).append("\n");
-            }
-            sb.append("\n");
-        }
-
         // Latency caveats
         if (!lat.caveats().isEmpty()) {
             String wrapIndent = "  " + " ".repeat(PUnitReporter.DETAIL_LABEL_WIDTH);
@@ -504,16 +459,6 @@ public final class VerdictTextRenderer {
             for (String caveat : lat.caveats()) {
                 appendWrappedLabel(sb, "Caveat:", caveat, wrapIndent, wrapIndentLen);
             }
-            sb.append("\n");
-        }
-
-        // Baseline reference for latency
-        String baselineFilename = verdict.provenance()
-                .map(SpecProvenance::specFilename).orElse(null);
-        boolean anyBaseline = lat.assertions().stream()
-                .anyMatch(a -> a.source() != null && a.source().contains("baseline"));
-        if (anyBaseline && baselineFilename != null) {
-            sb.append(statLabel("Baseline reference:", baselineFilename));
             sb.append("\n");
         }
     }
@@ -885,14 +830,6 @@ public final class VerdictTextRenderer {
                                 formatMsOrDash(lat.p50Ms()),
                                 formatMsOrDash(lat.p95Ms()),
                                 formatMsOrDash(lat.p99Ms()))));
-            }
-            // Threshold-side summary - only when latency assertions
-            // are actually configured.
-            if (!lat.skipped() && !lat.assertions().isEmpty()) {
-                sb.append(PUnitReporter.labelValueLn("Latency assertions:",
-                        String.format("%d/%d within limit",
-                                lat.dimensionSuccesses(),
-                                lat.dimensionSuccesses() + lat.dimensionFailures())));
             }
         });
     }

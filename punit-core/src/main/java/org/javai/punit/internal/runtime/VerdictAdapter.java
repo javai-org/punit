@@ -208,14 +208,13 @@ public final class VerdictAdapter {
 
     private static LatencyInput toLatencyInput(EngineRunSummary engine) {
         // Only samples whose contract evaluated to Outcome.ok
-        // contribute to the percentiles. Emit the descriptive
-        // dimension whenever ≥ 1 sample passed, independent of
-        // latency-assertion activation; threshold/verdict sub-fields
-        // stay assertion-gated and are populated separately when
-        // assertions are configured. Each percentile is set to
-        // LatencySection.PERCENTILE_UNAVAILABLE_MS (the "unavailable"
-        // sentinel) when contributingSamples is below the
-        // minimum-samples threshold for that percentile.
+        // contribute to the percentiles. The latency dimension at
+        // the verdict layer is purely descriptive — declared
+        // latency thresholds are gated at the criterion layer via
+        // PercentileLatency, not via the dimension's data. Each
+        // percentile is set to LatencySection.PERCENTILE_UNAVAILABLE_MS
+        // (the "unavailable" sentinel) when contributingSamples is
+        // below the minimum-samples threshold for that percentile.
         LatencyResult lat = engine.passingLatencyResult();
         if (lat.sampleCount() == 0) {
             return null;
@@ -224,17 +223,14 @@ public final class VerdictAdapter {
         return new LatencyInput(
                 contributing,                          // contributing (passing) samples
                 engine.samplesExecuted(),              // total samples
-                false,                                 // skipped (assertion-side concept; descriptive emitted regardless)
+                false,                                 // skipped
                 null,                                  // skipReason
                 msIfEmittable("p50", lat.p50(), contributing),
                 msIfEmittable("p90", lat.p90(), contributing),
                 msIfEmittable("p95", lat.p95(), contributing),
                 msIfEmittable("p99", lat.p99(), contributing),
                 LatencySection.PERCENTILE_UNAVAILABLE_MS, // maxMs unavailable
-                List.of(),                             // assertions (gated; populated separately when active)
-                List.of(),                             // caveats
-                contributing,                          // dimensionSuccesses
-                0);                                    // dimensionFailures
+                List.of());                            // caveats
     }
 
     /**

@@ -300,11 +300,12 @@ ArchUnit-style architecture test).
       belongs in `org.javai.punit.statistics`.
 
 - family: Threshold (latency)
-  java_type: PercentileLatency (criterion family) + LatencySpec / Latency (annotation form)
+  java_type: PercentileLatency (criterion family) + LatencySpec
   package: org.javai.punit.internal.engine.criteria + org.javai.punit.api
   role_notes: |
-    The `@Latency` annotation form sits in `api`; the criterion
-    factory and evaluation in `engine.criteria`.
+    Latency thresholds are declared via `LatencySpec` on the typed
+    authoring surface; evaluation lives in `engine.criteria` via the
+    `PercentileLatency` criterion.
 
 - family: Threshold Origin
   java_type: ThresholdOrigin enum

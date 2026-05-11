@@ -151,38 +151,16 @@ public final class VerdictXmlReader {
             }
         }
 
-        // Read evaluations
-        List<PercentileAssertion> assertions = new ArrayList<>();
-        Optional<Element> evalsEl = optionalElement(el, "evaluations");
-        if (evalsEl.isPresent()) {
-            NodeList evals = evalsEl.get().getElementsByTagNameNS(
-                    VerdictXmlWriter.NAMESPACE, "evaluation");
-            for (int i = 0; i < evals.getLength(); i++) {
-                Element e = (Element) evals.item(i);
-                String status = e.getAttribute("status");
-                boolean passed = "PASS".equals(status);
-                boolean indicative = "advisory".equals(e.getAttribute("mode"));
-                String source = "baseline-derived".equals(e.getAttribute("provenance"))
-                        ? "from baseline" : null;
-                assertions.add(new PercentileAssertion(
-                        e.getAttribute("percentile"),
-                        Long.parseLong(e.getAttribute("observed-ms")),
-                        Long.parseLong(e.getAttribute("threshold-ms")),
-                        passed, indicative, source
-                ));
-            }
-        }
-
-        int strictViolations = Integer.parseInt(el.getAttribute("strict-violations"));
-        int advisoryViolations = Integer.parseInt(el.getAttribute("advisory-violations"));
-        int dimensionFailures = strictViolations + advisoryViolations;
-        int dimensionSuccesses = assertions.size() - dimensionFailures;
-
+        // The wire format carries strict-violations / advisory-violations
+        // attributes and an optional <evaluations> block for per-percentile
+        // assertion details. punit's latency dimension is descriptive
+        // only (gating happens at the criterion layer), so those carry no
+        // additional information here. They are read past for schema-
+        // tolerance but not surfaced on the reconstructed verdict.
         return new LatencyDimension(
                 successfulSamples, successfulSamples, false, Optional.empty(),
                 p50, p90, p95, p99, Math.max(Math.max(p95, p99), p50),
-                assertions, List.of(),
-                Math.max(dimensionSuccesses, 0), dimensionFailures
+                List.of()
         );
     }
 

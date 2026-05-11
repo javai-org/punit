@@ -188,23 +188,6 @@ class VerdictAdapterFidelityTest {
         }
 
         @Test
-        @DisplayName("latency evaluations empty (assertions list)")
-        void latencyEvaluationsEmpty() {
-            LatencyResult lat = new LatencyResult(
-                    Duration.ofMillis(100), Duration.ofMillis(200),
-                    Duration.ofMillis(300), Duration.ofMillis(500),
-                    50);
-            ProbabilisticTestResult result = withEngine(new EngineRunSummary(
-                    50, 50, 50, 0, 1000L, 0L, 0, lat,
-                    org.javai.punit.api.spec.TerminationReason.COMPLETED,
-                    0.95, Optional.empty()));
-
-            ProbabilisticTestVerdict verdict = adapt(result);
-
-            assertThat(verdict.latency().get().assertions()).isEmpty();
-        }
-
-        @Test
         @DisplayName("correlation-id auto-generated when metadata supplies none")
         void correlationIdGenerated() {
             ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(

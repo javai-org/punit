@@ -157,9 +157,7 @@ class ProbabilisticTestVerdictBuilderTest {
             LatencyInput input = new LatencyInput(
                     195, 200, false, null,
                     120, 340, 420, 810, 1250,
-                    List.of(new PercentileAssertionInput("p95", 420, 500, true, false, "from baseline")),
-                    List.of("Advisory note"),
-                    190, 10
+                    List.of("Advisory note")
             );
 
             ProbabilisticTestVerdict verdict = minimalBuilder()
@@ -173,12 +171,7 @@ class ProbabilisticTestVerdictBuilderTest {
             assertThat(dim.skipped()).isFalse();
             assertThat(dim.skipReason()).isEmpty();
             assertThat(dim.p95Ms()).isEqualTo(420);
-            assertThat(dim.assertions()).hasSize(1);
-            assertThat(dim.assertions().getFirst().label()).isEqualTo("p95");
-            assertThat(dim.assertions().getFirst().passed()).isTrue();
             assertThat(dim.caveats()).containsExactly("Advisory note");
-            assertThat(dim.dimensionSuccesses()).isEqualTo(190);
-            assertThat(dim.dimensionFailures()).isEqualTo(10);
         }
 
         @Test
@@ -186,7 +179,7 @@ class ProbabilisticTestVerdictBuilderTest {
             LatencyInput input = new LatencyInput(
                     0, 200, true, "Insufficient successful samples",
                     -1, -1, -1, -1, -1,
-                    List.of(), List.of(), 0, 0
+                    List.of()
             );
 
             ProbabilisticTestVerdict verdict = minimalBuilder()

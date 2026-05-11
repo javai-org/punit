@@ -169,7 +169,7 @@ class VerdictXmlWriterTest {
     class LatencyDimensionTests {
 
         @Test
-        @DisplayName("serialises latency with observed percentiles and evaluations")
+        @DisplayName("serialises latency with observed percentiles")
         void serialisesLatency() throws Exception {
             ProbabilisticTestVerdict verdict = verdictWithLatency();
 
@@ -177,19 +177,22 @@ class VerdictXmlWriterTest {
             Element lat = firstElement(doc, "latency");
 
             assertThat(lat.getAttribute("successful-samples")).isEqualTo("90");
-            assertThat(lat.hasAttribute("strict-violations")).isTrue();
-            assertThat(lat.hasAttribute("advisory-violations")).isTrue();
+            // strict-violations / advisory-violations are emitted as
+            // zero — the dimension at the verdict layer is descriptive
+            // only; gating happens at the criterion layer.
+            assertThat(lat.getAttribute("strict-violations")).isEqualTo("0");
+            assertThat(lat.getAttribute("advisory-violations")).isEqualTo("0");
 
             // Observed percentiles
             NodeList observed = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "percentile");
             assertThat(observed.getLength()).isGreaterThanOrEqualTo(4);
 
-            // Evaluations
-            NodeList evals = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "evaluation");
-            assertThat(evals.getLength()).isEqualTo(1);
-            Element eval = (Element) evals.item(0);
-            assertThat(eval.getAttribute("percentile")).isEqualTo("p95");
-            assertThat(eval.getAttribute("status")).isEqualTo("PASS");
+            // No <evaluations> block: punit's emission does not carry
+            // per-percentile assertion data — the schema permits it
+            // for future framework implementations but punit produces
+            // descriptive-only output.
+            NodeList evals = doc.getElementsByTagNameNS(VerdictXmlWriter.NAMESPACE, "evaluations");
+            assertThat(evals.getLength()).isZero();
         }
 
         @Test
@@ -631,9 +634,7 @@ class VerdictXmlWriterTest {
         LatencyDimension latency = new LatencyDimension(
                 90, 100, false, Optional.empty(),
                 120, 340, 420, 810, 1250,
-                List.of(new PercentileAssertion("p95", 420, 500, true, false, "from baseline")),
-                List.of("Small sample"),
-                90, 10
+                List.of("Small sample")
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
@@ -650,7 +651,7 @@ class VerdictXmlWriterTest {
         LatencyDimension latency = new LatencyDimension(
                 0, 100, true, Optional.of("No successes"),
                 0, 0, 0, 0, 0,
-                List.of(), List.of(), 0, 0
+                List.of()
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),

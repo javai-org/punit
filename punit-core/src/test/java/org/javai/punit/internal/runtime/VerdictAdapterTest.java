@@ -275,7 +275,6 @@ class VerdictAdapterTest {
             assertThat(verdict.latency().get().p95Ms()).isEqualTo(420L);
             assertThat(verdict.latency().get().p99Ms()).isEqualTo(810L);
             assertThat(verdict.latency().get().maxMs()).isEqualTo(-1L);
-            assertThat(verdict.latency().get().assertions()).isEmpty();
         }
 
         @Test

@@ -177,24 +177,25 @@ class StatisticalRenderingPipelineTest {
     }
 
     @Nested
-    @DisplayName("Scenario E: PASS with functional + latency dimensions")
+    @DisplayName("Scenario E: PASS with descriptive latency dimension")
     class ScenarioE {
         private final ProbabilisticTestVerdict verdict = ScenarioFixtures.scenarioE();
 
         @Test
-        @DisplayName("renderSummary shows dimension breakdown")
+        @DisplayName("renderSummary shows functional pass-rate + descriptive latency")
         void renderSummary_matchesExpected() {
             String summary = VerdictTextRenderer.renderSummary(verdict);
 
             assertThat(summary).contains("0.9500 (95/100) >= required: 0.9000");
             assertThat(summary).contains("95/100 passed");
-            assertThat(summary).contains("90/100 within limit");
+            assertThat(summary).contains("Latency:");
+            assertThat(summary).contains("p95=420ms");
             assertThat(summary).contains(lv("Elapsed:", "200ms"));
             assertThat(summary).contains("ShoppingBasket.yaml");
         }
 
         @Test
-        @DisplayName("renderStatisticalAnalysis shows latency assertions")
+        @DisplayName("renderStatisticalAnalysis shows core statistics")
         void renderStatisticalAnalysis_matchesExpected() {
             String analysis = VerdictTextRenderer.renderStatisticalAnalysis(verdict);
 
@@ -203,10 +204,6 @@ class StatisticalRenderingPipelineTest {
             assertThat(analysis).contains(lv("Wilson lower bound:", "0.8883"));
             assertThat(analysis).contains(lv("Z:", "1.6667"));
             assertThat(analysis).contains(lv("p-value:", "0.9522"));
-
-            assertThat(analysis).contains("Latency assertions:");
-            assertThat(analysis).contains("p95: 420ms <= threshold 500ms [PASS]");
-            assertThat(analysis).contains("p99: 810ms > threshold 700ms [FAIL]");
         }
     }
 

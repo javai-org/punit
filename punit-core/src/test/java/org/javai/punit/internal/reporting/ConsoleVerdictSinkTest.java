@@ -95,7 +95,7 @@ class ConsoleVerdictSinkTest {
                     .latencyDimension(new ProbabilisticTestVerdictBuilder.LatencyInput(
                             90, 100, false, null,
                             10, 20, 30, 50, 100,
-                            List.of(), List.of(), 90, 10))
+                            List.of()))
                     .junitPassed(true)
                     .criterionVerdict(Verdict.PASS)
                     .build();
@@ -104,8 +104,6 @@ class ConsoleVerdictSinkTest {
 
             assertThat(output).contains("Contract:");
             assertThat(output).contains("95/100 passed");
-            assertThat(output).contains("Latency:");
-            assertThat(output).contains("90/100 within limit");
         }
 
         @Test

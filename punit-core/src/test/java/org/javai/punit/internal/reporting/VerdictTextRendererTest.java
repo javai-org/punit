@@ -304,25 +304,6 @@ class VerdictTextRendererTest {
         }
 
         @Test
-        @DisplayName("renders percentile thresholds")
-        void rendersPercentileThresholds() {
-            var result = renderer.renderForReporter(verdictWithLatencyAssertions());
-
-            assertThat(result.body()).contains("Percentile thresholds:");
-            assertThat(result.body()).contains("420ms <= 500ms");
-            assertThat(result.body()).contains("PASS");
-        }
-
-        @Test
-        @DisplayName("shows baseline-derived label")
-        void showsBaselineDerived() {
-            var result = renderer.renderForReporter(verdictWithBaselineDerivedLatency());
-
-            assertThat(result.body()).contains("Percentile thresholds (from baseline):");
-            assertThat(result.body()).contains("Baseline reference:");
-        }
-
-        @Test
         @DisplayName("does not render latency section when absent")
         void doesNotRenderWhenAbsent() {
             var result = renderer.renderForReporter(passingVerdict());
@@ -591,54 +572,13 @@ class VerdictTextRendererTest {
         LatencyDimension latency = new LatencyDimension(
                 90, 100, false, Optional.empty(),
                 120, 340, 420, 810, 1250,
-                List.of(), List.of(), 90, 10
+                List.of()
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
                 base.functional(), Optional.of(latency),
                 base.statistics(), base.covariates(), base.cost(),
                 base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
-                base.verdictReason()
-        );
-    }
-
-    private ProbabilisticTestVerdict verdictWithLatencyAssertions() {
-        ProbabilisticTestVerdict base = passingVerdict();
-        LatencyDimension latency = new LatencyDimension(
-                90, 100, false, Optional.empty(),
-                120, 340, 420, 810, 1250,
-                List.of(new PercentileAssertion("p95", 420, 500, true, false, "explicit")),
-                List.of(), 90, 10
-        );
-        return new ProbabilisticTestVerdict(
-                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
-                base.functional(), Optional.of(latency),
-                base.statistics(), base.covariates(), base.cost(),
-                base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
-                base.verdictReason()
-        );
-    }
-
-    private ProbabilisticTestVerdict verdictWithBaselineDerivedLatency() {
-        ProbabilisticTestVerdict base = passingVerdict();
-        SpecProvenance prov = new SpecProvenance("EMPIRICAL", null, "ShoppingBasket.yaml",
-                Optional.empty(), Optional.empty());
-        LatencyDimension latency = new LatencyDimension(
-                85, 100, false, Optional.empty(),
-                190, 305, 395, 540, 1100,
-                List.of(
-                        new PercentileAssertion("p95", 395, 456, true, false, "from baseline"),
-                        new PercentileAssertion("p99", 540, 624, true, false, "from baseline")
-                ),
-                List.of(), 85, 15
-        );
-        return new ProbabilisticTestVerdict(
-                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
-                base.functional(), Optional.of(latency),
-                base.statistics(), base.covariates(), base.cost(),
-                base.pacing(), Optional.of(prov), base.termination(),
                 base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
                 base.verdictReason()
         );
@@ -649,7 +589,7 @@ class VerdictTextRendererTest {
         LatencyDimension latency = new LatencyDimension(
                 0, 100, true, Optional.of("No successful samples"),
                 -1, -1, -1, -1, -1,
-                List.of(), List.of(), 0, 0
+                List.of()
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),

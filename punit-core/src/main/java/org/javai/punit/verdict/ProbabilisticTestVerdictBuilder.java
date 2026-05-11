@@ -370,20 +370,11 @@ public class ProbabilisticTestVerdictBuilder {
             return Optional.empty();
         }
         LatencyInput li = latencyInput;
-        List<PercentileAssertion> assertions = li.assertions() != null
-                ? li.assertions().stream()
-                .map(a -> new PercentileAssertion(
-                        a.label(), a.observedMs(), a.thresholdMs(),
-                        a.passed(), a.indicative(), a.source()))
-                .toList()
-                : List.of();
-
         return Optional.of(new LatencyDimension(
                 li.successfulSamples(), li.totalSamples(),
                 li.skipped(), Optional.ofNullable(li.skipReason()),
                 li.p50Ms(), li.p90Ms(), li.p95Ms(), li.p99Ms(), li.maxMs(),
-                assertions, li.caveats() != null ? li.caveats() : List.of(),
-                li.dimensionSuccesses(), li.dimensionFailures()
+                li.caveats() != null ? li.caveats() : List.of()
         ));
     }
 
@@ -626,22 +617,7 @@ public class ProbabilisticTestVerdictBuilder {
             long p95Ms,
             long p99Ms,
             long maxMs,
-            List<PercentileAssertionInput> assertions,
-            List<String> caveats,
-            int dimensionSuccesses,
-            int dimensionFailures
-    ) {}
-
-    /**
-     * Primitive-only input for a single percentile assertion.
-     */
-    public record PercentileAssertionInput(
-            String label,
-            long observedMs,
-            long thresholdMs,
-            boolean passed,
-            boolean indicative,
-            String source
+            List<String> caveats
     ) {}
 
     /**
