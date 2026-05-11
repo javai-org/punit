@@ -1,0 +1,25 @@
+{
+  "framework_test_identity": {
+    "class_name": "ModelTest",
+    "method_name": "shouldGenerateResponse",
+    "use_case_id": "model-generation"
+  },
+  "criteria": [
+    { "kind": "PassRate", "threshold": 0.9, "origin": "SLA" }
+  ],
+  "factors": {},
+  "covariates": {
+    "baseline": { "region": "eu-west-1", "model_version": "gpt-4o-2024-08-06" },
+    "observed": { "region": "eu-west-2", "model_version": "gpt-4o-2024-08-06" }
+  },
+  "confidence": 0.95,
+  "samples_planned": 100,
+  "samples_executed": 100,
+  "elapsed_ms": 150,
+  "samples_summary": {
+    "successes": 93,
+    "failures": 7,
+    "postcondition_failures": [],
+    "latency_distribution_ms": null
+  }
+}

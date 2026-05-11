@@ -1,0 +1,27 @@
+{
+  "framework_test_identity": {
+    "class_name": "ShoppingBasketTest",
+    "method_name": "meetsBaseline",
+    "use_case_id": "shopping-basket"
+  },
+  "criteria": [
+    { "kind": "PassRate", "threshold": 0.9, "origin": "SLA" }
+  ],
+  "factors": {},
+  "covariates": {
+    "baseline": { "region": "eu-west-1" },
+    "observed": { "region": "eu-west-1" }
+  },
+  "confidence": 0.95,
+  "samples_planned": 100,
+  "samples_executed": 100,
+  "elapsed_ms": 180,
+  "samples_summary": {
+    "successes": 85,
+    "failures": 15,
+    "postcondition_failures": [
+      { "clause": "totals coherent",        "count": 9, "exemplars": ["basket-with-discount-stack", "basket-with-mixed-currency"] },
+      { "clause": "discount within bounds", "count": 6, "exemplars": ["basket-with-vip-discount"] }
+    ]
+  }
+}
