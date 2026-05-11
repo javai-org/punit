@@ -4,10 +4,26 @@ import java.net.URI
 plugins {
     id("signing")
     id("com.vanniktech.maven.publish") version "0.36.0"
+    id("org.gradlex.extra-java-module-info") version "1.13"
 }
 
 signing {
     useGpgCmd()
+}
+
+// Synthetic module descriptor for outcome, which currently ships
+// without Automatic-Module-Name or module-info.class. Every other
+// transitive dependency on the modulepath is already JPMS-aware
+// (real module-info under META-INF/versions/9 in the case of
+// jackson and snakeyaml; Automatic-Module-Name in the case of
+// commons-statistics; real module-info in the case of opentest4j
+// and log4j).
+//
+// TODO: when org.javai:outcome ships with Automatic-Module-Name
+// in its manifest, this block can be removed.
+extraJavaModuleInfo {
+    failOnMissingModuleInfo.set(false)
+    automaticModule("org.javai:outcome", "outcome")
 }
 
 dependencies {
