@@ -1,4 +1,0 @@
-instruction,expected
-"add milk","{""action"":""add"",""product"":""milk""}"
-"remove bread","{""action"":""remove"",""product"":""bread""}"
-"clear cart","{""action"":""clear""}"

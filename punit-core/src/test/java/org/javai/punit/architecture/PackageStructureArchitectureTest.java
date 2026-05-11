@@ -81,6 +81,9 @@ class PackageStructureArchitectureTest {
     static void importClasses() {
         classes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .withImportOption(location ->
+                        !location.contains("punit-report")
+                                && !location.contains("punit-sentinel"))
                 .importPackages("org.javai.punit");
     }
 

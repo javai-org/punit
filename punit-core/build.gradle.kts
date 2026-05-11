@@ -26,6 +26,27 @@ extraJavaModuleInfo {
     automaticModule("org.javai:outcome", "outcome")
 }
 
+tasks.test {
+    // Test subjects under testsubjects/ are JUnit-driven inputs to the
+    // TestKit-based integration tests; running them directly would trip
+    // intentional sample-level failures.
+    exclude("**/testsubjects/**")
+
+    // MEASURE specs and baselines in punit-core's own tests are
+    // re-generated as TestKit byproducts. Redirect both to build/ so the
+    // source tree's committed src/test/resources/punit/specs/*.yaml
+    // fixtures are not overwritten and emitted baselines do not pollute
+    // src/test/resources/punit/baselines/.
+    systemProperty(
+        "punit.specs.outputDir",
+        layout.buildDirectory.dir("punit/specs").get().asFile.absolutePath
+    )
+    systemProperty(
+        "punit.baseline.dir",
+        layout.buildDirectory.dir("punit/baselines").get().asFile.absolutePath
+    )
+}
+
 dependencies {
     // JUnit Jupiter API — compileOnly because annotations reference JUnit
     // meta-annotations but punit-core does not transitively require JUnit
@@ -63,6 +84,9 @@ dependencies {
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.4")
     testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
+    // punit-report provides the default VerdictSink (XML) via ServiceLoader;
+    // emission tests assert on the XML output reaching disk.
+    testImplementation(project(":punit-report"))
 }
 
 // --- javai-R conformance reference data ----------------------------------------

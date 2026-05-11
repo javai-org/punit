@@ -34,10 +34,44 @@ expression of the public-surface promise the
   JUnit module — the compiler now enforces the JUnit-free
   invariant as a property of the module declaration, complementing
   `SentinelArchitectureTest`.
-- **`punit-junit5`** does not ship a `module-info.java`. The
-  module has no `src/main/java` — it is a test-only harness whose
-  published JAR is a dependency-bundler with no production code to
-  export.
+- **`punit-junit5`** has been retired as a published artifact —
+  see the *Removed* section below.
+
+### Removed (`org.javai:punit-junit5` Maven coordinate)
+
+`org.javai:punit-junit5` was a dependency-bundler with no
+production code. The framework's user-facing annotations
+(`@ProbabilisticTest`, `@Experiment`) live in `punit-core/api`;
+they are meta-annotated with `@org.junit.jupiter.api.Test` (via
+`requires static`) and carry no `@ExtendWith`, so a probabilistic
+test reaches the framework by calling
+`PUnit.testing(useCase).assertPasses()` inside the test body —
+nothing in the JUnit lifecycle needs a punit-supplied extension.
+The bundler module added nothing beyond a curated `api` group of
+JUnit Jupiter + jackson + log4j that consumers can declare
+directly, and its sole content was integration tests and test
+subjects (now absorbed into `punit-core`'s test source).
+
+**Migration.** Consumers previously declaring:
+
+```kotlin
+testImplementation("org.javai:punit-junit5:<version>")
+```
+
+replace it with the direct deps the bundler used to pull in. The
+minimal set for an author who writes `@ProbabilisticTest` against
+`PUnit.testing(...)` and wants verdict XML emission is:
+
+```kotlin
+implementation("org.javai:punit-core:<version>")
+testImplementation("org.javai:punit-report:<version>")  // XML VerdictSink
+testImplementation("org.junit.jupiter:junit-jupiter")    // JUnit Jupiter
+```
+
+Add `jackson-databind` / `jackson-dataformat-csv` only if the
+test sources use `@InputSource` for JSON/CSV inputs; add
+`log4j-core` (or another SLF4J backend) only if punit's runtime
+logging needs to land somewhere.
 
 ### Consumer impact
 

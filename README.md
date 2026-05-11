@@ -66,23 +66,22 @@ Some systems do not yield the same outcome on every run — LLMs, ML models, ran
 
 ## Project structure
 
-PUnit ships as four published artefacts plus a Gradle plugin:
+PUnit ships as three published artefacts plus a Gradle plugin:
 
 | Artefact               | Coordinate                 | Purpose                                                                                                          |
 |------------------------|----------------------------|------------------------------------------------------------------------------------------------------------------|
-| **punit-core**         | `org.javai:punit-core`     | Foundational library: author-facing API (`UseCase`, `Contract`, `Sampling`, criteria), engine, statistics, baselines, runtime entry point. JUnit-free; sentinel-deployable directly. |
-| **punit-junit5**       | `org.javai:punit-junit5`   | JUnit 5 integration. The artefact most consumers depend on; pulls `punit-core` transitively.                     |
+| **punit-core**         | `org.javai:punit-core`     | Foundational library: author-facing API (`UseCase`, `Contract`, `Sampling`, criteria), engine, statistics, baselines, runtime entry point. Carries the user-facing `@ProbabilisticTest` and `@Experiment` annotations (meta-annotated with `@Test`). JUnit-free at runtime; sentinel-deployable directly. |
 | **punit-sentinel**     | `org.javai:punit-sentinel` | Sentinel runner for production/scheduled probabilistic checks without a test harness.                            |
-| **punit-report**       | `org.javai:punit-report`   | HTML report generator and verdict-XML reader/writer. Pulled in by `punit-junit5`; also consumable on its own.    |
+| **punit-report**       | `org.javai:punit-report`   | HTML report generator and verdict-XML reader/writer; auto-registers an XML `VerdictSink` via `ServiceLoader`.    |
 | **punit Gradle plugin**| `org.javai.punit` (plugin) | Auto-configures the `test` task, registers `experiment` / `exp` tasks, supports `-Prun=` filtering.              |
 
-The four library artefacts share the `punit-` prefix; `punit-core` is the foundation, the others extend it.
+The three library artefacts share the `punit-` prefix; `punit-core` is the foundation, the others extend it.
 
 ## Quick Start
 
 ### 1. Add Dependency
 
-Most users depend on `punit-junit5`, which pulls `punit-core` (and `punit-report`) transitively:
+A probabilistic test calls `PUnit.testing(useCase).assertPasses()` inside a regular `@Test` method body — `@ProbabilisticTest` is a marker annotation meta-annotated with `@Test`. Depend on `punit-core` directly, add JUnit Jupiter, and (recommended) add `punit-report` so verdict XML lands on disk:
 
 ```kotlin
 plugins {
@@ -94,7 +93,9 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.javai:punit-junit5:0.7.0")
+    testImplementation("org.javai:punit-core:0.7.0")
+    testImplementation("org.javai:punit-report:0.7.0")
+    testImplementation("org.junit.jupiter:junit-jupiter")
 }
 ```
 
@@ -103,13 +104,19 @@ dependencies {
 ```xml
 <dependency>
     <groupId>org.javai</groupId>
-    <artifactId>punit-junit5</artifactId>
+    <artifactId>punit-core</artifactId>
+    <version>0.7.0</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>org.javai</groupId>
+    <artifactId>punit-report</artifactId>
     <version>0.7.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-Maven users need to enable JUnit extension auto-detection and configure Surefire/Failsafe — see [MAVEN-CONFIGURATION.md](docs/MAVEN-CONFIGURATION.md).
+Maven users need to configure Surefire/Failsafe — see [MAVEN-CONFIGURATION.md](docs/MAVEN-CONFIGURATION.md).
 
 For sentinel-deployable applications that run probabilistic checks without a test harness, depend on `punit-core` directly (and optionally `punit-sentinel` for the standalone runner). See [Part 9: The Sentinel](docs/USER-GUIDE.md#part-9-the-sentinel) in the user guide.
 
