@@ -7,6 +7,7 @@ import org.javai.punit.statistics.LatencyThresholdDeriver;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import java.io.IOException;
@@ -164,6 +165,88 @@ class LatencyConformanceTest {
                 }));
             }
             return tests;
+        }
+    }
+
+    /**
+     * Conformance against the bootstrap-comparison suite — the one whose
+     * `expected` section publishes the binomial fields alongside the
+     * informational bootstrap fields. Per the suite's own description, the
+     * conformance fields ({@code rank}, {@code threshold},
+     * {@code baseline_percentile}, {@code n}) are integer-valued or are
+     * specific elements of the integer-valued {@code baseline_latencies}
+     * array, so the suite carries {@code tolerance: 0} and we check exact
+     * equality. The fields {@code bootstrap_upper}, {@code point_estimate},
+     * and {@code diff} are informational and are not asserted as
+     * conformance targets here — they are exercised separately by the
+     * conservatism sanity check below.
+     */
+    @Nested
+    @DisplayName("latency_threshold_bootstrap (binomial side; bootstrap fields informational)")
+    class BootstrapComparison {
+
+        @TestFactory
+        @DisplayName("Exact binomial order-statistic bound matches across the bootstrap-comparison baselines")
+        Collection<DynamicTest> cases() {
+            JsonNode suite = loadSuite("latency_threshold_bootstrap.json");
+
+            var tests = new ArrayList<DynamicTest>();
+            for (JsonNode c : suite.get("cases")) {
+                String name = c.get("name").asText();
+                var inputs = c.get("inputs");
+                var expected = c.get("expected");
+
+                tests.add(DynamicTest.dynamicTest(name, () -> {
+                    double[] baselineLatencies = toDoubleArray(inputs.get("baseline_latencies"));
+                    double p = inputs.get("p").asDouble();
+                    double confidence = inputs.get("confidence").asDouble();
+
+                    LatencyThresholdDeriver.Threshold result =
+                            LatencyThresholdDeriver.derive(baselineLatencies, p, confidence);
+
+                    assertThat(result.rank())
+                            .as("rank (k) — exact equality")
+                            .isEqualTo(expected.get("rank").asInt());
+                    assertThat(result.threshold())
+                            .as("threshold (t_{(k)}) — exact equality")
+                            .isEqualTo(expected.get("threshold").asDouble());
+                    assertThat(result.baselinePercentile())
+                            .as("baseline percentile (Q(p)) — exact equality")
+                            .isEqualTo(expected.get("baseline_percentile").asDouble());
+                    assertThat(result.n())
+                            .as("n — exact equality")
+                            .isEqualTo(expected.get("n").asInt());
+                }));
+            }
+            return tests;
+        }
+
+        /**
+         * Binomial-conservatism sanity check on the published fixture
+         * itself: the binomial threshold is conservative by construction
+         * relative to the bootstrap upper bound at the same confidence
+         * level, so for every published case the binomial threshold must
+         * be greater than or equal to the bootstrap upper bound. If this
+         * property ever flips on a future fixture release, the failing
+         * case signals either a fixture defect or a methodology drift —
+         * fail loudly so neither slips past silently.
+         *
+         * This is a property check on the oracle's own publication, not
+         * a check against {@code LatencyThresholdDeriver}.
+         */
+        @Test
+        @DisplayName("Binomial-conservatism sanity: threshold >= bootstrap_upper holds for every published case")
+        void binomialBoundIsAtLeastBootstrapUpper() {
+            JsonNode suite = loadSuite("latency_threshold_bootstrap.json");
+            for (JsonNode c : suite.get("cases")) {
+                String name = c.get("name").asText();
+                double threshold = c.get("expected").get("threshold").asDouble();
+                double bootstrapUpper = c.get("expected").get("bootstrap_upper").asDouble();
+                assertThat(threshold)
+                        .as("case=%s: binomial threshold must be >= bootstrap upper "
+                                + "(binomial bound is conservative by construction)", name)
+                        .isGreaterThanOrEqualTo(bootstrapUpper);
+            }
         }
     }
 }
