@@ -427,7 +427,17 @@ sink chain.
 
 ## Public package contract
 
-The packages an author imports and what each one carries.
+The packages an author imports and what each one carries. The same
+public/internal split is **structurally enforced** as of 0.7.x by
+the JPMS `module-info.java` declarations under each module's
+`src/main/java/`: the `exports` clauses are the authoritative
+public-surface list, and an external **modular** consumer cannot
+import a non-exported package — the compiler refuses, and the
+runtime throws `IllegalAccessError`. **Unnamed-module** consumers
+(plain-classpath builds without a `module-info.java` of their own)
+still see all classes on the classpath as a legacy concession;
+they are guarded by the `org.javai.punit.internal.*` namespace
+prefix and the ArchUnit regression rules.
 
 | Package                                                                               | Contains                                                                                                                                      | Author may import?                                            |
 |---------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
