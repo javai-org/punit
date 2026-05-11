@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0-alpha4] - 2026-05-11
+
+> **🧪 Experimental release.** The 0.7.x public-surface
+> consolidation arc: JPMS `module-info.java` on every published
+> library module, the `punit-junit5` bundler artifact retired, four
+> verdict-side types promoted out of `internal.*` to their natural
+> public packages (breaking FQN change), and the orphan declarative
+> `@Latency` surface removed in favour of the `PercentileLatency`
+> criterion. Conformance coverage extended on the verdict-XML and
+> latency oracles.
+>
+> **Exit criterion for `-alpha`.** The two gaps documented in
+> 0.7.0-alpha — statistical early termination (PT09/PT10) and the
+> wider feasibility-gate audit (sub-80% implied confidence
+> rejection across all intents) — remain the contract for shipping
+> 0.7.0 without a qualifier. `-alpha` stays on until both close.
+
 ### Added (JPMS module declarations)
 
 Three of punit's four library modules now ship a
@@ -145,6 +162,31 @@ Consumers that referenced any of the four promoted types by FQN:
 - The three renderer/adapter relocations affect only consumers that
   were already reaching into the framework's internal-shaped types —
   not a supported pattern, no migration documented.
+
+### Removed (declarative latency surface — breaking)
+
+The orphan `@Latency` annotation (declared `@Target({})`, no
+processor) and the never-populated `assertions` /
+`dimensionSuccesses` / `dimensionFailures` fields on
+`LatencyDimension` are gone. Latency is descriptive in the verdict
+record; gating is expressed via the `PercentileLatency` criterion
+on the typed builder.
+
+- **Wire format.** `<latency>` always emits zero violations and no
+  `<evaluations>` block. Readers tolerate legacy `evaluations`
+  attributes but do not surface them.
+- **Migration.** Consumers that referenced `org.javai.punit.api.Latency`
+  by FQN — none in practice, since the annotation had no valid target
+  — replace it with a `PercentileLatency` criterion on the builder.
+
+### Added (conformance coverage)
+
+- **`VerdictXmlConformanceTest`** asserts that the emitted verdict
+  XML round-trips against the canonical RP07 fixture.
+- **`MultiDimensionVerdictIntegrationTest`** exercises the
+  multi-dimension verdict path end-to-end.
+- **`LatencyConformanceTest`** extended with bootstrap-comparison
+  cases against the javai-R oracle.
 
 ## [0.7.0-alpha3] - 2026-05-10
 
@@ -531,7 +573,11 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.7.0-alpha4...HEAD
+[0.7.0-alpha4]: https://github.com/javai-org/punit/compare/v0.7.0-alpha3...v0.7.0-alpha4
+[0.7.0-alpha3]: https://github.com/javai-org/punit/compare/v0.7.0-alpha2...v0.7.0-alpha3
+[0.7.0-alpha2]: https://github.com/javai-org/punit/compare/v0.7.0-alpha...v0.7.0-alpha2
+[0.7.0-alpha]: https://github.com/javai-org/punit/compare/v0.6.0...v0.7.0-alpha
 [0.6.0]: https://github.com/javai-org/punit/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/javai-org/punit/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/javai-org/punit/compare/v0.5.0...v0.5.1
