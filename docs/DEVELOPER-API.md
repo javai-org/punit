@@ -427,7 +427,17 @@ sink chain.
 
 ## Public package contract
 
-The packages an author imports and what each one carries.
+The packages an author imports and what each one carries. The same
+public/internal split is **structurally enforced** as of 0.7.x by
+the JPMS `module-info.java` declarations under each module's
+`src/main/java/`: the `exports` clauses are the authoritative
+public-surface list, and an external **modular** consumer cannot
+import a non-exported package — the compiler refuses, and the
+runtime throws `IllegalAccessError`. **Unnamed-module** consumers
+(plain-classpath builds without a `module-info.java` of their own)
+still see all classes on the classpath as a legacy concession;
+they are guarded by the `org.javai.punit.internal.*` namespace
+prefix and the ArchUnit regression rules.
 
 | Package                                                                               | Contains                                                                                                                                      | Author may import?                                            |
 |---------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
@@ -441,7 +451,6 @@ The packages an author imports and what each one carries.
 | `org.javai.punit.internal.reporting`                                                           | Internal rendering helpers                                                                                                                    | **no** — internal                                             |
 | `org.javai.punit.internal.runtime`                                                             | Emitters (`BaselineEmitter`, `ExploreEmitter`, `OptimizeEmitter`), resolvers, composer — driven by `PUnit`                                    | **no** — internal                                             |
 | `org.javai.punit.internal.util`                                                                | Internal utilities                                                                                                                            | **no** — internal                                             |
-| `org.javai.punit.junit5.*` (in punit-junit5)                                          | JUnit 5 extensions; one author-facing type (`UseCaseProvider`); annotations live in `punit-core`                                              | yes — for `UseCaseProvider` only                              |
 | `org.javai.punit.report.*` (in punit-report)                                          | Verdict XML reader / writer; HTML report                                                                                                      | yes — for sink consumption                                    |
 | `org.javai.punit.sentinel.*` (in punit-sentinel)                                      | Sentinel runtime + CLI                                                                                                                        | author-side: for reliability spec authoring; no JUnit deps    |
 
@@ -458,8 +467,7 @@ invariant from regression.
 | `CoreArchitectureTest.apiPackageMustNotDependOnJUnitExtensions` | punit-core     | The api package may reference JUnit annotation types as meta-annotations only — never extension, engine, or platform types.                                                                                          |
 | `CoreArchitectureTest.statisticsModuleMustBeIsolated`           | punit-core     | `org.javai.punit.statistics` has zero dependencies on other punit packages.                                                                                                                                          |
 | `RuntimeArchitectureTest`                                       | punit-core     | `org.javai.punit.runtime` has zero `org.junit` deps. Sentinel-deployable code reaches PUnit here without a JUnit classpath.                                                                                          |
-| `Junit5ApiPackageContentsTest`                                  | punit-junit5   | The junit5 api package contains JUnit-specific public types only (e.g. `UseCaseProvider`); no annotation declarations (those belong in punit-core/api).                                                              |
-| `ArchitectureTest`                                              | punit-junit5   | Abstraction-level discipline (evaluators don't depend on reporting; renderers don't depend on statistics).                                                                                                           |
+| `AbstractionLevelArchitectureTest`                              | punit-core     | Abstraction-level discipline across the framework — evaluators / resolvers / deciders must not depend on reporting; renderers must not depend on statistical computation classes.                                   |
 | `SentinelArchitectureTest`                                      | punit-sentinel | Zero `org.junit` deps in punit-sentinel.                                                                                                                                                                             |
 | `RequirementCodeIsolationTest`                                  | all modules    | Orchestrator-internal codes (CT/EX/LT/PT/RC/RP/SC/SN/TH/UC/XM/DG) MUST NOT appear anywhere in src/main/java or src/test/java — including @DisplayName strings, test-class names, test-method names, string literals. |
 | `ArtefactEmissionRegressionTest`                                | punit-core     | Every `Experiment.Kind` must emit at least one artefact when `.run()` succeeds. Exhaustive switch over the enum — adding a new Kind without wiring an emitter is a compile-time fail.                                |
@@ -468,7 +476,7 @@ invariant from regression.
 To run all architecture-style guards:
 
 ```bash
-./gradlew test --tests "*ArchitectureTest" --tests "*Junit5ApiPackageContentsTest" --tests "*RequirementCodeIsolationTest" --tests "*ArtefactEmissionRegressionTest"
+./gradlew test --tests "*ArchitectureTest" --tests "*RequirementCodeIsolationTest" --tests "*ArtefactEmissionRegressionTest"
 ```
 
 To run only the package-structure rules (useful while working through the cleanup arc):

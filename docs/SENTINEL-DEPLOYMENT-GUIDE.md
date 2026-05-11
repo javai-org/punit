@@ -75,7 +75,7 @@ dependencies {
 
 This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`UseCase`, `Contract`, `ContractBuilder`, `Sampling`, `PUnit`, etc.) are production dependencies in this module because the sentinel-deployable classes are production artefacts.
 
-The module must **not** depend on `punit-junit5` or `junit-jupiter-api`. Sentinel-deployable code is JUnit-free. For the contract-first authoring model, see [Part 3 of the User Guide](USER-GUIDE.md#part-3-the-use-case).
+The module must **not** depend on `junit-jupiter-api`. Sentinel-deployable code is JUnit-free. For the contract-first authoring model, see [Part 3 of the User Guide](USER-GUIDE.md#part-3-the-use-case).
 
 #### `app-main` — Main Application
 
@@ -100,7 +100,8 @@ The JUnit test source set. Contains standalone `@ProbabilisticTest` and `@Experi
 // In app-usecases/build.gradle.kts or a dedicated app-tests module
 dependencies {
     testImplementation(project(":app-usecases"))
-    testImplementation("org.javai:punit-junit5:0.6.0")  // Transitively includes punit-core
+    testImplementation("org.javai:punit-core:0.7.0")
+    testImplementation("org.javai:punit-report:0.7.0")  // Verdict XML sink
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 ```
@@ -230,7 +231,7 @@ The Sentinel's exit code (`SentinelResult.allPassed()`) and verdict dispatch (`V
 | `app-stochastic` | None                      | None                   | Stochastic service integrations                        |
 | `app-main`       | None                      | None                   | Main application                                       |
 | `app-usecases`   | `punit-core` (production) | None                   | Use cases + sentinel-deployable classes                |
-| Test suite       | `punit-junit5` (test)     | `junit-jupiter` (test) | JUnit-driven probabilistic tests, experiments, fixtures|
+| Test suite       | `punit-core` (test) + `punit-report` (test) | `junit-jupiter` (test) | JUnit-driven probabilistic tests, experiments, fixtures|
 
 The sentinel JAR is built by the PUnit Gradle plugin's `createSentinel` task from the main classpath — no dedicated sentinel module is needed. The plugin automatically includes `punit-sentinel` and its transitive dependencies.
 
@@ -241,7 +242,7 @@ The sentinel JAR is built by the PUnit Gradle plugin's `createSentinel` task fro
 | Consumer                            | Artefact                   | Scope                |
 |-------------------------------------|----------------------------|----------------------|
 | Sentinel-deployable / use-case author | `org.javai:punit-core`     | `api` (production)   |
-| JUnit test developer                | `org.javai:punit-junit5`   | `testImplementation` |
+| JUnit test developer                | `org.javai:punit-core` + `org.javai:punit-report` + `org.junit.jupiter:junit-jupiter` | `testImplementation` |
 | Verdict-XML / report consumer       | `org.javai:punit-report`   | as appropriate       |
 
 The `punit-sentinel` artefact is included automatically by the PUnit Gradle plugin when building the sentinel JAR via `createSentinel`. No manual dependency declaration is needed for sentinel deployment.

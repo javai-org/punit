@@ -490,6 +490,11 @@ your codebase compiles against 0.7 or it stays on 0.6.x.
 
 **Do my Maven coordinates change?**
 
-No. Same `org.javai:punit-core`, `punit-junit5`, `punit-sentinel`,
-`punit-report` artefacts at the same group. Bump the version
-property and rebuild.
+Mostly no — `org.javai:punit-core`, `org.javai:punit-sentinel`,
+and `org.javai:punit-report` stay at the same group. The one
+change: `org.javai:punit-junit5` has been retired (it was a
+dependency-bundler with no production code). A test module that
+previously declared `testImplementation("org.javai:punit-junit5:…")`
+now declares `testImplementation("org.javai:punit-core:…")`,
+`testImplementation("org.javai:punit-report:…")`, and
+`testImplementation("org.junit.jupiter:junit-jupiter")` directly.

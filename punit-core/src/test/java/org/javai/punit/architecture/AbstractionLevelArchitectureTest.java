@@ -11,16 +11,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Architecture tests to enforce PUnit's structural constraints.
- *
- * <p>Rules enforce abstraction-level discipline — evaluators /
- * resolvers / deciders may not depend on reporting; renderers may
- * not depend on statistical computation; strategies may not
- * instantiate {@link org.javai.punit.reporting.PUnitReporter}
- * directly.
+ * Architecture tests enforcing abstraction-level discipline across
+ * punit-core: evaluators / resolvers / deciders must not depend on
+ * reporting; renderers must not perform statistical computation.
  */
-@DisplayName("Architecture Rules")
-class ArchitectureTest {
+@DisplayName("Abstraction-level Architecture Rules")
+class AbstractionLevelArchitectureTest {
 
     private static JavaClasses classes;
 

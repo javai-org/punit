@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (JPMS module declarations)
+
+Three of punit's four library modules now ship a
+`module-info.java` declaring exports, requires, and ServiceLoader
+provides/uses. `module-info.class` is the published artifact-level
+expression of the public-surface promise the
+`org.javai.punit.internal.*` namespace started.
+
+- **`punit-core`** declares module `org.javai.punit.core`. Exports
+  every public package (`api`, `api.spec`, `api.covariate`,
+  `api.match`, `runtime`, `verdict`, `statistics`,
+  `statistics.transparent`). Targeted exports
+  (`exports … to <module>`) grant sibling modules the minimum
+  internal-package surface they need —
+  `internal.engine.emit` to `punit-report`, `internal.reporting`
+  to `punit-report` and `punit-sentinel`. `requires static
+  org.junit.jupiter.api` keeps JUnit a compile-time-only
+  dependency.
+- **`punit-report`** declares module `org.javai.punit.report`.
+  `provides org.javai.punit.verdict.VerdictSink with
+  org.javai.punit.report.VerdictXmlSink` is the JPMS expression of
+  the existing `META-INF/services/` ServiceLoader registration.
+- **`punit-sentinel`** declares module
+  `org.javai.punit.sentinel`. Explicitly omits `requires` for any
+  JUnit module — the compiler now enforces the JUnit-free
+  invariant as a property of the module declaration, complementing
+  `SentinelArchitectureTest`.
+- **`punit-junit5`** has been retired as a published artifact —
+  see the *Removed* section below.
+
+### Removed (`org.javai:punit-junit5` Maven coordinate)
+
+`org.javai:punit-junit5` was a dependency-bundler with no
+production code. The framework's user-facing annotations
+(`@ProbabilisticTest`, `@Experiment`) live in `punit-core/api`;
+they are meta-annotated with `@org.junit.jupiter.api.Test` (via
+`requires static`) and carry no `@ExtendWith`, so a probabilistic
+test reaches the framework by calling
+`PUnit.testing(useCase).assertPasses()` inside the test body —
+nothing in the JUnit lifecycle needs a punit-supplied extension.
+The bundler module added nothing beyond a curated `api` group of
+JUnit Jupiter + jackson + log4j that consumers can declare
+directly, and its sole content was integration tests and test
+subjects (now absorbed into `punit-core`'s test source).
+
+**Migration.** Consumers previously declaring:
+
+```kotlin
+testImplementation("org.javai:punit-junit5:<version>")
+```
+
+replace it with the direct deps the bundler used to pull in. The
+minimal set for an author who writes `@ProbabilisticTest` against
+`PUnit.testing(...)` and wants verdict XML emission is:
+
+```kotlin
+implementation("org.javai:punit-core:<version>")
+testImplementation("org.javai:punit-report:<version>")  // XML VerdictSink
+testImplementation("org.junit.jupiter:junit-jupiter")    // JUnit Jupiter
+```
+
+Add `jackson-databind` / `jackson-dataformat-csv` only if the
+test sources use `@InputSource` for JSON/CSV inputs; add
+`log4j-core` (or another SLF4J backend) only if punit's runtime
+logging needs to land somewhere.
+
+### Consumer impact
+
+- **Modular consumers** (own `module-info.java`, depend on punit
+  via modulepath) — the `exports` clauses are now the
+  authoritative public surface. Attempting to import a non-exported
+  `internal.*` package fails to compile and at runtime throws
+  `IllegalAccessError`. Existing modular consumers may need to
+  add `requires org.javai.punit.core` (or
+  `org.javai.punit.report` / `org.javai.punit.sentinel`) to their
+  own `module-info.java`.
+- **Unnamed-module consumers** (no `module-info.java`, classpath
+  build) — no source changes required. JPMS export visibility is
+  not gated on the classpath path; these consumers continue to see
+  every class on punit's JARs and remain guarded by the
+  `internal.*` namespace prefix and the ArchUnit rules.
+
+### Build infrastructure
+
+- `punit-core` applies `org.gradlex.extra-java-module-info` 1.13
+  to wrap `org.javai:outcome` as an automatic module. Every other
+  transitive dependency is already JPMS-aware (real `module-info`
+  in jackson / snakeyaml / log4j / JUnit / opentest4j;
+  `Automatic-Module-Name` in commons-statistics).
+
 ### Changed (public-surface promotion — breaking FQN change)
 
 Authoring-time and verdict-shape types that previously lived under

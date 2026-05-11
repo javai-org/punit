@@ -508,8 +508,8 @@ ArchUnit-style architecture test).
   package: org.javai.punit.sentinel (in punit-sentinel module)
   role_notes: |
     Zero `org.junit` dependencies. The Sentinel reaches the engine
-    through `PUnit` / `runtime`, not through the JUnit extension
-    surface. Enforced by `SentinelArchitectureTest`.
+    through `PUnit` / `runtime`, not through any JUnit surface.
+    Enforced by `SentinelArchitectureTest`.
   gotchas:
     - **Family invariant — Sentinel build-time baseline embedding.**
       Every EMPIRICAL-origin test must carry its embedded default
@@ -576,7 +576,7 @@ differently).
     Authors should never import from `engine.*`.
   enforcement: |
     `CoreArchitectureTest` (package-level rules in punit-core) +
-    `Junit5ApiPackageContentsTest` (junit5 abstraction-level
+    `AbstractionLevelArchitectureTest` (cross-cutting abstraction
     discipline). See DEVELOPER-API.md §Architecture-test catalogue.
 
 - name: Empirical pair pattern
@@ -605,12 +605,14 @@ differently).
            feasibility_checked, sampling, terminated, verdict_built,
            sink_dispatched, junit_translated]
   notes: |
-    The JUnit extension `ProbabilisticTestExtension` dispatches
-    the @ProbabilisticTest method. The method body builds and
-    drives the spec via PUnit. The verdict is dispatched to all
-    registered VerdictSinks (XML if punit-report is present, log
-    if Sentinel is configured, etc.) and then translated to JUnit
-    pass/AssertionFailedError/TestAbortedException at the terminal.
+    `@ProbabilisticTest` is a marker annotation meta-annotated with
+    `@org.junit.jupiter.api.Test`; Jupiter dispatches the method as
+    an ordinary `@Test`. The method body builds and drives the spec
+    via `PUnit`. The verdict is dispatched to all registered
+    VerdictSinks (XML if punit-report is present, log if Sentinel
+    is configured, etc.) and the terminal `assertPasses()` then
+    translates the verdict to PASS / AssertionFailedError /
+    TestAbortedException.
 
 - concept: empirical baseline (punit)
   states: [in_memory_after_measure, written_to_explorations_outputDir
@@ -641,10 +643,10 @@ names the test for each.
 - family_invariant: Requirement-code isolation
   punit_enforcement: |
     Codes (CT, EX, LT, PT, RC, RP, SC, SN, TH, UC, XM, DG) MUST NOT
-    appear anywhere in punit-core / punit-junit5 / punit-report /
-    punit-sentinel — production OR test source, including
-    `@DisplayName` strings, test-class and test-method names,
-    string literals. Enforced by `RequirementCodeIsolationTest`.
+    appear anywhere in punit-core / punit-report / punit-sentinel —
+    production OR test source, including `@DisplayName` strings,
+    test-class and test-method names, string literals. Enforced by
+    `RequirementCodeIsolationTest`.
 
 - family_invariant: One-sided Wilson in the verdict path
   punit_enforcement: |

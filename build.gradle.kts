@@ -132,7 +132,6 @@ repositories {
 
 dependencies {
     api(project(":punit-core"))
-    api(project(":punit-junit5"))
     api(project(":punit-report"))
 }
 
