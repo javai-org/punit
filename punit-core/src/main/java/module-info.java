@@ -29,6 +29,17 @@ module org.javai.punit.core {
     exports org.javai.punit.statistics;
     exports org.javai.punit.statistics.transparent;
 
+    // ── Targeted exports — internal types granted to sibling
+    //    modules at their narrowest. Each grant is the minimum
+    //    sufficient set surfaced by the sibling's compile errors;
+    //    none of these are visible to external (unnamed-module)
+    //    consumers.
+    exports org.javai.punit.internal.engine.emit
+        to org.javai.punit.report;
+    exports org.javai.punit.internal.reporting
+        to org.javai.punit.report,
+           org.javai.punit.sentinel;
+
     // ── Required modules ──────────────────────────────────────
     requires transitive org.javai.outcome;
     requires transitive org.opentest4j;
