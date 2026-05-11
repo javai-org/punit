@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 
 import org.javai.punit.junit5.testsubjects.PUnitSubjects;
 import org.javai.punit.internal.engine.baseline.BaselineResolver;
-import org.javai.punit.verdict.VerdictSinkBus;
+import org.javai.punit.internal.reporting.VerdictSinkBus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

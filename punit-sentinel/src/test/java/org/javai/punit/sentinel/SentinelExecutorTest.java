@@ -9,12 +9,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.internal.engine.budget.CostBudgetMonitor.TokenMode;
+import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.api.UseCaseAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.PUnitVerdict;
-import org.javai.punit.verdict.VerdictSinkBus;
+import org.javai.punit.internal.reporting.VerdictSinkBus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

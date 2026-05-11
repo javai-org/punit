@@ -17,7 +17,7 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.PUnitVerdict;
-import org.javai.punit.verdict.VerdictTextRenderer;
+import org.javai.punit.internal.reporting.VerdictTextRenderer;
 
 /**
  * Generates a standalone HTML report from a list of {@link ProbabilisticTestVerdict}s.

@@ -489,8 +489,9 @@ ArchUnit-style architecture test).
       the canonical XSD as of the 0.7.x cleanup.
 
 - family: Verdict Sink
-  java_type: VerdictSink (interface) + VerdictSinkBus (dispatcher)
-  package: org.javai.punit.verdict
+  java_type: VerdictSink (interface, public) + VerdictSinkBus (dispatcher, internal)
+  package: org.javai.punit.verdict (interface) +
+           org.javai.punit.internal.reporting (dispatcher)
   role_notes: |
     ServiceLoader-discovered. With `punit-report` on the
     classpath, the XML sink registers automatically. Without

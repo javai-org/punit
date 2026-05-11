@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
-import org.javai.punit.verdict.VerdictSinkBus;
+import org.javai.punit.internal.reporting.VerdictSinkBus;
 import org.javai.punit.verdict.VerdictSink;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;

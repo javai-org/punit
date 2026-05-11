@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed (public-surface promotion — breaking FQN change)
+
+Authoring-time and verdict-shape types that previously lived under
+`internal.*` packages have been promoted to their natural public
+locations. The motivating principle: a type that appears in a
+public method signature on a public class must itself be in a
+public package, so a JPMS-modularised consumer can compile against
+the verdict API without reaching into framework internals.
+
+- `org.javai.punit.internal.engine.budget.CostBudgetMonitor.TokenMode`
+  (enum) → `org.javai.punit.verdict.TokenMode` (top-level). The
+  enum is a verdict-side label naming how token cost was measured
+  (NONE / STATIC / DYNAMIC); it is a peer to `ThresholdOrigin` and
+  `Verdict`, not a sub-concept of the budget monitor.
+- `org.javai.punit.internal.engine.pacing.PacingConfiguration`
+  (record) → `org.javai.punit.api.PacingConfiguration` (top-level,
+  alongside the existing `Pacing` builder type). The record carries
+  authoring-time pacing constraints + computed execution plan; it
+  is consumed by the builder API and read off the verdict, both
+  user-facing.
+
+### Changed (package layout — internal relocations)
+
+Renderers and adapters that had drifted into public packages have
+been relocated to their natural internal homes. No external API
+change (all are non-public classes); only their FQNs move.
+
+- `org.javai.punit.verdict.VerdictTextRenderer` →
+  `org.javai.punit.internal.reporting.VerdictTextRenderer`
+- `org.javai.punit.verdict.VerdictAdapter` →
+  `org.javai.punit.internal.runtime.VerdictAdapter`
+- `org.javai.punit.verdict.VerdictSinkBus` →
+  `org.javai.punit.internal.reporting.VerdictSinkBus`
+
+The `VerdictSink` interface itself stays public at
+`org.javai.punit.verdict.VerdictSink`; only the dispatcher moved.
+
+### Migration
+
+Consumers that referenced any of the four promoted types by FQN:
+
+- `org.javai.punit.internal.engine.budget.CostBudgetMonitor.TokenMode`
+  → `org.javai.punit.verdict.TokenMode`
+- `org.javai.punit.internal.engine.pacing.PacingConfiguration`
+  → `org.javai.punit.api.PacingConfiguration`
+- The three renderer/adapter relocations affect only consumers that
+  were already reaching into the framework's internal-shaped types —
+  not a supported pattern, no migration documented.
+
 ## [0.7.0-alpha3] - 2026-05-10
 
 > **🧪 Experimental release.** The 0.7.x structural-cleanup arc:

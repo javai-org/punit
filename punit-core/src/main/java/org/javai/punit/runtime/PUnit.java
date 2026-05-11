@@ -52,9 +52,9 @@ import org.javai.punit.internal.reporting.TransparentStatsRenderer;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.RunMetadata;
-import org.javai.punit.verdict.VerdictAdapter;
+import org.javai.punit.internal.runtime.VerdictAdapter;
 import org.javai.punit.verdict.VerdictSink;
-import org.javai.punit.verdict.VerdictSinkBus;
+import org.javai.punit.internal.reporting.VerdictSinkBus;
 import org.opentest4j.AssertionFailedError;
 import org.opentest4j.TestAbortedException;
 

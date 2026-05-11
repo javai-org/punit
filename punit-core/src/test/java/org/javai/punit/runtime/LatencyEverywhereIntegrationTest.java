@@ -23,7 +23,7 @@ import org.javai.punit.internal.runtime.ExploreEmitter;
 import org.javai.punit.internal.runtime.OptimizeEmitter;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.RunMetadata;
-import org.javai.punit.verdict.VerdictAdapter;
+import org.javai.punit.internal.runtime.VerdictAdapter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;

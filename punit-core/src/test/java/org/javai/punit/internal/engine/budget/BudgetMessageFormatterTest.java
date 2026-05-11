@@ -3,6 +3,7 @@ package org.javai.punit.internal.engine.budget;
 import static org.assertj.core.api.Assertions.assertThat;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.verdict.TerminationReason;
+import org.javai.punit.verdict.TokenMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,7 +23,7 @@ class BudgetMessageFormatterTest {
     }
 
     private CostBudgetMonitor unlimitedMethodBudget() {
-        return new CostBudgetMonitor(0, 0, 0, CostBudgetMonitor.TokenMode.NONE,
+        return new CostBudgetMonitor(0, 0, 0, TokenMode.NONE,
                 BudgetExhaustedBehavior.EVALUATE_PARTIAL);
     }
 
@@ -104,7 +105,7 @@ class BudgetMessageFormatterTest {
         @DisplayName("formats method time exhaustion")
         void formatsMethodTime() throws InterruptedException {
             CostBudgetMonitor methodBudget = new CostBudgetMonitor(
-                    200, 0, 0, CostBudgetMonitor.TokenMode.NONE, BudgetExhaustedBehavior.FAIL);
+                    200, 0, 0, TokenMode.NONE, BudgetExhaustedBehavior.FAIL);
             Thread.sleep(10);
 
             String message = formatter.buildExhaustionMessage(
@@ -119,7 +120,7 @@ class BudgetMessageFormatterTest {
         @DisplayName("formats method token exhaustion")
         void formatsMethodToken() {
             CostBudgetMonitor methodBudget = new CostBudgetMonitor(
-                    0, 300, 0, CostBudgetMonitor.TokenMode.DYNAMIC, BudgetExhaustedBehavior.FAIL);
+                    0, 300, 0, TokenMode.DYNAMIC, BudgetExhaustedBehavior.FAIL);
             methodBudget.recordDynamicTokens(400);
 
             String message = formatter.buildExhaustionMessage(

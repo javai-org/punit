@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.verdict.TerminationReason;
+import org.javai.punit.verdict.TokenMode;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -17,7 +18,7 @@ class CostBudgetMonitorTest {
                 1, // 1ms time budget
                 0,
                 0,
-                CostBudgetMonitor.TokenMode.NONE,
+                TokenMode.NONE,
                 BudgetExhaustedBehavior.FAIL
         );
         
@@ -34,7 +35,7 @@ class CostBudgetMonitorTest {
                 0, // No time budget
                 100, // 100 token budget
                 50, // 50 tokens per sample
-                CostBudgetMonitor.TokenMode.STATIC,
+                TokenMode.STATIC,
                 BudgetExhaustedBehavior.FAIL
         );
         
@@ -60,7 +61,7 @@ class CostBudgetMonitorTest {
                 0, // No time budget
                 100, // 100 token budget
                 0,
-                CostBudgetMonitor.TokenMode.DYNAMIC,
+                TokenMode.DYNAMIC,
                 BudgetExhaustedBehavior.FAIL
         );
         
@@ -81,7 +82,7 @@ class CostBudgetMonitorTest {
                 0,
                 100, // Budget set but mode is NONE
                 50,
-                CostBudgetMonitor.TokenMode.NONE,
+                TokenMode.NONE,
                 BudgetExhaustedBehavior.FAIL
         );
         
@@ -98,7 +99,7 @@ class CostBudgetMonitorTest {
                 0, // Unlimited time
                 0, // Unlimited tokens
                 100,
-                CostBudgetMonitor.TokenMode.STATIC,
+                TokenMode.STATIC,
                 BudgetExhaustedBehavior.FAIL
         );
         
@@ -115,14 +116,14 @@ class CostBudgetMonitorTest {
                 5000,
                 1000,
                 50,
-                CostBudgetMonitor.TokenMode.STATIC,
+                TokenMode.STATIC,
                 BudgetExhaustedBehavior.EVALUATE_PARTIAL
         );
         
         assertThat(monitor.getTimeBudgetMs()).isEqualTo(5000);
         assertThat(monitor.getTokenBudget()).isEqualTo(1000);
         assertThat(monitor.getStaticTokenCharge()).isEqualTo(50);
-        assertThat(monitor.getTokenMode()).isEqualTo(CostBudgetMonitor.TokenMode.STATIC);
+        assertThat(monitor.getTokenMode()).isEqualTo(TokenMode.STATIC);
         assertThat(monitor.getOnBudgetExhausted()).isEqualTo(BudgetExhaustedBehavior.EVALUATE_PARTIAL);
         assertThat(monitor.hasTimeBudget()).isTrue();
         assertThat(monitor.hasTokenBudget()).isTrue();

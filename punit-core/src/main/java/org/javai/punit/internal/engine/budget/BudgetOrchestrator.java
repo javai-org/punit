@@ -3,6 +3,7 @@ package org.javai.punit.internal.engine.budget;
 import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.verdict.TerminationReason;
+import org.javai.punit.verdict.TokenMode;
 
 /**
  * Coordinates budget checking across suite, class, and method scopes.
@@ -146,7 +147,7 @@ public class BudgetOrchestrator {
     public long recordAndPropagateTokens(
             DefaultTokenChargeRecorder tokenRecorder,
             CostBudgetMonitor methodBudget,
-            CostBudgetMonitor.TokenMode tokenMode,
+            TokenMode tokenMode,
             int tokenCharge,
             SharedBudgetMonitor classBudget,
             SharedBudgetMonitor suiteBudget) {
@@ -156,7 +157,7 @@ public class BudgetOrchestrator {
         if (tokenRecorder != null) {
             sampleTokens = tokenRecorder.finalizeSample();
             methodBudget.recordDynamicTokens(sampleTokens);
-        } else if (tokenMode == CostBudgetMonitor.TokenMode.STATIC) {
+        } else if (tokenMode == TokenMode.STATIC) {
             sampleTokens = tokenCharge;
             methodBudget.recordStaticTokenCharge();
         }
