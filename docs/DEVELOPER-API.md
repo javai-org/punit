@@ -348,8 +348,7 @@ PassRate.empiricalFrom(this::shoppingBaseline);     // pinned baseline
 ### PercentileLatency
 
 Asserts a percentile threshold on the latency-given-success
-distribution. Counterpart to `@Latency` (annotation form, in
-`api`). Reads `LatencyStatistics` from the resolved baseline.
+distribution. Reads `LatencyStatistics` from the resolved baseline.
 
 ### Composing criteria
 

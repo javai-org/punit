@@ -203,9 +203,6 @@ class LatencyEverywhereIntegrationTest {
                 .as("contributing samples must equal verdict.successes for descriptive emission")
                 .isEqualTo(verdict.functional().get().successes());
         assertThat(lat.totalSamples()).isEqualTo(6);
-        assertThat(lat.assertions())
-                .as("descriptive verdict must not carry assertions when latency assertions are not active")
-                .isEmpty();
     }
 
     @Test

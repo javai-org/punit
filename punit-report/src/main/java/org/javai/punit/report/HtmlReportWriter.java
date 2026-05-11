@@ -15,7 +15,6 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
-import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.PUnitVerdict;
 import org.javai.punit.internal.reporting.VerdictTextRenderer;
 
@@ -279,16 +278,7 @@ final class HtmlReportWriter {
             html.append("<td class=\"latency-observed\">-</td>\n");
             return;
         }
-        Optional<PercentileAssertion> assertion = lat.assertions().stream()
-                .filter(a -> a.label().equals(label))
-                .findFirst();
-        if (assertion.isPresent()) {
-            String cssClass = assertion.get().passed() ? "latency-pass" : "latency-fail";
-            html.append("<td class=\"").append(cssClass).append("\">")
-                    .append(observedMs).append("ms</td>\n");
-        } else {
-            html.append("<td class=\"latency-observed\">").append(observedMs).append("ms</td>\n");
-        }
+        html.append("<td class=\"latency-observed\">").append(observedMs).append("ms</td>\n");
     }
 
     private static Map<String, List<ProbabilisticTestVerdict>> groupVerdicts(

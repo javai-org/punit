@@ -128,19 +128,15 @@ public final class VerdictXmlWriter {
         }
         w.writeStartElement("latency");
         w.writeAttribute("successful-samples", Integer.toString(lat.successfulSamples()));
-        int strictViolations = 0;
-        int advisoryViolations = 0;
-        for (PercentileAssertion pa : lat.assertions()) {
-            if (!pa.passed()) {
-                if (pa.indicative()) {
-                    advisoryViolations++;
-                } else {
-                    strictViolations++;
-                }
-            }
-        }
-        w.writeAttribute("strict-violations", Integer.toString(strictViolations));
-        w.writeAttribute("advisory-violations", Integer.toString(advisoryViolations));
+        // The latency dimension at the verdict layer is descriptive
+        // only; declared-threshold gating happens at the criterion
+        // layer via PercentileLatency. strict-violations and
+        // advisory-violations therefore stay at zero in punit's
+        // emission. The schema retains them for future framework
+        // implementations that wire per-percentile evaluation data
+        // into the verdict-XML envelope.
+        w.writeAttribute("strict-violations", "0");
+        w.writeAttribute("advisory-violations", "0");
 
         // Observed percentiles
         w.writeStartElement("observed");
@@ -149,33 +145,6 @@ public final class VerdictXmlWriter {
         writePercentileObserved(w, "p95", lat.p95Ms());
         writePercentileObserved(w, "p99", lat.p99Ms());
         w.writeEndElement();
-
-        // Evaluations
-        if (!lat.assertions().isEmpty()) {
-            w.writeStartElement("evaluations");
-            for (PercentileAssertion pa : lat.assertions()) {
-                w.writeStartElement("evaluation");
-                w.writeAttribute("percentile", pa.label());
-                w.writeAttribute("observed-ms", Long.toString(pa.observedMs()));
-                w.writeAttribute("threshold-ms", Long.toString(pa.thresholdMs()));
-                String provenance = pa.source() != null && pa.source().contains("baseline")
-                        ? "baseline-derived" : "explicit";
-                w.writeAttribute("provenance", provenance);
-                String mode = pa.indicative() ? "advisory" : "strict";
-                w.writeAttribute("mode", mode);
-                String status;
-                if (pa.passed()) {
-                    status = "PASS";
-                } else if (pa.indicative()) {
-                    status = "ADVISORY_WARN";
-                } else {
-                    status = "STRICT_FAIL";
-                }
-                w.writeAttribute("status", status);
-                w.writeEndElement();
-            }
-            w.writeEndElement();
-        }
 
         w.writeEndElement();
     }

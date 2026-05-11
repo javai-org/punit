@@ -160,9 +160,6 @@ class VerdictXmlReaderTest {
             assertThat(lat.successfulSamples()).isEqualTo(90);
             assertThat(lat.skipped()).isFalse();
             assertThat(lat.p95Ms()).isEqualTo(420);
-            assertThat(lat.assertions()).hasSize(1);
-            assertThat(lat.assertions().get(0).label()).isEqualTo("p95");
-            assertThat(lat.assertions().get(0).passed()).isTrue();
         }
 
         @Test
@@ -409,9 +406,7 @@ class VerdictXmlReaderTest {
         LatencyDimension latency = new LatencyDimension(
                 90, 100, false, Optional.empty(),
                 120, 340, 420, 810, 1250,
-                List.of(new PercentileAssertion("p95", 420, 500, true, false, "from baseline")),
-                List.of("Small sample"),
-                90, 10
+                List.of("Small sample")
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
@@ -428,7 +423,7 @@ class VerdictXmlReaderTest {
         LatencyDimension latency = new LatencyDimension(
                 0, 100, true, Optional.of("No successes"),
                 0, 0, 0, 0, 0,
-                List.of(), List.of(), 0, 0
+                List.of()
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),

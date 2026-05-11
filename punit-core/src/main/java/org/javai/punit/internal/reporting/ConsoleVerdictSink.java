@@ -97,13 +97,9 @@ public final class ConsoleVerdictSink implements VerdictSink {
         }
 
         FunctionalDimension func = verdict.functional().get();
-        LatencyDimension lat = verdict.latency().get();
 
         sb.append(PUnitReporter.labelValueLn("Contract:",
                 String.format("%d/%d passed",
                         func.successes(), func.successes() + func.failures())));
-        sb.append(PUnitReporter.labelValueLn("Latency:",
-                String.format("%d/%d within limit",
-                        lat.dimensionSuccesses(), lat.dimensionSuccesses() + lat.dimensionFailures())));
     }
 }

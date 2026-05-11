@@ -20,7 +20,6 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
-import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.StatisticalAnalysis;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
@@ -432,49 +431,6 @@ class HtmlReportWriterTest {
         }
 
         @Test
-        @DisplayName("passing latency assertion renders with latency-pass class")
-        void passingAssertionRendersGreen() {
-            String html = HtmlReportWriter.generate(List.of(
-                    verdictWithLatencyAssertions(List.of(
-                            new PercentileAssertion("p95", 420, 500, true, false, "explicit")))));
-
-            assertThat(html).contains("class=\"latency-pass\">420ms</td>");
-        }
-
-        @Test
-        @DisplayName("failing latency assertion renders with latency-fail class")
-        void failingAssertionRendersRed() {
-            String html = HtmlReportWriter.generate(List.of(
-                    verdictWithLatencyAssertions(List.of(
-                            new PercentileAssertion("p99", 810, 500, false, false, "explicit")))));
-
-            assertThat(html).contains("class=\"latency-fail\">810ms</td>");
-        }
-
-        @Test
-        @DisplayName("mixed assertions render correct colour per cell")
-        void mixedAssertionsRenderPerCell() {
-            String html = HtmlReportWriter.generate(List.of(
-                    verdictWithLatencyAssertions(List.of(
-                            new PercentileAssertion("p95", 420, 500, true, false, "explicit"),
-                            new PercentileAssertion("p99", 810, 500, false, false, "explicit")))));
-
-            assertThat(html).contains("class=\"latency-observed\">120ms</td>");  // p50 — no assertion, muted
-            assertThat(html).contains("class=\"latency-pass\">420ms</td>");  // p95 — passed
-            assertThat(html).contains("class=\"latency-fail\">810ms</td>");  // p99 — failed
-        }
-
-        @Test
-        @DisplayName("CSS includes latency-pass and latency-fail rules")
-        void cssIncludesLatencyClasses() {
-            String html = HtmlReportWriter.generate(List.of(passingVerdict()));
-
-            assertThat(html).contains(".latency-observed");
-            assertThat(html).contains(".latency-pass");
-            assertThat(html).contains(".latency-fail");
-        }
-
-        @Test
         @DisplayName("unavailable percentile (below-minimum sentinel) renders as a dash")
         void unavailablePercentileRendersAsDash() {
             // p99 below the minimum (100 contributing samples) is
@@ -487,7 +443,7 @@ class HtmlReportWriterTest {
                     120, 340, 420,
                     LatencySection.PERCENTILE_UNAVAILABLE_MS,
                     LatencySection.PERCENTILE_UNAVAILABLE_MS,
-                    List.of(), List.of(), 90, 10
+                    List.of()
             );
             ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdict(
                     base.correlationId(), base.timestamp(), base.identity(), base.execution(),
@@ -633,24 +589,7 @@ class HtmlReportWriterTest {
         LatencyDimension latency = new LatencyDimension(
                 90, 100, false, Optional.empty(),
                 120, 340, 420, 810, 1250,
-                List.of(), List.of(), 90, 10
-        );
-        return new ProbabilisticTestVerdict(
-                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
-                base.functional(), Optional.of(latency),
-                base.statistics(), base.covariates(), base.cost(),
-                base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
-                base.verdictReason()
-        );
-    }
-
-    private ProbabilisticTestVerdict verdictWithLatencyAssertions(List<PercentileAssertion> assertions) {
-        ProbabilisticTestVerdict base = passingVerdict();
-        LatencyDimension latency = new LatencyDimension(
-                90, 100, false, Optional.empty(),
-                120, 340, 420, 810, 1250,
-                assertions, List.of(), 90, 10
+                List.of()
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),

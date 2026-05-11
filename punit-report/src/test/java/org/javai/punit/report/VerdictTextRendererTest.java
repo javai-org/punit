@@ -17,7 +17,6 @@ import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.LatencyDimension;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Misalignment;
-import org.javai.punit.verdict.ProbabilisticTestVerdict.PercentileAssertion;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.SpecProvenance;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.StatisticalAnalysis;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.Termination;
@@ -172,16 +171,6 @@ class VerdictTextRendererTest {
         }
 
         @Test
-        @DisplayName("includes latency assertions when present")
-        void includesLatencyAssertions() {
-            String text = VerdictTextRenderer.renderStatisticalAnalysis(verdictWithLatencyAssertions());
-
-            assertThat(text).contains("Latency assertions:");
-            assertThat(text).contains("p95:");
-            assertThat(text).contains("420ms");
-        }
-
-        @Test
         @DisplayName("includes covariate misalignments when present")
         void includesMisalignments() {
             String text = VerdictTextRenderer.renderStatisticalAnalysis(verdictWithMisalignment());
@@ -247,7 +236,7 @@ class VerdictTextRendererTest {
         LatencyDimension latency = new LatencyDimension(
                 90, 100, false, Optional.empty(),
                 120, 340, 420, 810, 1250,
-                List.of(), List.of(), 90, 10
+                List.of()
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
@@ -265,7 +254,7 @@ class VerdictTextRendererTest {
         LatencyDimension latency = new LatencyDimension(
                 0, 100, true, Optional.of("No successes"),
                 0, 0, 0, 0, 0,
-                List.of(), List.of(), 0, 0
+                List.of()
         );
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), base.identity(), base.execution(),
@@ -299,23 +288,6 @@ class VerdictTextRendererTest {
         );
     }
 
-    private ProbabilisticTestVerdict verdictWithLatencyAssertions() {
-        ProbabilisticTestVerdict base = passingVerdict();
-        LatencyDimension latency = new LatencyDimension(
-                90, 100, false, Optional.empty(),
-                120, 340, 420, 810, 1250,
-                List.of(new PercentileAssertion("p95", 420, 500, true, false, "from baseline")),
-                List.of(), 90, 10
-        );
-        return new ProbabilisticTestVerdict(
-                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
-                base.functional(), Optional.of(latency),
-                base.statistics(), base.covariates(), base.cost(),
-                base.pacing(), base.provenance(), base.termination(),
-                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
-                base.verdictReason()
-        );
-    }
 
     private ProbabilisticTestVerdict verdictWithBundledProvenance() {
         ProbabilisticTestVerdict base = passingVerdict();

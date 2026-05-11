@@ -25,14 +25,6 @@
       <percentile label="p95" value-ms="420"/>
       <percentile label="p99" value-ms="810"/>
     </observed>
-    <evaluations>
-      <evaluation percentile="p95"
-                  observed-ms="420"
-                  threshold-ms="500"
-                  provenance="explicit"
-                  mode="strict"
-                  status="PASS"/>
-    </evaluations>
   </latency>
   <statistics confidence-level="0.95"
               standard-error="0.0218"

@@ -192,24 +192,20 @@ public record ProbabilisticTestVerdict(
             long p95Ms,
             long p99Ms,
             long maxMs,
-            List<PercentileAssertion> assertions,
             List<String> caveats,
-            int dimensionSuccesses,
-            int dimensionFailures,
             String basis
     ) {
         public LatencyDimension {
             skipReason = skipReason != null ? skipReason : Optional.empty();
-            assertions = assertions != null ? List.copyOf(assertions) : List.of();
             caveats = caveats != null ? List.copyOf(caveats) : List.of();
             basis = basis != null ? basis : "passing-samples";
         }
 
         /**
-         * Backward-compatible 13-arg constructor that defaults
+         * Backward-compatible constructor that defaults
          * {@link #basis()} to {@code "passing-samples"} (the only
          * currently defined population). Test fixtures and older
-         * call sites that haven't yet adopted the canonical 14-field
+         * call sites that haven't yet adopted the canonical field
          * shape can construct via this overload.
          */
         public LatencyDimension(
@@ -222,35 +218,12 @@ public record ProbabilisticTestVerdict(
                 long p95Ms,
                 long p99Ms,
                 long maxMs,
-                List<PercentileAssertion> assertions,
-                List<String> caveats,
-                int dimensionSuccesses,
-                int dimensionFailures) {
+                List<String> caveats) {
             this(successfulSamples, totalSamples, skipped, skipReason,
-                    p50Ms, p90Ms, p95Ms, p99Ms, maxMs,
-                    assertions, caveats, dimensionSuccesses, dimensionFailures,
+                    p50Ms, p90Ms, p95Ms, p99Ms, maxMs, caveats,
                     "passing-samples");
         }
     }
-
-    /**
-     * Individual percentile assertion result.
-     *
-     * @param label percentile label (e.g., "p95")
-     * @param observedMs observed value in milliseconds
-     * @param thresholdMs threshold value in milliseconds
-     * @param passed whether observed &lt;= threshold
-     * @param indicative true if sample size is undersized for this percentile
-     * @param source threshold source (e.g., "explicit", "from baseline")
-     */
-    public record PercentileAssertion(
-            String label,
-            long observedMs,
-            long thresholdMs,
-            boolean passed,
-            boolean indicative,
-            String source
-    ) {}
 
     // ── StatisticalAnalysis ───────────────────────────────────────────────
 
