@@ -1,0 +1,34 @@
+{
+  "framework_test_identity": {
+    "class_name": "ShoppingBasketTest",
+    "method_name": "meetsBaseline",
+    "use_case_id": "shopping-basket"
+  },
+  "criteria": [
+    { "kind": "PassRate",          "threshold": 0.9, "origin": "SLA" },
+    { "kind": "PercentileLatency", "spec": { "p95_ms": 500 }, "origin": "SLA", "mode": "strict" }
+  ],
+  "factors": {},
+  "covariates": {
+    "baseline": { "region": "eu-west-1" },
+    "observed": { "region": "eu-west-1" }
+  },
+  "confidence": 0.95,
+  "samples_planned": 100,
+  "samples_executed": 100,
+  "elapsed_ms": 200,
+  "samples_summary": {
+    "successes": 95,
+    "failures": 5,
+    "postcondition_failures": [
+      { "clause": "totals coherent",        "count": 3, "exemplars": ["basket-with-discount-stack"] },
+      { "clause": "discount within bounds", "count": 2, "exemplars": ["basket-with-vip-discount"] }
+    ],
+    "latency_distribution_ms": {
+      "p50": 120,
+      "p90": 340,
+      "p95": 420,
+      "p99": 810
+    }
+  }
+}

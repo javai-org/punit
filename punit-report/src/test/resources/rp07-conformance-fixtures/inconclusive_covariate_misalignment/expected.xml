@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<verdict-record xmlns="http://javai.org/verdict/1.0"
+                version="1.0"
+                timestamp="2026-05-11T12:00:00Z"
+                generator="punit"
+                correlation-id="v:rp07-inconclusive-1">
+  <identity use-case-id="model-generation"
+            test-name="shouldGenerateResponse"/>
+  <execution planned-samples="100"
+             samples-executed="100"
+             successes="93"
+             failures="7"
+             elapsed-ms="150"
+             intent="VERIFICATION"
+             confidence="0.95"/>
+  <statistics confidence-level="0.95"
+              standard-error="0"
+              wilson-lower="0"
+              threshold="0.9000"
+              threshold-origin="UNSPECIFIED"/>
+  <covariates aligned="false">
+    <misalignment key="region"
+                  baseline-value="eu-west-1"
+                  observed-value="eu-west-2"/>
+  </covariates>
+  <termination reason="COMPLETED"/>
+  <cost total-time-ms="150"
+        total-tokens="0"
+        avg-time-per-sample-ms="1"
+        avg-tokens-per-sample="0"/>
+  <verdict value="INCONCLUSIVE"
+           reason="covariate misalignment"/>
+</verdict-record>
