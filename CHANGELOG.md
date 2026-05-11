@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0-alpha5] - 2026-05-11
+
+> **🧪 Experimental release.** Adopts `org.javai:outcome` 0.3.0,
+> which now ships a real `module-info.class`. The build-time
+> `extra-java-module-info` shim that 0.7.0-alpha4 used to wrap
+> outcome as an automatic module is gone, and so is the
+> `org.gradlex.extra-java-module-info` Gradle plugin from
+> `punit-core`. Modular consumers of the published artifact pick up
+> outcome 0.3.0 transitively and `requires org.javai.outcome`
+> resolves to a real named module — no consumer-side shim needed.
+>
+> No source changes. No API changes.
+
+### Changed
+- **`org.javai:outcome` dependency bumped from 0.2.0 to 0.3.0**
+  in both `build.gradle.kts` (root) and `punit-core/build.gradle.kts`.
+  The bump is the headline reason for this release; classpath
+  consumers see nothing new, but the modular-consumer story is now
+  honest end-to-end.
+
+### Removed
+- **`extra-java-module-info` shim and plugin.** `punit-core` no
+  longer applies `org.gradlex.extra-java-module-info` and no longer
+  carries the `extraJavaModuleInfo { automaticModule(...) }` block.
+  With outcome 0.3.0 providing its own descriptor, the shim's exit
+  condition (noted as a `TODO` since alpha4) is met.
+
 ## [0.7.0-alpha4] - 2026-05-11
 
 > **🧪 Experimental release.** The 0.7.x public-surface
@@ -573,7 +600,8 @@ unit testing of non-deterministic systems.
 - Verbose statistical explanation output
 - Gradle plugin (`org.javai.punit`) for test/experiment task configuration
 
-[Unreleased]: https://github.com/javai-org/punit/compare/v0.7.0-alpha4...HEAD
+[Unreleased]: https://github.com/javai-org/punit/compare/v0.7.0-alpha5...HEAD
+[0.7.0-alpha5]: https://github.com/javai-org/punit/compare/v0.7.0-alpha4...v0.7.0-alpha5
 [0.7.0-alpha4]: https://github.com/javai-org/punit/compare/v0.7.0-alpha3...v0.7.0-alpha4
 [0.7.0-alpha3]: https://github.com/javai-org/punit/compare/v0.7.0-alpha2...v0.7.0-alpha3
 [0.7.0-alpha2]: https://github.com/javai-org/punit/compare/v0.7.0-alpha...v0.7.0-alpha2

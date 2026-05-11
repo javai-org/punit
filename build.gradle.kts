@@ -75,7 +75,7 @@ subprojects {
 
     // Outcome - result types for contract postconditions
     // Resolved locally via composite build (settings.gradle.kts), or from Maven Central on CI
-    api("org.javai:outcome:0.2.0")
+    api("org.javai:outcome:0.3.0")
 
     implementation("org.apache.logging.log4j:log4j-api:2.25.4")
     runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.4")
