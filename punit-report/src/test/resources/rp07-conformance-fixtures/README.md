@@ -45,17 +45,41 @@ don't must canonicalise first.
 - Child elements appear in schema declaration order despite
   `<xs:all>` permitting any order — declared order is the canonical
   one.
-- Empty optional elements are **omitted**, not emitted as
-  `<element/>` or `<element></element>`. The schema's "omitted, not
-  emitted empty" convention is observed throughout.
-- `xs:double` values are formatted with at most four significant
-  fractional digits and no trailing zeros beyond what conveys
-  precision (e.g. `0.95`, `0.0218`, `1.6667`).
+- The following elements are emitted *always* when their parent
+  verdict record is produced — even when the contained data is
+  trivially default — to keep the wire format shape-stable across
+  records: `<execution>`, `<statistics>`, `<covariates>`,
+  `<provenance>`, `<termination>`, `<cost>`. Optional attributes
+  on these elements may be empty strings when no value is
+  applicable (e.g. `<provenance origin="SLA" contract-ref=""
+  spec-filename=""/>`).
+- Other optional elements (`<functional>`, `<latency>`,
+  `<baseline>`, `<postcondition-failures>`, `<factors>`,
+  `<warnings>`, `<pacing>`, `<environment>`,
+  `<failure-distribution>`) are emitted only when their dimension
+  carries content. When omitted they are not emitted as empty
+  elements.
+- *Rate-shaped* `xs:double` values — `pass-rate` (functional),
+  `threshold` (statistics), `baseline-rate` and `derived-threshold`
+  (baseline) — are formatted to four fractional digits with
+  trailing-zero padding (e.g. `0.9500`, `0.9000`). The fixed width
+  is the visual cue for "probability/rate in `[0, 1]`."
+- All other `xs:double` values (e.g. `standard-error`,
+  `wilson-lower`, `test-statistic`, `p-value`, `confidence`) are
+  the minimal decimal representation: integer when integral, else
+  the shortest round-trippable form (`0.95`, `0.0218`, `1.6667`,
+  `-1.6667`). Trailing zeros beyond what carries precision are
+  not added.
 - `xs:long` and `xs:int` values are bare decimal integers, no
   thousands separators.
 - `xs:dateTime` values are in UTC with the `Z` suffix
   (`2026-05-11T12:00:00Z`).
 - `xs:boolean` values are `true` / `false`.
+- `<identity>`'s `test-name` is the method name only (the
+  bare framework-test method symbol). The class is conveyed via
+  `use-case-id`. Frameworks that distinguish class and method in
+  their test identity model select one for `test-name`; the
+  reference convention uses the method.
 
 ## Cases
 
