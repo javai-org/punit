@@ -1,4 +1,4 @@
-package org.javai.punit.verdict;
+package org.javai.punit.internal.reporting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,6 +6,9 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import org.javai.punit.internal.reporting.CompositeVerdictSink;
+import org.javai.punit.verdict.PUnitVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.VerdictSink;
 
 /**
  * Singleton-style registry of {@link VerdictSink}s that

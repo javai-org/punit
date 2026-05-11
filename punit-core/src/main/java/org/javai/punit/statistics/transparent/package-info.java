@@ -3,7 +3,7 @@
  *
  * <p>This package provides configuration and symbol constants for transparent
  * statistics output. Rendering is handled by
- * {@link org.javai.punit.verdict.VerdictTextRenderer}.
+ * {@link org.javai.punit.internal.reporting.VerdictTextRenderer}.
  *
  * <h2>Key Components</h2>
  * <ul>

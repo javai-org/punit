@@ -3,6 +3,7 @@ package org.javai.punit.internal.engine.budget;
 import java.util.Optional;
 import org.javai.punit.api.BudgetExhaustedBehavior;
 import org.javai.punit.verdict.TerminationReason;
+import org.javai.punit.verdict.TokenMode;
 
 /**
  * Monitors time and token budgets for a probabilistic test method.
@@ -22,18 +23,6 @@ import org.javai.punit.verdict.TerminationReason;
  * </ul>
  */
 public class CostBudgetMonitor {
-
-    /**
-     * Enum for token charging mode.
-     */
-    public enum TokenMode {
-        /** No token tracking enabled */
-        NONE,
-        /** Fixed token charge per sample */
-        STATIC,
-        /** Dynamic token recording via TokenChargeRecorder */
-        DYNAMIC
-    }
 
     private final long timeBudgetMs;
     private final long tokenBudget;

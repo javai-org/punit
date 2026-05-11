@@ -12,7 +12,7 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
  *
  * <p>Built at the JUnit-extension boundary (where {@code className} and
  * {@code methodName} are knowable via stack walk or the test extension
- * context) and threaded into {@link VerdictAdapter} alongside the
+ * context) and threaded into {@link org.javai.punit.internal.runtime.VerdictAdapter} alongside the
  * {@link ProbabilisticTestResult result}
  * itself. The result captures what happened in the run; this metadata
  * captures who ran it and where.

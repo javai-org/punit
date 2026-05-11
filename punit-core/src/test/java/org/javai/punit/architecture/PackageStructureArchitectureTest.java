@@ -246,25 +246,25 @@ class PackageStructureArchitectureTest {
             // public-named package into internal/* fails.
             //
             // The freeze store is not empty at the moment the rule first
-            // goes live. The namespace move surfaces three pre-existing
-            // categories of cross-boundary dependency that the rename
-            // alone cannot resolve:
+            // goes live. The residue is intra-module access from public
+            // packages into internal packages — which JPMS does not
+            // restrict (export visibility is a cross-module concern only).
+            // The ArchUnit rule is the stricter check; the freeze captures
+            // the legitimate cases:
             //   1. runtime/PUnit drives the engine — by design. PUnit is
             //      the public entry point that orchestrates internals;
             //      its dependencies on internal.engine/, internal.runtime/,
-            //      internal.reporting/, internal.util/ are intentional.
-            //   2. verdict/ types embed engine configuration state
-            //      (CostBudgetMonitor.TokenMode, PacingConfiguration) for
-            //      serialisation. This is package drift: the embedded
-            //      types should live in a public location. Cleanup is
-            //      tracked as follow-up.
-            //   3. api.covariate.CovariateDeclaration reaches into
-            //      internal.util.HashUtils. Small util reach; either
-            //      promote HashUtils' sha256/truncate methods to a public
-            //      location or inline them. Follow-up cleanup.
-            // The freeze captures all three. As each is addressed, the
-            // store shrinks. When empty, the freeze() wrapper can be
-            // removed and the rule becomes a fully-strict live check.
+            //      internal.reporting/, internal.util/ are intentional and
+            //      JPMS-compatible (intra-module).
+            //   2. api.covariate.CovariateDeclaration reaches into
+            //      internal.util.HashUtils for sha256/truncateHash. Small
+            //      util reach; intra-module so JPMS-fine. Could be inlined
+            //      or have HashUtils promoted — neither is blocking.
+            //
+            // The earlier verdict-types-embed-engine-config category was
+            // resolved by promoting TokenMode (→ verdict/) and
+            // PacingConfiguration (→ api/) to their natural public
+            // locations; those entries are no longer in the freeze.
             ArchRule rule = noClasses()
                     .that().resideOutsideOfPackage("org.javai.punit.internal..")
                     .should().dependOnClassesThat()

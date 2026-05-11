@@ -1,4 +1,4 @@
-package org.javai.punit.verdict;
+package org.javai.punit.internal.reporting;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +15,8 @@ import org.javai.punit.statistics.ComplianceEvidenceEvaluator;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
 import org.javai.punit.statistics.transparent.StatisticalVocabulary;
 import org.javai.punit.statistics.transparent.TransparentStatsConfig;
+import org.javai.punit.verdict.PUnitVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.BaselineSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;

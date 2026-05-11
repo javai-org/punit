@@ -1,4 +1,4 @@
-package org.javai.punit.verdict;
+package org.javai.punit.internal.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,8 +20,11 @@ import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
-import org.javai.punit.internal.engine.budget.CostBudgetMonitor.TokenMode;
+import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.TerminationReason;
+import org.javai.punit.verdict.PUnitVerdict;
+import org.javai.punit.verdict.ProbabilisticTestVerdict;
+import org.javai.punit.verdict.RunMetadata;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
