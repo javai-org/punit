@@ -108,11 +108,11 @@ companion where a reader wants the proof.
 ```kotlin
 // build.gradle.kts
 plugins {
-    id("org.javai.punit") version "0.6.0"
+    id("org.javai.punit") version "0.7.0-alpha5"
 }
 
 dependencies {
-    testImplementation("org.javai:punit:0.6.0")
+    testImplementation("org.javai:punit:0.7.0-alpha5")
 }
 ```
 
@@ -565,6 +565,55 @@ The verdict carries everything a developer needs to triage: the
 criterion that failed, the observed rate, the Wilson bound, the
 threshold and its provenance, the most-frequent postcondition
 failures with two example inputs each, and the contract reference.
+
+### Early termination
+
+When the verdict is mathematically determined mid-run, PUnit stops
+sampling. This is **default-on** for any `ProbabilisticTest` whose
+required criterion is a contractual `PassRate.meeting(...)` — the
+threshold is known up front, so after each sample the framework can
+check whether the verdict is already decided:
+
+- **Failure inevitable** — even if every remaining sample passes,
+  the observed rate cannot reach the threshold. The run stops and
+  the verdict is FAIL.
+- **Success guaranteed** — enough samples have already passed that
+  the threshold holds regardless of remaining outcomes, *and* the
+  run has cleared a statistical-validity floor (the minimum sample
+  count for the normal approximation to be meaningful at the
+  threshold). The run stops and the verdict is PASS.
+
+The verdict matches what would have come back from running every
+declared sample — early termination is lossless. The
+`terminationReason` on the verdict surfaces `IMPOSSIBILITY` or
+`SUCCESS_GUARANTEED` so reports can distinguish a short-circuited
+run from one that completed naturally.
+
+Empirical-mode tests (`PassRate.empirical()` /
+`PassRate.empiricalFrom(...)`) resolve their threshold from a
+baseline at evaluate time, so the up-front check has nothing to
+compare against; those runs continue through every declared
+sample. Measure / explore / optimize specs likewise run to
+completion — they have no threshold to short-circuit on.
+
+To opt a contractual test out of early termination (e.g. when the
+full sample count is wanted for a follow-on baseline emission, a
+complete latency distribution, or exhaustive failure exemplars):
+
+```java
+PUnit.testing(sampling, factors)
+        .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
+        .disableEarlyTermination()
+        .assertPasses();
+```
+
+The verdict is unchanged — it depends only on the final pass
+count. The `terminationReason` becomes `COMPLETED`.
+
+This builder method is unrelated to the optimize loop's
+`OptimizeBuilder.disableEarlyTermination()`, which controls a
+different mechanism — a heuristic no-improvement window on the
+optimize side, not the verdict-driven short-circuit here.
 
 ### Transparent statistics
 
@@ -1097,8 +1146,10 @@ public List<Covariate> covariates() {
 }
 ```
 
-Declare custom covariates with a category (`CONFIGURATION` or
-`OPERATIONAL`) and supply a resolver:
+Declare custom covariates with a category from
+`CovariateCategory` — `CONFIGURATION`, `OPERATIONAL`, `TEMPORAL`,
+`EXTERNAL_DEPENDENCY`, `INFRASTRUCTURE`, or `DATA_STATE` — and
+supply a resolver:
 
 ```java
 @Override
@@ -1124,19 +1175,37 @@ must be deterministic for a single run.
 ### Categories
 
 The category tells the framework how strictly to match across baseline
-and test:
+and test. One category is **hard-gated**; the rest are **soft-matched**
+(mismatch surfaces as a warning on the verdict but does not block the
+comparison).
 
-- **`CONFIGURATION`** — a knob the developer set (model, temperature,
-  prompt). PUnit *hard-gates* on these: a baseline measured under
-  `model=gpt-4o` cannot match a test running under `model=gpt-4-turbo`.
-  The verdict comes back INCONCLUSIVE with a misalignment note.
-- **`OPERATIONAL`** — an environmental factor the developer does not
-  control (region, day of week). Mismatches surface as a warning on
-  the verdict but do not block the comparison.
+- **`CONFIGURATION`** *(hard-gated)* — a knob the developer set
+  (model, prompt, temperature). PUnit hard-gates here: a baseline
+  measured under `model=gpt-4o` cannot match a test running under
+  `model=gpt-4-turbo`. The verdict comes back INCONCLUSIVE with a
+  misalignment note. The hard-gate protects against a class of silent
+  bugs where a baseline measured under one configuration is used as
+  the reference for a test under a different one.
+- **`OPERATIONAL`** *(soft-matched)* — an environmental factor the
+  developer does not directly control at the call site (region,
+  timezone, deployment slot).
+- **`TEMPORAL`** *(soft-matched)* — cyclical / time-bound factors
+  affecting behaviour (day of week, time of day).
+- **`EXTERNAL_DEPENDENCY`** *(soft-matched)* — third-party services
+  whose own behaviour may drift between measure and test (upstream
+  API version, vendor model revision).
+- **`INFRASTRUCTURE`** *(soft-matched)* — execution-environment
+  characteristics (cloud provider, instance type).
+- **`DATA_STATE`** *(soft-matched)* — observable state of inputs to
+  the system under test (cache state, index version, training-data
+  snapshot, catalog size).
 
-The hard-gate on CONFIGURATION protects against a class of silent
-bugs where a baseline measured under one configuration is used as
-the reference for a test under a different one.
+The built-in covariate factories (`Covariate.dayOfWeek()`,
+`Covariate.region()`, `Covariate.timeOfDay()`,
+`Covariate.timezone()`) carry their categories internally. Pick the
+category that matches the *cause* of the variation, not the field
+name: a model-version covariate is `CONFIGURATION` if the test author
+sets it, `EXTERNAL_DEPENDENCY` if a vendor controls when it changes.
 
 ### Baseline matching
 
@@ -1376,9 +1445,10 @@ the two halves of the contract.
 
 ### Power and sample sizing
 
-For sample-size planning, PUnit uses normal-asymptotic approximations
-(epistemic status: planning approximation, not theorem). To detect a
-shift from `p_0` to `p_1` at significance `α` and power `1-β`:
+For sample-size planning under the empirical (baseline-driven)
+pathway, PUnit uses normal-asymptotic approximations (epistemic
+status: planning approximation, not theorem). To detect a shift
+from `p_0` to `p_1` at significance `α` and power `1-β`:
 
 ```
             ⎛ z_α · √(p₀(1-p₀))  +  z_β · √(p₁(1-p₁)) ⎞²
@@ -1386,23 +1456,41 @@ shift from `p_0` to `p_1` at significance `α` and power `1-β`:
             ⎝                  p₀ - p₁                 ⎠
 ```
 
-The framework exposes this as `PowerAnalysis.sampleSize(...)`. Power
-calculations are *budgeting* aids — adequate for "is this test worth
-running?" — not exact calibration claims. Companion §5 develops the
-distinction.
+This computation is **internal**. Authors do not call it directly;
+no `power(...)` or `minDetectableEffect(...)` setter is exposed on
+the authoring builders. The framework applies the formula on the
+empirical pathway when sizing a derived baseline against a
+configured confidence — the result feeds the feasibility check
+below. Power calculations are *budgeting* aids — adequate for "is
+this test worth running?" — not exact calibration claims. Companion
+§5 develops the distinction.
 
 ### Feasibility gates
 
-Before a VERIFICATION-intent test runs, the framework checks:
+Before a probabilistic test runs, the framework checks two
+invariants. The check fires for `PassRate` criteria (contractual
+and empirical alike); `PercentileLatency` is skipped pending its
+own feasibility model.
 
-- Is the planned sample size large enough to reach the threshold at
-  the configured confidence?
-- For latency: are there enough successful samples expected to make
-  the asserted percentiles non-degenerate?
+- **Soundness floor (cross-intent).** A configured confidence
+  below the framework's floor (currently **80%**) aborts the run
+  with `IllegalStateException`, **regardless of intent**. A test
+  that cannot make a claim at the floor's confidence level cannot
+  underwrite a verdict, and SMOKE intent does not buy past that.
+- **Sample-size adequacy (intent-gated).** Given the resolved
+  target rate (contractual threshold or baseline-derived rate)
+  and the configured confidence, is the declared sample size
+  large enough to underwrite a verification claim?
+  - Under **VERIFICATION** intent (the default), the run aborts
+    with `IllegalStateException` before any samples execute.
+  - Under **SMOKE** intent the gate is silent — the developer
+    has explicitly declared "I know this is undersized; treat it
+    as a sentinel." No warning, no abort. (The soundness floor
+    above is the one exception.)
 
-If either gate fails, the run is rejected with a configuration error
-before any samples execute. Under SMOKE intent the gates warn but do
-not block.
+The diagnostic on abort names the configuration's shortfall and
+the smallest sample count that would underwrite the claim, so the
+author can either bump samples or rethink the threshold.
 
 ### Further reading
 
@@ -1496,6 +1584,15 @@ once per run; participates in baseline matching.
 **Criterion.** A statistical test the framework runs against a sample
 summary. Pass-rate criteria (`PassRate.meeting`, `PassRate.empirical`)
 and latency criteria (`PercentileLatency.meeting`) are the built-ins.
+
+**Early termination.** A probabilistic test with a contractual
+`PassRate.meeting(...)` criterion short-circuits when the verdict is
+mathematically determined — failure inevitable
+(`IMPOSSIBILITY`) or success guaranteed (`SUCCESS_GUARANTEED`,
+subject to a statistical-validity floor). Default-on; the verdict
+matches what would have come back from running every declared
+sample. Opt out per-test with `.disableEarlyTermination()`.
+Empirical-mode tests run every declared sample.
 
 **Factor.** A configuration knob the developer chooses to vary —
 LLM model, temperature, prompt. Bound at the test/experiment call
