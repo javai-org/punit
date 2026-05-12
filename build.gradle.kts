@@ -64,7 +64,7 @@ subprojects {
     api("org.junit.jupiter:junit-jupiter-api")
 
     // Apache Commons Statistics - for statistical calculations (confidence intervals, distributions)
-    implementation("org.apache.commons:commons-statistics-distribution:1.2")
+    implementation("org.apache.commons:commons-statistics-distribution:1.3")
 
     // SnakeYAML - for YAML serialization in spec generation
     implementation("org.yaml:snakeyaml:2.6")
@@ -77,17 +77,17 @@ subprojects {
     // Resolved locally via composite build (settings.gradle.kts), or from Maven Central on CI
     api("org.javai:outcome:0.3.0")
 
-    implementation("org.apache.logging.log4j:log4j-api:2.25.4")
-    runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.4")
+    implementation("org.apache.logging.log4j:log4j-api:2.26.0")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.26.0")
     // Bridge SLF4J to Log4j2 (some dependencies use SLF4J)
-    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
+    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0")
 
     // Test dependencies
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.junit.platform:junit-platform-testkit")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.25.4")
-    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.26.0")
+    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.2")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
