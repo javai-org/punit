@@ -108,12 +108,12 @@ class SpecificationLoaderTest {
         @Test
         @DisplayName("parses valid YAML with all required fields")
         void parsesValidYaml() {
-            String yaml = createValidYaml("TestUseCase", 0.85);
+            String yaml = createValidYaml("TestServiceContract", 0.85);
             
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
             
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
             assertThat(spec.getMinPassRate()).isEqualTo(0.85);
         }
 
@@ -210,7 +210,7 @@ class SpecificationLoaderTest {
             
             ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
             
-            assertThat(spec.getUseCaseId()).isEqualTo("TestCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestCase");
         }
 
         @Test
@@ -228,7 +228,7 @@ class SpecificationLoaderTest {
             
             ExecutionSpecification spec = SpecificationLoader.parseYaml(sb.toString());
             
-            assertThat(spec.getUseCaseId()).isEqualTo("TestCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestCase");
             assertThat(spec.getApprovalNotes()).isEqualTo("Some notes here");
         }
 
@@ -322,11 +322,11 @@ class SpecificationLoaderTest {
         @Test
         @DisplayName("parses v2 spec without approval metadata")
         void parsesV2WithoutApproval() {
-            String yaml = createV2Yaml("TestUseCase", 1000, 900);
+            String yaml = createV2Yaml("TestServiceContract", 1000, 900);
 
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
 
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
             assertThat(spec.hasApprovalMetadata()).isFalse();
             assertThat(spec.hasEmpiricalBasis()).isTrue();
         }
@@ -334,7 +334,7 @@ class SpecificationLoaderTest {
         @Test
         @DisplayName("parses empiricalBasis section")
         void parsesEmpiricalBasis() {
-            String yaml = createV2Yaml("TestUseCase", 500, 475);
+            String yaml = createV2Yaml("TestServiceContract", 500, 475);
 
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
 
@@ -346,7 +346,7 @@ class SpecificationLoaderTest {
         @Test
         @DisplayName("parses generatedAt at top level")
         void parsesGeneratedAt() {
-            String yaml = createV2Yaml("TestUseCase", 100, 90);
+            String yaml = createV2Yaml("TestServiceContract", 100, 90);
 
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
 

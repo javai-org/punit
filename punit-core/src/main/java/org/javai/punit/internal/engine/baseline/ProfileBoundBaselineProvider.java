@@ -19,7 +19,7 @@ import org.javai.punit.api.spec.BaselineStatistics;
  * against the captured values.
  *
  * <p>The framework constructs one of these per probabilistic-test run
- * after resolving the run's covariate profile from the use case, so
+ * after resolving the run's covariate profile from the service contract, so
  * that {@link ProbabilisticTest#dispatch}
  * implementations can call the convenience overloads on
  * {@code BaselineProvider} and still exercise covariate-aware
@@ -60,7 +60,7 @@ public final class ProfileBoundBaselineProvider implements BaselineProvider {
         if (declarations.isEmpty()) {
             // No covariates declared → no binding needed. Skipping
             // the wrapper keeps stack traces and toString honest for
-            // non-covariate use cases.
+            // non-covariate service contracts.
             return delegate;
         }
         return new ProfileBoundBaselineProvider(delegate,
@@ -69,60 +69,60 @@ public final class ProfileBoundBaselineProvider implements BaselineProvider {
 
     @Override
     public <S extends BaselineStatistics> Optional<S> baselineFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
-        return delegate.baselineFor(useCaseId, factors, criterionName,
+        return delegate.baselineFor(serviceContractId, factors, criterionName,
                 statisticsType, currentProfile, declarations);
     }
 
     @Override
     public Optional<String> baselineInputsIdentityFor(
-            String useCaseId, FactorBundle factors,
+            String serviceContractId, FactorBundle factors,
             CovariateProfile currentProfile, List<Covariate> declarations) {
         return delegate.baselineInputsIdentityFor(
-                useCaseId, factors, currentProfile, declarations);
+                serviceContractId, factors, currentProfile, declarations);
     }
 
     @Override
     public <S extends BaselineStatistics> Optional<S> baselineFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType) {
-        return delegate.baselineFor(useCaseId, factors, criterionName,
+        return delegate.baselineFor(serviceContractId, factors, criterionName,
                 statisticsType, profile, declarations);
     }
 
     @Override
     public Optional<String> baselineInputsIdentityFor(
-            String useCaseId, FactorBundle factors) {
-        return delegate.baselineInputsIdentityFor(useCaseId, factors,
+            String serviceContractId, FactorBundle factors) {
+        return delegate.baselineInputsIdentityFor(serviceContractId, factors,
                 profile, declarations);
     }
 
     @Override
     public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
-        return delegate.baselineLookup(useCaseId, factors, criterionName,
+        return delegate.baselineLookup(serviceContractId, factors, criterionName,
                 statisticsType, currentProfile, declarations);
     }
 
     @Override
     public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType) {
-        return delegate.baselineLookup(useCaseId, factors, criterionName,
+        return delegate.baselineLookup(serviceContractId, factors, criterionName,
                 statisticsType, profile, declarations);
     }
 }

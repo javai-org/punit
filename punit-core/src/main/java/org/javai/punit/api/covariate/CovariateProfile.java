@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The resolved values of a use case's declared covariates at one
+ * The resolved values of a service contract's declared covariates at one
  * point in time.
  *
  * <p>A profile is the snapshot of environmental conditions under which
@@ -22,9 +22,9 @@ import java.util.Optional;
  * apples to oranges; baseline matching uses the profile to find the
  * right baseline (or surface a misalignment when none matches).
  *
- * <p>An empty profile (the result of a use case declaring no
+ * <p>An empty profile (the result of a service contract declaring no
  * covariates) is a valid value — the baseline's identity reduces to
- * the use case alone.
+ * the service contract alone.
  *
  * <p>Insertion order is preserved so callers iterating the profile
  * see entries in the order their declarations were resolved.

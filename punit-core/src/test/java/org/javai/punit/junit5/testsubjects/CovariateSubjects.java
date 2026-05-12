@@ -12,7 +12,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
@@ -20,7 +20,7 @@ import org.javai.punit.runtime.PUnit;
 /**
  * Test subjects for {@link org.javai.punit.junit5.CovariateRoundTripTest}.
  *
- * <p>The use case declares one custom covariate ({@code region}) whose
+ * <p>The service contract declares one custom covariate ({@code region}) whose
  * resolver reads a system property. The test sets the property in
  * {@code @BeforeEach}, runs a measure to stamp a baseline with the
  * resolved value, then runs an empirical test that should resolve
@@ -34,13 +34,13 @@ public final class CovariateSubjects {
     private CovariateSubjects() { }
 
     /**
-     * A use case that always passes and declares a single CONFIGURATION
+     * A service contract that always passes and declares a single CONFIGURATION
      * covariate read from {@link #REGION_PROPERTY}. Hard-gating
      * CONFIGURATION means a test under {@code region=APAC} cannot
      * silently fall back to a baseline measured under {@code region=EU}.
      */
-    private static UseCase<NoFactors, Integer, Boolean> covariateUseCase() {
-        return new UseCase<>() {
+    private static ServiceContract<NoFactors, Integer, Boolean> covariateServiceContract() {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);
@@ -63,7 +63,7 @@ public final class CovariateSubjects {
 
     private static Sampling<NoFactors, Integer, Boolean> sampling(int samples) {
         return Sampling.<NoFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> covariateUseCase())
+                .serviceContractFactory(f -> covariateServiceContract())
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();

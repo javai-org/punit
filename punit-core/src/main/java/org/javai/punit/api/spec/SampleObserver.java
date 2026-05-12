@@ -2,17 +2,17 @@ package org.javai.punit.api.spec;
 
 import java.time.Duration;
 
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContractOutcome;
 
 /**
  * Synchronous sink for individual sample observations. The
  * {@link SampleExecutor} pushes one event per completed sample; the
  * engine's sample-loop aggregator implements this interface.
  *
- * <p>Two event channels: {@link #onSample} fires when the use case
+ * <p>Two event channels: {@link #onSample} fires when the service contract
  * returns normally (with {@link org.javai.outcome.Outcome.Ok Ok} or
  * {@link org.javai.outcome.Outcome.Fail Fail}); {@link #onDefect}
- * fires when the use case throws. The default {@code onDefect}
+ * fires when the service contract throws. The default {@code onDefect}
  * rethrows — preserving the {@code ABORT_TEST} semantics — but the
  * engine's aggregator overrides it for the spec's exception policy.
  *
@@ -27,17 +27,17 @@ import org.javai.punit.api.UseCaseOutcome;
 public interface SampleObserver<OT> {
 
     /**
-     * Invoked after the executor has invoked {@code useCase.apply(input)}
+     * Invoked after the executor has invoked {@code serviceContract.apply(input)}
      * and the invocation returned normally.
      *
      * @param index the 0-based sample index
      * @param outcome the wrapped outcome
      * @param elapsed the wall-clock time the invocation took
      */
-    void onSample(int index, UseCaseOutcome<?, OT> outcome, Duration elapsed);
+    void onSample(int index, ServiceContractOutcome<?, OT> outcome, Duration elapsed);
 
     /**
-     * Invoked when {@code useCase.apply(input)} throws. The default
+     * Invoked when {@code serviceContract.apply(input)} throws. The default
      * rethrows — aborting the run, which is the spec-level default
      * under the typed authoring model. The engine's aggregator
      * overrides this to implement

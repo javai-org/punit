@@ -14,7 +14,7 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.EvaluationContext;
@@ -46,8 +46,8 @@ class CriterionResultDetailTest {
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
     };
 
-    private static UseCaseOutcome<Object, Integer> stubOutcome(int value) {
-        return new UseCaseOutcome<>(
+    private static ServiceContractOutcome<Object, Integer> stubOutcome(int value) {
+        return new ServiceContractOutcome<>(
                 Outcome.ok(value), STUB_CONTRACT,
                 List.of(), Optional.empty(),
                 0L, Duration.ZERO);

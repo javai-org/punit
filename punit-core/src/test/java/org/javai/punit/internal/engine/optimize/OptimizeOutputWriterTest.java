@@ -12,7 +12,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.internal.engine.Engine;
@@ -32,9 +32,9 @@ class OptimizeOutputWriterTest {
 
     record LlmFactors(String model, double temperature) {}
 
-    private static class IdUseCase implements UseCase<LlmFactors, String, Integer> {
+    private static class IdServiceContract implements ServiceContract<LlmFactors, String, Integer> {
         private final String id;
-        IdUseCase(String id) { this.id = id; }
+        IdServiceContract(String id) { this.id = id; }
         @Override public String id() { return id; }
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
@@ -47,7 +47,7 @@ class OptimizeOutputWriterTest {
     void emitterCapturesOneFilePerRun() {
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new IdUseCase("optimize-test"))
+                .serviceContractFactory(f -> new IdServiceContract("optimize-test"))
                 .inputs("a", "bb")
                 .samples(2)
                 .build();
@@ -114,7 +114,7 @@ class OptimizeOutputWriterTest {
     void emitterRejectsWrongKind() {
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new IdUseCase("x"))
+                .serviceContractFactory(f -> new IdServiceContract("x"))
                 .inputs("a")
                 .samples(1)
                 .build();

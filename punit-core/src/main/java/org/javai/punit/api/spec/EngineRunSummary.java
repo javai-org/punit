@@ -13,7 +13,7 @@ import org.javai.punit.api.LatencyResult;
  * latency, termination reason, baseline traceability.
  *
  * <p>This is a digest of {@link SampleSummary}, not a replacement for it.
- * The summary's per-trial detail (the {@link UseCaseOutcome} list, the
+ * The summary's per-trial detail (the {@link ServiceContractOutcome} list, the
  * full {@link Trial} history) is still consumed inside {@code Spec.consume}
  * for criterion evaluation; the {@code EngineRunSummary} preserves only
  * the scalars that need to flow downstream after the spec has finished

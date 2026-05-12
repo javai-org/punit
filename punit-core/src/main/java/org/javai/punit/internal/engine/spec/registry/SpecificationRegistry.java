@@ -16,13 +16,13 @@ import org.javai.punit.internal.engine.spec.model.ExecutionSpecification;
  * <p>Specifications are loaded from the filesystem and cached.
  *
  * <h2>Spec ID Format</h2>
- * <p>Spec IDs are simply the use case ID (e.g., "ShoppingUseCase").
- * Dimension-qualified IDs are also supported (e.g., "ShoppingUseCase.latency").
- * Specs are stored as flat files: {@code punit/specs/{useCaseId}.yaml}
+ * <p>Spec IDs are simply the service contract ID (e.g., "ShoppingServiceContract").
+ * Dimension-qualified IDs are also supported (e.g., "ShoppingServiceContract.latency").
+ * Specs are stored as flat files: {@code punit/specs/{serviceContractId}.yaml}
  *
  * <h2>Dimension-Qualified Resolution</h2>
  * <p>When a spec ID ends with ".latency", the registry looks for a dedicated
- * latency spec file ({@code {useCaseId}.latency.yaml}). If not found, it falls
+ * latency spec file ({@code {serviceContractId}.latency.yaml}). If not found, it falls
  * back to the older single-file spec format and extracts latency data from it.
  */
 public class SpecificationRegistry implements SpecRepository {
@@ -90,7 +90,7 @@ public class SpecificationRegistry implements SpecRepository {
 	/**
 	 * Resolves a specification by its ID, throwing if not found.
 	 *
-	 * @param specId the specification ID (the use case ID, e.g., "ShoppingUseCase")
+	 * @param specId the specification ID (the service contract ID, e.g., "ShoppingServiceContract")
 	 * @return the loaded specification
 	 * @throws SpecificationNotFoundException if not found
 	 * @throws org.javai.punit.internal.engine.spec.model.SpecificationValidationException if invalid

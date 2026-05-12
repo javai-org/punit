@@ -10,14 +10,14 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**
  * Test subjects for the baseline-existence preflight short-circuit.
  *
- * <p>The use case carries a static invoke counter. Tests that exercise
+ * <p>The service contract carries a static invoke counter. Tests that exercise
  * the short-circuit assert the counter ends at zero — the framework
  * must not have driven the engine when the verdict was structurally
  * guaranteed to be INCONCLUSIVE-no-baseline.
@@ -29,9 +29,9 @@ public final class PreflightSubjects {
 
     private PreflightSubjects() { }
 
-    /** Always-passing use case that records every invocation. */
-    private static UseCase<NoFactors, Integer, Boolean> countingUseCase() {
-        return new UseCase<>() {
+    /** Always-passing service contract that records every invocation. */
+    private static ServiceContract<NoFactors, Integer, Boolean> countingServiceContract() {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 INVOKE_COUNT.incrementAndGet();
@@ -43,7 +43,7 @@ public final class PreflightSubjects {
 
     private static Sampling<NoFactors, Integer, Boolean> sampling(int samples) {
         return Sampling.<NoFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> countingUseCase())
+                .serviceContractFactory(f -> countingServiceContract())
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();
@@ -51,7 +51,7 @@ public final class PreflightSubjects {
 
     /**
      * Empirical test against a baseline directory that holds nothing for
-     * this use case → preflight short-circuit, engine never runs, JUnit
+     * this service contract → preflight short-circuit, engine never runs, JUnit
      * aborts.
      */
     public static final class EmpiricalNoBaselineTest {

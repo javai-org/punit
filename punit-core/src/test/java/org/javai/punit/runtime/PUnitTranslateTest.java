@@ -109,8 +109,8 @@ class PUnitTranslateTest {
     }
 
     @Test
-    @DisplayName("INCONCLUSIVE with blank useCaseId → marker without identifier suffix")
-    void inconclusiveBlankUseCaseIdEmitsBareMarker() {
+    @DisplayName("INCONCLUSIVE with blank serviceContractId → marker without identifier suffix")
+    void inconclusiveBlankServiceContractIdEmitsBareMarker() {
         ProbabilisticTestResult result = inconclusiveResult(
                 "no baseline available", List.of(),
                 InconclusiveReasons.NO_BASELINE_AVAILABLE);

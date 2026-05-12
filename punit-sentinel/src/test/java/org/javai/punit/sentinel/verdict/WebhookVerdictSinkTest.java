@@ -16,7 +16,7 @@ class WebhookVerdictSinkTest {
     private static ProbabilisticTestVerdict sampleVerdict() {
         return new ProbabilisticTestVerdictBuilder()
                 .correlationId("v:abc123")
-                .identity("TestClass", "testMethod", "useCase1")
+                .identity("TestClass", "testMethod", "serviceContract1")
                 .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                 .environmentMetadata(Map.of("environment", "staging"))
                 .junitPassed(true)
@@ -70,7 +70,7 @@ class WebhookVerdictSinkTest {
 
             assertThat(json).contains("\"correlationId\":\"v:abc123\"");
             assertThat(json).contains("\"testName\":\"TestClass.testMethod\"");
-            assertThat(json).contains("\"useCaseId\":\"useCase1\"");
+            assertThat(json).contains("\"serviceContractId\":\"serviceContract1\"");
             assertThat(json).contains("\"passed\":true");
             assertThat(json).contains("\"punitVerdict\":\"PASS\"");
         }
@@ -113,7 +113,7 @@ class WebhookVerdictSinkTest {
             String json = WebhookVerdictSink.toJson(verdict);
 
             assertThat(json).contains("\"testName\":\"test\\\"Class.test\\\"Method\"");
-            assertThat(json).contains("\"useCaseId\":\"use\\\"Case\"");
+            assertThat(json).contains("\"serviceContractId\":\"use\\\"Case\"");
         }
 
         @Test
@@ -121,7 +121,7 @@ class WebhookVerdictSinkTest {
         void escapesBackslashesInValues() {
             var verdict = new ProbabilisticTestVerdictBuilder()
                     .correlationId("v:esc002")
-                    .identity("test\\Class", "testMethod", "useCase")
+                    .identity("test\\Class", "testMethod", "serviceContract")
                     .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                     .junitPassed(true)
                     .criterionVerdict(Verdict.PASS)

@@ -6,13 +6,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.javai.punit.api.CovariateCategory;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.internal.util.HashUtils;
 
 /**
- * The set of covariates declared by a use case.
+ * The set of covariates declared by a service contract.
  *
- * <p>A covariate declaration captures which covariates are relevant for a use case:
+ * <p>A covariate declaration captures which covariates are relevant for a service contract:
  * <ul>
  *   <li>Standard covariates with built-in definitions (day groups, time periods, region groups, timezone)</li>
  *   <li>Custom covariates with explicit categories</li>
@@ -34,7 +34,7 @@ import org.javai.punit.internal.util.HashUtils;
  * @param regionGroups the region partition groups
  * @param timezoneEnabled whether timezone identity covariate is active
  * @param customCovariates map of custom covariate key to category
- * @param useCaseAttributes use case attributes (warmup, maxConcurrent, etc.)
+ * @param serviceContractAttributes service contract attributes (warmup, maxConcurrent, etc.)
  */
 public record CovariateDeclaration(
         List<DayGroupDefinition> dayGroups,
@@ -42,7 +42,7 @@ public record CovariateDeclaration(
         List<RegionGroupDefinition> regionGroups,
         boolean timezoneEnabled,
         Map<String, CovariateCategory> customCovariates,
-        UseCaseAttributes useCaseAttributes
+        ServiceContractAttributes serviceContractAttributes
 ) {
 
     /** Implicit covariate key for warmup. */
@@ -65,7 +65,7 @@ public record CovariateDeclaration(
 
     /** An empty covariate declaration. */
     public static final CovariateDeclaration EMPTY = new CovariateDeclaration(
-            List.of(), List.of(), List.of(), false, Map.of(), UseCaseAttributes.DEFAULT);
+            List.of(), List.of(), List.of(), false, Map.of(), ServiceContractAttributes.DEFAULT);
 
     public CovariateDeclaration {
         dayGroups = List.copyOf(dayGroups);
@@ -84,10 +84,10 @@ public record CovariateDeclaration(
      */
     public List<String> allKeys() {
         var keys = new ArrayList<String>();
-        if (useCaseAttributes.hasWarmup()) {
+        if (serviceContractAttributes.hasWarmup()) {
             keys.add(KEY_WARMUP);
         }
-        if (useCaseAttributes.hasMaxConcurrent()) {
+        if (serviceContractAttributes.hasMaxConcurrent()) {
             keys.add(KEY_MAX_CONCURRENT);
         }
         if (!dayGroups.isEmpty()) {
@@ -133,8 +133,8 @@ public record CovariateDeclaration(
      * @return true if all standard covariates are inactive and no custom covariates exist
      */
     public boolean isEmpty() {
-        return !useCaseAttributes.hasWarmup()
-                && !useCaseAttributes.hasMaxConcurrent()
+        return !serviceContractAttributes.hasWarmup()
+                && !serviceContractAttributes.hasMaxConcurrent()
                 && dayGroups.isEmpty()
                 && timePeriods.isEmpty()
                 && regionGroups.isEmpty()
@@ -149,8 +149,8 @@ public record CovariateDeclaration(
      */
     public int size() {
         int count = 0;
-        if (useCaseAttributes.hasWarmup()) count++;
-        if (useCaseAttributes.hasMaxConcurrent()) count++;
+        if (serviceContractAttributes.hasWarmup()) count++;
+        if (serviceContractAttributes.hasMaxConcurrent()) count++;
         if (!dayGroups.isEmpty()) count++;
         if (!timePeriods.isEmpty()) count++;
         if (!regionGroups.isEmpty()) count++;
@@ -178,11 +178,11 @@ public record CovariateDeclaration(
     public CovariateCategory getCategory(String key) {
         return switch (key) {
             case KEY_WARMUP -> {
-                if (!useCaseAttributes.hasWarmup()) throwNotDeclared(key);
+                if (!serviceContractAttributes.hasWarmup()) throwNotDeclared(key);
                 yield CovariateCategory.CONFIGURATION;
             }
             case KEY_MAX_CONCURRENT -> {
-                if (!useCaseAttributes.hasMaxConcurrent()) throwNotDeclared(key);
+                if (!serviceContractAttributes.hasMaxConcurrent()) throwNotDeclared(key);
                 yield CovariateCategory.CONFIGURATION;
             }
             case KEY_DAY_OF_WEEK -> {
@@ -218,8 +218,8 @@ public record CovariateDeclaration(
      */
     public boolean contains(String key) {
         return switch (key) {
-            case KEY_WARMUP -> useCaseAttributes.hasWarmup();
-            case KEY_MAX_CONCURRENT -> useCaseAttributes.hasMaxConcurrent();
+            case KEY_WARMUP -> serviceContractAttributes.hasWarmup();
+            case KEY_MAX_CONCURRENT -> serviceContractAttributes.hasMaxConcurrent();
             case KEY_DAY_OF_WEEK -> !dayGroups.isEmpty();
             case KEY_TIME_OF_DAY -> !timePeriods.isEmpty();
             case KEY_REGION -> !regionGroups.isEmpty();

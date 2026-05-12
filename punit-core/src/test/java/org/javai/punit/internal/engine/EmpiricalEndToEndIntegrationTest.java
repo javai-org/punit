@@ -12,7 +12,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.internal.engine.criteria.PassRate;
@@ -36,7 +36,7 @@ class EmpiricalEndToEndIntegrationTest {
     private static final Factors FACTORS = new Factors("gpt-4o", 0.0);
     private static final String USE_CASE_ID = "always-passes-use-case";
 
-    static class AlwaysPassesUseCase implements UseCase<Factors, Integer, Boolean> {
+    static class AlwaysPassesServiceContract implements ServiceContract<Factors, Integer, Boolean> {
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(true);
@@ -46,7 +46,7 @@ class EmpiricalEndToEndIntegrationTest {
 
     private static Sampling<Factors, Integer, Boolean> sampling(int samples) {
         return Sampling.<Factors, Integer, Boolean>builder()
-                .useCaseFactory(f -> new AlwaysPassesUseCase())
+                .serviceContractFactory(f -> new AlwaysPassesServiceContract())
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();

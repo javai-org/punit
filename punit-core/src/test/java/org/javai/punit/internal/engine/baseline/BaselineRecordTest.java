@@ -20,15 +20,15 @@ class BaselineRecordTest {
             Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000));
 
     @Test
-    @DisplayName("filename is {useCaseId}.{methodName}-{factorsFingerprint}.yaml")
+    @DisplayName("filename is {serviceContractId}.{methodName}-{factorsFingerprint}.yaml")
     void filename() {
         BaselineRecord record = new BaselineRecord(
-                "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",
+                "ShoppingBasketServiceContract", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 ONE_ENTRY);
 
         assertThat(record.filename())
-                .isEqualTo("ShoppingBasketUseCase.measureBaseline-a1b2c3d4.yaml");
+                .isEqualTo("ShoppingBasketServiceContract.measureBaseline-a1b2c3d4.yaml");
     }
 
     @Test
@@ -101,7 +101,7 @@ class BaselineRecordTest {
         profile.put("region", "DE_FR");
 
         BaselineRecord record = new BaselineRecord(
-                "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",
+                "ShoppingBasketServiceContract", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 ONE_ENTRY,
                 CovariateProfile.of(profile));
@@ -110,7 +110,7 @@ class BaselineRecordTest {
         String regionHash = CovariateHashing.hashOne("region", "DE_FR");
 
         assertThat(record.filename())
-                .isEqualTo("ShoppingBasketUseCase.measureBaseline-a1b2c3d4-"
+                .isEqualTo("ShoppingBasketServiceContract.measureBaseline-a1b2c3d4-"
                         + dowHash + "-" + regionHash + ".yaml");
     }
 
@@ -118,12 +118,12 @@ class BaselineRecordTest {
     @DisplayName("filename for empty covariate profile is the covariate-insensitive form")
     void filenameUnchangedWhenProfileEmpty() {
         BaselineRecord record = new BaselineRecord(
-                "ShoppingBasketUseCase", "measureBaseline", "a1b2c3d4",
+                "ShoppingBasketServiceContract", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 ONE_ENTRY,
                 CovariateProfile.empty());
 
         assertThat(record.filename())
-                .isEqualTo("ShoppingBasketUseCase.measureBaseline-a1b2c3d4.yaml");
+                .isEqualTo("ShoppingBasketServiceContract.measureBaseline-a1b2c3d4.yaml");
     }
 }

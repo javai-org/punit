@@ -9,7 +9,7 @@ import java.util.Set;
  * A named group of days forming a single partition for the day-of-week covariate.
  *
  * <p>Days within a group are considered statistically equivalent. For example,
- * grouping Saturday and Sunday declares that the use case behaves similarly
+ * grouping Saturday and Sunday declares that the service contract behaves similarly
  * on both days.
  *
  * @param days the days in this group (non-empty, immutable)

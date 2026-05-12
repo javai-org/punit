@@ -13,7 +13,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PerConfigSummary;
 import org.javai.punit.internal.engine.Engine;
@@ -35,8 +35,8 @@ class ExploreOutputWriterTest {
 
     record LlmFactors(String model, double temperature) {}
 
-    /** Always-passing use case. Output type is the input length, for trivial sampling. */
-    private static class LengthUseCase implements UseCase<LlmFactors, String, Integer> {
+    /** Always-passing service contract. Output type is the input length, for trivial sampling. */
+    private static class LengthServiceContract implements ServiceContract<LlmFactors, String, Integer> {
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
@@ -50,7 +50,7 @@ class ExploreOutputWriterTest {
         // real PerConfigSummary, then feed the writer directly.
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new LengthUseCase())
+                .serviceContractFactory(f -> new LengthServiceContract())
                 .inputs("a", "bb")
                 .samples(2)
                 .build();
@@ -63,14 +63,14 @@ class ExploreOutputWriterTest {
         FactorBundle bundle = FactorBundle.of(entry.factors());
 
         ExploreOutputWriter writer = new ExploreOutputWriter();
-        String yaml = writer.writeYaml("LengthUseCase", bundle, entry);
+        String yaml = writer.writeYaml("LengthServiceContract", bundle, entry);
 
         Map<String, Object> parsed = new Yaml().load(yaml);
         assertThat(parsed).containsKeys(
                 "schemaVersion", "useCaseId", "generatedAt",
                 "factors", "execution", "statistics", "cost", "resultProjection");
         assertThat(parsed).containsEntry("schemaVersion", "punit-spec-1");
-        assertThat(parsed).containsEntry("useCaseId", "LengthUseCase");
+        assertThat(parsed).containsEntry("useCaseId", "LengthServiceContract");
 
         @SuppressWarnings("unchecked")
         Map<String, Object> factors = (Map<String, Object>) parsed.get("factors");
@@ -94,7 +94,7 @@ class ExploreOutputWriterTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> sample0 = (Map<String, Object>) projection.get("sample[0]");
         // Per-sample fields: input, postconditions, executionTimeMs;
-        // content present on success, failureDetail on failure (LengthUseCase
+        // content present on success, failureDetail on failure (LengthServiceContract
         // never fails so content is the expected key here).
         assertThat(sample0).containsKeys("inputIndex", "postconditions", "executionTimeMs", "content");
         assertThat(sample0).doesNotContainKey("input");
@@ -114,7 +114,7 @@ class ExploreOutputWriterTest {
     void anchorsAreContentDeterministic() {
         Sampling<LlmFactors, String, Integer> sampling1 = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new LengthUseCase())
+                .serviceContractFactory(f -> new LengthServiceContract())
                 .inputs("a", "bb")
                 .samples(2)
                 .build();
@@ -125,7 +125,7 @@ class ExploreOutputWriterTest {
 
         Sampling<LlmFactors, String, Integer> sampling2 = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new LengthUseCase())
+                .serviceContractFactory(f -> new LengthServiceContract())
                 .inputs("a", "bb")
                 .samples(2)
                 .build();
@@ -135,10 +135,10 @@ class ExploreOutputWriterTest {
         new Engine().run(run2);
 
         ExploreOutputWriter writer = new ExploreOutputWriter();
-        String yaml1 = writer.writeYaml("LengthUseCase",
+        String yaml1 = writer.writeYaml("LengthServiceContract",
                 FactorBundle.of(run1.perConfigSummaries().get(0).factors()),
                 run1.perConfigSummaries().get(0));
-        String yaml2 = writer.writeYaml("LengthUseCase",
+        String yaml2 = writer.writeYaml("LengthServiceContract",
                 FactorBundle.of(run2.perConfigSummaries().get(0).factors()),
                 run2.perConfigSummaries().get(0));
 
@@ -176,11 +176,11 @@ class ExploreOutputWriterTest {
     }
 
     @Test
-    @DisplayName("ExploreEmitter writes one entry per FT to the in-memory sink, keyed by useCaseId/{stem}.yaml")
+    @DisplayName("ExploreEmitter writes one entry per FT to the in-memory sink, keyed by serviceContractId/{stem}.yaml")
     void emitterCapturesOnePerConfig() {
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new IdUseCase("explore-test"))
+                .serviceContractFactory(f -> new IdServiceContract("explore-test"))
                 .inputs("x", "y")
                 .samples(2)
                 .build();
@@ -212,7 +212,7 @@ class ExploreOutputWriterTest {
     void emitterRejectsWrongKind() {
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new LengthUseCase())
+                .serviceContractFactory(f -> new LengthServiceContract())
                 .inputs("a")
                 .samples(1)
                 .build();
@@ -227,10 +227,10 @@ class ExploreOutputWriterTest {
         throw new AssertionError("expected IllegalArgumentException for non-EXPLORE experiment");
     }
 
-    /** Use case with a configured id, useful for asserting on the emitted relative path. */
-    private static final class IdUseCase implements UseCase<LlmFactors, String, Integer> {
+    /** Service contract with a configured id, useful for asserting on the emitted relative path. */
+    private static final class IdServiceContract implements ServiceContract<LlmFactors, String, Integer> {
         private final String id;
-        IdUseCase(String id) { this.id = id; }
+        IdServiceContract(String id) { this.id = id; }
         @Override public String id() { return id; }
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {

@@ -6,19 +6,19 @@ import java.util.Optional;
 /**
  * Outcome of comparing an expected value against an actual value —
  * the instance-conformance signal for a single sample. Produced by a
- * {@link ValueMatcher} and attached to a {@link UseCaseOutcome} via
- * {@link UseCaseOutcome#withMatch(MatchResult)}.
+ * {@link ValueMatcher} and attached to a {@link ServiceContractOutcome} via
+ * {@link ServiceContractOutcome#withMatch(MatchResult)}.
  *
  * <p>{@code expected} and {@code actual} are carried as {@code Object}
  * rather than a parameterised type so that matchers over projections
  * (e.g. "expected the status field of the response") can be expressed
- * without introducing another type parameter on {@link UseCaseOutcome}.
+ * without introducing another type parameter on {@link ServiceContractOutcome}.
  * Author discipline covers the typed-match case.
  *
  * @param description human-readable label of what was compared
  *                    (e.g. {@code "translation equals reference"})
  * @param expected the expected value the author declared
- * @param actual the value produced by the use case invocation
+ * @param actual the value produced by the service contract invocation
  * @param matches {@code true} when the matcher classified the two as
  *                equivalent
  * @param diff optional human-readable description of the difference;

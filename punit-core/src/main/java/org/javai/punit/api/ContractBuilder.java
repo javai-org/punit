@@ -25,7 +25,7 @@ import org.javai.outcome.Outcome;
  *             t.actions().isEmpty()
  *                     ? Outcome.fail("empty-actions", "actions list was empty")
  *                     : Outcome.ok())
- *      .ensure("All actions known", ShoppingBasketUseCase::allKnown)
+ *      .ensure("All actions known", ShoppingBasketServiceContract::allKnown)
  *      .deriving("Resolves to catalog SKUs",
  *             t -> resolveAgainstCatalog(t.actions()),
  *             sub -> sub

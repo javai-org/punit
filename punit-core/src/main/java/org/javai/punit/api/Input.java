@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
  *
  * <p>In most experiment methods this annotation is unnecessary. The framework
  * auto-detects the input parameter by excluding known framework types
- * (UseCase, {@link TokenChargeRecorder}) and annotated parameters
+ * (ServiceContract, {@link TokenChargeRecorder}) and annotated parameters
  * ({@link Factor @Factor}, {@link ControlFactor @ControlFactor}).
  * When exactly one candidate remains, it receives the input automatically.
  *
@@ -20,10 +20,10 @@ import java.lang.annotation.Target;
  *
  * <h2>Example</h2>
  * <pre>{@code
- * @ExploreExperiment(useCase = MyUseCase.class, samplesPerConfig = 10)
+ * @ExploreExperiment(serviceContract = MyServiceContract.class, samplesPerConfig = 10)
  * @InputSource(file = "golden/instructions.json")
  * void explore(
- *         MyUseCase useCase,
+ *         MyServiceContract serviceContract,
  *         @Input GoldenInput input,   // disambiguates — Context would be chosen otherwise
  *         Context context
  * ) { ... }

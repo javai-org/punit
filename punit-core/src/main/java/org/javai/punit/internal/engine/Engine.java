@@ -12,8 +12,8 @@ import java.util.Optional;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.MatchResult;
-import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContract;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.Configuration;
 import org.javai.punit.api.spec.EarlyTerminationContext;
@@ -88,7 +88,7 @@ public final class Engine {
         int cycleStart = 0;
         while (it.hasNext()) {
             Configuration<FT, IT, OT> cfg = it.next();
-            UseCase<FT, IT, OT> uc = spec.useCaseFactory().apply(cfg.factors());
+            ServiceContract<FT, IT, OT> uc = spec.serviceContractFactory().apply(cfg.factors());
             SampleSummary<OT> summary = runConfig(spec, uc, cfg, cycleStart);
             spec.consume(cfg, summary);
             cycleStart = (cycleStart + summary.total()) % cfg.inputs().size();
@@ -98,14 +98,14 @@ public final class Engine {
 
     private <FT, IT, OT> SampleSummary<OT> runConfig(
             TypedSpec<FT, IT, OT> spec,
-            UseCase<FT, IT, OT> useCase,
+            ServiceContract<FT, IT, OT> serviceContract,
             Configuration<FT, IT, OT> cfg,
             int cycleStart) {
 
         BudgetTracker tracker = new BudgetTracker(
                 spec.timeBudget(), spec.tokenBudget(), spec.tokenCharge());
         Aggregator<IT, OT> agg = new Aggregator<>(
-                useCase,
+                serviceContract,
                 cfg.inputs(),
                 cycleStart,
                 spec.exceptionPolicy(),
@@ -116,7 +116,7 @@ public final class Engine {
 
         long t0 = System.nanoTime();
         executor.runSamples(
-                useCase,
+                serviceContract,
                 cfg.inputs(),
                 cfg.expected(),
                 spec.matcher(),
@@ -136,7 +136,7 @@ public final class Engine {
      */
     private static final class Aggregator<IT, OT> implements SampleObserver<OT> {
 
-        private final UseCase<?, IT, OT> useCase;
+        private final ServiceContract<?, IT, OT> serviceContract;
         private final List<IT> inputs;
         private final int cycleStart;
         private final ExceptionPolicy exceptionPolicy;
@@ -151,14 +151,14 @@ public final class Engine {
         // from every sample so the all-samples latency stats never
         // skew on drop. passingForLatency holds durations from samples
         // that passed (Outcome.Ok at the contract layer per
-        // UseCaseOutcome.value()), feeding the passing-only descriptive
+        // ServiceContractOutcome.value()), feeding the passing-only descriptive
         // percentiles emitted into baseline, exploration, optimize,
         // and verdict artefacts. trials carries the full ordered
         // (input, outcome, duration) history regardless of the failure
         // cap.
-        private final List<UseCaseOutcome<?, OT>> retained = new ArrayList<>();
-        private final List<UseCaseOutcome<?, OT>> allForLatency = new ArrayList<>();
-        private final List<UseCaseOutcome<?, OT>> passingForLatency = new ArrayList<>();
+        private final List<ServiceContractOutcome<?, OT>> retained = new ArrayList<>();
+        private final List<ServiceContractOutcome<?, OT>> allForLatency = new ArrayList<>();
+        private final List<ServiceContractOutcome<?, OT>> passingForLatency = new ArrayList<>();
         private final List<Trial<?, OT>> trials = new ArrayList<>();
         private final LinkedHashMap<String, MutableFailureBucket> failuresByPostcondition =
                 new LinkedHashMap<>();
@@ -169,7 +169,7 @@ public final class Engine {
         private long tokensConsumed = 0L;
         private int failuresDropped = 0;
 
-        Aggregator(UseCase<?, IT, OT> useCase,
+        Aggregator(ServiceContract<?, IT, OT> serviceContract,
                    List<IT> inputs,
                    int cycleStart,
                    ExceptionPolicy exceptionPolicy,
@@ -177,7 +177,7 @@ public final class Engine {
                    BudgetTracker tracker,
                    Optional<EarlyTerminationContext> earlyTermination,
                    int plannedSamples) {
-            this.useCase = useCase;
+            this.serviceContract = serviceContract;
             this.inputs = inputs;
             this.cycleStart = cycleStart;
             this.exceptionPolicy = exceptionPolicy;
@@ -201,11 +201,11 @@ public final class Engine {
         }
 
         @Override
-        public void onSample(int index, UseCaseOutcome<?, OT> outcome, Duration elapsed) {
+        public void onSample(int index, ServiceContractOutcome<?, OT> outcome, Duration elapsed) {
             // The outcome already carries duration, tokens, postcondition
             // results, and the optional match (set by Contract.apply form 3
             // when the executor is configured for matching). The classifier
-            // adds the optional duration violation by reading useCase.maxLatency().
+            // adds the optional duration violation by reading serviceContract.maxLatency().
             record(index, outcome, classify(outcome));
         }
 
@@ -223,9 +223,9 @@ public final class Engine {
                 throw new RuntimeException(throwable);
             }
             // FAIL_SAMPLE: synthesise a failing outcome and continue.
-            UseCaseOutcome<IT, OT> synthetic = new UseCaseOutcome<>(
+            ServiceContractOutcome<IT, OT> synthetic = new ServiceContractOutcome<>(
                     Outcome.fail("defect", throwable.toString()),
-                    useCase,
+                    serviceContract,
                     List.of(),
                     Optional.empty(),
                     0L,
@@ -233,17 +233,17 @@ public final class Engine {
             record(index, synthetic, classify(synthetic));
         }
 
-        private SampleClassification classify(UseCaseOutcome<?, OT> outcome) {
-            // SampleClassification.classify wants UseCaseOutcome<I, OT>; the
+        private SampleClassification classify(ServiceContractOutcome<?, OT> outcome) {
+            // SampleClassification.classify wants ServiceContractOutcome<I, OT>; the
             // wildcard at this site is safe because all outcomes flowing
             // through this aggregator come from the executor, which only
-            // produces UseCaseOutcome<IT, OT>.
+            // produces ServiceContractOutcome<IT, OT>.
             @SuppressWarnings("unchecked")
-            UseCaseOutcome<IT, OT> typed = (UseCaseOutcome<IT, OT>) outcome;
-            return SampleClassification.classify(useCase, typed);
+            ServiceContractOutcome<IT, OT> typed = (ServiceContractOutcome<IT, OT>) outcome;
+            return SampleClassification.classify(serviceContract, typed);
         }
 
-        private void record(int index, UseCaseOutcome<?, OT> stamped,
+        private void record(int index, ServiceContractOutcome<?, OT> stamped,
                             SampleClassification classification) {
             tracker.recordSampleTokens(classification.tokens());
             allForLatency.add(stamped);
@@ -326,12 +326,12 @@ public final class Engine {
             final List<FailureExemplar> exemplars = new ArrayList<>();
         }
 
-        private <I> Trial<IT, OT> trialFor(int index, UseCaseOutcome<I, OT> stamped) {
-            // Trial<IT, OT> requires UseCaseOutcome<IT, OT>; the wildcard
+        private <I> Trial<IT, OT> trialFor(int index, ServiceContractOutcome<I, OT> stamped) {
+            // Trial<IT, OT> requires ServiceContractOutcome<IT, OT>; the wildcard
             // carrier in onSample loses that I; we know the executor only
-            // ever supplies UseCaseOutcome<IT, OT> so this is safe.
+            // ever supplies ServiceContractOutcome<IT, OT> so this is safe.
             @SuppressWarnings("unchecked")
-            UseCaseOutcome<IT, OT> typed = (UseCaseOutcome<IT, OT>) stamped;
+            ServiceContractOutcome<IT, OT> typed = (ServiceContractOutcome<IT, OT>) stamped;
             int inputIndex = cycleIndexFor(index);
             return new Trial<>(inputs.get(inputIndex), typed, stamped.duration(), inputIndex);
         }

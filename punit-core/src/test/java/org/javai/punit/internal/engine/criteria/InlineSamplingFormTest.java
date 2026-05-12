@@ -8,7 +8,7 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
@@ -20,7 +20,7 @@ class InlineSamplingFormTest {
 
     record Factors(String label) {}
 
-    private static final UseCase<Factors, String, String> ECHO = new UseCase<>() {
+    private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
         @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
@@ -28,7 +28,7 @@ class InlineSamplingFormTest {
     };
 
     @Test
-    @DisplayName("Experiment.measuring(useCase, factors) builds a measure with inline sampling")
+    @DisplayName("Experiment.measuring(serviceContract, factors) builds a measure with inline sampling")
     void measureInlineForm() {
         Experiment spec = Experiment.measuring(f -> ECHO, new Factors("m"))
                 .inputs("a", "b", "c")
@@ -42,7 +42,7 @@ class InlineSamplingFormTest {
     }
 
     @Test
-    @DisplayName("Experiment.exploring(useCase) builds an explore with inline sampling")
+    @DisplayName("Experiment.exploring(serviceContract) builds an explore with inline sampling")
     void exploreInlineForm() {
         Experiment spec = Experiment.exploring((Factors f) -> ECHO)
                 .inputs("a", "b")
@@ -55,7 +55,7 @@ class InlineSamplingFormTest {
     }
 
     @Test
-    @DisplayName("Experiment.optimizing(useCase) builds an optimize with inline sampling")
+    @DisplayName("Experiment.optimizing(serviceContract) builds an optimize with inline sampling")
     void optimizeInlineForm() {
         Experiment spec = Experiment.optimizing((Factors f) -> ECHO)
                 .inputs("a")
@@ -74,7 +74,7 @@ class InlineSamplingFormTest {
     @DisplayName("inline measure rejects null factory at the entry point")
     void measureInlineRejectsNullFactory() {
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> Experiment.measuring((java.util.function.Function<Factors, UseCase<Factors, String, String>>) null,
+                .isThrownBy(() -> Experiment.measuring((java.util.function.Function<Factors, ServiceContract<Factors, String, String>>) null,
                         new Factors("m")));
     }
 
@@ -88,7 +88,7 @@ class InlineSamplingFormTest {
     }
 
     @Test
-    @DisplayName("ProbabilisticTest.testing(useCase, factors) inline form works for contractual criteria")
+    @DisplayName("ProbabilisticTest.testing(serviceContract, factors) inline form works for contractual criteria")
     void contractualInlineFormBuilds() {
         ProbabilisticTest spec = ProbabilisticTest.testing((Factors f) -> ECHO, new Factors("m"))
                 .inputs("a", "b")

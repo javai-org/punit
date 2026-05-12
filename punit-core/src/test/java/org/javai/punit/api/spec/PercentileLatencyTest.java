@@ -15,7 +15,7 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +33,7 @@ class PercentileLatencyTest {
 
     private static SampleSummary<String> summary(LatencyResult latency, int successes, int failures) {
         int total = successes + failures;
-        var outcomes = new java.util.ArrayList<UseCaseOutcome<?, String>>(total);
+        var outcomes = new java.util.ArrayList<ServiceContractOutcome<?, String>>(total);
         for (int i = 0; i < successes; i++) outcomes.add(stubOutcome(Outcome.ok("ok")));
         for (int i = 0; i < failures; i++) outcomes.add(stubOutcome(Outcome.fail("nope", "msg")));
         return new SampleSummary<>(
@@ -45,8 +45,8 @@ class PercentileLatencyTest {
                 List.of());
     }
 
-    private static UseCaseOutcome<Object, String> stubOutcome(Outcome<String> result) {
-        return new UseCaseOutcome<>(
+    private static ServiceContractOutcome<Object, String> stubOutcome(Outcome<String> result) {
+        return new ServiceContractOutcome<>(
                 result, STUB_CONTRACT,
                 List.of(), Optional.empty(),
                 0L, Duration.ZERO);

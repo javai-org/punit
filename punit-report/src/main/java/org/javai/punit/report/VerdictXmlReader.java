@@ -15,7 +15,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PUnitVerdict;
@@ -92,12 +92,12 @@ public final class VerdictXmlReader {
     }
 
     private TestIdentity readIdentity(Element el) {
-        String useCaseId = el.getAttribute("use-case-id");
+        String serviceContractId = el.getAttribute("use-case-id");
         Optional<String> testName = optionalAttribute(el, "test-name");
         // Map verdict-XML identity back to punit's class-name / method-name model
-        String className = useCaseId;
-        String methodName = testName.orElse(useCaseId);
-        return new TestIdentity(className, methodName, Optional.of(useCaseId));
+        String className = serviceContractId;
+        String methodName = testName.orElse(serviceContractId);
+        return new TestIdentity(className, methodName, Optional.of(serviceContractId));
     }
 
     private ExecutionSummary readExecution(Element el) {
@@ -117,7 +117,7 @@ public final class VerdictXmlReader {
                 0.0, // min-pass-rate not in the verdict-XML standard, filled from statistics threshold
                 observedPassRate,
                 elapsedMs, Optional.empty(), intent, confidence,
-                new UseCaseAttributes(warmup)
+                new ServiceContractAttributes(warmup)
         );
     }
 

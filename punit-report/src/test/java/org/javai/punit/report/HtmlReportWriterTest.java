@@ -12,7 +12,7 @@ import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.internal.engine.emit.LatencySection;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CostSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CovariateStatus;
@@ -208,8 +208,8 @@ class HtmlReportWriterTest {
 
         @Test
         @DisplayName("groups by use-case-id when present")
-        void groupsByUseCaseId() {
-            ProbabilisticTestVerdict verdict = verdictWithUseCaseId("payment-gateway");
+        void groupsByServiceContractId() {
+            ProbabilisticTestVerdict verdict = verdictWithServiceContractId("payment-gateway");
 
             String html = HtmlReportWriter.generate(List.of(verdict));
 
@@ -554,7 +554,7 @@ class HtmlReportWriterTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", methodName, Optional.empty()),
                 new ExecutionSummary(100, 100, 95, 5, 0.9, 0.95, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(), Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948,
                         Optional.of(2.29), Optional.of(0.011),
@@ -601,10 +601,10 @@ class HtmlReportWriterTest {
         );
     }
 
-    private ProbabilisticTestVerdict verdictWithUseCaseId(String useCaseId) {
+    private ProbabilisticTestVerdict verdictWithServiceContractId(String serviceContractId) {
         ProbabilisticTestVerdict base = passingVerdict();
         TestIdentity identity = new TestIdentity(
-                base.identity().className(), base.identity().methodName(), Optional.of(useCaseId));
+                base.identity().className(), base.identity().methodName(), Optional.of(serviceContractId));
         return new ProbabilisticTestVerdict(
                 base.correlationId(), base.timestamp(), identity, base.execution(),
                 base.functional(), base.latency(),

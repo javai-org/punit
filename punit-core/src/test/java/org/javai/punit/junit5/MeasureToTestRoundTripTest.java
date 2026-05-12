@@ -76,7 +76,7 @@ class MeasureToTestRoundTripTest {
         // Hand-write a baseline at p=0.5 — chosen so the test's Wilson lower
         // bound (on always-passing samples) clears it, producing PASS. Using
         // a baseline-emitted file would tie the test to whatever rate the
-        // emitter recorded, and an always-passes use case at n=20 has Wilson
+        // emitter recorded, and an always-passes service contract at n=20 has Wilson
         // lower bound ≈ 0.88 — clears 0.5 comfortably; cannot clear 1.0.
         writeBaselineAt(baselineDir, 0.5, 50);
         System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
@@ -89,7 +89,7 @@ class MeasureToTestRoundTripTest {
     @DisplayName("full pipeline: emission → resolution → assertion in two JUnit invocations")
     void fullRoundTrip(@TempDir Path baselineDir) throws IOException {
         // Phase 1 — emit a baseline via PUnit.measuring(...).run().
-        // The use case here passes always; the recorded rate will be 1.0,
+        // The service contract here passes always; the recorded rate will be 1.0,
         // which is too tight a threshold for a Wilson-bound test to clear.
         // We overwrite with a hand-written 0.5 baseline so Phase 2 can pass.
         System.setProperty(BaselineResolver.BASELINE_DIR_PROPERTY, baselineDir.toString());
@@ -103,7 +103,7 @@ class MeasureToTestRoundTripTest {
 
         // Phase 1.5 — overwrite with a baseline whose rate the Wilson bound
         // can clear. Real-world authors would simply observe a lower rate
-        // through their use case; this in-test substitution decouples the
+        // through their service contract; this in-test substitution decouples the
         // pipeline-under-test from the use-case design.
         writeBaselineAt(baselineDir, 0.5, 50);
 

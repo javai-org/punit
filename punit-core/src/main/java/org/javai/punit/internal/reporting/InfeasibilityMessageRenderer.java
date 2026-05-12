@@ -22,7 +22,7 @@ public final class InfeasibilityMessageRenderer {
      * non-statisticians. When true, includes the full statistical context
      * (criterion, confidence, alpha, assumptions).
      *
-     * @param testName the test identity (use case id) — appears verbatim
+     * @param testName the test identity (service contract id) — appears verbatim
      *                 in the output
      * @param result   the infeasible evaluation result
      * @param verbose  true for full statistical detail, false for summary
@@ -81,7 +81,7 @@ public final class InfeasibilityMessageRenderer {
      * VERIFICATION"} message: that one is intent-gated (silent under
      * SMOKE); the soundness-floor breach fires under SMOKE too.
      *
-     * @param testName the test identity (use case id) — appears
+     * @param testName the test identity (service contract id) — appears
      *                 verbatim in the output
      * @param confidence the configured confidence level that breached
      *                   the floor

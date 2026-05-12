@@ -15,7 +15,7 @@ import org.javai.punit.api.covariate.CovariateAlignment;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ValueMatcher;
 
 /**
@@ -55,7 +55,7 @@ public final class ProbabilisticTest implements Spec {
      * {@link Experiment#measuring(Sampling, Object) Experiment.measuring(...)}.
      * The shared reference is what guarantees the test and the
      * baseline are drawn from the same sampling population — same
-     * use case, same input list, same governors. Without that
+     * service contract, same input list, same governors. Without that
      * sameness, the empirical comparison is statistically
      * incoherent.
      *
@@ -107,9 +107,9 @@ public final class ProbabilisticTest implements Spec {
      * helper-extraction pattern.
      */
     public static <FT, IT, OT> InlineBuilder<FT, IT, OT> testing(
-            Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
+            Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory, FT factors) {
         return new InlineBuilder<>(
-                Objects.requireNonNull(useCaseFactory, "useCaseFactory"),
+                Objects.requireNonNull(serviceContractFactory, "serviceContractFactory"),
                 Objects.requireNonNull(factors, "factors"));
     }
 
@@ -156,8 +156,8 @@ public final class ProbabilisticTest implements Spec {
             this.earlyTerminationDisabled = b.earlyTerminationDisabled;
         }
 
-        @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-            return sampling.useCaseFactory();
+        @Override public Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory() {
+            return sampling.serviceContractFactory();
         }
 
         @Override public Optional<ValueMatcher<OT>> matcher() { return matcher; }
@@ -177,12 +177,12 @@ public final class ProbabilisticTest implements Spec {
                     ? summary
                     : SampleSummary.from(List.of(), Duration.ZERO);
             FactorBundle factorBundle = FactorBundle.of(factors);
-            String useCaseId = sampling.useCaseFactory().apply(factors).id();
+            String serviceContractId = sampling.serviceContractFactory().apply(factors).id();
             String testInputsIdentity = sampling.inputsIdentity();
             // Looked up once and reused across criteria — the identity is a
             // property of the baseline file, not of any individual criterion.
             Optional<String> baselineInputsIdentity = anyEmpiricalCriterion()
-                    ? provider.baselineInputsIdentityFor(useCaseId, factorBundle)
+                    ? provider.baselineInputsIdentityFor(serviceContractId, factorBundle)
                     : Optional.empty();
 
             List<EvaluatedCriterion> evaluated = new ArrayList<>(registered.size());
@@ -194,7 +194,7 @@ public final class ProbabilisticTest implements Spec {
             java.util.LinkedHashSet<String> warnings = new java.util.LinkedHashSet<>();
             // The matched baseline's covariate profile. All empirical
             // criteria that resolve a baseline for the same
-            // (useCaseId, factorsFingerprint) tuple resolve the same
+            // (serviceContractId, factorsFingerprint) tuple resolve the same
             // file, so the first non-empty profile we see is the one
             // for the run. Stamped onto the result so verdict
             // renderers / HTML emitters can compare against the
@@ -202,13 +202,13 @@ public final class ProbabilisticTest implements Spec {
             CovariateProfile baselineProfile =
                     CovariateProfile.empty();
             // Same logic as baselineProfile: every empirical criterion
-            // that resolves for the same (useCaseId, factorsFingerprint)
+            // that resolves for the same (serviceContractId, factorsFingerprint)
             // tuple sees the same baseline file, so first-non-empty wins.
             Optional<String> baselineFilename = Optional.empty();
             for (Registered<OT> entry : registered) {
                 BaselineLookupCapture capture = new BaselineLookupCapture();
                 CriterionResult result = evaluate(
-                        entry.criterion(), s, factorBundle, useCaseId,
+                        entry.criterion(), s, factorBundle, serviceContractId,
                         testInputsIdentity, baselineInputsIdentity,
                         provider, warnings, capture);
                 evaluated.add(new EvaluatedCriterion(result, entry.role()));
@@ -276,7 +276,7 @@ public final class ProbabilisticTest implements Spec {
          * Kept off {@link CriterionResult} because the matched-baseline
          * profile is a lookup-side concern, not a criterion-semantic
          * concern — every empirical criterion that resolves a
-         * baseline for the same {@code (useCaseId, factorsFingerprint)}
+         * baseline for the same {@code (serviceContractId, factorsFingerprint)}
          * tuple sees the same profile, so the data belongs to the
          * run, not to any one criterion.
          */
@@ -300,7 +300,7 @@ public final class ProbabilisticTest implements Spec {
                 Criterion<OT, ?> criterion,
                 SampleSummary<OT> s,
                 FactorBundle factorBundle,
-                String useCaseId,
+                String serviceContractId,
                 String testInputsIdentity,
                 Optional<String> baselineInputsIdentity,
                 BaselineProvider provider,
@@ -310,7 +310,7 @@ public final class ProbabilisticTest implements Spec {
             Optional<? extends BaselineStatistics> resolved;
             if (criterion.isEmpirical()) {
                 BaselineLookup<? extends BaselineStatistics> lookup = provider.baselineLookup(
-                        useCaseId, factorBundle, criterion.name(), criterion.statisticsType());
+                        serviceContractId, factorBundle, criterion.name(), criterion.statisticsType());
                 resolved = lookup.selected();
                 warnings.addAll(lookup.notes());
                 capture.profile = lookup.baselineProfile();
@@ -481,7 +481,7 @@ public final class ProbabilisticTest implements Spec {
      */
     public static final class InlineBuilder<FT, IT, OT> {
 
-        private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+        private final Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory;
         private final FT factors;
         private List<IT> inputs;
         private int samples = 1000;
@@ -497,8 +497,8 @@ public final class ProbabilisticTest implements Spec {
         private TestIntent intent = TestIntent.VERIFICATION;
         private boolean earlyTerminationDisabled = false;
 
-        private InlineBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
-            this.useCaseFactory = useCaseFactory;
+        private InlineBuilder(Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory, FT factors) {
+            this.serviceContractFactory = serviceContractFactory;
             this.factors = factors;
         }
 
@@ -626,12 +626,12 @@ public final class ProbabilisticTest implements Spec {
                             "An empirical criterion (" + r.criterion().name() + ") requires "
                                     + "the probabilistic test to share a Sampling with its "
                                     + "baseline measure. The inline ProbabilisticTest.testing("
-                                    + "useCaseFactory, factors) form cannot guarantee that "
+                                    + "serviceContractFactory, factors) form cannot guarantee that "
                                     + "structural pairing.\n\n"
                                     + "Extract the sampling as a helper and use the "
                                     + "Sampling-bound entry point at both call sites:\n"
                                     + "    private Sampling<F, I, O> sampling(int samples) {\n"
-                                    + "        return Sampling.of(useCaseFactory, samples, inputs);\n"
+                                    + "        return Sampling.of(serviceContractFactory, samples, inputs);\n"
                                     + "    }\n"
                                     + "    @PUnitExperiment Experiment baseline() {\n"
                                     + "        return Experiment.measuring(sampling(1000), factors).build();\n"
@@ -648,7 +648,7 @@ public final class ProbabilisticTest implements Spec {
                         "inputs is required — call .inputs(...) before .build()");
             }
             Sampling.Builder<FT, IT, OT> sb = Sampling.<FT, IT, OT>builder()
-                    .useCaseFactory(useCaseFactory)
+                    .serviceContractFactory(serviceContractFactory)
                     .inputs(inputs)
                     .samples(samples);
             timeBudget.ifPresent(sb::timeBudget);

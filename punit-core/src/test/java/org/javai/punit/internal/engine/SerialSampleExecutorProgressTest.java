@@ -12,8 +12,8 @@ import java.util.Optional;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContract;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.api.spec.SampleObserver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,8 +49,8 @@ class SerialSampleExecutorProgressTest {
         System.setOut(originalOut);
     }
 
-    /** Use case whose outcome alternates pass/fail by input parity. */
-    private static final class AlternatingUseCase implements UseCase<Void, Integer, String> {
+    /** Service contract whose outcome alternates pass/fail by input parity. */
+    private static final class AlternatingServiceContract implements ServiceContract<Void, Integer, String> {
         @Override public String id() { return "Alternating"; }
         @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
@@ -65,7 +65,7 @@ class SerialSampleExecutorProgressTest {
     @Test
     @DisplayName("emits one [PUNIT-PROGRESS] m/n line after every sample, regardless of pass/fail")
     void emitsCounterPerSample() {
-        runWith(new AlternatingUseCase(), List.of(0, 1, 2, 3));
+        runWith(new AlternatingServiceContract(), List.of(0, 1, 2, 3));
 
         // 4 samples → 4 newline-terminated lines, each prefixed with the marker.
         // System.out.println uses the platform line separator; assert using lines().
@@ -82,7 +82,7 @@ class SerialSampleExecutorProgressTest {
     @DisplayName("width-pads the numerator to the decimal width of the total — keeps the "
             + "rendered counter aligned regardless of where the consumer renders it")
     void widthPadsNumerator() {
-        runWith(new AlternatingUseCase(), List.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+        runWith(new AlternatingServiceContract(), List.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
         // total = 11 → width = 2; numerator padded with one leading space for single digits.
         assertThat(captured.toString(StandardCharsets.UTF_8).lines().toList())
@@ -94,9 +94,9 @@ class SerialSampleExecutorProgressTest {
     }
 
     @Test
-    @DisplayName("a defect (use case throws) still advances the counter")
+    @DisplayName("a defect (service contract throws) still advances the counter")
     void defectAlsoAdvancesCounter() {
-        UseCase<Void, Integer, String> alwaysThrows = new UseCase<>() {
+        ServiceContract<Void, Integer, String> alwaysThrows = new ServiceContract<>() {
             @Override public String id() { return "AlwaysThrows"; }
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
@@ -114,7 +114,7 @@ class SerialSampleExecutorProgressTest {
     @DisplayName("each emission is flushed before the next sample begins — no buffering across "
             + "samples, which is the property the feature exists to provide")
     void eachEmissionFlushedImmediately() {
-        UseCase<Void, Integer, String> counterPeek = new UseCase<>() {
+        ServiceContract<Void, Integer, String> counterPeek = new ServiceContract<>() {
             @Override public String id() { return "CounterPeek"; }
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
@@ -134,9 +134,9 @@ class SerialSampleExecutorProgressTest {
                         MARKER + "1/4", MARKER + "2/4", MARKER + "3/4", MARKER + "4/4");
     }
 
-    private void runWith(UseCase<Void, Integer, String> useCase, List<Integer> inputs) {
+    private void runWith(ServiceContract<Void, Integer, String> serviceContract, List<Integer> inputs) {
         new SerialSampleExecutor().runSamples(
-                useCase,
+                serviceContract,
                 inputs,
                 List.of(),
                 Optional.empty(),
@@ -149,7 +149,7 @@ class SerialSampleExecutorProgressTest {
     /** Observer that records nothing — the test asserts on stdout only. */
     private static final class IgnoringObserver implements SampleObserver<String> {
         @Override
-        public void onSample(int index, UseCaseOutcome<?, String> outcome, Duration elapsed) { }
+        public void onSample(int index, ServiceContractOutcome<?, String> outcome, Duration elapsed) { }
 
         @Override
         public void onDefect(int index, Throwable throwable, Duration elapsed) { }

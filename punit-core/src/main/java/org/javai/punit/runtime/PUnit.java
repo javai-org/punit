@@ -21,7 +21,7 @@ import org.javai.punit.internal.runtime.TestIdentityResolver;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ValueMatcher;
 import org.javai.punit.api.spec.BaselineLookup;
 import org.javai.punit.api.spec.BaselineProvider;
@@ -109,7 +109,7 @@ public final class PUnit {
 
     /**
      * Factor-less form of {@link #testing(Sampling, Object)} — for
-     * use cases whose behaviour does not depend on factor values.
+     * service contracts whose behaviour does not depend on factor values.
      * Equivalent to {@code testing(sampling, NoFactors.INSTANCE)}.
      * The sampling's {@code FT} must be {@link NoFactors}.
      */
@@ -137,7 +137,7 @@ public final class PUnit {
 
     /**
      * Factor-less form of {@link #measuring(Sampling, Object)} — for
-     * use cases whose behaviour does not depend on factor values.
+     * service contracts whose behaviour does not depend on factor values.
      * Equivalent to {@code measuring(sampling, NoFactors.INSTANCE)}.
      * The sampling's {@code FT} must be {@link NoFactors}.
      */
@@ -201,13 +201,13 @@ public final class PUnit {
      */
     private static <S extends BaselineStatistics> BaselineLookup<S> probeBaseline(
             BaselineProvider provider,
-            String useCaseId,
+            String serviceContractId,
             FactorBundle bundle,
             Criterion<?, S> criterion,
             CovariateProfile profile,
             List<Covariate> declarations) {
         return provider.baselineLookup(
-                useCaseId, bundle, criterion.name(),
+                serviceContractId, bundle, criterion.name(),
                 criterion.statisticsType(), profile, declarations);
     }
 
@@ -216,7 +216,7 @@ public final class PUnit {
      * profile-bound decorator carrying the run's covariate profile,
      * so the engine and pre-flight feasibility see covariate-aware
      * baseline lookups. {@link ProfileBoundBaselineProvider#bind}
-     * returns the wrapped delegate unchanged when the use case
+     * returns the wrapped delegate unchanged when the service contract
      * declared no covariates, so non-covariate tests pay no cost
      * here.
      */
@@ -232,13 +232,13 @@ public final class PUnit {
                     return provider;
                 }
                 FT factors = configs.next().factors();
-                UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
-                List<Covariate> declarations = useCase.covariates();
+                ServiceContract<FT, IT, OT> serviceContract = typed.serviceContractFactory().apply(factors);
+                List<Covariate> declarations = serviceContract.covariates();
                 if (declarations.isEmpty()) {
                     return provider;
                 }
                 CovariateProfile profile = CovariateResolver.defaults()
-                        .resolve(declarations, useCase.customCovariateResolvers());
+                        .resolve(declarations, serviceContract.customCovariateResolvers());
                 return ProfileBoundBaselineProvider.bind(provider, profile, declarations);
             }
         });
@@ -249,7 +249,7 @@ public final class PUnit {
      * dispatches it through {@link VerdictSinkBus}. Identity comes
      * from {@link TestIdentityResolver} (stack walk for the nearest
      * {@link org.javai.punit.api.ProbabilisticTest @ProbabilisticTest}
-     * frame); falls back to {@code (useCaseId, useCaseId)} when the
+     * frame); falls back to {@code (serviceContractId, serviceContractId)} when the
      * resolver finds no annotated frame (e.g. hand-driven tests).
      *
      * <p>Installs the default sink — discovered via {@code ServiceLoader}
@@ -260,18 +260,18 @@ public final class PUnit {
      * sinks the caller has registered explicitly. Idempotent; tests
      * can override via {@link VerdictSinkBus#replaceAll}.
      */
-    private static void emitVerdict(ProbabilisticTestResult result, String fallbackUseCaseId) {
+    private static void emitVerdict(ProbabilisticTestResult result, String fallbackServiceContractId) {
         ServiceLoader.load(VerdictSink.class)
                 .findFirst()
                 .ifPresent(sink -> VerdictSinkBus.installDefaultSink(() -> sink));
         RunMetadata meta = TestIdentityResolver.resolve()
                 .orElseGet(() -> RunMetadata.of(
-                        fallbackUseCaseId, fallbackUseCaseId, fallbackUseCaseId));
+                        fallbackServiceContractId, fallbackServiceContractId, fallbackServiceContractId));
         ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(result, meta);
         VerdictSinkBus.dispatch(verdict);
     }
 
-    static void translate(ProbabilisticTestResult result, String useCaseId) {
+    static void translate(ProbabilisticTestResult result, String serviceContractId) {
         Verdict verdict = result.verdict();
         if (verdict == Verdict.PASS) {
             return;
@@ -287,7 +287,7 @@ public final class PUnit {
             // Mirrors the PASS-with-warnings stderr emission so the
             // operator's view of an INCONCLUSIVE run is symmetric with
             // PASS and FAIL.
-            emitInconclusiveDiagnostics(result, useCaseId, message);
+            emitInconclusiveDiagnostics(result, serviceContractId, message);
             // The covariate-alignment contract has three INCONCLUSIVE
             // sub-cases that we resolve here — see the project's
             // covariate-misalignment trichotomy:
@@ -317,10 +317,10 @@ public final class PUnit {
     }
 
     private static void emitInconclusiveDiagnostics(
-            ProbabilisticTestResult result, String useCaseId, String message) {
-        String header = useCaseId == null || useCaseId.isBlank()
+            ProbabilisticTestResult result, String serviceContractId, String message) {
+        String header = serviceContractId == null || serviceContractId.isBlank()
                 ? "[PUNIT-INCONCLUSIVE]"
-                : "[PUNIT-INCONCLUSIVE] " + useCaseId;
+                : "[PUNIT-INCONCLUSIVE] " + serviceContractId;
         System.err.println(header);
         System.err.println(message);
     }
@@ -650,7 +650,7 @@ public final class PUnit {
          *   <li>Default: off.</li>
          * </ol>
          *
-         * <p>Use case: audit / compliance documentation where the
+         * <p>Service contract: audit / compliance documentation where the
          * statistical reasoning behind a passing verdict has to be
          * shown, not just inferred from the absence of a failure.
          */
@@ -685,10 +685,10 @@ public final class PUnit {
 
         public void assertPasses() {
             ProbabilisticTest spec = build();
-            UseCase<FT, IT, OT> useCase = sampling.useCaseFactory().apply(factors);
-            String useCaseId = useCase.id();
-            CovariateProfile observed = resolveCovariates(useCase);
-            BaselineProvider provider = boundProvider(useCase, observed);
+            ServiceContract<FT, IT, OT> serviceContract = sampling.serviceContractFactory().apply(factors);
+            String serviceContractId = serviceContract.id();
+            CovariateProfile observed = resolveCovariates(serviceContract);
+            BaselineProvider provider = boundProvider(serviceContract, observed);
 
             // Existence probe runs before sampling: when any required
             // empirical criterion has no resolvable baseline the verdict
@@ -700,16 +700,16 @@ public final class PUnit {
             // pipeline the post-sampling path uses; the operator-visible
             // diagnostic is byte-equivalent modulo samplesExecuted = 0.
             Optional<ProbabilisticTestResult> shortCircuit =
-                    baselineExistencePreflight(useCase, observed, provider);
+                    baselineExistencePreflight(serviceContract, observed, provider);
             if (shortCircuit.isPresent()) {
                 ProbabilisticTestResult synthesised = shortCircuit.get();
                 maybeRenderTransparentStats(synthesised);
-                emitVerdict(synthesised, useCaseId);
-                translate(synthesised, useCaseId);
+                emitVerdict(synthesised, serviceContractId);
+                translate(synthesised, serviceContractId);
                 return;
             }
 
-            List<String> warnings = preflightFeasibility(useCase, provider);
+            List<String> warnings = preflightFeasibility(serviceContract, provider);
             EngineResult result = drive(spec);
             if (!(result instanceof ProbabilisticTestResult typed)) {
                 throw new IllegalStateException(
@@ -725,32 +725,32 @@ public final class PUnit {
                                     observed, typed.covariates().baseline()))
                     .withContractRef(contractRef);
             maybeRenderTransparentStats(stamped);
-            emitVerdict(stamped, useCaseId);
-            translate(stamped, useCaseId);
+            emitVerdict(stamped, serviceContractId);
+            translate(stamped, serviceContractId);
         }
 
         private void maybeRenderTransparentStats(ProbabilisticTestResult result) {
             if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
                 return;
             }
-            String testIdentity = sampling.useCaseFactory().apply(factors).id();
+            String testIdentity = sampling.serviceContractFactory().apply(factors).id();
             System.err.println(TransparentStatsRenderer.render(testIdentity, result));
         }
 
-        private CovariateProfile resolveCovariates(UseCase<FT, IT, OT> useCase) {
-            List<Covariate> declarations = useCase.covariates();
+        private CovariateProfile resolveCovariates(ServiceContract<FT, IT, OT> serviceContract) {
+            List<Covariate> declarations = serviceContract.covariates();
             if (declarations.isEmpty()) {
                 return CovariateProfile.empty();
             }
             return CovariateResolver.defaults()
-                    .resolve(declarations, useCase.customCovariateResolvers());
+                    .resolve(declarations, serviceContract.customCovariateResolvers());
         }
 
         private BaselineProvider boundProvider(
-                UseCase<FT, IT, OT> useCase, CovariateProfile observed) {
+                ServiceContract<FT, IT, OT> serviceContract, CovariateProfile observed) {
             BaselineProvider raw = BaselineProviderResolver.resolve();
             return ProfileBoundBaselineProvider.bind(
-                    raw, observed, useCase.covariates());
+                    raw, observed, serviceContract.covariates());
         }
 
         /**
@@ -768,12 +768,12 @@ public final class PUnit {
          * from the "no candidates at all" legitimate-skip ABORT.
          */
         private Optional<ProbabilisticTestResult> baselineExistencePreflight(
-                UseCase<FT, IT, OT> useCase,
+                ServiceContract<FT, IT, OT> serviceContract,
                 CovariateProfile observed,
                 BaselineProvider provider) {
-            String useCaseId = useCase.id();
+            String serviceContractId = serviceContract.id();
             FactorBundle bundle = FactorBundle.of(factors);
-            List<Covariate> declarations = useCase.covariates();
+            List<Covariate> declarations = serviceContract.covariates();
             List<EvaluatedCriterion> noBaselineResults = new ArrayList<>();
             List<String> notes = new ArrayList<>();
             for (Criterion<OT, ?> c : requiredCriteria) {
@@ -781,7 +781,7 @@ public final class PUnit {
                     continue;
                 }
                 BaselineLookup<?> lookup = probeBaseline(
-                        provider, useCaseId, bundle, c, observed, declarations);
+                        provider, serviceContractId, bundle, c, observed, declarations);
                 if (lookup.selected().isPresent()) {
                     continue;
                 }
@@ -815,13 +815,13 @@ public final class PUnit {
         }
 
         private List<String> preflightFeasibility(
-                UseCase<FT, IT, OT> useCase, BaselineProvider provider) {
-            String useCaseId = useCase.id();
+                ServiceContract<FT, IT, OT> serviceContract, BaselineProvider provider) {
+            String serviceContractId = serviceContract.id();
             FactorBundle bundle = FactorBundle.of(factors);
             List<String> warnings = new ArrayList<>();
             for (Criterion<OT, ?> c : requiredCriteria) {
                 warnings.addAll(Feasibility.check(
-                        sampling.samples(), c, useCaseId, bundle, intent, provider));
+                        sampling.samples(), c, serviceContractId, bundle, intent, provider));
             }
             return warnings;
         }
@@ -915,8 +915,8 @@ public final class PUnit {
             if (shortCircuit.isPresent()) {
                 ProbabilisticTestResult synthesised = shortCircuit.get();
                 maybeRenderTransparentStats(ctx, synthesised);
-                emitVerdict(synthesised, ctx.useCaseId);
-                translate(synthesised, ctx.useCaseId);
+                emitVerdict(synthesised, ctx.serviceContractId);
+                translate(synthesised, ctx.serviceContractId);
                 return;
             }
 
@@ -932,18 +932,18 @@ public final class PUnit {
                                     ctx.profile, typed.covariates().baseline()))
                     .withContractRef(contractRef);
             maybeRenderTransparentStats(ctx, stamped);
-            emitVerdict(stamped, ctx.useCaseId);
-            translate(stamped, ctx.useCaseId);
+            emitVerdict(stamped, ctx.serviceContractId);
+            translate(stamped, ctx.serviceContractId);
         }
 
         /**
          * Captures the per-run state every preflight step needs:
-         * useCaseId, factor bundle, configured samples, resolved
+         * serviceContractId, factor bundle, configured samples, resolved
          * covariate profile, declarations, and a profile-bound
          * baseline provider.
          */
         private static final class SpecContext {
-            final String useCaseId;
+            final String serviceContractId;
             final FactorBundle bundle;
             final int samples;
             final CovariateProfile profile;
@@ -951,10 +951,10 @@ public final class PUnit {
             final BaselineProvider provider;
             final FactorBundle resultFactors;
 
-            SpecContext(String useCaseId, FactorBundle bundle, int samples,
+            SpecContext(String serviceContractId, FactorBundle bundle, int samples,
                     CovariateProfile profile, List<Covariate> declarations,
                     BaselineProvider provider, FactorBundle resultFactors) {
-                this.useCaseId = useCaseId;
+                this.serviceContractId = serviceContractId;
                 this.bundle = bundle;
                 this.samples = samples;
                 this.profile = profile;
@@ -971,17 +971,17 @@ public final class PUnit {
                 public <FT, IT, OT> SpecContext apply(TypedSpec<FT, IT, OT> typed) {
                     var cfg = typed.configurations().next();
                     FT factors = cfg.factors();
-                    UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
+                    ServiceContract<FT, IT, OT> serviceContract = typed.serviceContractFactory().apply(factors);
                     FactorBundle bundle = FactorBundle.of(factors);
-                    List<Covariate> declarations = useCase.covariates();
+                    List<Covariate> declarations = serviceContract.covariates();
                     CovariateProfile profile = declarations.isEmpty()
                             ? CovariateProfile.empty()
                             : CovariateResolver.defaults()
-                                    .resolve(declarations, useCase.customCovariateResolvers());
+                                    .resolve(declarations, serviceContract.customCovariateResolvers());
                     BaselineProvider provider = ProfileBoundBaselineProvider.bind(
                             raw, profile, declarations);
                     return new SpecContext(
-                            useCase.id(), bundle, cfg.samples(),
+                            serviceContract.id(), bundle, cfg.samples(),
                             profile, declarations, provider, bundle);
                 }
             });
@@ -994,7 +994,7 @@ public final class PUnit {
             // .criterion(...) time, so the wildcarded cast is safe.
             Criterion<Object, ?> c = (Criterion<Object, ?>) criterion;
             BaselineLookup<?> lookup = probeBaseline(
-                    ctx.provider, ctx.useCaseId, ctx.bundle,
+                    ctx.provider, ctx.serviceContractId, ctx.bundle,
                     c, ctx.profile, ctx.declarations);
             if (lookup.selected().isPresent()) {
                 return Optional.empty();
@@ -1029,7 +1029,7 @@ public final class PUnit {
             return new ArrayList<>(Feasibility.check(
                     ctx.samples,
                     (Criterion<Object, ?>) criterion,
-                    ctx.useCaseId, ctx.bundle, intent, ctx.provider));
+                    ctx.serviceContractId, ctx.bundle, intent, ctx.provider));
         }
 
         private void maybeRenderTransparentStats(
@@ -1037,7 +1037,7 @@ public final class PUnit {
             if (!TransparentStatsConfig.resolve(transparentStatsOverride).enabled()) {
                 return;
             }
-            System.err.println(TransparentStatsRenderer.render(ctx.useCaseId, result));
+            System.err.println(TransparentStatsRenderer.render(ctx.serviceContractId, result));
         }
     }
 }

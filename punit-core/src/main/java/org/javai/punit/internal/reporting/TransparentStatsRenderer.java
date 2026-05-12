@@ -16,7 +16,7 @@ import org.javai.punit.api.spec.Verdict;
 
 /**
  * Verbose statistical breakdown of a {@link ProbabilisticTestResult}
- * for the audit / compliance use case where the reasoning behind a
+ * for the audit / compliance service contract where the reasoning behind a
  * verdict — including a passing one — has to be visible.
  *
  * <p>Authors opt in via
@@ -106,7 +106,7 @@ public final class TransparentStatsRenderer {
         CovariateProfile observed = alignment.observed();
         CovariateProfile baseline = alignment.baseline();
         if (observed.isEmpty() && baseline.isEmpty()) {
-            // Nothing to say — the use case declared no covariates
+            // Nothing to say — the service contract declared no covariates
             // and no baseline was matched. Skip the section.
             return;
         }

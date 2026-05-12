@@ -92,9 +92,9 @@ public final class VerdictXmlWriter {
 
     private void writeIdentity(XMLStreamWriter w, TestIdentity id) throws XMLStreamException {
         w.writeStartElement("identity");
-        // verdict-XML: use-case-id is required. Map from useCaseId if present, else className.
-        String useCaseId = id.useCaseId().orElse(id.className());
-        w.writeAttribute("use-case-id", useCaseId);
+        // verdict-XML: use-case-id is required. Map from serviceContractId if present, else className.
+        String serviceContractId = id.serviceContractId().orElse(id.className());
+        w.writeAttribute("use-case-id", serviceContractId);
         w.writeAttribute("test-name", id.methodName());
         w.writeEndElement();
     }

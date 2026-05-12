@@ -32,7 +32,7 @@ class ExpirationEvaluatorTest {
         @DisplayName("should return NoExpiration for spec without policy")
         void shouldReturnNoExpirationForSpecWithoutPolicy() {
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .build();
             
             ExpirationStatus status = ExpirationEvaluator.evaluate(spec);
@@ -44,7 +44,7 @@ class ExpirationEvaluatorTest {
         @DisplayName("should return NoExpiration for spec with no-expiration policy")
         void shouldReturnNoExpirationForNoExpirationPolicy() {
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(ExpirationPolicy.noExpiration())
                 .build();
             
@@ -58,7 +58,7 @@ class ExpirationEvaluatorTest {
         void shouldReturnValidForFreshBaseline() {
             var endTime = Instant.now();
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, endTime)
                 .build();
             
@@ -72,7 +72,7 @@ class ExpirationEvaluatorTest {
         void shouldReturnExpiredForOldBaseline() {
             var endTime = Instant.now().minus(Duration.ofDays(35));
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, endTime)
                 .build();
             
@@ -92,7 +92,7 @@ class ExpirationEvaluatorTest {
         void shouldEvaluateAtSpecifiedTime() {
             var endTime = Instant.parse("2026-01-01T00:00:00Z");
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, endTime)
                 .build();
             
@@ -118,7 +118,7 @@ class ExpirationEvaluatorTest {
         @DisplayName("hasExpiration() should return true for spec with policy")
         void hasExpirationShouldReturnTrueForPolicy() {
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, Instant.now())
                 .build();
             
@@ -129,7 +129,7 @@ class ExpirationEvaluatorTest {
         @DisplayName("isExpired() should return false for fresh baseline")
         void isExpiredShouldReturnFalseForFresh() {
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, Instant.now())
                 .build();
             
@@ -141,7 +141,7 @@ class ExpirationEvaluatorTest {
         void isExpiredShouldReturnTrueForOld() {
             var endTime = Instant.now().minus(Duration.ofDays(35));
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, endTime)
                 .build();
             
@@ -152,7 +152,7 @@ class ExpirationEvaluatorTest {
         @DisplayName("requiresWarning() should return false for Valid baseline")
         void requiresWarningShouldReturnFalseForValid() {
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, Instant.now())
                 .build();
             
@@ -164,7 +164,7 @@ class ExpirationEvaluatorTest {
         void requiresWarningShouldReturnTrueForExpired() {
             var endTime = Instant.now().minus(Duration.ofDays(35));
             var spec = ExecutionSpecification.builder()
-                .useCaseId("test.usecase")
+                .serviceContractId("test.usecase")
                 .expirationPolicy(30, endTime)
                 .build();
             

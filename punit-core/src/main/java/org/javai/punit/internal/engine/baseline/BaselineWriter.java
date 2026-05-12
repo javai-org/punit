@@ -92,7 +92,7 @@ public final class BaselineWriter {
     private Map<String, Object> toYamlMap(BaselineRecord record) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put(FIELD_SCHEMA_VERSION, SCHEMA_VERSION_VALUE);
-        root.put(FIELD_USE_CASE_ID, record.useCaseId());
+        root.put(FIELD_USE_CASE_ID, record.serviceContractId());
         root.put(FIELD_METHOD_NAME, record.methodName());
         root.put(FIELD_FACTORS_FINGERPRINT, record.factorsFingerprint());
         root.put(FIELD_INPUTS_IDENTITY, record.inputsIdentity());
@@ -115,7 +115,7 @@ public final class BaselineWriter {
         root.put(FIELD_STATISTICS, stats);
 
         if (!record.covariateProfile().isEmpty()) {
-            // Insertion order of the profile is the use case's
+            // Insertion order of the profile is the service contract's
             // covariate-declaration order — preserved on the way out
             // so the filename hashes appear in the same order.
             root.put(FIELD_COVARIATES,

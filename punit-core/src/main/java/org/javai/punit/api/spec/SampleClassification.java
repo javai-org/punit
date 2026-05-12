@@ -8,8 +8,8 @@ import java.util.Optional;
 import org.javai.punit.api.Contract;
 import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.PostconditionResult;
-import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContract;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.outcome.Outcome;
 
 /**
@@ -17,8 +17,8 @@ import org.javai.outcome.Outcome;
  * one sample, in the form the aggregator and downstream reporters
  * read.
  *
- * <p>Built from a {@link UseCaseOutcome} plus the
- * {@link UseCase#maxLatency() use case's max-latency bound}. The
+ * <p>Built from a {@link ServiceContractOutcome} plus the
+ * {@link ServiceContract#maxLatency() service contract's max-latency bound}. The
  * classifier (a static helper) reads everything it needs from those
  * two sources; it does not consult the {@link
  * Contract Contract} for evaluation
@@ -28,7 +28,7 @@ import org.javai.outcome.Outcome;
  * <p>Two shapes:
  *
  * <ul>
- *   <li>**Apply-level failure**: when the use case's
+ *   <li>**Apply-level failure**: when the service contract's
  *       {@link Contract#invoke invoke}
  *       returned {@link Outcome.Fail}, postcondition evaluation is
  *       skipped — there is no value to evaluate. The classification
@@ -49,8 +49,8 @@ import org.javai.outcome.Outcome;
  * @param postconditionResults pre-evaluated per-clause results;
  *                            empty when {@link #applyFailed()}
  * @param durationViolation   present when the sample exceeded the
- *                            use case's {@link
- *                            UseCase#maxLatency() declared max}
+ *                            service contract's {@link
+ *                            ServiceContract#maxLatency() declared max}
  * @param match               the instance-conformance match result,
  *                            if matching was configured for this run
  * @param duration            the wall-clock time the sample took
@@ -128,11 +128,11 @@ public record SampleClassification(
 
     /**
      * Classify one sample. Reads the outcome's pre-evaluated
-     * postcondition results and match; reads the use case's
+     * postcondition results and match; reads the service contract's
      * max-latency bound to detect a duration violation.
      */
     public static <I, O> SampleClassification classify(
-            UseCase<?, I, O> useCase, UseCaseOutcome<I, O> outcome) {
+            ServiceContract<?, I, O> serviceContract, ServiceContractOutcome<I, O> outcome) {
         if (outcome.result() instanceof Outcome.Fail<O> f) {
             return failedAtApply(
                     f.failure().id().name(),
@@ -140,7 +140,7 @@ public record SampleClassification(
                     outcome.duration(),
                     outcome.tokens());
         }
-        Optional<DurationViolation> violation = useCase.maxLatency()
+        Optional<DurationViolation> violation = serviceContract.maxLatency()
                 .filter(max -> outcome.duration().compareTo(max) > 0)
                 .map(max -> new DurationViolation(outcome.duration(), max));
         return from(

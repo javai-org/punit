@@ -8,15 +8,15 @@ import java.util.Objects;
  *
  * <p>When a spec is built via {@code .expectations(Expectation...)}
  * rather than {@code .inputs(IT...)}, the engine walks the pairs
- * round-robin, invokes the use case on each {@link #input}, and
+ * round-robin, invokes the service contract on each {@link #input}, and
  * compares the produced value against {@link #expected} using the
  * spec's configured {@link ValueMatcher}. The resulting
  * {@link MatchResult} is attached to the
- * {@link UseCaseOutcome} before it reaches the observer, so a failed
+ * {@link ServiceContractOutcome} before it reaches the observer, so a failed
  * match counts as a sample failure in the usual way.
  *
- * @param input the input to hand to the use case
- * @param expected the expected value to compare the use case's output
+ * @param input the input to hand to the service contract
+ * @param expected the expected value to compare the service contract's output
  *                 against
  * @param <IT> the input type
  * @param <OT> the expected (and output) type

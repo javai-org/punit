@@ -8,7 +8,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
@@ -34,20 +34,20 @@ public final class PUnitSubjects {
      */
     public record GridPoint(String label) { }
 
-    private static <F> UseCase<F, Integer, Boolean> alwaysPasses() {
-        return new UseCase<>() {
+    private static <F> ServiceContract<F, Integer, Boolean> alwaysPasses() {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);
             }
             // Anonymous-class getSimpleName() is "", which BaselineRecord
-            // rejects as a blank useCaseId. Override with a stable id.
+            // rejects as a blank serviceContractId. Override with a stable id.
             @Override public String id() { return "always-passes-subject"; }
         };
     }
 
-    private static <F> UseCase<F, Integer, Boolean> alwaysFails() {
-        return new UseCase<>() {
+    private static <F> ServiceContract<F, Integer, Boolean> alwaysFails() {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.fail("nope", "always fails");
@@ -57,9 +57,9 @@ public final class PUnitSubjects {
     }
 
     private static <F> Sampling<F, Integer, Boolean> sampling(
-            UseCase<F, Integer, Boolean> useCase, int samples) {
+            ServiceContract<F, Integer, Boolean> serviceContract, int samples) {
         return Sampling.<F, Integer, Boolean>builder()
-                .useCaseFactory(f -> useCase)
+                .serviceContractFactory(f -> serviceContract)
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();

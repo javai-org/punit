@@ -4,11 +4,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ValueMatcher;
 
 /**
- * How samples are dispatched to the use case's {@code apply()} method.
+ * How samples are dispatched to the service contract's {@code apply()} method.
  *
  * <p>The engine delegates all sample invocation through this interface.
  * The shipped implementation — {@code SerialSampleExecutor} in
@@ -26,13 +26,13 @@ import org.javai.punit.api.ValueMatcher;
 public interface SampleExecutor {
 
     /**
-     * Runs up to {@code sampleCount} samples of {@code useCase}.
+     * Runs up to {@code sampleCount} samples of {@code serviceContract}.
      * Inputs are walked round-robin, advancing the cycle even across
      * successive invocations (so a call with {@code cycleStart = k}
      * reads input {@code inputs.get((k) % inputs.size())} first).
      *
      * <p>When {@code expected} is non-empty and {@code matcher} is
-     * present, the executor dispatches to the use case's matching
+     * present, the executor dispatches to the service contract's matching
      * {@code apply} form (form 3) per sample, pairing each input
      * with its expected value. Otherwise it dispatches to the
      * input-only form (form 1).
@@ -40,7 +40,7 @@ public interface SampleExecutor {
      * <p>Before each sample, the executor consults {@code stopRequested}
      * and halts when it returns true.
      *
-     * @param useCase the use case instance
+     * @param serviceContract the service contract instance
      * @param inputs the inputs to cycle through (non-empty)
      * @param expected the expected values paired with inputs by
      *                 round-robin index; empty when no
@@ -61,7 +61,7 @@ public interface SampleExecutor {
      * @param <OT> the outcome value type
      */
     <FT, IT, OT> void runSamples(
-            UseCase<FT, IT, OT> useCase,
+            ServiceContract<FT, IT, OT> serviceContract,
             List<IT> inputs,
             List<OT> expected,
             Optional<ValueMatcher<OT>> matcher,

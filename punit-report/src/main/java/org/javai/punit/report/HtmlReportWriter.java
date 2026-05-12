@@ -285,7 +285,7 @@ final class HtmlReportWriter {
             List<ProbabilisticTestVerdict> verdicts) {
         Map<String, List<ProbabilisticTestVerdict>> grouped = new LinkedHashMap<>();
         for (ProbabilisticTestVerdict verdict : verdicts) {
-            String key = verdict.identity().useCaseId()
+            String key = verdict.identity().serviceContractId()
                     .orElse(verdict.identity().className());
             grouped.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(verdict);
         }

@@ -44,8 +44,8 @@ class FactorSourceMetadataTest {
         @DisplayName("should store and retrieve factor source metadata")
         void shouldStoreAndRetrieveMetadata() {
             var spec = ExecutionSpecification.builder()
-                    .useCaseId("test-spec")
-                    .useCaseId("TestUseCase")
+                    .serviceContractId("test-spec")
+                    .serviceContractId("TestServiceContract")
                     .factorSourceMetadata("hash123", "productQueries", 500)
                     .build();
 
@@ -60,8 +60,8 @@ class FactorSourceMetadataTest {
         @DisplayName("should store early termination flag")
         void shouldStoreEarlyTerminationFlag() {
             var spec = ExecutionSpecification.builder()
-                    .useCaseId("test-spec")
-                    .useCaseId("TestUseCase")
+                    .serviceContractId("test-spec")
+                    .serviceContractId("TestServiceContract")
                     .factorSourceMetadata("hash123", "source", 50, true)
                     .build();
 
@@ -72,8 +72,8 @@ class FactorSourceMetadataTest {
         @DisplayName("should return null when no metadata set")
         void shouldReturnNullWhenNoMetadataSet() {
             var spec = ExecutionSpecification.builder()
-                    .useCaseId("test-spec")
-                    .useCaseId("TestUseCase")
+                    .serviceContractId("test-spec")
+                    .serviceContractId("TestServiceContract")
                     .build();
 
             assertThat(spec.getFactorSourceMetadata()).isNull();
@@ -84,14 +84,14 @@ class FactorSourceMetadataTest {
         @DisplayName("hasFactorSourceMetadata() should check for valid hash")
         void hasFactorSourceMetadataShouldCheckForValidHash() {
             var specWithHash = ExecutionSpecification.builder()
-                    .useCaseId("test-spec")
-                    .useCaseId("TestUseCase")
+                    .serviceContractId("test-spec")
+                    .serviceContractId("TestServiceContract")
                     .factorSourceMetadata("hash123", "source", 100)
                     .build();
 
             var specWithoutHash = ExecutionSpecification.builder()
-                    .useCaseId("test-spec")
-                    .useCaseId("TestUseCase")
+                    .serviceContractId("test-spec")
+                    .serviceContractId("TestServiceContract")
                     .factorSourceMetadata(new FactorSourceMetadata(null, "source", 100, false))
                     .build();
 
@@ -103,14 +103,14 @@ class FactorSourceMetadataTest {
         @DisplayName("should work alongside other spec fields")
         void shouldWorkAlongsideOtherSpecFields() {
             var spec = ExecutionSpecification.builder()
-                    .useCaseId("ProductSearch")
+                    .serviceContractId("ProductSearch")
                     .version(2)
                     .generatedAt(Instant.now())
                     .empiricalBasis(1000, 940)
                     .factorSourceMetadata("abc123def456", "standardQueries", 1000)
                     .build();
 
-            assertThat(spec.getUseCaseId()).isEqualTo("ProductSearch");
+            assertThat(spec.getServiceContractId()).isEqualTo("ProductSearch");
             assertThat(spec.getEmpiricalBasis().samples()).isEqualTo(1000);
             assertThat(spec.getFactorSourceMetadata().sourceHash()).isEqualTo("abc123def456");
         }

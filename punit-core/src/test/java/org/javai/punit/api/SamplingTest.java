@@ -16,8 +16,8 @@ class SamplingTest {
 
     record Factors(String model, double temperature) {}
 
-    static final class EchoUseCase implements UseCase<Factors, String, String> {
-        EchoUseCase(Factors factors) {}
+    static final class EchoServiceContract implements ServiceContract<Factors, String, String> {
+        EchoServiceContract(Factors factors) {}
 
         @Override
         public void postconditions(ContractBuilder<String> b) { /* none */ }
@@ -35,7 +35,7 @@ class SamplingTest {
 
     private Sampling.Builder<Factors, String, String> baseBuilder() {
         return Sampling.<Factors, String, String>builder()
-                .useCaseFactory(EchoUseCase::new)
+                .serviceContractFactory(EchoServiceContract::new)
                 .inputs("alpha", "beta");
     }
 
@@ -85,13 +85,13 @@ class SamplingTest {
     }
 
     @Test
-    @DisplayName("build() without useCaseFactory is rejected")
+    @DisplayName("build() without serviceContractFactory is rejected")
     void buildWithoutFactory() {
         assertThatExceptionOfType(IllegalStateException.class)
                 .isThrownBy(() -> Sampling.<Factors, String, String>builder()
                         .inputs("x")
                         .build())
-                .withMessageContaining("useCaseFactory");
+                .withMessageContaining("serviceContractFactory");
     }
 
     @Test
@@ -99,7 +99,7 @@ class SamplingTest {
     void buildWithoutInputs() {
         assertThatExceptionOfType(IllegalStateException.class)
                 .isThrownBy(() -> Sampling.<Factors, String, String>builder()
-                        .useCaseFactory(EchoUseCase::new)
+                        .serviceContractFactory(EchoServiceContract::new)
                         .build())
                 .withMessageContaining("inputs");
     }
@@ -109,7 +109,7 @@ class SamplingTest {
     void emptyInputsList() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> Sampling.<Factors, String, String>builder()
-                        .useCaseFactory(EchoUseCase::new)
+                        .serviceContractFactory(EchoServiceContract::new)
                         .inputs(java.util.List.of()))
                 .withMessageContaining("non-empty");
     }
@@ -159,7 +159,7 @@ class SamplingTest {
         assertThat(reshaped.samples()).isEqualTo(500);
         assertThat(sampling.samples()).isEqualTo(100);
         assertThat(reshaped.inputs()).isEqualTo(sampling.inputs());
-        assertThat(reshaped.useCaseFactory()).isSameAs(sampling.useCaseFactory());
+        assertThat(reshaped.serviceContractFactory()).isSameAs(sampling.serviceContractFactory());
     }
 
     @Test
@@ -176,7 +176,7 @@ class SamplingTest {
     @DisplayName("Sampling.of(factory, samples, List) builds with defaults for optional knobs")
     void ofWithList() {
         Sampling<Factors, String, String> sampling = Sampling.of(
-                EchoUseCase::new,
+                EchoServiceContract::new,
                 250,
                 java.util.List.of("alpha", "beta", "gamma"));
 
@@ -194,9 +194,9 @@ class SamplingTest {
     @DisplayName("Sampling.of(factory, samples, IT...) varargs form is equivalent to the List form")
     void ofWithVarargs() {
         Sampling<Factors, String, String> a = Sampling.of(
-                EchoUseCase::new, 100, "x", "y");
+                EchoServiceContract::new, 100, "x", "y");
         Sampling<Factors, String, String> b = Sampling.of(
-                EchoUseCase::new, 100, java.util.List.of("x", "y"));
+                EchoServiceContract::new, 100, java.util.List.of("x", "y"));
 
         assertThat(a.inputs()).isEqualTo(b.inputs());
         assertThat(a.samples()).isEqualTo(b.samples());
@@ -206,7 +206,7 @@ class SamplingTest {
     @DisplayName("Sampling.of(...) rejects non-positive samples — same contract as the builder")
     void ofRejectsNonPositiveSamples() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> Sampling.of(EchoUseCase::new, 0, "x"));
+                .isThrownBy(() -> Sampling.of(EchoServiceContract::new, 0, "x"));
     }
 
     @Test
@@ -214,7 +214,7 @@ class SamplingTest {
     void ofRejectsEmptyInputs() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> Sampling.<Factors, String, String>of(
-                        EchoUseCase::new, 100, java.util.List.of()));
+                        EchoServiceContract::new, 100, java.util.List.of()));
     }
 
     // ── InputSupplier integration ──────────────────────────────────
@@ -222,8 +222,8 @@ class SamplingTest {
     @Test
     @DisplayName(".inputs(values) produces a deterministic content-hashed identity")
     void contentHashIsDeterministic() {
-        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
-        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "x", "y");
+        Sampling<Factors, String, String> a = Sampling.of(EchoServiceContract::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoServiceContract::new, 100, "x", "y");
 
         assertThat(a.inputsIdentity()).isEqualTo(b.inputsIdentity());
         assertThat(a.inputsIdentity()).startsWith("sha256:");
@@ -232,8 +232,8 @@ class SamplingTest {
     @Test
     @DisplayName(".inputs(values) identity differs when content differs")
     void contentHashContentSensitivity() {
-        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
-        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "x", "z");
+        Sampling<Factors, String, String> a = Sampling.of(EchoServiceContract::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoServiceContract::new, 100, "x", "z");
 
         assertThat(a.inputsIdentity()).isNotEqualTo(b.inputsIdentity());
     }
@@ -241,8 +241,8 @@ class SamplingTest {
     @Test
     @DisplayName(".inputs(values) identity differs when ordering differs")
     void contentHashOrderingSensitivity() {
-        Sampling<Factors, String, String> a = Sampling.of(EchoUseCase::new, 100, "x", "y");
-        Sampling<Factors, String, String> b = Sampling.of(EchoUseCase::new, 100, "y", "x");
+        Sampling<Factors, String, String> a = Sampling.of(EchoServiceContract::new, 100, "x", "y");
+        Sampling<Factors, String, String> b = Sampling.of(EchoServiceContract::new, 100, "y", "x");
 
         assertThat(a.inputsIdentity()).isNotEqualTo(b.inputsIdentity());
     }
@@ -250,8 +250,8 @@ class SamplingTest {
     @Test
     @DisplayName(".inputs(varargs) and .inputs(List) produce the same identity")
     void varargsAndListEquivalent() {
-        Sampling<Factors, String, String> v = Sampling.of(EchoUseCase::new, 100, "a", "b");
-        Sampling<Factors, String, String> l = Sampling.of(EchoUseCase::new, 100, java.util.List.of("a", "b"));
+        Sampling<Factors, String, String> v = Sampling.of(EchoServiceContract::new, 100, "a", "b");
+        Sampling<Factors, String, String> l = Sampling.of(EchoServiceContract::new, 100, java.util.List.of("a", "b"));
 
         assertThat(v.inputsIdentity()).isEqualTo(l.inputsIdentity());
     }
@@ -260,9 +260,9 @@ class SamplingTest {
     @DisplayName(".inputs(InputSupplier.from(...)) computes the same content-hash identity as inline values")
     void buildsFromExternalSupplier() {
         Sampling<Factors, String, String> inline =
-                Sampling.of(EchoUseCase::new, 50, "a", "b");
+                Sampling.of(EchoServiceContract::new, 50, "a", "b");
         Sampling<Factors, String, String> external = Sampling.<Factors, String, String>builder()
-                .useCaseFactory(EchoUseCase::new)
+                .serviceContractFactory(EchoServiceContract::new)
                 .inputs(InputSupplier.from(() -> java.util.List.of("a", "b")))
                 .samples(50)
                 .build();
@@ -323,7 +323,7 @@ class SamplingTest {
     void inputSupplierAccessor() {
         InputSupplier<String> supplier = InputSupplier.from(() -> java.util.List.of("a"));
         Sampling<Factors, String, String> sampling = Sampling.<Factors, String, String>builder()
-                .useCaseFactory(EchoUseCase::new)
+                .serviceContractFactory(EchoServiceContract::new)
                 .inputs(supplier)
                 .samples(10)
                 .build();

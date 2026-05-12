@@ -1,16 +1,16 @@
 package org.javai.punit.api.spec;
 
-import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContract;
+import org.javai.punit.api.ServiceContractOutcome;
 
 /**
  * How the engine treats a thrown exception from
- * {@link UseCase#apply(Object)}.
+ * {@link ServiceContract#apply(Object)}.
  *
  * <p>Exceptions are reserved for defects — programming mistakes,
  * misconfiguration, catastrophe — while expected business failures
- * return {@link UseCaseOutcome#fail(String, String)
- * UseCaseOutcome.fail(...)}. Silently converting a thrown exception
+ * return {@link ServiceContractOutcome#fail(String, String)
+ * ServiceContractOutcome.fail(...)}. Silently converting a thrown exception
  * into a counted sample failure therefore hides a bug, so the default
  * is {@link #ABORT_TEST}. Authors who want exception-as-failure
  * semantics opt into {@link #FAIL_SAMPLE} explicitly.

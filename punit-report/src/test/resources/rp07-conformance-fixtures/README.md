@@ -148,6 +148,5 @@ Every `expected.xml` must validate against the sibling XSD:
 xmllint --noout --schema verdict-1.0.xsd fixtures/*/expected.xml
 ```
 
-The orchestrator's CI runs this on every push and PR that touches
-this catalog entry. A failing fixture is a fixture defect; fix the
-fixture before merge.
+CI runs this on every push and PR that touches these fixtures. A
+failing fixture is a fixture defect; fix the fixture before merge.

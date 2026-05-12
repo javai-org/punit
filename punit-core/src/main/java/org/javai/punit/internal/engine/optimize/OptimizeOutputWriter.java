@@ -25,7 +25,7 @@ import org.yaml.snakeyaml.Yaml;
  *
  * <p>One file per optimize run, carrying the full iteration history
  * and a {@code convergence:} block. Filename is
- * {@code {useCaseId}/{experimentId}.yaml} — assembled by the
+ * {@code {serviceContractId}/{experimentId}.yaml} — assembled by the
  * emitter, not the writer.
  */
 public final class OptimizeOutputWriter {
@@ -37,7 +37,7 @@ public final class OptimizeOutputWriter {
      * Build the optimize-output YAML for one optimize run. Pure —
      * no I/O.
      *
-     * @param useCaseId the use case identifier
+     * @param serviceContractId the service contract identifier
      * @param experimentId the experiment identifier (becomes the
      *                     filename stem)
      * @param objective {@code "MAXIMIZE"} or {@code "MINIMIZE"}
@@ -55,7 +55,7 @@ public final class OptimizeOutputWriter {
      * @return YAML matching the canonical optimize-output schema
      */
     public String writeYaml(
-            String useCaseId,
+            String serviceContractId,
             String experimentId,
             String objective,
             List<? extends IterationResult<?>> history,
@@ -65,7 +65,7 @@ public final class OptimizeOutputWriter {
 
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("schemaVersion", SCHEMA_VERSION);
-        root.put("useCaseId", useCaseId);
+        root.put("useCaseId", serviceContractId);
         root.put("experimentId", experimentId);
         root.put("objective", objective);
         root.put("generatedAt", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));

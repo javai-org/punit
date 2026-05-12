@@ -41,7 +41,7 @@ class VerdictAdapterTest {
     class IdentityAndEnvelope {
 
         @Test
-        @DisplayName("populates className/methodName/useCaseId from metadata")
+        @DisplayName("populates className/methodName/serviceContractId from metadata")
         void identityFromMetadata() {
             ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                     minimalResult(Verdict.PASS),
@@ -53,7 +53,7 @@ class VerdictAdapterTest {
 
             assertThat(verdict.identity().className()).isEqualTo("com.example.MyTest");
             assertThat(verdict.identity().methodName()).isEqualTo("shouldPass");
-            assertThat(verdict.identity().useCaseId()).contains("payment-gateway");
+            assertThat(verdict.identity().serviceContractId()).contains("payment-gateway");
             assertThat(verdict.correlationId()).isEqualTo("v:abc123");
             assertThat(verdict.environmentMetadata()).containsEntry("region", "EU");
         }

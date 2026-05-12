@@ -13,7 +13,7 @@ import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.spec.CriterionRole;
@@ -40,12 +40,12 @@ class EngineResourceControlsAndLatencyIntegrationTest {
 
     record Factors(String model) {}
 
-    /** Deterministic duration-scripted use case. */
-    private static final class ScriptedLatencyUseCase implements UseCase<Factors, Integer, Integer> {
+    /** Deterministic duration-scripted service contract. */
+    private static final class ScriptedLatencyServiceContract implements ServiceContract<Factors, Integer, Integer> {
         private final long[] scriptMillis;
         private int index = 0;
 
-        ScriptedLatencyUseCase(long... scriptMillis) {
+        ScriptedLatencyServiceContract(long... scriptMillis) {
             this.scriptMillis = scriptMillis;
         }
 
@@ -59,11 +59,11 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     }
 
     /** Sleeps a fixed amount and reports a fixed token cost. */
-    private static final class SleepyUseCase implements UseCase<Factors, Integer, Integer> {
+    private static final class SleepyServiceContract implements ServiceContract<Factors, Integer, Integer> {
         private final long sleepMillis;
         private final long tokens;
 
-        SleepyUseCase(long sleepMillis, long tokens) {
+        SleepyServiceContract(long sleepMillis, long tokens) {
             this.sleepMillis = sleepMillis;
             this.tokens = tokens;
         }
@@ -81,10 +81,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("time budget terminates sampling early with TIME_BUDGET marker")
     void timeBudgetTerminatesEarly() {
-        UseCase<Factors, Integer, Integer> sleeper = new SleepyUseCase(100, 0);
+        ServiceContract<Factors, Integer, Integer> sleeper = new SleepyServiceContract(100, 0);
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> sleeper)
+                .serviceContractFactory(f -> sleeper)
                 .inputs(1, 2, 3)
                 .samples(1000)
                 .timeBudget(Duration.ofMillis(500))
@@ -106,10 +106,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         // Declaring a static per-sample charge of 100 matches the
         // BudgetTracker's pre-sample projection: after 2 samples the
         // running total is 200, and projected 200 + 100 > 250 aborts
-        // the 3rd before it runs. A use case that reports 100 tokens
+        // the 3rd before it runs. A service contract that reports 100 tokens
         // per outcome would be accounted post-sample; the *projection*
         // is static, so this scenario uses tokenCharge to model it.
-        UseCase<Factors, Integer, Integer> zeroOutcomeTokens = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> zeroOutcomeTokens = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -117,7 +117,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> zeroOutcomeTokens)
+                .serviceContractFactory(f -> zeroOutcomeTokens)
                 .inputs(1)
                 .samples(100)
                 .tokenBudget(250)
@@ -138,7 +138,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("static token charge is accounted for each sample")
     void staticChargeAccountedEachSample() {
-        UseCase<Factors, Integer, Integer> zeroCost = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> zeroCost = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -146,7 +146,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> zeroCost)
+                .serviceContractFactory(f -> zeroCost)
                 .inputs(1)
                 .samples(5)
                 .tokenCharge(50)
@@ -165,10 +165,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("budget exhaustion produces a summary the spec can detect (terminatedEarly)")
     void passIncompleteSurfacesPartialResult() {
-        UseCase<Factors, Integer, Integer> sleeper = new SleepyUseCase(50, 0);
+        ServiceContract<Factors, Integer, Integer> sleeper = new SleepyServiceContract(50, 0);
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> sleeper)
+                .serviceContractFactory(f -> sleeper)
                 .inputs(1)
                 .samples(100)
                 .timeBudget(Duration.ofMillis(200))
@@ -189,7 +189,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("maxRequestsPerSecond inserts inter-sample delay")
     void maxRpsInsertsDelay() {
         // 10 RPS → 100ms min delay between samples.
-        UseCase<Factors, Integer, Integer> pacingUc = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> pacingUc = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -200,7 +200,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> pacingUc)
+                .serviceContractFactory(f -> pacingUc)
                 .inputs(1)
                 .samples(5)
                 .build();
@@ -218,7 +218,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("minMillisPerSample composes with maxRequestsPerSecond via most-restrictive-wins")
     void mostRestrictiveWinsComposition() {
         // maxRps implies 100ms; min explicit 250ms should dominate.
-        UseCase<Factors, Integer, Integer> pacingUc = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> pacingUc = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -232,7 +232,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> pacingUc)
+                .serviceContractFactory(f -> pacingUc)
                 .inputs(1)
                 .samples(3)
                 .build();
@@ -252,7 +252,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("FAIL_SAMPLE catches a thrown defect and counts it as a failed sample")
     void failSampleCatchesAndCounts() {
         AtomicInteger n = new AtomicInteger();
-        UseCase<Factors, Integer, Integer> flaky = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> flaky = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 int i = n.incrementAndGet();
@@ -264,7 +264,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> flaky)
+                .serviceContractFactory(f -> flaky)
                 .inputs(1)
                 .samples(10)
                 .onException(ExceptionPolicy.FAIL_SAMPLE)
@@ -282,7 +282,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("ABORT_TEST (default) rethrows a thrown defect")
     void abortTestRethrows() {
-        UseCase<Factors, Integer, Integer> defective = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> defective = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 throw new IllegalStateException("never mind the exception policy, this is a defect");
@@ -290,7 +290,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> defective)
+                .serviceContractFactory(f -> defective)
                 .inputs(1)
                 .samples(5)
                 .build();
@@ -306,7 +306,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("maxExampleFailures caps retained detail but not failure counts")
     void maxExampleFailuresCaps() {
-        UseCase<Factors, Integer, Integer> failing = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> failing = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.fail("scripted", "boom");
@@ -314,7 +314,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> failing)
+                .serviceContractFactory(f -> failing)
                 .inputs(1)
                 .samples(50)
                 .maxExampleFailures(3)
@@ -337,10 +337,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("latency percentiles computed from observed durations (nearest-rank)")
     void latencyPercentilesComputed() {
         // Scripted sleeps 10/20/30/40/50ms.
-        UseCase<Factors, Integer, Integer> scripted = new ScriptedLatencyUseCase(10L, 20L, 30L, 40L, 50L);
+        ServiceContract<Factors, Integer, Integer> scripted = new ScriptedLatencyServiceContract(10L, 20L, 30L, 40L, 50L);
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> scripted)
+                .serviceContractFactory(f -> scripted)
                 .inputs(1)
                 .samples(5)
                 .build();
@@ -362,7 +362,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("PercentileLatency.meeting() produces FAIL with breach detail when observed exceeds ceiling")
     void percentileLatencyBreachProducesFail() {
         // 50ms sleeps, assert p50 ≤ 10ms.
-        UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
+        ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
@@ -371,7 +371,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling
                 .<Factors, Integer, Boolean>builder()
-                .useCaseFactory(f -> slow)
+                .serviceContractFactory(f -> slow)
                 .inputs(1)
                 .samples(5)
                 .build();
@@ -395,7 +395,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("mixed criteria: functional PASS + latency FAIL composes to FAIL when both REQUIRED")
     void mixedCriteriaBothRequiredComposesToFail() {
-        UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
+        ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
@@ -404,7 +404,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling
                 .<Factors, Integer, Boolean>builder()
-                .useCaseFactory(f -> slow)
+                .serviceContractFactory(f -> slow)
                 .inputs(1)
                 .samples(5)
                 .build();
@@ -424,7 +424,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("reportOnly latency: functional PASS + latency FAIL(report-only) composes to PASS")
     void reportOnlyLatencyExcludedFromComposition() {
-        UseCase<Factors, Integer, Boolean> slow = new UseCase<>() {
+        ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
@@ -433,7 +433,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling
                 .<Factors, Integer, Boolean>builder()
-                .useCaseFactory(f -> slow)
+                .serviceContractFactory(f -> slow)
                 .inputs(1)
                 .samples(5)
                 .build();
@@ -457,7 +457,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @Test
     @DisplayName("reportOnly functional: contract failures reported but excluded → latency criterion determines verdict")
     void reportOnlyFunctionalExcludedFromComposition() {
-        UseCase<Factors, Integer, Boolean> fastButBroken = new UseCase<>() {
+        ServiceContract<Factors, Integer, Boolean> fastButBroken = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(5);
@@ -466,7 +466,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         };
         Sampling<Factors, Integer, Boolean> sampling = Sampling
                 .<Factors, Integer, Boolean>builder()
-                .useCaseFactory(f -> fastButBroken)
+                .serviceContractFactory(f -> fastButBroken)
                 .inputs(1)
                 .samples(5)
                 .build();

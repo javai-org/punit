@@ -24,7 +24,7 @@ import org.javai.punit.internal.engine.optimize.OptimizeOutputWriter;
  * iteration loop.
  *
  * <p>One file per optimize run at
- * {@code {baseDir}/{useCaseId}/{experimentId}.yaml}. The file
+ * {@code {baseDir}/{serviceContractId}/{experimentId}.yaml}. The file
  * carries the full iteration history (one block per iteration with
  * factors / score / counts) plus a {@code convergence:} block
  * (best iteration, best score, best factors, termination reason).
@@ -52,7 +52,7 @@ public final class OptimizeEmitter {
      *
      * @param experiment a completed {@link Experiment.Kind#OPTIMIZE OPTIMIZE} experiment
      * @param baseDir directory under which the file
-     *                {@code {useCaseId}/{experimentId}.yaml} is
+     *                {@code {serviceContractId}/{experimentId}.yaml} is
      *                written. Created if missing.
      */
     public static void emit(Experiment experiment, Path baseDir) {
@@ -76,7 +76,7 @@ public final class OptimizeEmitter {
     /**
      * Emit the OPTIMIZE artefact to a sink. The sink receives one
      * {@code (relativePath, yamlContent)} pair —
-     * {@code relativePath} is {@code {useCaseId}/{experimentId}.yaml}.
+     * {@code relativePath} is {@code {serviceContractId}/{experimentId}.yaml}.
      *
      * <p>This is the test-seam overload: a test passes a
      * {@code BiConsumer} that captures into a {@code Map<String, String>}
@@ -105,24 +105,24 @@ public final class OptimizeEmitter {
         String experimentId = experiment.experimentId();
 
         OptimizeOutputWriter writer = new OptimizeOutputWriter();
-        String useCaseId = useCaseIdFor(experiment, history.get(0).factors());
+        String serviceContractId = serviceContractIdFor(experiment, history.get(0).factors());
         String yaml = writer.writeYaml(
-                useCaseId,
+                serviceContractId,
                 experimentId,
                 objective,
                 history,
                 iterationSummaries,
                 best.orElse(null),
                 terminationReason);
-        sink.accept(useCaseId + "/" + experimentId + ".yaml", yaml);
+        sink.accept(serviceContractId + "/" + experimentId + ".yaml", yaml);
     }
 
-    private static String useCaseIdFor(Experiment experiment, Object factors) {
+    private static String serviceContractIdFor(Experiment experiment, Object factors) {
         return experiment.dispatch(new Spec.Dispatcher<String>() {
             @Override
             @SuppressWarnings("unchecked")
             public <FT, IT, OT> String apply(TypedSpec<FT, IT, OT> typed) {
-                return typed.useCaseFactory().apply((FT) factors).id();
+                return typed.serviceContractFactory().apply((FT) factors).id();
             }
         });
     }

@@ -12,7 +12,7 @@ import java.util.Optional;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PUnitVerdict;
@@ -116,7 +116,7 @@ class VerdictVerifierTest {
                 new TestIdentity(className, methodName, Optional.empty()),
                 new ExecutionSummary(100, 100, successes, failures,
                         observedPassRate, minPassRate, 1000,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.02, 0.85,

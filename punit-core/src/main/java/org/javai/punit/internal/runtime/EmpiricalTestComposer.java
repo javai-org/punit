@@ -24,7 +24,7 @@ import org.javai.punit.api.spec.TypedSpec;
  * baseline supplier — every other parameter is implicit, derived
  * from the baseline by reference at compose time. The integrity
  * guarantee follows by construction: the test's {@link Sampling}
- * cannot drift from the baseline's on factors, use case, inputs, or
+ * cannot drift from the baseline's on factors, service contract, inputs, or
  * governors.
  *
  * <p>Uses the {@link Spec.Dispatcher} wildcard-capture pattern to
@@ -71,7 +71,7 @@ public final class EmpiricalTestComposer {
         // from the baseline so the comparison is content-coherent. Optional
         // governors (timeBudget, tokenBudget) carry over only if declared.
         Sampling.Builder<FT, IT, OT> samplingBuilder = Sampling.<FT, IT, OT>builder()
-                .useCaseFactory(typedBaseline.useCaseFactory())
+                .serviceContractFactory(typedBaseline.serviceContractFactory())
                 .inputs(InputSupplier.from(cfg::inputs))
                 .samples(testSamples)
                 .tokenCharge(typedBaseline.tokenCharge())

@@ -11,7 +11,7 @@ import org.javai.punit.internal.util.HashUtils;
 /**
  * Per-covariate-value hashing for the baseline filename schema.
  *
- * <p>Each covariate the use case declared contributes one 4-character
+ * <p>Each covariate the service contract declared contributes one 4-character
  * hex hash to the baseline filename. The hash is computed as
  *
  * <pre>{@code
@@ -37,7 +37,7 @@ import org.javai.punit.internal.util.HashUtils;
  * </ul>
  *
  * <p>Hashes appear in the filename in the order the covariates were
- * declared by {@code UseCase.covariates()}; {@link CovariateProfile}
+ * declared by {@code ServiceContract.covariates()}; {@link CovariateProfile}
  * preserves that order through resolution and round-trip, so the
  * implementation here just iterates the profile's value map.
  */

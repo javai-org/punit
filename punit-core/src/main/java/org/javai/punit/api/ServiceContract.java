@@ -10,25 +10,25 @@ import org.javai.punit.api.covariate.Covariate;
 
 /**
  * A stochastic service invocation expressed as a typed, three-parameter
- * function. The metadata layer of a use case: how the framework
+ * function. The metadata layer of a service contract: how the framework
  * identifies it, what covariates it is sensitive to, what pacing and
  * warmup it requires.
  *
- * <p>{@code UseCase} extends {@link Contract} — the operational layer
+ * <p>{@code ServiceContract} extends {@link Contract} — the operational layer
  * that carries the service call ({@link Contract#invoke invoke}) and
  * the acceptance criteria ({@link Contract#postconditions(ContractBuilder)
- * postconditions}). An author writing one use case implements one
+ * postconditions}). An author writing one service contract implements one
  * interface and overrides three methods: {@code invoke},
  * {@code postconditions(ContractBuilder)}, and whichever metadata
  * methods diverge from the framework defaults.
  *
  * <p>{@code FT} is the factor record — the configuration the author has
  * chosen to vary. {@code IT} is the per-sample input. {@code OT} is the
- * per-sample output value type, wrapped in an {@link UseCaseOutcome}
+ * per-sample output value type, wrapped in an {@link ServiceContractOutcome}
  * assembled by the framework's {@code apply} dispatch on
  * {@link Contract}.
  *
- * <p>A {@code UseCase} is constructed by the framework once per factor
+ * <p>A {@code ServiceContract} is constructed by the framework once per factor
  * configuration (via the factory declared on the spec). Once
  * constructed the instance must behave as if immutable for the duration
  * of sampling — the framework caches and reuses the same instance
@@ -44,16 +44,16 @@ import org.javai.punit.api.covariate.Covariate;
  * @param <IT> the per-sample input type
  * @param <OT> the per-sample output value type
  */
-public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
+public interface ServiceContract<FT, IT, OT> extends Contract<IT, OT> {
 
     /**
      * An optional per-sample wall-clock bound. When present, the engine
      * records a duration violation for any sample whose
-     * {@link UseCaseOutcome#duration() duration} exceeds the bound. The
+     * {@link ServiceContractOutcome#duration() duration} exceeds the bound. The
      * sample's postcondition results are still collected; the violation
      * is an additional facet, not a short-circuit.
      *
-     * <p>Most use cases do not have a per-sample bound — aggregate
+     * <p>Most service contracts do not have a per-sample bound — aggregate
      * latency claims (e.g. 95th-percentile under N ms) belong on the
      * test via the {@code PercentileLatency} criterion. The two
      * statements have two distinct homes.
@@ -70,7 +70,7 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      * diagnostics.
      *
      * <p>Defaults to a kebab-cased form of the simple class name
-     * (e.g. {@code ShoppingBasketUseCase} becomes
+     * (e.g. {@code ShoppingBasketServiceContract} becomes
      * {@code shopping-basket-use-case}). Implementations that outgrow
      * the default should override with a fixed, filename-safe string.
      *
@@ -78,14 +78,14 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      * contain characters that are invalid in baseline filenames
      * ({@code / \\ : * ? " < > |} or ASCII control characters).
      *
-     * @return the use case id
+     * @return the service contract id
      */
     default String id() {
         return defaultIdFor(getClass());
     }
 
     /**
-     * A human-readable description of the use case. Empty by default.
+     * A human-readable description of the service contract. Empty by default.
      * Surfaced in reports and logs; has no semantic effect.
      *
      * @return the description
@@ -109,12 +109,12 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
 
     /**
      * The rate and concurrency limits the engine must respect when
-     * invoking this use case.
+     * invoking this service contract.
      *
      * <p>Pacing belongs to the service under test, not to a specific
      * experiment or probabilistic test exercising it — every test of
      * the same service should respect the same rate limit. Authors
-     * override this method on their use case implementation; spec
+     * override this method on their service contract implementation; spec
      * builders do not expose pacing knobs.
      *
      * <p>Defaults to {@link Pacing#unlimited()} (no rate or
@@ -127,7 +127,7 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
     }
 
     /**
-     * The covariates this use case is sensitive to — environmental
+     * The covariates this service contract is sensitive to — environmental
      * variables that the developer does not control but that
      * influence outcomes (day of week, region, model version, …).
      *
@@ -142,7 +142,7 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      * in the US region without surfacing the misalignment. This
      * preserves the statistical guarantees of the empirical pair.
      *
-     * <p>The default is an empty list — a use case with no declared
+     * <p>The default is an empty list — a service contract with no declared
      * covariates is treated as covariate-insensitive and matches any
      * baseline regardless of capture context.
      *
@@ -159,7 +159,7 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      *
      * <p>The framework owns the four built-in resolvers (day-of-week,
      * time-of-day, region, timezone). For each {@code CustomCovariate}
-     * the use case declares, the framework consults this map (keyed
+     * the service contract declares, the framework consults this map (keyed
      * by the covariate's {@link Covariate#name() name}) and invokes
      * the supplier exactly once at the start of an experiment or
      * test execution.
@@ -169,7 +169,7 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      * same value, since all samples in that run share one resolved
      * profile.
      *
-     * <p>If the use case declares a {@code CustomCovariate} whose
+     * <p>If the service contract declares a {@code CustomCovariate} whose
      * name has no entry in this map, the framework fails fast before
      * any samples run — silent fallbacks would corrupt baseline
      * identity.
@@ -182,15 +182,15 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
 
     /**
      * Computes the default id for a class: the simple class name with
-     * any {@code UseCase} suffix stripped, camel-case boundaries
+     * any {@code ServiceContract} suffix stripped, camel-case boundaries
      * converted to kebab-case, and the whole string lower-cased.
      *
      * <p>Examples:
      * <ul>
-     *   <li>{@code ShoppingBasketUseCase}   → {@code shopping-basket}</li>
+     *   <li>{@code ShoppingBasketServiceContract}   → {@code shopping-basket}</li>
      *   <li>{@code PaymentGateway}          → {@code payment-gateway}</li>
-     *   <li>{@code HTTPClientUseCase}       → {@code http-client}</li>
-     *   <li>{@code SimpleLLMUseCase}        → {@code simple-llm}</li>
+     *   <li>{@code HTTPClientServiceContract}       → {@code http-client}</li>
+     *   <li>{@code SimpleLLMServiceContract}        → {@code simple-llm}</li>
      * </ul>
      *
      * @param type the class to derive an id from
@@ -198,8 +198,8 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      */
     static String defaultIdFor(Class<?> type) {
         String name = type.getSimpleName();
-        if (name.endsWith("UseCase") && name.length() > "UseCase".length()) {
-            name = name.substring(0, name.length() - "UseCase".length());
+        if (name.endsWith("ServiceContract") && name.length() > "ServiceContract".length()) {
+            name = name.substring(0, name.length() - "ServiceContract".length());
         }
         StringBuilder out = new StringBuilder(name.length() + 4);
         for (int i = 0; i < name.length(); i++) {

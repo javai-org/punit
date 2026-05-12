@@ -16,7 +16,7 @@ import org.javai.punit.api.spec.TerminationReason;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.EngineResult;
 import org.javai.punit.api.spec.ExperimentResult;
@@ -42,7 +42,7 @@ class EngineIntegrationTest {
     record LlmFactors(String model, double temperature) {}
 
     /** Always returns the length of the input. Used as a deterministic sample. */
-    private static class LengthUseCase implements UseCase<LlmFactors, String, Integer> {
+    private static class LengthServiceContract implements ServiceContract<LlmFactors, String, Integer> {
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
@@ -54,7 +54,7 @@ class EngineIntegrationTest {
     void measureSpecRunsEndToEnd() {
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new LengthUseCase())
+                .serviceContractFactory(f -> new LengthServiceContract())
                 .inputs("a", "bb", "ccc")
                 .samples(9)
                 .build();
@@ -73,7 +73,7 @@ class EngineIntegrationTest {
     void contractualProducesPass() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> new AlwaysPassesUseCase())
+                .serviceContractFactory(f -> new AlwaysPassesServiceContract())
                 .inputs(1, 2, 3)
                 .samples(30)
                 .build();
@@ -99,7 +99,7 @@ class EngineIntegrationTest {
     void engineSummaryPopulated() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> new AlwaysPassesUseCase())
+                .serviceContractFactory(f -> new AlwaysPassesServiceContract())
                 .inputs(1, 2, 3)
                 .samples(30)
                 .build();
@@ -130,7 +130,7 @@ class EngineIntegrationTest {
     void contractualProducesFail() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> new AlwaysReturnsFailUseCase())
+                .serviceContractFactory(f -> new AlwaysReturnsFailServiceContract())
                 .inputs(1, 2, 3)
                 .samples(15)
                 .build();
@@ -157,7 +157,7 @@ class EngineIntegrationTest {
     void empiricalYieldsInconclusiveUnderStubResolver() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> new AlwaysPassesUseCase())
+                .serviceContractFactory(f -> new AlwaysPassesServiceContract())
                 .inputs(1, 2, 3)
                 .samples(20)
                 .build();
@@ -181,7 +181,7 @@ class EngineIntegrationTest {
     void defectAbortsTheRun() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> new DefectiveUseCase())
+                .serviceContractFactory(f -> new DefectiveServiceContract())
                 .inputs(1, 2, 3)
                 .samples(5)
                 .build();
@@ -195,8 +195,8 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("expectations: matching actuals count as successes; mismatches count as failures")
     void instanceConformanceDrivesVerdict() {
-        // Use case: mirror the input, but uppercase it (deliberately wrong for half).
-        UseCase<LlmFactors, String, String> upperCase = new UseCase<>() {
+        // Service contract: mirror the input, but uppercase it (deliberately wrong for half).
+        ServiceContract<LlmFactors, String, String> upperCase = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.toUpperCase());
@@ -205,7 +205,7 @@ class EngineIntegrationTest {
 
         Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
-                .useCaseFactory(f -> upperCase)
+                .serviceContractFactory(f -> upperCase)
                 .inputs("a", "b")
                 .samples(4)
                 .build();
@@ -225,7 +225,7 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("expectations: custom matcher overrides equality default")
     void instanceConformanceUsesCustomMatcher() {
-        UseCase<LlmFactors, String, String> returnSameCase = new UseCase<>() {
+        ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -241,7 +241,7 @@ class EngineIntegrationTest {
 
         Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
-                .useCaseFactory(f -> returnSameCase)
+                .serviceContractFactory(f -> returnSameCase)
                 .inputs("HELLO", "WORLD")
                 .samples(2)
                 .build();
@@ -268,7 +268,7 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("ProbabilisticTest: custom matcher drives the verdict's pass-rate criterion")
     void testPathInstanceConformanceUsesCustomMatcher() {
-        UseCase<LlmFactors, String, String> returnSameCase = new UseCase<>() {
+        ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -282,7 +282,7 @@ class EngineIntegrationTest {
 
         Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
-                .useCaseFactory(f -> returnSameCase)
+                .serviceContractFactory(f -> returnSameCase)
                 .inputs("HELLO", "WORLD")
                 .samples(10)
                 .build();
@@ -304,7 +304,7 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("ProbabilisticTest: expectedOutputs without explicit matcher defaults to equality")
     void testPathDefaultsToEqualityMatcher() {
-        UseCase<LlmFactors, String, String> upperCase = new UseCase<>() {
+        ServiceContract<LlmFactors, String, String> upperCase = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.toUpperCase());
@@ -313,7 +313,7 @@ class EngineIntegrationTest {
 
         Sampling<LlmFactors, String, String> sampling = Sampling
                 .<LlmFactors, String, String>builder()
-                .useCaseFactory(f -> upperCase)
+                .serviceContractFactory(f -> upperCase)
                 .inputs("a", "b")
                 .samples(4)
                 .build();
@@ -355,7 +355,7 @@ class EngineIntegrationTest {
     @DisplayName("InlineMeasureBuilder: expectedOutputs after inputs with mismatched length throws IllegalArgumentException at the call site")
     void inlineMeasureRejectsMismatchedExpectedOutputsAfterInputs() {
         assertThatThrownBy(() -> Experiment.measuring(
-                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        (Function<LlmFactors, ServiceContract<LlmFactors, String, String>>) f -> identityStringServiceContract(),
                         new LlmFactors("gpt-4o", 0.0))
                 .inputs("a", "b")
                 .expectedOutputs("A"))
@@ -367,7 +367,7 @@ class EngineIntegrationTest {
     @DisplayName("InlineMeasureBuilder: expectedOutputs before inputs is accepted; mismatched inputs(...) afterwards throws")
     void inlineMeasureDefersThenSymmetricallyRejects() {
         var builder = Experiment.measuring(
-                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        (Function<LlmFactors, ServiceContract<LlmFactors, String, String>>) f -> identityStringServiceContract(),
                         new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A");   // no throw — inputs not yet set
         assertThatThrownBy(() -> builder.inputs("a", "b"))
@@ -379,7 +379,7 @@ class EngineIntegrationTest {
     @DisplayName("InlineMeasureBuilder: expectedOutputs before inputs with matching length builds successfully")
     void inlineMeasureDeferredCheckPassesOnMatchingInputs() {
         Experiment spec = Experiment.measuring(
-                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        (Function<LlmFactors, ServiceContract<LlmFactors, String, String>>) f -> identityStringServiceContract(),
                         new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A", "B")     // set before inputs
                 .inputs("a", "b")               // matching length — symmetric check passes
@@ -394,7 +394,7 @@ class EngineIntegrationTest {
     @DisplayName("InlineProbabilisticTest builder: expectedOutputs after inputs with mismatched length throws at the call site")
     void inlineTestRejectsMismatchedExpectedOutputsAfterInputs() {
         assertThatThrownBy(() -> ProbabilisticTest.testing(
-                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        (Function<LlmFactors, ServiceContract<LlmFactors, String, String>>) f -> identityStringServiceContract(),
                         new LlmFactors("gpt-4o", 0.0))
                 .inputs("a", "b")
                 .expectedOutputs("A"))
@@ -406,7 +406,7 @@ class EngineIntegrationTest {
     @DisplayName("InlineProbabilisticTest builder: expectedOutputs before inputs is accepted; mismatched inputs(...) afterwards throws")
     void inlineTestDefersThenSymmetricallyRejects() {
         var builder = ProbabilisticTest.testing(
-                        (Function<LlmFactors, UseCase<LlmFactors, String, String>>) f -> identityStringUseCase(),
+                        (Function<LlmFactors, ServiceContract<LlmFactors, String, String>>) f -> identityStringServiceContract(),
                         new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A");   // no throw — inputs not yet set
         assertThatThrownBy(() -> builder.inputs("a", "b"))
@@ -434,14 +434,14 @@ class EngineIntegrationTest {
 
     private Sampling<LlmFactors, String, String> identityStringSampling(String... inputs) {
         return Sampling.<LlmFactors, String, String>builder()
-                .useCaseFactory(f -> identityStringUseCase())
+                .serviceContractFactory(f -> identityStringServiceContract())
                 .inputs(inputs)
                 .samples(inputs.length)
                 .build();
     }
 
-    private static UseCase<LlmFactors, String, String> identityStringUseCase() {
-        return new UseCase<>() {
+    private static ServiceContract<LlmFactors, String, String> identityStringServiceContract() {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -462,7 +462,7 @@ class EngineIntegrationTest {
     void enginePopulatesOrderedTrials() {
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> new LengthUseCase())
+                .serviceContractFactory(f -> new LengthServiceContract())
                 .inputs("a", "bb", "ccc")
                 .samples(7)
                 .build();
@@ -478,7 +478,7 @@ class EngineIntegrationTest {
         assertThat(summary.trials().get(2).input()).isEqualTo("ccc");
         assertThat(summary.trials().get(3).input()).isEqualTo("a");
         assertThat(summary.trials().get(6).input()).isEqualTo("a");
-        // LengthUseCase returns input.length()
+        // LengthServiceContract returns input.length()
         assertThat(summary.trials().get(2).outcome().result().getOrThrow()).isEqualTo(3);
     }
 
@@ -486,7 +486,7 @@ class EngineIntegrationTest {
     @DisplayName("Experiment.exploring(shape).grid(...) runs each factors instance once with the shape's sample count")
     void exploreSpecRunsEachFactorBundle() {
         var observedByModel = new java.util.LinkedHashMap<String, Integer>();
-        UseCase<LlmFactors, String, Integer> counting = new UseCase<>() {
+        ServiceContract<LlmFactors, String, Integer> counting = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(0);
@@ -494,7 +494,7 @@ class EngineIntegrationTest {
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> {
+                .serviceContractFactory(f -> {
                     observedByModel.merge(f.model(), 0, (a, b) -> a);
                     return counting;
                 })
@@ -517,7 +517,7 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("Experiment.optimizing(shape) runs the stepper/scorer loop up to maxIterations")
     void optimizeSpecRunsIterationLoop() {
-        UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
+        ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
@@ -525,7 +525,7 @@ class EngineIntegrationTest {
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> echo)
+                .serviceContractFactory(f -> echo)
                 .inputs("a")
                 .samples(1)
                 .build();
@@ -549,7 +549,7 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("disableEarlyTermination() runs to maxIterations even when scores are flat")
     void disableEarlyTerminationRunsToMaxIterations() {
-        UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
+        ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
@@ -557,7 +557,7 @@ class EngineIntegrationTest {
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> echo)
+                .serviceContractFactory(f -> echo)
                 .inputs("a")
                 .samples(1)
                 .build();
@@ -580,7 +580,7 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("NextFactor.stop() ends the optimize loop after the iteration that returned it — no final-iteration sample")
     void nextFactorStopEndsRunCleanly() {
-        UseCase<LlmFactors, String, Integer> echo = new UseCase<>() {
+        ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
@@ -588,7 +588,7 @@ class EngineIntegrationTest {
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> echo)
+                .serviceContractFactory(f -> echo)
                 .inputs("a")
                 .samples(1)
                 .build();
@@ -617,7 +617,7 @@ class EngineIntegrationTest {
     void intentThreadsThroughToResult() {
         Sampling<LlmFactors, Integer, Boolean> sampling = Sampling
                 .<LlmFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> new AlwaysPassesUseCase())
+                .serviceContractFactory(f -> new AlwaysPassesServiceContract())
                 .inputs(1, 2, 3)
                 .samples(10)
                 .build();
@@ -640,7 +640,7 @@ class EngineIntegrationTest {
 
     private List<String> runAndRecord() {
         List<String> observed = new ArrayList<>();
-        UseCase<LlmFactors, String, Integer> recording = new UseCase<>() {
+        ServiceContract<LlmFactors, String, Integer> recording = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 observed.add(input);
@@ -649,7 +649,7 @@ class EngineIntegrationTest {
         };
         Sampling<LlmFactors, String, Integer> sampling = Sampling
                 .<LlmFactors, String, Integer>builder()
-                .useCaseFactory(f -> recording)
+                .serviceContractFactory(f -> recording)
                 .inputs("x", "y", "z")
                 .samples(7)
                 .build();
@@ -660,7 +660,7 @@ class EngineIntegrationTest {
 
     // ── Test doubles ────────────────────────────────────────────────
 
-    private static class AlwaysPassesUseCase implements UseCase<LlmFactors, Integer, Boolean> {
+    private static class AlwaysPassesServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -668,7 +668,7 @@ class EngineIntegrationTest {
     }
 
     /** Returns business-level Fail outcomes — the "contract didn't hold" signal. */
-    private static class AlwaysReturnsFailUseCase implements UseCase<LlmFactors, Integer, Boolean> {
+    private static class AlwaysReturnsFailServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure for input " + input);
@@ -676,7 +676,7 @@ class EngineIntegrationTest {
     }
 
     /** Throws — a defect, not a business-level failure. The engine aborts. */
-    private static class DefectiveUseCase implements UseCase<LlmFactors, Integer, Boolean> {
+    private static class DefectiveServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             throw new IllegalStateException("simulated defect — this should abort the run");

@@ -10,7 +10,7 @@ import java.time.DayOfWeek;
  * Declares a group of days forming a single partition for the day-of-week covariate.
  *
  * <p>Days within a group are considered statistically equivalent. For example,
- * grouping Saturday and Sunday declares that the use case behaves similarly
+ * grouping Saturday and Sunday declares that the service contract behaves similarly
  * on both days.
  *
  * <h2>Examples</h2>
@@ -28,7 +28,7 @@ import java.time.DayOfWeek;
  * covariateDayOfWeek = { @DayGroup(MONDAY) }
  * }</pre>
  *
- * @see UseCase#covariateDayOfWeek()
+ * @see ServiceContract#covariateDayOfWeek()
  */
 @Documented
 @Target({})

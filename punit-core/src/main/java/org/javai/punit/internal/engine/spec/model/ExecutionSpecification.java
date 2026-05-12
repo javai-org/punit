@@ -10,7 +10,7 @@ import org.javai.punit.api.covariate.CovariateDeclaration;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.verdict.ExpirationPolicy;
 import org.javai.punit.verdict.ExpirationStatus;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 
 /**
  * An execution specification containing empirical data for probabilistic testing.
@@ -42,7 +42,7 @@ import org.javai.punit.api.UseCaseAttributes;
  */
 public final class ExecutionSpecification {
 
-	private final String useCaseId;
+	private final String serviceContractId;
 	private final int version;
 	private final Instant generatedAt;
 	private final Instant approvedAt;
@@ -59,10 +59,10 @@ public final class ExecutionSpecification {
 	private final CovariateProfile covariateProfile;
 	private final String footprint;
 	private final LatencyBaseline latencyBaseline;
-	private final UseCaseAttributes useCaseAttributes;
+	private final ServiceContractAttributes serviceContractAttributes;
 
 	private ExecutionSpecification(Builder builder) {
-		this.useCaseId = Objects.requireNonNull(builder.useCaseId, "useCaseId must not be null");
+		this.serviceContractId = Objects.requireNonNull(builder.serviceContractId, "serviceContractId must not be null");
 		this.version = builder.version;
 		this.generatedAt = builder.generatedAt;
 		this.approvedAt = builder.approvedAt;
@@ -85,8 +85,8 @@ public final class ExecutionSpecification {
 		this.covariateProfile = builder.covariateProfile;
 		this.footprint = builder.footprint;
 		this.latencyBaseline = builder.latencyBaseline;
-		this.useCaseAttributes = builder.useCaseAttributes != null
-				? builder.useCaseAttributes : UseCaseAttributes.DEFAULT;
+		this.serviceContractAttributes = builder.serviceContractAttributes != null
+				? builder.serviceContractAttributes : ServiceContractAttributes.DEFAULT;
 	}
 
 	public static Builder builder() {
@@ -94,14 +94,14 @@ public final class ExecutionSpecification {
 	}
 
 	/**
-	 * Returns the use case ID.
+	 * Returns the service contract ID.
 	 *
-	 * <p>This is the primary identifier for both the use case and the specification.
+	 * <p>This is the primary identifier for both the service contract and the specification.
 	 *
-	 * @return the use case ID
+	 * @return the service contract ID
 	 */
-	public String getUseCaseId() {
-		return useCaseId;
+	public String getServiceContractId() {
+		return serviceContractId;
 	}
 
 	public int getVersion() {
@@ -242,14 +242,14 @@ public final class ExecutionSpecification {
 	 * @return the covariate profile, or null if not recorded and no warmup
 	 */
 	public CovariateProfile getCovariateProfile() {
-		boolean hasImplicit = useCaseAttributes.hasWarmup() || useCaseAttributes.hasMaxConcurrent();
+		boolean hasImplicit = serviceContractAttributes.hasWarmup() || serviceContractAttributes.hasMaxConcurrent();
 		if (hasImplicit) {
 			LinkedHashMap<String, String> merged = new LinkedHashMap<>();
-			if (useCaseAttributes.hasWarmup()) {
-				merged.put(CovariateDeclaration.KEY_WARMUP, String.valueOf(useCaseAttributes.warmup()));
+			if (serviceContractAttributes.hasWarmup()) {
+				merged.put(CovariateDeclaration.KEY_WARMUP, String.valueOf(serviceContractAttributes.warmup()));
 			}
-			if (useCaseAttributes.hasMaxConcurrent()) {
-				merged.put(CovariateDeclaration.KEY_MAX_CONCURRENT, String.valueOf(useCaseAttributes.maxConcurrent()));
+			if (serviceContractAttributes.hasMaxConcurrent()) {
+				merged.put(CovariateDeclaration.KEY_MAX_CONCURRENT, String.valueOf(serviceContractAttributes.maxConcurrent()));
 			}
 			if (covariateProfile != null) {
 				merged.putAll(covariateProfile.values());
@@ -271,7 +271,7 @@ public final class ExecutionSpecification {
 	/**
 	 * Returns the invocation footprint.
 	 *
-	 * <p>The footprint uniquely identifies the combination of use case,
+	 * <p>The footprint uniquely identifies the combination of service contract,
 	 * factors, and covariate declarations. Only baselines with matching
 	 * footprints are candidates for selection.
 	 *
@@ -282,12 +282,12 @@ public final class ExecutionSpecification {
 	}
 
 	/**
-	 * Returns the use case attributes from the spec.
+	 * Returns the service contract attributes from the spec.
 	 *
-	 * @return the use case attributes (never null)
+	 * @return the service contract attributes (never null)
 	 */
-	public UseCaseAttributes getUseCaseAttributes() {
-		return useCaseAttributes;
+	public ServiceContractAttributes getServiceContractAttributes() {
+		return serviceContractAttributes;
 	}
 
 	/**
@@ -298,7 +298,7 @@ public final class ExecutionSpecification {
 	 * @return the warmup count (>= 0)
 	 */
 	public int getWarmup() {
-		return useCaseAttributes.warmup();
+		return serviceContractAttributes.warmup();
 	}
 
 	/**
@@ -436,7 +436,7 @@ public final class ExecutionSpecification {
 		// Check minPassRate bounds
 		if (requirements.minPassRate() < 0.0 || requirements.minPassRate() > 1.0) {
 			throw new SpecificationValidationException(
-					"Specification '" + useCaseId + "' has invalid minPassRate: " + requirements.minPassRate());
+					"Specification '" + serviceContractId + "' has invalid minPassRate: " + requirements.minPassRate());
 		}
 
 		// For backwards compatibility: if approval metadata is present, it's valid
@@ -560,7 +560,7 @@ public final class ExecutionSpecification {
 
 	public static final class Builder {
 
-		private String useCaseId;
+		private String serviceContractId;
 		private int version = 1;
 		private Instant generatedAt;
 		private Instant approvedAt;
@@ -577,13 +577,13 @@ public final class ExecutionSpecification {
 		private CovariateProfile covariateProfile;
 		private String footprint;
 		private LatencyBaseline latencyBaseline;
-		private UseCaseAttributes useCaseAttributes;
+		private ServiceContractAttributes serviceContractAttributes;
 
 		private Builder() {
 		}
 
-		public Builder useCaseId(String useCaseId) {
-			this.useCaseId = useCaseId;
+		public Builder serviceContractId(String serviceContractId) {
+			this.serviceContractId = serviceContractId;
 			return this;
 		}
 
@@ -737,16 +737,16 @@ public final class ExecutionSpecification {
 			return this;
 		}
 
-		public Builder useCaseAttributes(UseCaseAttributes useCaseAttributes) {
-			this.useCaseAttributes = useCaseAttributes;
+		public Builder serviceContractAttributes(ServiceContractAttributes serviceContractAttributes) {
+			this.serviceContractAttributes = serviceContractAttributes;
 			return this;
 		}
 
 		public Builder warmup(int warmup) {
-			if (this.useCaseAttributes == null) {
-				this.useCaseAttributes = new UseCaseAttributes(warmup);
+			if (this.serviceContractAttributes == null) {
+				this.serviceContractAttributes = new ServiceContractAttributes(warmup);
 			} else {
-				this.useCaseAttributes = new UseCaseAttributes(warmup, this.useCaseAttributes.maxConcurrent());
+				this.serviceContractAttributes = new ServiceContractAttributes(warmup, this.serviceContractAttributes.maxConcurrent());
 			}
 			return this;
 		}

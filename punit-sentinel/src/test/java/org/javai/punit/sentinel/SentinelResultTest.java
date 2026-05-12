@@ -66,7 +66,7 @@ class SentinelResultTest {
         @DisplayName("exposes all fields correctly")
         void exposesAllFields() {
             ProbabilisticTestVerdict verdict = new ProbabilisticTestVerdictBuilder()
-                    .identity("TestClass", "testMethod", "useCase1")
+                    .identity("TestClass", "testMethod", "serviceContract1")
                     .execution(100, 100, 95, 5, 0.9, 0.95, 1000)
                     .junitPassed(true)
                     .criterionVerdict(Verdict.PASS)

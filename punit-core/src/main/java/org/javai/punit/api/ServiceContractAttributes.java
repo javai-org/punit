@@ -1,22 +1,22 @@
 package org.javai.punit.api;
 
 /**
- * Bundles use-case-level attributes declared on {@code @UseCase}.
+ * Bundles use-case-level attributes declared on {@code @ServiceContract}.
  *
  * <p>This value object acts as a single carrier for attributes that flow from
- * the {@code @UseCase} annotation through configs, baselines, specs, and verdicts.
+ * the {@code @ServiceContract} annotation through configs, baselines, specs, and verdicts.
  * Adding a new attribute requires changing only this record plus the semantic
  * sites that act on it — not the ~35 pass-through plumbing files.
  *
  * @param warmup number of warmup invocations to discard before counting (0 = no warmup)
  * @param maxConcurrent maximum concurrent sample executions (0 = framework default)
  */
-public record UseCaseAttributes(int warmup, int maxConcurrent) {
+public record ServiceContractAttributes(int warmup, int maxConcurrent) {
 
     /** Default attributes (no warmup, no concurrency override). */
-    public static final UseCaseAttributes DEFAULT = new UseCaseAttributes(0, 0);
+    public static final ServiceContractAttributes DEFAULT = new ServiceContractAttributes(0, 0);
 
-    public UseCaseAttributes {
+    public ServiceContractAttributes {
         if (warmup < 0) {
             throw new IllegalArgumentException("warmup must be >= 0, but was " + warmup);
         }
@@ -28,7 +28,7 @@ public record UseCaseAttributes(int warmup, int maxConcurrent) {
     /**
      * Convenience constructor for warmup-only (maxConcurrent defaults to 0).
      */
-    public UseCaseAttributes(int warmup) {
+    public ServiceContractAttributes(int warmup) {
         this(warmup, 0);
     }
 

@@ -55,8 +55,8 @@ class VerdictAdapterFidelityTest {
                     minimalResult(),
                     RunMetadata.of("com.example.MyTest", "shouldRun"));
 
-            assertThat(verdict.identity().useCaseId()).isEmpty();
-            // VerdictXmlWriter falls back to className when useCaseId is absent;
+            assertThat(verdict.identity().serviceContractId()).isEmpty();
+            // VerdictXmlWriter falls back to className when serviceContractId is absent;
             // this is verified in VerdictXmlWriterTest. Here we pin the absence.
         }
 
@@ -143,13 +143,13 @@ class VerdictAdapterFidelityTest {
     class Defaulted {
 
         @Test
-        @DisplayName("execution warmup not surfaced — UseCaseAttributes default warmup=0")
+        @DisplayName("execution warmup not surfaced — ServiceContractAttributes default warmup=0")
         void warmupDefaulted() {
             ProbabilisticTestVerdict verdict = adapt(minimalResult());
 
             assertThat(verdict.execution().warmup()).isZero();
-            assertThat(verdict.execution().useCaseAttributes())
-                    .isEqualTo(org.javai.punit.api.UseCaseAttributes.DEFAULT);
+            assertThat(verdict.execution().serviceContractAttributes())
+                    .isEqualTo(org.javai.punit.api.ServiceContractAttributes.DEFAULT);
         }
 
         @Test

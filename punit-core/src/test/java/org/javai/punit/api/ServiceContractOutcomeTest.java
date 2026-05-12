@@ -11,8 +11,8 @@ import org.javai.outcome.Outcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("UseCaseOutcome — recipient-facing artefact assembled by Contract.apply")
-class UseCaseOutcomeTest {
+@DisplayName("ServiceContractOutcome — recipient-facing artefact assembled by Contract.apply")
+class ServiceContractOutcomeTest {
 
     /** Stand-in contract used in the canonical-constructor tests. */
     private static final Contract<String, Integer> CONTRACT = new Contract<>() {
@@ -31,7 +31,7 @@ class UseCaseOutcomeTest {
         var mutable = new java.util.ArrayList<PostconditionResult>();
         mutable.add(PostconditionResult.passed("a"));
 
-        var outcome = new UseCaseOutcome<>(
+        var outcome = new ServiceContractOutcome<>(
                 Outcome.ok(5), CONTRACT, mutable, Optional.empty(), 0L, Duration.ZERO);
 
         mutable.add(PostconditionResult.failed("b", "intruder"));   // mutate after
@@ -44,7 +44,7 @@ class UseCaseOutcomeTest {
     @DisplayName("negative tokens are rejected")
     void rejectsNegativeTokens() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> new UseCaseOutcome<>(
+                .isThrownBy(() -> new ServiceContractOutcome<>(
                         Outcome.ok(1), CONTRACT, List.of(), Optional.empty(),
                         -1L, Duration.ZERO));
     }
@@ -53,7 +53,7 @@ class UseCaseOutcomeTest {
     @DisplayName("negative duration is rejected")
     void rejectsNegativeDuration() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> new UseCaseOutcome<>(
+                .isThrownBy(() -> new ServiceContractOutcome<>(
                         Outcome.ok(1), CONTRACT, List.of(), Optional.empty(),
                         0L, Duration.ofMillis(-1)));
     }
@@ -62,19 +62,19 @@ class UseCaseOutcomeTest {
     @DisplayName("null fields are rejected")
     void rejectsNullFields() {
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> new UseCaseOutcome<>(
+                .isThrownBy(() -> new ServiceContractOutcome<>(
                         null, CONTRACT, List.of(), Optional.empty(), 0L, Duration.ZERO));
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> new UseCaseOutcome<>(
+                .isThrownBy(() -> new ServiceContractOutcome<>(
                         Outcome.ok(1), null, List.of(), Optional.empty(), 0L, Duration.ZERO));
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> new UseCaseOutcome<>(
+                .isThrownBy(() -> new ServiceContractOutcome<>(
                         Outcome.ok(1), CONTRACT, null, Optional.empty(), 0L, Duration.ZERO));
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> new UseCaseOutcome<>(
+                .isThrownBy(() -> new ServiceContractOutcome<>(
                         Outcome.ok(1), CONTRACT, List.of(), null, 0L, Duration.ZERO));
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> new UseCaseOutcome<>(
+                .isThrownBy(() -> new ServiceContractOutcome<>(
                         Outcome.ok(1), CONTRACT, List.of(), Optional.empty(), 0L, null));
     }
 
@@ -82,7 +82,7 @@ class UseCaseOutcomeTest {
     @DisplayName("value() returns the apply-level Fail short-circuiting everything else")
     void valueReturnsApplyLevelFail() {
         Outcome<Integer> applyFail = Outcome.fail("apply-error", "boom");
-        var outcome = new UseCaseOutcome<>(
+        var outcome = new ServiceContractOutcome<>(
                 applyFail, CONTRACT,
                 List.of(PostconditionResult.passed("would-pass")),
                 Optional.empty(), 0L, Duration.ZERO);
@@ -93,7 +93,7 @@ class UseCaseOutcomeTest {
     @Test
     @DisplayName("value() returns instance_conformance Fail when the match mismatched")
     void valueReturnsMatchFail() {
-        var outcome = new UseCaseOutcome<>(
+        var outcome = new ServiceContractOutcome<>(
                 Outcome.ok(5), CONTRACT,
                 List.of(),
                 Optional.of(MatchResult.fail(
@@ -108,7 +108,7 @@ class UseCaseOutcomeTest {
     @Test
     @DisplayName("value() returns the first postcondition failure")
     void valueReturnsFirstClauseFail() {
-        var outcome = new UseCaseOutcome<>(
+        var outcome = new ServiceContractOutcome<>(
                 Outcome.ok(5), CONTRACT,
                 List.of(
                         PostconditionResult.passed("first ok"),
@@ -124,7 +124,7 @@ class UseCaseOutcomeTest {
     @Test
     @DisplayName("value() returns Ok when result is Ok and nothing else fails")
     void valueReturnsOkWhenAllPass() {
-        var outcome = new UseCaseOutcome<>(
+        var outcome = new ServiceContractOutcome<>(
                 Outcome.ok(5), CONTRACT,
                 List.of(PostconditionResult.passed("all good")),
                 Optional.of(MatchResult.pass("exact", 5, 5)),

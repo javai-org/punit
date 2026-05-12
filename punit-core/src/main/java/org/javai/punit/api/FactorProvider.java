@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
  *
  * <h2>Example</h2>
  * <pre>{@code
- * public class ShoppingBasketUseCase {
+ * public class ShoppingBasketServiceContract {
  *
  *     @FactorProvider
  *     public static List<FactorArguments> singleInstruction() {
@@ -47,15 +47,15 @@ import java.lang.annotation.Target;
  *
  * <h2>Usage in Experiments</h2>
  * <pre>{@code
- * @MeasureExperiment(samples = 1000, useCase = ShoppingBasketUseCase.class)
- * @FactorSource("ShoppingBasketUseCase#singleInstruction")
- * void measureBaseline(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
+ * @MeasureExperiment(samples = 1000, serviceContract = ShoppingBasketServiceContract.class)
+ * @FactorSource("ShoppingBasketServiceContract#singleInstruction")
+ * void measureBaseline(ShoppingBasketServiceContract serviceContract, @Factor("instruction") String instruction) {
  *     // All 1000 samples use the same instruction
  * }
  *
- * @MeasureExperiment(samples = 1000, useCase = ShoppingBasketUseCase.class)
- * @FactorSource("ShoppingBasketUseCase#standardInstructions")
- * void measureWithVariety(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
+ * @MeasureExperiment(samples = 1000, serviceContract = ShoppingBasketServiceContract.class)
+ * @FactorSource("ShoppingBasketServiceContract#standardInstructions")
+ * void measureWithVariety(ShoppingBasketServiceContract serviceContract, @Factor("instruction") String instruction) {
  *     // Samples cycle through the standard instructions
  * }
  * }</pre>
@@ -63,12 +63,12 @@ import java.lang.annotation.Target;
  * <h2>Placement</h2>
  * <p>Factor providers can be placed in:
  * <ul>
- *   <li><b>Use case classes</b> - When the use case author wants to provide
+ *   <li><b>Service contract classes</b> - When the service contract author wants to provide
  *       canonical, domain-appropriate factor values that experimenters can use</li>
  *   <li><b>Experiment classes</b> - When factor values are specific to a
  *       particular experiment or exploration</li>
  *   <li><b>Dedicated factor source classes</b> - When factor values are
- *       shared across multiple use cases or experiments</li>
+ *       shared across multiple service contracts or experiments</li>
  * </ul>
  *
  * @see FactorSource

@@ -12,7 +12,7 @@ import org.javai.punit.api.Contract;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -30,8 +30,8 @@ class TrialTest {
         public void postconditions(ContractBuilder<Integer> b) { /* none */ }
     };
 
-    private static UseCaseOutcome<String, Integer> ok(int value) {
-        return new UseCaseOutcome<>(
+    private static ServiceContractOutcome<String, Integer> ok(int value) {
+        return new ServiceContractOutcome<>(
                 Outcome.ok(value), CONTRACT,
                 List.of(), Optional.empty(),
                 0L, Duration.ZERO);
@@ -40,7 +40,7 @@ class TrialTest {
     @Test
     @DisplayName("Trial round-trips its components")
     void trialRoundTrip() {
-        UseCaseOutcome<String, Integer> outcome = ok(42);
+        ServiceContractOutcome<String, Integer> outcome = ok(42);
         Trial<String, Integer> trial = new Trial<>("hello", outcome, Duration.ofMillis(7));
 
         assertThat(trial.input()).isEqualTo("hello");
@@ -51,7 +51,7 @@ class TrialTest {
     @Test
     @DisplayName("Trial accepts a null input — input is the only nullable component")
     void trialAllowsNullInput() {
-        UseCaseOutcome<String, Integer> outcome = ok(42);
+        ServiceContractOutcome<String, Integer> outcome = ok(42);
         Trial<String, Integer> trial = new Trial<>(null, outcome, Duration.ZERO);
         assertThat(trial.input()).isNull();
     }
@@ -66,7 +66,7 @@ class TrialTest {
     @Test
     @DisplayName("Trial rejects a null duration")
     void trialRejectsNullDuration() {
-        UseCaseOutcome<String, Integer> outcome = ok(42);
+        ServiceContractOutcome<String, Integer> outcome = ok(42);
         assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> new Trial<>("hello", outcome, null));
     }
@@ -74,8 +74,8 @@ class TrialTest {
     @Test
     @DisplayName("SampleSummary.trials() returns the supplied list")
     void summaryTrialsAccessor() {
-        UseCaseOutcome<String, Integer> ok1 = ok(1);
-        UseCaseOutcome<String, Integer> ok2 = ok(2);
+        ServiceContractOutcome<String, Integer> ok1 = ok(1);
+        ServiceContractOutcome<String, Integer> ok2 = ok(2);
         List<Trial<?, Integer>> trials = List.of(
                 new Trial<>("a", ok1, Duration.ofMillis(5)),
                 new Trial<>("b", ok2, Duration.ofMillis(7)));
@@ -96,7 +96,7 @@ class TrialTest {
     @Test
     @DisplayName("SampleSummary rejects a trials list whose size does not match successes + failures")
     void summaryRejectsMismatchedTrialCount() {
-        UseCaseOutcome<String, Integer> okOutcome = ok(1);
+        ServiceContractOutcome<String, Integer> okOutcome = ok(1);
         List<Trial<?, Integer>> oneTrial = List.of(
                 new Trial<>("a", okOutcome, Duration.ofMillis(5)));
 
@@ -115,7 +115,7 @@ class TrialTest {
     @Test
     @DisplayName("SampleSummary accepts an empty trials list (back-compat path)")
     void summaryAcceptsEmptyTrials() {
-        UseCaseOutcome<String, Integer> okOutcome = ok(1);
+        ServiceContractOutcome<String, Integer> okOutcome = ok(1);
         SampleSummary<Integer> summary = new SampleSummary<>(
                 List.of(okOutcome),
                 Duration.ofMillis(5),

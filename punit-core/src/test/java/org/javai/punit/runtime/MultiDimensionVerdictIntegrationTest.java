@@ -10,7 +10,7 @@ import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.PercentileLatency;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.ProbabilisticTest;
@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
  * fails.
  *
  * <p>Each scenario controls its inputs deterministically: the functional
- * outcome is scripted via the use case's postcondition, and the latency
+ * outcome is scripted via the service contract's postcondition, and the latency
  * dimension is gated by asymmetric thresholds — trivially-passing
  * ({@code p95Millis = 10_000_000}) or trivially-failing ({@code p95Millis
  * = 0}) — so the dimensional verdict does not depend on wall-clock
@@ -60,7 +60,7 @@ class MultiDimensionVerdictIntegrationTest {
     }
 
     /** Always-pass: every sample's postcondition succeeds. */
-    private static class AlwaysPassUseCase implements UseCase<F, String, Integer> {
+    private static class AlwaysPassServiceContract implements ServiceContract<F, String, Integer> {
         @Override public String id() { return "always-pass"; }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             sleep(SLEEP_MS);
@@ -77,7 +77,7 @@ class MultiDimensionVerdictIntegrationTest {
      * with enough passing samples that the latency dimension is
      * still populated.
      */
-    private static class MixedOutcomeUseCase implements UseCase<F, String, Integer> {
+    private static class MixedOutcomeServiceContract implements ServiceContract<F, String, Integer> {
         @Override public String id() { return "mixed-outcome"; }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             sleep(SLEEP_MS);
@@ -93,7 +93,7 @@ class MultiDimensionVerdictIntegrationTest {
     private static final List<String> MIXED_INPUTS =
             List.of("ab", "cdef", "ghij", "x", "yz1", "pqrst");
 
-    /** Even-length inputs only — pair with AlwaysPassUseCase. */
+    /** Even-length inputs only — pair with AlwaysPassServiceContract. */
     private static final List<String> EVEN_LENGTH_INPUTS =
             List.of("ab", "cdef", "ghij", "klmn", "opqr", "stuv");
 
@@ -111,9 +111,9 @@ class MultiDimensionVerdictIntegrationTest {
     private static final double FUNCTIONAL_THRESHOLD = 0.95;
 
     private static Sampling<F, String, Integer> sampling(
-            UseCase<F, String, Integer> useCase, List<String> inputs) {
+            ServiceContract<F, String, Integer> serviceContract, List<String> inputs) {
         return Sampling.<F, String, Integer>builder()
-                .useCaseFactory(f -> useCase)
+                .serviceContractFactory(f -> serviceContract)
                 .inputs(inputs)
                 .samples(60)
                 .build();
@@ -129,7 +129,7 @@ class MultiDimensionVerdictIntegrationTest {
     @DisplayName("both dimensions pass — composite PASS")
     void bothDimensionsPass() {
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(new AlwaysPassUseCase(), EVEN_LENGTH_INPUTS), new F("only"))
+                .testing(sampling(new AlwaysPassServiceContract(), EVEN_LENGTH_INPUTS), new F("only"))
                 .criterion(PassRate.<Integer>meeting(FUNCTIONAL_THRESHOLD, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Integer>meeting(TRIVIAL_PASS_LATENCY, ThresholdOrigin.SLA))
                 .build();
@@ -148,7 +148,7 @@ class MultiDimensionVerdictIntegrationTest {
     @DisplayName("functional fails while latency passes — composite FAIL")
     void functionalFailsLatencyPasses() {
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(new MixedOutcomeUseCase(), MIXED_INPUTS), new F("only"))
+                .testing(sampling(new MixedOutcomeServiceContract(), MIXED_INPUTS), new F("only"))
                 .criterion(PassRate.<Integer>meeting(FUNCTIONAL_THRESHOLD, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Integer>meeting(TRIVIAL_PASS_LATENCY, ThresholdOrigin.SLA))
                 .build();
@@ -171,7 +171,7 @@ class MultiDimensionVerdictIntegrationTest {
     @DisplayName("latency fails while functional passes — composite FAIL")
     void functionalPassesLatencyFails() {
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(new AlwaysPassUseCase(), EVEN_LENGTH_INPUTS), new F("only"))
+                .testing(sampling(new AlwaysPassServiceContract(), EVEN_LENGTH_INPUTS), new F("only"))
                 .criterion(PassRate.<Integer>meeting(FUNCTIONAL_THRESHOLD, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Integer>meeting(TRIVIAL_FAIL_LATENCY, ThresholdOrigin.SLA))
                 .build();

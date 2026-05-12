@@ -77,13 +77,13 @@ public final class WebhookVerdictSink implements VerdictSink {
 
     static String toJson(ProbabilisticTestVerdict verdict) {
         String testName = verdict.identity().className() + "." + verdict.identity().methodName();
-        String useCaseId = verdict.identity().useCaseId().orElse(testName);
+        String serviceContractId = verdict.identity().serviceContractId().orElse(testName);
 
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         sb.append("\"correlationId\":").append(quote(verdict.correlationId())).append(",");
         sb.append("\"testName\":").append(quote(testName)).append(",");
-        sb.append("\"useCaseId\":").append(quote(useCaseId)).append(",");
+        sb.append("\"serviceContractId\":").append(quote(serviceContractId)).append(",");
         sb.append("\"passed\":").append(verdict.junitPassed()).append(",");
         sb.append("\"punitVerdict\":").append(quote(verdict.punitVerdict().name())).append(",");
         sb.append("\"timestamp\":").append(quote(verdict.timestamp().toString())).append(",");

@@ -11,7 +11,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.internal.engine.Engine;
@@ -45,7 +45,7 @@ class ArtefactEmissionRegressionTest {
 
     record F(String label, double weight) {}
 
-    private static class TrivialUseCase implements UseCase<F, String, Integer> {
+    private static class TrivialServiceContract implements ServiceContract<F, String, Integer> {
         @Override public String id() { return "regression-guard"; }
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
@@ -94,7 +94,7 @@ class ArtefactEmissionRegressionTest {
     private static Experiment buildMinimalFor(Experiment.Kind kind) {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
-                .useCaseFactory(f -> new TrivialUseCase())
+                .serviceContractFactory(f -> new TrivialServiceContract())
                 .inputs("a", "bb")
                 .samples(2)
                 .build();

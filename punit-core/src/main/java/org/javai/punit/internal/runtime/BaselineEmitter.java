@@ -16,7 +16,7 @@ import java.util.function.BiConsumer;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.InputSupplier;
 import org.javai.punit.api.LatencyResult;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
@@ -47,8 +47,8 @@ import org.javai.punit.internal.engine.covariate.CovariateResolver;
  * <p>Identity fields:
  *
  * <ul>
- *   <li>{@code useCaseId} — from
- *       {@code spec.useCaseFactory().apply(factors).id()}</li>
+ *   <li>{@code serviceContractId} — from
+ *       {@code spec.serviceContractFactory().apply(factors).id()}</li>
  *   <li>{@code factorsFingerprint} —
  *       {@link FactorsFingerprint#of(FactorBundle)}</li>
  *   <li>{@code inputsIdentity} — recomputed by content hash via
@@ -131,8 +131,8 @@ public final class BaselineEmitter {
         }
         Configuration<FT, IT, OT> cfg = configs.next();
         FT factors = cfg.factors();
-        UseCase<FT, IT, OT> useCase = typed.useCaseFactory().apply(factors);
-        String useCaseId = useCase.id();
+        ServiceContract<FT, IT, OT> serviceContract = typed.serviceContractFactory().apply(factors);
+        String serviceContractId = serviceContract.id();
         String factorsFingerprint = FactorsFingerprint.of(FactorBundle.of(factors));
         String inputsIdentity = InputSupplier.from(cfg::inputs).identity();
 
@@ -158,15 +158,15 @@ public final class BaselineEmitter {
         }
 
         // The resolved covariate profile is part of the baseline's
-        // identity. The use case's declarations + custom resolvers
+        // identity. The service contract's declarations + custom resolvers
         // feed the resolver; the resulting profile is stamped into
         // the BaselineRecord and surfaces as a covariate-hash tail
         // in the filename, plus a covariates: block in the YAML body.
-        List<Covariate> declarations = useCase.covariates();
+        List<Covariate> declarations = serviceContract.covariates();
         CovariateProfile profile = declarations.isEmpty()
                 ? CovariateProfile.empty()
                 : CovariateResolver.defaults()
-                        .resolve(declarations, useCase.customCovariateResolvers());
+                        .resolve(declarations, serviceContract.customCovariateResolvers());
 
         // Descriptive latency: passing-only percentiles plus the
         // population indicator. Empty when no samples passed;
@@ -177,7 +177,7 @@ public final class BaselineEmitter {
                 : new LatencyIndicator(passing, summary.successes(), total);
 
         return new BaselineRecord(
-                useCaseId,
+                serviceContractId,
                 experimentId,
                 factorsFingerprint,
                 inputsIdentity,

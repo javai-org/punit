@@ -73,7 +73,7 @@ public final class Feasibility {
     public static List<String> check(
             int samples,
             Criterion<?, ?> criterion,
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             TestIntent intent,
             BaselineProvider provider) {
@@ -90,14 +90,14 @@ public final class Feasibility {
         if (bernoulli.confidence() < StatisticalDefaults.SOUNDNESS_FLOOR_CONFIDENCE) {
             throw new IllegalStateException(
                     InfeasibilityMessageRenderer.renderSoundnessFloorBreach(
-                            useCaseId,
+                            serviceContractId,
                             bernoulli.confidence(),
                             StatisticalDefaults.SOUNDNESS_FLOOR_CONFIDENCE));
         }
         double rate;
         if (bernoulli.isEmpirical()) {
             Optional<PassRateStatistics> baseline = provider.baselineFor(
-                    useCaseId, factors, criterion.name(), PassRateStatistics.class);
+                    serviceContractId, factors, criterion.name(), PassRateStatistics.class);
             if (baseline.isEmpty()) {
                 return List.of();
             }
@@ -123,7 +123,7 @@ public final class Feasibility {
         }
         if (intent == TestIntent.VERIFICATION) {
             throw new IllegalStateException(
-                    InfeasibilityMessageRenderer.render(useCaseId, result, false));
+                    InfeasibilityMessageRenderer.render(serviceContractId, result, false));
         }
         // SMOKE intent: the developer has declared "I know this is
         // undersized; treat it as a sentinel." Silent — no warning.

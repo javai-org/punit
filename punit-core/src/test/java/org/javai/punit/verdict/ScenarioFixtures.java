@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.BaselineSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CostSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CovariateStatus;
@@ -44,7 +44,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("PaymentGatewayTest", "shouldProcessPayment", Optional.empty()),
                 new ExecutionSummary(100, 100, 96, 4, 0.9374, 0.9600, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(
@@ -81,7 +81,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("PaymentGatewayTest", "shouldProcessPayment", Optional.empty()),
                 new ExecutionSummary(100, 100, 85, 15, 0.9374, 0.8500, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(
@@ -118,7 +118,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("LatencyTest", "shouldMeetSla", Optional.empty()),
                 new ExecutionSummary(100, 50, 40, 10, 0.9000, 0.8000, 5000,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(
@@ -151,7 +151,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("ClassifierTest", "shouldClassifyCorrectly", Optional.empty()),
                 new ExecutionSummary(200, 200, 180, 20, 0.8500, 0.9000, 300,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(
@@ -184,7 +184,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("ShoppingBasketTest", "shouldCompleteCheckout", Optional.empty()),
                 new ExecutionSummary(100, 100, 95, 5, 0.9000, 0.9500, 200,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.of(new FunctionalDimension(95, 5, 0.9500)),
                 Optional.of(new LatencyDimension(
                         90, 100, false, Optional.empty(),
@@ -223,7 +223,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("ModelTest", "shouldGenerateResponse", Optional.empty()),
                 new ExecutionSummary(100, 100, 93, 7, 0.9000, 0.9300, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(
@@ -263,7 +263,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("ReliabilityTest", "shouldMeetTarget", Optional.empty()),
                 new ExecutionSummary(100, 30, 20, 10, 0.9000, 0.6667, 45,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(
@@ -301,7 +301,7 @@ final class ScenarioFixtures {
                 Instant.now(),
                 new TestIdentity("LlmTest", "shouldGenerateValid", Optional.empty()),
                 new ExecutionSummary(100, 66, 55, 11, 0.9000, 0.8333, 3200,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(

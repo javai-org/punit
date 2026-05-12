@@ -20,13 +20,13 @@ class LayeredSpecRepositoryTest {
 	@TempDir
 	Path tempDir;
 
-	private void createSpecFile(Path dir, String useCaseId, double minPassRate) throws IOException {
+	private void createSpecFile(Path dir, String serviceContractId, double minPassRate) throws IOException {
 		Files.createDirectories(dir);
 		int successes = (int) (100 * minPassRate);
 		int failures = 100 - successes;
 		StringBuilder sb = new StringBuilder();
 		sb.append("schemaVersion: punit-spec-2\n");
-		sb.append("useCaseId: ").append(useCaseId).append("\n");
+		sb.append("useCaseId: ").append(serviceContractId).append("\n");
 		sb.append("generatedAt: 2026-03-07T10:00:00Z\n");
 		sb.append("execution:\n");
 		sb.append("  samplesPlanned: 100\n");
@@ -52,7 +52,7 @@ class LayeredSpecRepositoryTest {
 		String content = sb.toString();
 		sb.append("contentFingerprint: ").append(SpecificationLoader.computeFingerprint(content)).append("\n");
 
-		Files.writeString(dir.resolve(useCaseId + ".yaml"), sb.toString());
+		Files.writeString(dir.resolve(serviceContractId + ".yaml"), sb.toString());
 	}
 
 	@Nested
@@ -65,14 +65,14 @@ class LayeredSpecRepositoryTest {
 			Path layer1 = tempDir.resolve("layer1");
 			Path layer2 = tempDir.resolve("layer2");
 
-			createSpecFile(layer1, "TestUseCase", 0.90);
-			createSpecFile(layer2, "TestUseCase", 0.80);
+			createSpecFile(layer1, "TestServiceContract", 0.90);
+			createSpecFile(layer2, "TestServiceContract", 0.80);
 
 			LayeredSpecRepository repo = new LayeredSpecRepository(List.of(
 					new SpecificationRegistry(layer1),
 					new SpecificationRegistry(layer2)));
 
-			Optional<ExecutionSpecification> result = repo.resolve("TestUseCase");
+			Optional<ExecutionSpecification> result = repo.resolve("TestServiceContract");
 
 			assertThat(result).isPresent();
 			assertThat(result.get().getMinPassRate()).isEqualTo(0.90);
@@ -85,13 +85,13 @@ class LayeredSpecRepositoryTest {
 			Path layer2 = tempDir.resolve("layer2");
 
 			Files.createDirectories(layer1);
-			createSpecFile(layer2, "TestUseCase", 0.80);
+			createSpecFile(layer2, "TestServiceContract", 0.80);
 
 			LayeredSpecRepository repo = new LayeredSpecRepository(List.of(
 					new SpecificationRegistry(layer1),
 					new SpecificationRegistry(layer2)));
 
-			Optional<ExecutionSpecification> result = repo.resolve("TestUseCase");
+			Optional<ExecutionSpecification> result = repo.resolve("TestServiceContract");
 
 			assertThat(result).isPresent();
 			assertThat(result.get().getMinPassRate()).isEqualTo(0.80);
@@ -121,16 +121,16 @@ class LayeredSpecRepositoryTest {
 			Path layer2 = tempDir.resolve("layer2");
 
 			// Layer 1 has the latency spec
-			createSpecFile(layer1, "TestUseCase.latency", 0.95);
+			createSpecFile(layer1, "TestServiceContract.latency", 0.95);
 			// Layer 2 has the functional spec
-			createSpecFile(layer2, "TestUseCase", 0.85);
+			createSpecFile(layer2, "TestServiceContract", 0.85);
 
 			LayeredSpecRepository repo = new LayeredSpecRepository(List.of(
 					new SpecificationRegistry(layer1),
 					new SpecificationRegistry(layer2)));
 
-			Optional<ExecutionSpecification> functional = repo.resolve("TestUseCase");
-			Optional<ExecutionSpecification> latency = repo.resolve("TestUseCase.latency");
+			Optional<ExecutionSpecification> functional = repo.resolve("TestServiceContract");
+			Optional<ExecutionSpecification> latency = repo.resolve("TestServiceContract.latency");
 
 			assertThat(functional).isPresent();
 			assertThat(functional.get().getMinPassRate()).isEqualTo(0.85);

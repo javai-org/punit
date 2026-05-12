@@ -17,17 +17,17 @@ import java.lang.annotation.Target;
  * <h2>Example</h2>
  * <pre>{@code
  * @OptimizeExperiment(
- *     useCase = ShoppingUseCase.class,
+ *     serviceContract = ShoppingServiceContract.class,
  *     controlFactor = "systemPrompt",
  *     initialFactor = "initialPrompt",
  *     scorer = SuccessRateScorer.class,
  *     mutator = LLMStringFactorMutator.class
  * )
  * void optimizePrompt(
- *     ShoppingUseCase useCase,
+ *     ShoppingServiceContract serviceContract,
  *     @ControlFactor String currentPrompt
  * ) {
- *     useCase.searchProducts("headphones");
+ *     serviceContract.searchProducts("headphones");
  * }
  *
  * static String initialPrompt() { return "You are an assistant."; }
@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  * <p>When optimizing multiple factors, specify the factor name:
  * <pre>{@code
  * void optimizeMultiple(
- *     ShoppingUseCase useCase,
+ *     ShoppingServiceContract serviceContract,
  *     @ControlFactor("systemPrompt") String prompt,
  *     @ControlFactor("temperature") double temp
  * ) { ... }

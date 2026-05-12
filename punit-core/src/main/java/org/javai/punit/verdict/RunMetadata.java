@@ -25,7 +25,7 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
  * @param className           the test class's fully-qualified name;
  *                            non-blank
  * @param methodName          the test method name; non-blank
- * @param useCaseId           the use-case identifier, when known; surfaces
+ * @param serviceContractId           the use-case identifier, when known; surfaces
  *                            on the verdict's {@code <identity use-case-id>}
  *                            attribute and falls back to {@code className}
  *                            when absent
@@ -38,14 +38,14 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
 public record RunMetadata(
         String className,
         String methodName,
-        Optional<String> useCaseId,
+        Optional<String> serviceContractId,
         Optional<String> correlationId,
         Map<String, String> environmentMetadata) {
 
     public RunMetadata {
         Objects.requireNonNull(className, "className");
         Objects.requireNonNull(methodName, "methodName");
-        Objects.requireNonNull(useCaseId, "useCaseId");
+        Objects.requireNonNull(serviceContractId, "serviceContractId");
         Objects.requireNonNull(correlationId, "correlationId");
         Objects.requireNonNull(environmentMetadata, "environmentMetadata");
         if (className.isBlank()) {
@@ -59,7 +59,7 @@ public record RunMetadata(
 
     /**
      * Convenience for the common case of class + method only —
-     * defaults useCaseId, correlationId, and environmentMetadata to
+     * defaults serviceContractId, correlationId, and environmentMetadata to
      * empty.
      */
     public static RunMetadata of(String className, String methodName) {
@@ -72,10 +72,10 @@ public record RunMetadata(
      * Convenience adding a use-case identifier; correlationId and
      * environmentMetadata default to empty.
      */
-    public static RunMetadata of(String className, String methodName, String useCaseId) {
-        Optional<String> wrapped = (useCaseId == null || useCaseId.isBlank())
+    public static RunMetadata of(String className, String methodName, String serviceContractId) {
+        Optional<String> wrapped = (serviceContractId == null || serviceContractId.isBlank())
                 ? Optional.empty()
-                : Optional.of(useCaseId);
+                : Optional.of(serviceContractId);
         return new RunMetadata(
                 className, methodName, wrapped, Optional.empty(), Map.of());
     }
