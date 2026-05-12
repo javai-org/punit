@@ -12,7 +12,7 @@ All attribution licensing is ARL.
   - [Why probabilistic testing](#why-probabilistic-testing)
   - [What PUnit is](#what-punit-is)
   - [Quick start](#quick-start)
-- [Part 1: The Use Case — the shared correctness target](#part-1-the-use-case--the-shared-correctness-target)
+- [Part 1: The Service Contract — the shared correctness target](#part-1-the-use-case--the-shared-correctness-target)
 - [Part 2: The lifecycle](#part-2-the-lifecycle)
 - [Part 3: Testing](#part-3-testing)
 - [Part 4: Measuring](#part-4-measuring)
@@ -83,14 +83,14 @@ distributed-systems hop, the rate-limited dependency.
 
 It provides:
 
-1. **Probabilistic tests** — run a use case `n` times, count successes,
+1. **Probabilistic tests** — run a service contract `n` times, count successes,
    evaluate against a contractual threshold or against a previously
    recorded baseline.
 2. **Latency assertions** — evaluate observed percentile latencies
    (p50, p90, p95, p99) against contractual or baseline-derived
    thresholds, with a non-parametric construction.
 3. **Experiments** — measure a baseline, explore configurations, or
-   optimize toward a target. The same use case definition powers
+   optimize toward a target. The same service contract definition powers
    all four.
 4. **Statistical rigour** — Wilson-score confidence intervals,
    binomial order-statistic upper bounds for latency thresholds,
@@ -121,12 +121,12 @@ experiments, configures the standard `test` task to exclude
 experiment-tagged methods, and supports `-Prun=` shorthand for
 filtering.
 
-**A use case** declares what the framework is testing — the service
+**A service contract** declares what the framework is testing — the service
 call, the contract its output must satisfy:
 
 ```java
-public final class JsonResponseUseCase
-        implements UseCase<NoFactors, String, String> {
+public final class JsonResponseServiceContract
+        implements ServiceContract<NoFactors, String, String> {
 
     private final LlmClient llm = LlmClient.resolve();
 
@@ -149,7 +149,7 @@ public final class JsonResponseUseCase
 }
 ```
 
-**A test** asserts that the use case meets a target pass rate:
+**A test** asserts that the service contract meets a target pass rate:
 
 ```java
 public class JsonResponseTest {
@@ -162,7 +162,7 @@ public class JsonResponseTest {
     @ProbabilisticTest
     void apiMeetsContract() {
         PUnit.testing(
-                        Sampling.of(f -> new JsonResponseUseCase(),
+                        Sampling.of(f -> new JsonResponseServiceContract(),
                                 100, PROMPTS),
                         new NoFactors())
                 .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
@@ -174,7 +174,7 @@ public class JsonResponseTest {
 }
 ```
 
-This test runs the use case 100 times, counts how many return valid
+This test runs the service contract 100 times, counts how many return valid
 JSON, and applies the Wilson-95% lower bound to the observed pass
 rate. It passes if the bound clears the 0.95 threshold. The
 `contractRef` is a free-text pointer to the document the threshold
@@ -184,32 +184,32 @@ That is the whole pattern. The rest of this guide unpacks it.
 
 ---
 
-## Part 1: The Use Case — the shared correctness target
+## Part 1: The Service Contract — the shared correctness target
 
 Before any test, experiment, or sentinel can run, an author writes one
-class: the `UseCase`. It is the single shared definition of the
+class: the `ServiceContract`. It is the single shared definition of the
 service-under-test that every probabilistic test, every experiment, and
 every sentinel run consults. A baseline measured against
-`ShoppingBasketUseCase` and a regression test running against
-`ShoppingBasketUseCase` cannot drift onto different definitions of
+`ShoppingBasketServiceContract` and a regression test running against
+`ShoppingBasketServiceContract` cannot drift onto different definitions of
 "shopping basket".
 
-A `UseCase<F, I, O>` declares three type parameters:
+A `ServiceContract<F, I, O>` declares three type parameters:
 
 - `F` — the **factor** record. Configuration the author has chosen to
   vary (LLM model, temperature, prompt). Tests pass a concrete `F`
   at the call site; experiments either fix one (`measuring`) or sweep
   several (`exploring`, `optimizing`).
-- `I` — the **input** type. The per-sample payload the use case
+- `I` — the **input** type. The per-sample payload the service contract
   consumes.
 - `O` — the **output** type. The successful-result type the contract
   evaluates against.
 
-`UseCase` extends `Contract<I, O>`, which carries the two methods the
+`ServiceContract` extends `Contract<I, O>`, which carries the two methods the
 author always overrides:
 
 ```java
-public interface UseCase<F, I, O> extends Contract<I, O> {
+public interface ServiceContract<F, I, O> extends Contract<I, O> {
     // metadata: id(), description(), pacing(), warmup(),
     // covariates(), customCovariateResolvers(), maxLatency()
 }
@@ -222,8 +222,8 @@ public interface Contract<I, O> {
 ```
 
 The split is structural, not cosmetic. `Contract` is the per-sample
-operational layer; `UseCase` is the per-run metadata layer. Author
-cost stays at zero — one `implements UseCase<...>`, three required
+operational layer; `ServiceContract` is the per-run metadata layer. Author
+cost stays at zero — one `implements ServiceContract<...>`, three required
 methods to override (`invoke`, `postconditions`, and an `id()` for
 non-trivial implementations).
 
@@ -232,7 +232,7 @@ non-trivial implementations).
 `invoke` does the operational work and returns an `Outcome<O>`.
 **Outcome is data, not exceptions:**
 
-- `Outcome.ok(value)` — success. The value is the use case's output.
+- `Outcome.ok(value)` — success. The value is the service contract's output.
 - `Outcome.fail(name, message)` — anticipated failure: a contract
   violation, a service-side error code, an empty response.
 
@@ -242,7 +242,7 @@ the run aborts, the developer investigates. Use `Outcome.fail(...)`
 for failures the author anticipated; reserve `throw` for failures the
 author did *not* anticipate.
 
-The `TokenTracker` is the cost channel. Use cases that consume tokens
+The `TokenTracker` is the cost channel. Service contracts that consume tokens
 (LLM calls, paid APIs) report consumption via
 `tracker.recordTokens(n)` during the call. The framework rolls these
 up into per-sample and per-run cost totals; the budget machinery in
@@ -261,8 +261,8 @@ public void postconditions(ContractBuilder<BasketTranslation> b) {
             t.actions().isEmpty()
                     ? Outcome.fail("empty", "actions list was empty")
                     : Outcome.ok())
-     .ensure("All actions known", ShoppingBasketUseCase::allKnown)
-     .ensure("Quantities non-negative", ShoppingBasketUseCase::quantitiesValid);
+     .ensure("All actions known", ShoppingBasketServiceContract::allKnown)
+     .ensure("Quantities non-negative", ShoppingBasketServiceContract::quantitiesValid);
 }
 ```
 
@@ -288,7 +288,7 @@ b.deriving("Resolves to catalog SKUs",
 When the derivation fails, the nested clauses report as `skipped`. When
 it succeeds, the nested clauses run against the derived value.
 
-A use case with no acceptance criteria — smoke-test scaffolding,
+A service contract with no acceptance criteria — smoke-test scaffolding,
 throwaway fixtures — explicitly declares the choice:
 
 ```java
@@ -296,14 +296,14 @@ throwaway fixtures — explicitly declares the choice:
 public void postconditions(ContractBuilder<O> b) { /* none */ }
 ```
 
-This is intentional. A use case without postconditions is one whose
+This is intentional. A service contract without postconditions is one whose
 author has not yet decided what counts as success; making the choice
-visible is part of building the use case, not an afterthought.
+visible is part of building the service contract, not an afterthought.
 
 ### Identity, description, and metadata
 
-Every use case has a stable `id()` — the kebab-case form of the simple
-class name by default (`ShoppingBasketUseCase` → `shopping-basket`).
+Every service contract has a stable `id()` — the kebab-case form of the simple
+class name by default (`ShoppingBasketServiceContract` → `shopping-basket`).
 The id anchors baseline filenames, verdict reports, and covariate
 fingerprints. Override when the default would collide or when the
 class name does not read well as a filename.
@@ -316,7 +316,7 @@ need a non-default value:
 | `description()`                 | Human-readable description for reports.                    |
 | `warmup()`                      | Discarded sample count before counting begins.             |
 | `pacing()`                      | Rate / concurrency limits the engine must respect.         |
-| `covariates()`                  | Environmental factors the use case is sensitive to.        |
+| `covariates()`                  | Environmental factors the service contract is sensitive to.        |
 | `customCovariateResolvers()`    | Resolvers for custom covariates declared in `covariates()`.|
 | `maxLatency()`                  | Per-sample wall-clock bound (rare; use `PercentileLatency` instead). |
 
@@ -326,8 +326,8 @@ need a non-default value:
 ### A worked example
 
 ```java
-public final class ShoppingBasketUseCase
-        implements UseCase<LlmTuning, String, BasketTranslation> {
+public final class ShoppingBasketServiceContract
+        implements ServiceContract<LlmTuning, String, BasketTranslation> {
 
     public record LlmTuning(String model, double temperature, String systemPrompt) {
         public static final LlmTuning DEFAULT =
@@ -337,7 +337,7 @@ public final class ShoppingBasketUseCase
     private final ChatLlm llm;
     private final LlmTuning tuning;
 
-    public ShoppingBasketUseCase(ChatLlm llm, LlmTuning tuning) {
+    public ShoppingBasketServiceContract(ChatLlm llm, LlmTuning tuning) {
         this.llm = llm;
         this.tuning = tuning;
     }
@@ -377,13 +377,13 @@ public final class ShoppingBasketUseCase
                 t.actions().isEmpty()
                         ? Outcome.fail("empty", "actions list was empty")
                         : Outcome.ok())
-         .ensure("All actions valid", ShoppingBasketUseCase::actionsValid);
+         .ensure("All actions valid", ShoppingBasketServiceContract::actionsValid);
     }
 
     public static Sampling<LlmTuning, String, BasketTranslation> sampling(
             List<String> instructions, int samples) {
         return Sampling.of(
-                tuning -> new ShoppingBasketUseCase(ChatLlmProvider.resolve(), tuning),
+                tuning -> new ShoppingBasketServiceContract(ChatLlmProvider.resolve(), tuning),
                 samples, instructions);
     }
 }
@@ -439,13 +439,13 @@ sentinel runner.
 ## Part 3: Testing
 
 `PUnit.testing(sampling, factors)` composes a probabilistic test that
-runs the bound use case `samples` times and evaluates one or more
+runs the bound service contract `samples` times and evaluates one or more
 **criteria** against the result.
 
 ```java
 @ProbabilisticTest
 void apiMeetsSla() {
-    PUnit.testing(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 50),
+    PUnit.testing(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, 50),
                   LlmTuning.DEFAULT)
             .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
             .contractRef("Acme API SLA v3 §2.1")
@@ -538,7 +538,7 @@ fail the test.
 `assertPasses()` translates the engine's verdict into a JUnit outcome:
 
 - **PASS** — returns normally.
-- **FAIL** — throws `AssertionFailedError`. The use case degraded or
+- **FAIL** — throws `AssertionFailedError`. The service contract degraded or
   the SLA was breached.
 - **INCONCLUSIVE** — throws `TestAbortedException` (skipped) when
   the configuration cannot be evaluated (no baseline yet, baseline
@@ -660,14 +660,14 @@ to be *shown*, not just inferred from the absence of a failure.
 
 ## Part 4: Measuring
 
-A MEASURE experiment runs a use case at high statistical power
+A MEASURE experiment runs a service contract at high statistical power
 (typically 1000+ samples) and writes a **baseline file** — the empirical
-record of how the use case behaved under a specified configuration.
+record of how the service contract behaved under a specified configuration.
 
 ```java
 @Experiment
 void shoppingBaseline() {
-    PUnit.measuring(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 1000),
+    PUnit.measuring(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, 1000),
                     LlmTuning.DEFAULT)
             .run();
 }
@@ -692,7 +692,7 @@ them.
 A successful MEASURE writes a single YAML file to the configured
 **baseline directory**. The file records:
 
-- The use case id and the experiment method name (identity).
+- The service contract id and the experiment method name (identity).
 - A fingerprint of the factors record (so the test side can match).
 - The fingerprint of the inputs population (so a test cannot pair
   with a baseline that observed different inputs).
@@ -717,14 +717,14 @@ private static final int VERIFICATION_SAMPLES = 50;
 
 @Experiment
 void baseline() {
-    PUnit.measuring(ShoppingBasketUseCase.sampling(INSTRUCTIONS, BASELINE_SAMPLES),
+    PUnit.measuring(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, BASELINE_SAMPLES),
                     LlmTuning.DEFAULT)
             .run();
 }
 
 @ProbabilisticTest
 void shouldNotRegress() {
-    PUnit.testing(ShoppingBasketUseCase.sampling(INSTRUCTIONS, VERIFICATION_SAMPLES),
+    PUnit.testing(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, VERIFICATION_SAMPLES),
                   LlmTuning.DEFAULT)
             .criterion(PassRate.empirical())
             .assertPasses();
@@ -765,14 +765,14 @@ duplication:
 public class ShoppingBasketRoundTrip {
 
     private Experiment baseline() {
-        return PUnit.measuring(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 1000),
+        return PUnit.measuring(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, 1000),
                                LlmTuning.DEFAULT)
                 .build();
     }
 
     @Experiment
     void runBaseline() {
-        PUnit.measuring(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 1000),
+        PUnit.measuring(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, 1000),
                         LlmTuning.DEFAULT)
                 .run();
     }
@@ -794,14 +794,14 @@ the criterion; identity, factors, and inputs follow from the baseline.
 
 ## Part 5: Exploring
 
-An EXPLORE experiment runs a use case across a grid of factor values,
+An EXPLORE experiment runs a service contract across a grid of factor values,
 reports per-configuration statistics, and writes one row per grid
 point.
 
 ```java
 @Experiment
 void compareModels() {
-    PUnit.exploring(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 200))
+    PUnit.exploring(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, 200))
             .grid(
                     new LlmTuning("gpt-4o-mini",       0.3, DEFAULT_PROMPT),
                     new LlmTuning("gpt-4o",            0.3, DEFAULT_PROMPT),
@@ -844,12 +844,12 @@ builder accepts `List<F>` as well as varargs.
 ## Part 6: Optimizing
 
 An OPTIMIZE experiment iteratively explores a continuous factor space
-to maximise (or minimise) a scorer over the use case's results.
+to maximise (or minimise) a scorer over the service contract's results.
 
 ```java
 @Experiment
 void optimizeTemperature() {
-    PUnit.optimizing(ShoppingBasketUseCase.sampling(INSTRUCTIONS, 100))
+    PUnit.optimizing(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, 100))
             .initialFactors(new LlmTuning("gpt-4o", 0.0, DEFAULT_PROMPT))
             .stepper((current, history) ->
                     current.temperature() >= 1.0
@@ -968,7 +968,7 @@ Declare only the percentiles you care about — others are not asserted.
 
 ### Asserting latency: baseline-derived thresholds
 
-When the threshold should track the use case's measured behaviour,
+When the threshold should track the service contract's measured behaviour,
 PUnit derives it from a recorded baseline using the **binomial
 order-statistic upper confidence bound** on the baseline quantile:
 
@@ -1019,7 +1019,7 @@ dimension.
 
 ## Part 8: Resource controls
 
-PUnit gives the use case author and the test author direct levers
+PUnit gives the service contract author and the test author direct levers
 over time, tokens, pacing, and exception handling.
 
 ### Budgets
@@ -1029,7 +1029,7 @@ run. Specify them on the `Sampling`:
 
 ```java
 Sampling.<F, I, O>builder()
-        .useCaseFactory(factory)
+        .serviceContractFactory(factory)
         .inputs(INPUTS)
         .samples(1000)
         .timeBudget(Duration.ofMinutes(2))
@@ -1040,7 +1040,7 @@ Sampling.<F, I, O>builder()
 ```
 
 `tokenCharge` is a static per-sample projection used for pre-sample
-budget enforcement; the use case's own `tracker.recordTokens(...)`
+budget enforcement; the service contract's own `tracker.recordTokens(...)`
 calls add to the post-sample running total. `BudgetExhaustionPolicy`
 selects the response when a budget runs out:
 
@@ -1052,7 +1052,7 @@ selects the response when a budget runs out:
 ### Pacing
 
 Some services impose rate or concurrency limits. Declare them on the
-use case (not on the test — every test of the same service should
+service contract (not on the test — every test of the same service should
 respect the same limits):
 
 ```java
@@ -1073,7 +1073,7 @@ waits 250ms.
 ### Exception handling
 
 A thrown exception from `invoke` is treated as a defect by default
-— the run aborts. To run a noisy use case where some samples
+— the run aborts. To run a noisy service contract where some samples
 genuinely throw and the test wants to count those as failures:
 
 ```java
@@ -1087,8 +1087,8 @@ Sampling.<F, I, O>builder()
 | `ABORT_TEST` (default)  | Rethrow; the engine aborts. Defect-stays-a-defect.         |
 | `FAIL_SAMPLE`           | Catch, count as a failed sample, continue.                 |
 
-Use `ABORT_TEST` for any use case where a thrown exception genuinely
-reflects a bug; use `FAIL_SAMPLE` for a use case whose exceptions
+Use `ABORT_TEST` for any service contract where a thrown exception genuinely
+reflects a bug; use `FAIL_SAMPLE` for a service contract whose exceptions
 are part of its expected (probabilistic) behaviour.
 
 ### Warmup
@@ -1107,7 +1107,7 @@ consume budget.
 
 ### Per-sample latency bound
 
-Use cases can declare a hard per-sample latency bound:
+Service contracts can declare a hard per-sample latency bound:
 
 ```java
 @Override
@@ -1129,7 +1129,7 @@ distinct homes.
 ## Part 9: Covariates
 
 A covariate is an environmental factor that the developer does not
-control but that influences the use case's behaviour: the time of
+control but that influences the service contract's behaviour: the time of
 day, the deployment region, the model version, the day of week.
 Declaring covariates makes their effect *visible* — and it makes
 baseline matching honest.
@@ -1211,7 +1211,7 @@ sets it, `EXTERNAL_DEPENDENCY` if a vendor controls when it changes.
 
 When `PassRate.empirical()` runs, the baseline resolver:
 
-1. Looks up baselines for the use case id.
+1. Looks up baselines for the service contract id.
 2. Filters by exact factor-record match.
 3. Filters by exact CONFIGURATION covariate match.
 4. Picks the candidate whose OPERATIONAL covariates best align with
@@ -1257,7 +1257,7 @@ public class PaymentGatewaySentinel {
 
     @ProbabilisticTest
     void paymentMeetsContractualSla() {
-        PUnit.testing(PaymentGatewayUseCase.sampling(CHARGES, 50),
+        PUnit.testing(PaymentGatewayServiceContract.sampling(CHARGES, 50),
                       Tier.DEFAULT)
                 .criterion(PassRate.meeting(0.99, ThresholdOrigin.SLA))
                 .contractRef("Acme Payment SLA v3.2 §4.1")
@@ -1320,7 +1320,7 @@ configured directory in the same shape as the development-time runs;
 Some sentinel runs need values not appropriate for development —
 production credentials, real LLM provider keys, the real payment
 gateway. Pass them at deploy time via system properties or environment
-variables; the use case constructor reads from the environment as
+variables; the service contract constructor reads from the environment as
 usual. The framework imposes no opinion on how secrets reach the use
 case.
 
@@ -1366,8 +1366,7 @@ to the **RP07 javai verdict interchange standard**:
 
 - Namespace: `http://javai.org/verdict/1.0`
 - Root: `<verdict-record>`
-- Schema: `verdict-1.0.xsd` (bundled in `punit-report`; canonical copy
-  in the orchestrator's `inventory/catalog/reporting/RP07-verdict-xml-interchange/`).
+- Schema: `verdict-1.0.xsd` (bundled in `punit-report`).
 
 The schema covers identity, verdict, criterion results, sample
 counts, latency percentiles, baseline expiration, environment
@@ -1393,7 +1392,7 @@ against published formulae in isolation.
 
 ### Pass rate: Wilson score lower bound
 
-A use case's `n_test` invocations are modelled as Bernoulli trials
+A service contract's `n_test` invocations are modelled as Bernoulli trials
 under a working approximation of independence and stationarity. The
 total number of successes is binomial, and the sample proportion
 `p̂ = k / n` is an unbiased estimator of the true success
@@ -1565,7 +1564,7 @@ rule, so it is out of scope for this surface.
 
 ## Appendix B: Glossary
 
-**Baseline.** A YAML file recording a use case's measured behaviour
+**Baseline.** A YAML file recording a service contract's measured behaviour
 under a specific factor configuration: pass rate, sample count,
 sorted latency vector, covariate profile, capture timestamp.
 Produced by a MEASURE experiment; consumed by tests that use
@@ -1573,11 +1572,11 @@ empirical criteria.
 
 **Contract.** Two distinct senses, both intentional:
 1. The `Contract<I, O>` interface — the per-sample operational layer
-   of a use case (`invoke` and `postconditions`).
+   of a service contract (`invoke` and `postconditions`).
 2. The human-language reliability target an SLA / SLO / policy
    document defines. Pointed at via `contractRef("...")`.
 
-**Covariate.** An environmental factor declared by the use case that
+**Covariate.** An environmental factor declared by the service contract that
 influences behaviour but is not part of the factor record. Resolved
 once per run; participates in baseline matching.
 
@@ -1602,7 +1601,7 @@ site as a record of type `F`.
 The `org.javai:outcome` library's data type for expected failure;
 distinct from thrown exceptions, which signal defects.
 
-**Postcondition.** One named acceptance clause on a use case's
+**Postcondition.** One named acceptance clause on a service contract's
 output. Authored via `ContractBuilder.ensure(...)` or
 `ContractBuilder.deriving(...)`. Evaluated per sample; failures are
 recorded as data and surface in the verdict's failure histogram.
@@ -1631,12 +1630,12 @@ to be statistically adequate and rejects undersized runs.
 (`SLA`, `SLO`, `EMPIRICAL`, `POLICY`, ...). Recorded on the verdict
 for audit traceability.
 
-**TokenTracker.** The cost channel passed to `invoke`. Use cases
+**TokenTracker.** The cost channel passed to `invoke`. Service contracts
 report token consumption via `tracker.recordTokens(n)`; the
 framework rolls these up for the budget machinery and per-run
 totals.
 
-**Use Case.** The `UseCase<F, I, O>` implementation — the single
+**Service Contract.** The `ServiceContract<F, I, O>` implementation — the single
 shared definition of the service-under-test that all tests,
 experiments, and sentinels reference.
 

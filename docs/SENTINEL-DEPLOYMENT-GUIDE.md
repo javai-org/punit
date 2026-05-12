@@ -6,11 +6,11 @@ This guide covers project structure and operational deployment for PUnit Sentine
 
 ## Why the Sentinel Exists
 
-The stochastic behaviour of certain use cases — LLM integrations, ML model inference, calls to external services with variable latency — can depend heavily on environmental factors: model versions deployed in a specific region, API provider performance characteristics, infrastructure configuration, network conditions.
+The stochastic behaviour of certain service contracts — LLM integrations, ML model inference, calls to external services with variable latency — can depend heavily on environmental factors: model versions deployed in a specific region, API provider performance characteristics, infrastructure configuration, network conditions.
 
 PUnit already models these environmental influences through its **covariate** system. Covariates are declared environmental factors — temporal (time of day, weekday vs weekend), infrastructural (region, instance type, API version), or configurational (model, temperature, prompt variant) — that PUnit tracks so it can select the most appropriate baseline for a given execution context. When covariates don't match, PUnit qualifies the verdict with a non-conformance warning, because testing against the wrong baseline produces misleading results.
 
-However, covariate-aware baseline selection works best when baselines are available for the relevant covariate values. For use cases whose behaviour is shaped by the deployed environment, probabilistic testing must be based on baselines obtained from within that environment. A baseline measured on a developer workstation or in a CI container may not reflect what the system experiences in staging or production.
+However, covariate-aware baseline selection works best when baselines are available for the relevant covariate values. For service contracts whose behaviour is shaped by the deployed environment, probabilistic testing must be based on baselines obtained from within that environment. A baseline measured on a developer workstation or in a CI container may not reflect what the system experiences in staging or production.
 
 Because environmental factors change over time — model updates, infrastructure migrations, provider degradation — a one-off baseline is insufficient. We require a mechanism that continuously guards against regression by re-measuring baselines and re-verifying reliability within the target environment.
 
@@ -61,9 +61,9 @@ public class OpenAiClient {
 }
 ```
 
-#### `app-usecases` — Use Cases and Sentinel-Deployable Classes
+#### `app-usecases` — Service Contracts and Sentinel-Deployable Classes
 
-Contains `UseCase` implementations and the sentinel-deployable classes that exercise them. A sentinel-deployable class is just a class declaring one or more `@ProbabilisticTest` and/or `@Experiment` methods — there is **no class-level marker annotation**. The same class is consumed by JUnit at development time (because `@ProbabilisticTest` and `@Experiment` are meta-annotated `@Test`) and by the Sentinel runner at deployment time.
+Contains `ServiceContract` implementations and the sentinel-deployable classes that exercise them. A sentinel-deployable class is just a class declaring one or more `@ProbabilisticTest` and/or `@Experiment` methods — there is **no class-level marker annotation**. The same class is consumed by JUnit at development time (because `@ProbabilisticTest` and `@Experiment` are meta-annotated `@Test`) and by the Sentinel runner at deployment time.
 
 ```kotlin
 // app-usecases/build.gradle.kts
@@ -73,7 +73,7 @@ dependencies {
 }
 ```
 
-This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`UseCase`, `Contract`, `ContractBuilder`, `Sampling`, `PUnit`, etc.) are production dependencies in this module because the sentinel-deployable classes are production artefacts.
+This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`ServiceContract`, `Contract`, `ContractBuilder`, `Sampling`, `PUnit`, etc.) are production dependencies in this module because the sentinel-deployable classes are production artefacts.
 
 The module must **not** depend on `junit-jupiter-api`. Sentinel-deployable code is JUnit-free. For the contract-first authoring model, see [Part 3 of the User Guide](USER-GUIDE.md#part-3-the-use-case).
 
@@ -129,7 +129,7 @@ The task requires at least one class declaring `@ProbabilisticTest` or `@Experim
 
 Sentinel-deployable classes define **what to measure** and **what to verify** about stochastic behaviour. They are consumed by both the JUnit test suite (because their `@ProbabilisticTest` / `@Experiment` methods are meta-annotated `@Test`) and the Sentinel runner (which discovers them via the build-time manifest).
 
-Placing them in a test source set makes them unavailable to the Sentinel — code in `src/test/java` is never packaged into a deployable JAR. The `app-usecases` module is the bridge: it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `UseCase`, `Contract`, `ContractBuilder`, `PUnit`, etc.), and produces a production artefact consumable by both engines.
+Placing them in a test source set makes them unavailable to the Sentinel — code in `src/test/java` is never packaged into a deployable JAR. The `app-usecases` module is the bridge: it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `ServiceContract`, `Contract`, `ContractBuilder`, `PUnit`, etc.), and produces a production artefact consumable by both engines.
 
 This also applies to input data — anything passed to `Sampling.Builder.inputs(...)`. The Sentinel engine needs the same inputs as the JUnit engine. If input data lives in the test source set or a test resource folder, the Sentinel cannot reach it.
 
@@ -141,7 +141,7 @@ The Sentinel runtime has no DI container. Stochastic services must be constructa
 
 This is not a limitation — it's a **forcing function for clean API boundaries** around non-deterministic behaviour. Applications using Spring, Guice, or other DI frameworks isolate their stochastic integrations in `app-stochastic` as plain Java objects. The main application's DI layer wraps them as beans. No code duplication, no PUnit dependency in the main application.
 
-No framework-specific Sentinel variants are needed or provided. There is no `SpringSentinel` or `GuiceSentinel`. A sentinel-deployable class constructs its stochastic dependencies as plain Java objects (via factory closures on `Sampling.Builder.useCaseFactory(...)`), and the Sentinel runtime knows nothing about DI frameworks.
+No framework-specific Sentinel variants are needed or provided. There is no `SpringSentinel` or `GuiceSentinel`. A sentinel-deployable class constructs its stochastic dependencies as plain Java objects (via factory closures on `Sampling.Builder.serviceContractFactory(...)`), and the Sentinel runtime knows nothing about DI frameworks.
 
 ---
 
@@ -157,7 +157,7 @@ Build the executable sentinel JAR from the project that contains the sentinel-de
 
 Deploy the resulting `build/libs/<project>-sentinel.jar` to the target environment.
 
-### 1. Discover Available Use Cases
+### 1. Discover Available Service Contracts
 
 List the tests and experiments packaged in the JAR:
 
@@ -165,7 +165,7 @@ List the tests and experiments packaged in the JAR:
 java -jar sentinel.jar --list
 ```
 
-The output groups discovered methods by use case, distinguishing `@Experiment` methods (which produce baselines, exploration grids, or optimisation histories) from `@ProbabilisticTest` methods (which produce verdicts).
+The output groups discovered methods by service contract, distinguishing `@Experiment` methods (which produce baselines, exploration grids, or optimisation histories) from `@ProbabilisticTest` methods (which produce verdicts).
 
 ### 2. Establish Baselines (Experiment Mode)
 
@@ -230,7 +230,7 @@ The Sentinel's exit code (`SentinelResult.allPassed()`) and verdict dispatch (`V
 |------------------|---------------------------|------------------------|--------------------------------------------------------|
 | `app-stochastic` | None                      | None                   | Stochastic service integrations                        |
 | `app-main`       | None                      | None                   | Main application                                       |
-| `app-usecases`   | `punit-core` (production) | None                   | Use cases + sentinel-deployable classes                |
+| `app-usecases`   | `punit-core` (production) | None                   | Service contracts + sentinel-deployable classes                |
 | Test suite       | `punit-core` (test) + `punit-report` (test) | `junit-jupiter` (test) | JUnit-driven probabilistic tests, experiments, fixtures|
 
 The sentinel JAR is built by the PUnit Gradle plugin's `createSentinel` task from the main classpath — no dedicated sentinel module is needed. The plugin automatically includes `punit-sentinel` and its transitive dependencies.

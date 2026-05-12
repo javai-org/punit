@@ -1,27 +1,26 @@
 # punit Domain Ontology
 
-This document maps the **family domain ontology**
-([`javai-orchestrator/inventory/DOMAIN-ONTOLOGY.md`](../../inventory/DOMAIN-ONTOLOGY.md))
-onto punit's Java idioms, packages, and types. It is the conceptual
-counterpart to [`DEVELOPER-API.md`](DEVELOPER-API.md) — together they
-form punit's spec for "what the framework looks like to a Java
-developer." This document answers *what kinds of things live in this
-codebase and how they relate*; the API doc answers *what does it look
-like to use them*.
+This document maps the javai.org framework family's shared domain
+concepts onto punit's Java idioms, packages, and types. It is the
+conceptual counterpart to [`DEVELOPER-API.md`](DEVELOPER-API.md) —
+together they form punit's spec for "what the framework looks like
+to a Java developer." This document answers *what kinds of things
+live in this codebase and how they relate*; the API doc answers
+*what does it look like to use them*.
 
-This document is **downstream** of the family ontology. When this
-document and the family ontology disagree, the family ontology wins
-and this document is corrected. Do not introduce a concept here that
-the family ontology does not sanction; raise a directive first to add
-it at the family level.
+Cross-framework concepts (shared with feotest and other ports) are
+defined identically across the family; this document is the punit-
+specific mapping. Where this document conflicts with the
+cross-framework definition, this document is wrong and is
+corrected.
 
 ---
 
 ## How to read
 
-For each family-level concept this document carries:
+For each domain concept this document carries:
 
-- **family**: the family ontology section name.
+- **concept**: the cross-framework concept name.
 - **java type**: the Java identifier in punit (interface, class,
   record, annotation, …).
 - **package**: where it lives.
@@ -31,10 +30,9 @@ For each family-level concept this document carries:
 - **gotchas / drift to fix**: punit-specific points an agent must
   preserve when modifying or generating code.
 
-Family-level invariants and policies are not restated here; the
-family ontology is authoritative on those. Where punit *enforces* a
-family-level invariant via a specific test or architectural rule,
-the enforcement mechanism is named (typically the relevant
+Cross-framework invariants and policies are not restated here.
+Where punit *enforces* one via a specific test or architectural
+rule, the enforcement mechanism is named (typically the relevant
 ArchUnit-style architecture test).
 
 ---
@@ -42,12 +40,12 @@ ArchUnit-style architecture test).
 ## Subject under test
 
 ```yaml
-- family: Use Case
-  java_type: UseCase<FT, IT, OT>          # interface (sealed by extension to Contract)
+- concept: Service Contract
+  java_type: ServiceContract<FT, IT, OT>          # interface (sealed by extension to Contract)
   package: org.javai.punit.api
   role_notes: |
     Sealed-by-convention: extends Contract<IT, OT>. An author writes
-    one `class X implements UseCase<F, I, O>` and overrides three
+    one `class X implements ServiceContract<F, I, O>` and overrides three
     methods — `invoke`, `postconditions(ContractBuilder)`, plus
     whichever metadata methods diverge from defaults
     (`id`, `pacing`, `warmup`, `covariates`, `inputSource`, …).
@@ -61,13 +59,11 @@ ArchUnit-style architecture test).
       configuration. Implementations may carry per-configuration
       state but must not mutate it in ways that change observable
       `invoke` behaviour.
-    - Factor and Covariate names must be disjoint (family invariant).
-    - `ServiceContract` rename is pending under
-      `DIR-USECASE-RENAME` (deferred past 0.7.x). The Java type
-      stays `UseCase` for now.
+    - Factor and Covariate names must be disjoint (cross-framework
+      invariant).
 
-- family: Use Case ID
-  java_type: String (returned by UseCase#id())
+- concept: Service Contract ID
+  java_type: String (returned by ServiceContract#id())
   package: org.javai.punit.api
   role_notes: |
     Filename-safe, stable across runs. Path component for emitted
@@ -77,7 +73,7 @@ ArchUnit-style architecture test).
       committed baseline addressed by that id. Treat as schema
       change.
 
-- family: Factor
+- concept: Factor
   java_type: typed factor record (author-defined) + Factor / FactorValue / FactorBundle support types
   package: org.javai.punit.api
   role_notes: |
@@ -88,14 +84,14 @@ ArchUnit-style architecture test).
     empty record.
   gotchas:
     - Drop the `with_` prefix on builder/fluent factor methods
-      (project-wide rule — see family ontology assistant guidance).
+      (project-wide rule — see cross-framework ontology assistant guidance).
     - **Term to avoid: "factor level".** The canonical javai term
       is "factor value". "Factor level" survives only in
       `javai-R/docs/GLOSSARY.md` as a Design-of-Experiments nod.
       Two javadoc surfaces in `Factor.java` and `Config.java` still
       use "factor levels" — sweep when next editing those files.
 
-- family: Covariate
+- concept: Covariate
   java_type: Covariate (interface) + CovariateProfile + per-category implementations
   package: org.javai.punit.api.covariate
   role_notes: |
@@ -103,17 +99,16 @@ ArchUnit-style architecture test).
     metadata. Built-in categories: `DayOfWeekCovariate`,
     `RegionCovariate`, `TimeOfDayCovariate`, `TimezoneCovariate`,
     `CustomCovariate`. Authors most often declare covariates by
-    overriding `UseCase#covariates()` to return a list of these.
+    overriding `ServiceContract#covariates()` to return a list of these.
   gotchas:
-    - When a Use Case declares Covariates, every artefact path
-      that emits or consumes a baseline for that Use Case MUST
-      carry the covariate profile (family invariant —
+    - When a Service Contract declares Covariates, every artefact path
+      that emits or consumes a baseline for that Service Contract MUST
+      carry the covariate profile (cross-framework invariant —
       "Covariate-as-identity").
-    - The duplicate `model.CovariateProfile` was removed under
-      DIR-PACKAGE-DRIFT-FIX-punit step 2; `api.covariate.CovariateProfile`
-      is the sole canonical home.
+    - `api.covariate.CovariateProfile` is the sole canonical home;
+      no other CovariateProfile exists in the codebase.
 
-- family: Input Source
+- concept: Input Source
   java_type: InputSource<IT> + InputSupplier<IT>
   package: org.javai.punit.api
   role_notes: |
@@ -127,25 +122,24 @@ ArchUnit-style architecture test).
 ## Judgement under test
 
 ```yaml
-- family: Service Contract
+- concept: Service Contract
   java_type: Contract<IT, OT>             # interface
   package: org.javai.punit.api
   role_notes: |
     The operational layer. Carries `invoke` and
-    `postconditions(ContractBuilder<O>)`. UseCase extends Contract;
+    `postconditions(ContractBuilder<O>)`. ServiceContract extends Contract;
     the abstract / concrete split is preserved by inheritance.
   gotchas:
-    - The "Service Contract" *concept* is owned by `Contract` here.
-      Do not confuse with the planned `UseCase → ServiceContract`
-      *type rename*; that rename moves the *subject* concept onto a
-      different identifier and is deferred (see DIR-USECASE-RENAME).
-    - A parallel `org.javai.punit.contract.*` package exists with a
-      duplicate `ServiceContract` and friends. **Dead code,
-      scheduled for deletion under DIR-CONTRACT-PACKAGE-REMOVAL-punit
-      (in 0.7.x scope).** Do not reference, extend, or re-import —
-      treat it as not-there.
+    - **Two "service contract" senses live in the codebase.** The
+      *subject* concept is the `ServiceContract<F, I, O>`
+      interface — the thing under test. The *judgement* concept
+      lives in `Contract<I, O>` — the postcondition clauses,
+      duration constraint, and instance-conformance matchers.
+      `ServiceContract` extends `Contract`. In prose, prefer
+      "Acceptance Contract" or "postconditions" for the judgement
+      concept to avoid the overload.
 
-- family: Postcondition
+- concept: Postcondition
   java_type: ContractBuilder<O>::ensure / ::deriving
   package: org.javai.punit.api
   role_notes: |
@@ -159,27 +153,25 @@ ArchUnit-style architecture test).
   gotchas:
     - Do not move contract judgement out of `postconditions` into
       `invoke`. Failure detail (clause-named diagnostic) only
-      arises when the clause is registered through the builder
-      (memory: `keep_invoke_primitive`).
-    - The standalone form in the dead `org.javai.punit.contract`
-      package (Postcondition / PostconditionEvaluator / etc.) is
-      gone after DIR-CONTRACT-PACKAGE-REMOVAL-punit. The inline
-      form on `ContractBuilder` is the only canonical surface.
+      arises when the clause is registered through the builder.
+    - The inline form on `ContractBuilder` is the only canonical
+      surface for postconditions; there is no standalone
+      `Postcondition` / `PostconditionEvaluator` author surface.
 
-- family: Duration Constraint
-  java_type: UseCase#maxLatency() returning Optional<Duration>
+- concept: Duration Constraint
+  java_type: ServiceContract#maxLatency() returning Optional<Duration>
   package: org.javai.punit.api
   role_notes: |
     Per-sample wall-clock bound. Independent of postconditions: a
     duration violation is recorded even if every postcondition
-    passes (family invariant — "Service Contract aspect
+    passes (cross-framework invariant — "Service Contract aspect
     independence").
   gotchas:
     - Do not conflate with PercentileLatency criterion. Duration
       Constraint is per-sample, contractual, fail-fast. Latency
       Assertion is per-test, distributional, percentile-based.
 
-- family: Expected-Output Match
+- concept: Expected-Output Match
   java_type: ValueMatcher<OT> + Expectation<OT>
   package: org.javai.punit.api
   role_notes: |
@@ -188,17 +180,17 @@ ArchUnit-style architecture test).
     Author-facing API exposes the matcher composition surface and
     the `Expectation` carrier; engine-side dispatch is internal.
 
-- family: Conformance
-  java_type: UseCaseOutcome<OT> (the per-sample state) + criterion-level evaluation
-  package: org.javai.punit.api (UseCaseOutcome) + org.javai.punit.api.spec (criterion path)
+- concept: Conformance
+  java_type: ServiceContractOutcome<OT> (the per-sample state) + criterion-level evaluation
+  package: org.javai.punit.api (ServiceContractOutcome) + org.javai.punit.api.spec (criterion path)
   role_notes: |
-    `UseCaseOutcome` carries the per-sample data: timestamped
+    `ServiceContractOutcome` carries the per-sample data: timestamped
     wrapper of the `Outcome<OT>`, duration, token charge, clause
     results. The criterion-level conformance pass-rate is
     aggregated by the engine and read by `PassRate`.
   gotchas:
-    - `api.UseCaseOutcome` is the canonical version. A duplicate
-      `contract.UseCaseOutcome` exists in the dead package and is
+    - `api.ServiceContractOutcome` is the canonical version. A duplicate
+      `contract.ServiceContractOutcome` exists in the dead package and is
       scheduled for deletion. Always import from `api`.
 ```
 
@@ -207,7 +199,7 @@ ArchUnit-style architecture test).
 ## The act of testing
 
 ```yaml
-- family: Sample
+- concept: Sample
   java_type: per-sample tuple (Outcome<OT> + duration + token diff)
               materialised inside Engine; surfaced via SampleSummary
   package: org.javai.punit.internal.engine + org.javai.punit.api.spec
@@ -217,12 +209,12 @@ ArchUnit-style architecture test).
     `SampleClassification` and `Trial` are the fine-grained shapes
     inside `api/spec`.
 
-- family: Outcome
+- concept: Outcome
   java_type: org.javai.outcome.Outcome<T>     # sealed interface (Ok | Fail)
   package: org.javai.outcome (external library)
   role_notes: |
     Imported from the `org.javai:outcome` library; not punit's
-    invention. punit also publishes `UseCaseOutcome<OT>` as the
+    invention. punit also publishes `ServiceContractOutcome<OT>` as the
     per-sample wrapper carrying the `Outcome<OT>` value plus
     cost / timing / clauses. Authors return `Outcome.ok(value)`
     or `Outcome.fail(name, message)` from `invoke`.
@@ -232,9 +224,9 @@ ArchUnit-style architecture test).
       The framework does not catch exceptions from invoke; a
       thrown exception aborts the run (defect signal).
     - Do not subclass `Outcome<T>` — sealed by design. Per-project
-      additions belong on `UseCaseOutcome`, not on Outcome.
+      additions belong on `ServiceContractOutcome`, not on Outcome.
 
-- family: Probabilistic Test
+- concept: Probabilistic Test
   java_type: ProbabilisticTest (api.spec interface) + @ProbabilisticTest annotation
   package: org.javai.punit.api.spec (spec) + org.javai.punit.api (annotation)
   role_notes: |
@@ -248,7 +240,7 @@ ArchUnit-style architecture test).
       different roles. In code, fully qualify when both are in
       scope; in prose, "the test annotation" vs "the test spec".
 
-- family: Verdict
+- concept: Verdict
   java_type: PUnitVerdict (sealed interface) + ProbabilisticTestVerdict (record)
   package: org.javai.punit.verdict
   role_notes: |
@@ -262,7 +254,7 @@ ArchUnit-style architecture test).
   gotchas:
     - JUnit always reports pass for punit tests because punit
       owns the verdict. The framework's own Verdict is the
-      meaningful artefact (family ontology — Verdict).
+      meaningful artefact (cross-framework ontology — Verdict).
 ```
 
 ---
@@ -270,7 +262,7 @@ ArchUnit-style architecture test).
 ## Methodology and statistics
 
 ```yaml
-- family: Parameter Triangle
+- concept: Parameter Triangle
   java_type: surfaced via TestBuilder#samples / criterion shapes
   package: org.javai.punit.runtime (builder) + org.javai.punit.api.spec (spec)
   role_notes: |
@@ -280,7 +272,7 @@ ArchUnit-style architecture test).
     samples), threshold-first (criterion declares threshold
     explicitly).
 
-- family: Threshold (pass-rate)
+- concept: Threshold (pass-rate)
   java_type: PassRate (criterion factory family)
   package: org.javai.punit.internal.engine.criteria
   role_notes: |
@@ -299,7 +291,7 @@ ArchUnit-style architecture test).
       ever tempted to inline a Wilson here, stop — the calculation
       belongs in `org.javai.punit.statistics`.
 
-- family: Threshold (latency)
+- concept: Threshold (latency)
   java_type: PercentileLatency (criterion family) + LatencySpec
   package: org.javai.punit.internal.engine.criteria + org.javai.punit.api
   role_notes: |
@@ -307,7 +299,7 @@ ArchUnit-style architecture test).
     authoring surface; evaluation lives in `engine.criteria` via the
     `PercentileLatency` criterion.
 
-- family: Threshold Origin
+- concept: Threshold Origin
   java_type: ThresholdOrigin enum
   package: org.javai.punit.api
   role_notes: |
@@ -315,15 +307,15 @@ ArchUnit-style architecture test).
     distinct. Origin × Test Intent decides Feasibility Gate
     behaviour.
 
-- family: Threshold Provenance
+- concept: Threshold Provenance
   java_type: fields on ProbabilisticTestVerdict + RunMetadata
   package: org.javai.punit.verdict
   role_notes: |
     Carried through to verdict XML emission. RP07 makes the
-    binding (per family invariant — "Sample-time provenance
+    binding (per cross-framework invariant — "Sample-time provenance
     must accompany the verdict").
 
-- family: Feasibility Gate
+- concept: Feasibility Gate
   java_type: VerificationFeasibilityEvaluator + Feasibility (engine criterion adapter)
   package: org.javai.punit.statistics (evaluator) + org.javai.punit.internal.engine.criteria (adapter)
   role_notes: |
@@ -332,19 +324,19 @@ ArchUnit-style architecture test).
     SMOKE intent does not produce a warning by design (family
     invariant referenced via memory: `smoke_intent_silent_feasibility`).
 
-- family: Wilson Score Bound
+- concept: Wilson Score Bound
   java_type: BinomialProportionEstimator (two-sided + one-sided)
   package: org.javai.punit.statistics
   role_notes: |
     Both bounds live in the estimator. The verdict path uses
-    only the one-sided lower bound (family invariant —
+    only the one-sided lower bound (cross-framework invariant —
     one-sided Wilson in the verdict path). The two-sided form
     is preserved for SC01 (catalog) + diagnostics.
   gotchas:
     - Verdict XML emits `wilson-lower` only; the legacy
       `ci-lower`/`ci-upper` pair was retired with the 0.7.x cleanup.
 
-- family: Latency Population
+- concept: Latency Population
   java_type: LatencyDistribution (statistics) + LatencyPercentileComputer (engine)
   package: org.javai.punit.statistics + org.javai.punit.internal.engine
   role_notes: |
@@ -353,7 +345,7 @@ ArchUnit-style architecture test).
     filters at aggregation time; the statistics module operates
     on the filtered sequence.
 
-- family: Empirical Percentile
+- concept: Empirical Percentile
   java_type: nearest-rank computation in LatencyDistribution
   package: org.javai.punit.statistics
   role_notes: |
@@ -366,7 +358,7 @@ ArchUnit-style architecture test).
 ## Cost, pacing, and budget
 
 ```yaml
-- family: Token
+- concept: Token
   java_type: TokenTracker (interface) + InMemoryTokenTracker (engine impl) + TokenChargeRecorder (annotation-driven static charge)
   package: org.javai.punit.api (tracker, recorder) + org.javai.punit.internal.engine (impl)
   role_notes: |
@@ -375,7 +367,7 @@ ArchUnit-style architecture test).
     `invoke` for dynamic charges; static charges declare via
     `@TokenChargeRecorder` or builder.
 
-- family: Budget
+- concept: Budget
   java_type: ResourceControls + ResourceControlsBuilder + BudgetTracker (engine)
   package: org.javai.punit.api.spec + org.javai.punit.internal.engine + org.javai.punit.internal.engine.budget
   role_notes: |
@@ -388,11 +380,11 @@ ArchUnit-style architecture test).
       `feotest_token_budget_double_count`). Punit's path is sound;
       do not port the flaw if cross-pollinating.
 
-- family: Pacing
+- concept: Pacing
   java_type: Pacing record + per-pacing-mode strategies
   package: org.javai.punit.api + org.javai.punit.internal.engine.pacing
   role_notes: |
-    Pacing belongs on the Use Case (`UseCase#pacing()`), not on
+    Pacing belongs on the Service Contract (`ServiceContract#pacing()`), not on
     the spec — every test of the same service should respect the
     same rate limit. Spec builders deliberately do not expose
     pacing knobs.
@@ -403,7 +395,7 @@ ArchUnit-style architecture test).
 ## Experimentation
 
 ```yaml
-- family: Experiment
+- concept: Experiment
   java_type: Experiment (api.spec interface) + @Experiment annotation
   package: org.javai.punit.api.spec (spec) + org.javai.punit.api (annotation)
   role_notes: |
@@ -414,7 +406,7 @@ ArchUnit-style architecture test).
     The `ArtefactEmissionRegressionTest` enforces that every
     Kind has an emit path (compile-time via exhaustive switch).
 
-- family: Stepper (Factors)
+- concept: Stepper (Factors)
   java_type: FactorsStepper<FT> (interface) + NextFactor<FT> (sealed return)
   package: org.javai.punit.api.spec
   role_notes: |
@@ -422,7 +414,7 @@ ArchUnit-style architecture test).
     `NextFactor.stop()`. The pre-0.7 `null`-as-stop pattern is
     retired; do not reintroduce.
 
-- family: Empirical Baseline
+- concept: Empirical Baseline
   java_type: BaselineProvider + BaselineLookup (api) + BaselineEmitter (runtime)
   package: org.javai.punit.api.spec + org.javai.punit.runtime + org.javai.punit.internal.engine.baseline
   role_notes: |
@@ -430,14 +422,14 @@ ArchUnit-style architecture test).
     via BaselineProvider; selected via covariate-aware resolver
     in engine.covariate.
 
-- family: Footprint
+- concept: Footprint
   java_type: footprint hash inside engine.baseline + serialised as the EX09 field
   package: org.javai.punit.internal.engine.baseline
   role_notes: |
     Internal to the engine; surfaces in baseline YAML. Authors
     do not compute footprints by hand.
 
-- family: Content Fingerprint
+- concept: Content Fingerprint
   java_type: contentFingerprint field on baseline YAML (EX10)
   package: org.javai.punit.internal.engine.baseline
   role_notes: |
@@ -450,21 +442,21 @@ ArchUnit-style architecture test).
 ## Test intent and policy
 
 ```yaml
-- family: Test Intent
+- concept: Test Intent
   java_type: TestIntent enum (VERIFICATION, SMOKE)
   package: org.javai.punit.api
   role_notes: |
     Surfaced on the test builder via `.intent(TestIntent.SMOKE)`.
     Default is VERIFICATION.
 
-- family: Compliance Testing
+- concept: Compliance Testing
   java_type: usage pattern: PassRate.meeting(τ, NORMATIVE) + Verification intent
   package: pattern, not a type
   role_notes: |
     No dedicated class — emerges from criterion + intent
     composition.
 
-- family: Conformance Testing
+- concept: Conformance Testing
   java_type: usage pattern: PassRate.empirical() / empiricalFrom(...)
   package: pattern, not a type
   role_notes: |
@@ -476,20 +468,20 @@ ArchUnit-style architecture test).
 ## Reporting
 
 ```yaml
-- family: Verdict XML (RP07)
+- concept: Verdict XML (RP07)
   java_type: VerdictXmlWriter + VerdictXmlReader
   package: org.javai.punit.report
   role_notes: |
-    `punit-report` module. Local XSD copy at
+    `punit-report` module. XSD shipped at
     `punit-report/src/main/resources/.../verdict-1.0.xsd`. Must
-    diff clean against the canonical at
-    `inventory/catalog/reporting/RP07-verdict-xml-interchange/verdict-1.0.xsd`.
+    diff clean against the cross-framework canonical XSD shared
+    with feotest and javai.org sentinels / dashboards.
   gotchas:
     - Emits `wilson-lower` only on `<statistics>`; the upper bound
       is not emitted (the verdict path is left-tailed). Aligned to
       the canonical XSD as of the 0.7.x cleanup.
 
-- family: Verdict Sink
+- concept: Verdict Sink
   java_type: VerdictSink (interface, public) + VerdictSinkBus (dispatcher, internal)
   package: org.javai.punit.verdict (interface) +
            org.javai.punit.internal.reporting (dispatcher)
@@ -504,7 +496,7 @@ ArchUnit-style architecture test).
 ## Sentinel
 
 ```yaml
-- family: Sentinel
+- concept: Sentinel
   java_type: SentinelMain + SentinelExecutor + SentinelOrchestrator
   package: org.javai.punit.sentinel (in punit-sentinel module)
   role_notes: |
@@ -520,7 +512,7 @@ ArchUnit-style architecture test).
       Sentinel may emit a measurement to its measurement output
       but never overwrites the test input automatically.
 
-- family: Reliability Specification
+- concept: Reliability Specification
   java_type: SentinelConfiguration + EnvironmentMetadata
   package: org.javai.punit.sentinel
   role_notes: |
@@ -533,7 +525,7 @@ ArchUnit-style architecture test).
 ## Punit-only concepts (not at the family level)
 
 These exist because the JVM / JUnit / Java idiom requires them.
-They are not in the family ontology because they have no
+They are not in the cross-framework ontology because they have no
 cross-language analogue (or different languages express them
 differently).
 
@@ -566,7 +558,7 @@ differently).
 - name: api / api.spec / engine boundary
   description: |
     `org.javai.punit.api` carries types an author touches when
-    *authoring* (UseCase, Contract, ContractBuilder, Sampling,
+    *authoring* (ServiceContract, Contract, ContractBuilder, Sampling,
     Factor support, annotations, intent, origin, value matchers,
     pacing, postcondition primitives that survive). `api.spec`
     carries the typed spec surface (Experiment, ProbabilisticTest,
@@ -628,12 +620,12 @@ differently).
 
 ## Punit-specific invariants and enforcement
 
-The family ontology owns the invariants that hold across every
+The cross-framework ontology owns the invariants that hold across every
 implementation. punit *enforces* them via specific tests; the table
 names the test for each.
 
 ```yaml
-- family_invariant: Statistical isolation
+- cross_framework_invariant: Statistical isolation
   punit_enforcement: |
     `org.javai.punit.statistics` has no `org.javai.punit.*`
     imports outside the package. Enforced by
@@ -641,7 +633,7 @@ names the test for each.
     sources must also keep statistical arithmetic out — see also
     "no Math.sqrt outside statistics" rule in punit's CLAUDE.md.
 
-- family_invariant: Requirement-code isolation
+- cross_framework_invariant: Requirement-code isolation
   punit_enforcement: |
     Codes (CT, EX, LT, PT, RC, RP, SC, SN, TH, UC, XM, DG) MUST NOT
     appear anywhere in punit-core / punit-report / punit-sentinel —
@@ -649,21 +641,20 @@ names the test for each.
     test-class and test-method names, string literals. Enforced by
     `RequirementCodeIsolationTest`.
 
-- family_invariant: One-sided Wilson in the verdict path
+- invariant: One-sided Wilson in the verdict path
   punit_enforcement: |
     `BinomialProportionEstimator.lowerBound(...)` is the verdict
-    path's entry. Two-sided remains for SC01 / diagnostic uses.
-    XSD alignment to `wilson-lower` in flight under
-    DIR-RP07-WILSON-LOWER-VERDICT-XML.
+    path's entry. Two-sided remains for diagnostic uses. The XSD
+    emits `wilson-lower` only on `<statistics>`.
 
-- family_invariant: Latency Population purity
+- cross_framework_invariant: Latency Population purity
   punit_enforcement: |
     `LatencyPercentileComputer` filters to successful samples
     before delegating to `LatencyDistribution`. A code change to
     latency aggregation must preserve the success-only filter
     end-to-end.
 
-- family_invariant: Outcome vs exception discipline
+- cross_framework_invariant: Outcome vs exception discipline
   punit_enforcement: |
     The engine does not catch exceptions thrown from
     `Contract#invoke`. Per-test exception policy
@@ -671,19 +662,19 @@ names the test for each.
     exceptions only — converting one to a counted failed sample
     is opt-in via the policy, not a default.
 
-- family_invariant: Sentinel deployability (zero JUnit deps)
+- cross_framework_invariant: Sentinel deployability (zero JUnit deps)
   punit_enforcement: |
     `SentinelArchitectureTest` enforces no `org.junit` imports in
     `punit-sentinel`. `RuntimeArchitectureTest` enforces the same
     in `org.javai.punit.runtime`.
 
-- family_invariant: Service Contract aspect independence
+- cross_framework_invariant: Service Contract aspect independence
   punit_enforcement: |
     Postconditions, duration constraint, and expected-output
     match are evaluated independently in the engine. No
     cross-aspect short-circuit.
 
-- family_invariant: api package must not depend on JUnit extensions
+- cross_framework_invariant: api package must not depend on JUnit extensions
   punit_enforcement: |
     `CoreArchitectureTest.apiPackageMustNotDependOnJUnitExtensions`.
     Annotation meta-tags (`@Test`, `@Tag`) are permitted; engine,
@@ -719,7 +710,6 @@ lands, current violations are captured in `archunit_store/` via
 - item: model.CovariateProfile vs api.covariate.CovariateProfile
   status: resolved
   fix: |
-    Resolved under DIR-PACKAGE-DRIFT-FIX-punit step 2.
     `model.CovariateProfile` was deleted; the engine consumers
     (`spec.registry.SpecificationLoader`, `spec.model.ExecutionSpecification`,
     `model.BaselineProvenance`) migrated to the canonical
@@ -729,37 +719,29 @@ lands, current violations are captured in `archunit_store/` via
     output is now coerced to String at the put site via
     `toCanonicalString()`).
 
-- item: org.javai.punit.contract.* (dead parallel stack)
-  fix: |
-    Owned by DIR-CONTRACT-PACKAGE-REMOVAL-punit (in 0.7.x scope).
-    Until that lands, treat the package as not-there: do not
-    reference, extend, or re-import.
-
 - item: Verdict XML attribute names (ci-lower / ci-upper)
   status: resolved
   fix: |
     Resolved in the 0.7.x cleanup window. `<statistics>` now
     emits `wilson-lower` only; the legacy `ci-lower` / `ci-upper`
-    pair was retired and the local XSD is diff-clean against
-    canonical RP07.
+    pair was retired and the local XSD is diff-clean against the
+    canonical cross-framework verdict-XML schema.
 
-- item: Statistical early termination (PT09 / PT10) regression
+- item: Statistical early termination regression
   fix: |
     The 0.6.x sample loop terminated early on impossibility /
     guaranteed success. The spec-engine refactor lost the
     per-sample evaluator and the `disableEarlyTermination()`
     builder method. Verdicts are correct (every test runs to
     its configured sample count); the optimisation is missing.
-    Restoration is owed; see family inventory PT09 / PT10
-    rows ("partial" for punit) and the user memory entry
-    `punit_pt09_pt10_regression`.
+    Restoration is owed.
 ```
 
 ---
 
 ## What this document does not do
 
-- **It does not restate the family ontology's invariants.** Those
+- **It does not restate the cross-framework ontology's invariants.** Those
   are owned upstream. This document records *how punit enforces*
   each invariant, not what each invariant says.
 - **It does not duplicate the glossary.** Concept definitions live
@@ -767,7 +749,7 @@ lands, current violations are captured in `archunit_store/` via
   glossary-defined concept onto a Java type / package / idiom.
 - **It does not restate methodology.** Statistical formulae live
   in the Statistical Companion; this document references the
-  Companion only via the family ontology.
+  Companion only via the cross-framework ontology.
 - **It does not document the public API surface in detail.** That
   is `DEVELOPER-API.md`'s job. This document maps concepts to
   packages so that an agent reading the API doc has the

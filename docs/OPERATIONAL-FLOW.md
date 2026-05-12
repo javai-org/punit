@@ -34,7 +34,7 @@ If you want an early-warning check without the cost of a full compliance audit, 
 ```java
 @ProbabilisticTest
 void apiMeetsSla() {
-    PUnit.testing(JsonGenerationUseCase.sampling(PROMPTS, 100), Tuning.DEFAULT)
+    PUnit.testing(JsonGenerationServiceContract.sampling(PROMPTS, 100), Tuning.DEFAULT)
             .criterion(PassRate.meeting(0.999, ThresholdOrigin.SLA))
             .intent(TestIntent.SMOKE)               // smoke, not full compliance audit
             .contractRef("Customer API SLA §3.1")
@@ -52,7 +52,7 @@ The threshold is **derived from empirical data** gathered through experiments:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ Use Case ──▶ EXPLORE ──▶ OPTIMIZE ──▶ MEASURE ──▶ Spec ──▶ Test             │
+│ Service Contract ──▶ EXPLORE ──▶ OPTIMIZE ──▶ MEASURE ──▶ Spec ──▶ Test             │
 │              (compare)    (tune)       (1000+)     (commit)  (threshold      │
 │                                                               derived)       │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -131,7 +131,7 @@ void confidenceFirst() {
 ```java
 @ProbabilisticTest
 void thresholdFirst() {
-    PUnit.testing(MyUseCase.sampling(INPUTS, 100), MyFactors.DEFAULT)
+    PUnit.testing(MyServiceContract.sampling(INPUTS, 100), MyFactors.DEFAULT)
             .criterion(PassRate.meeting(0.90, ThresholdOrigin.SLA))
             .contractRef("Customer API SLA §3.1")
             .assertPasses();
@@ -182,21 +182,21 @@ PUnit makes these trade-offs **explicit and computable** rather than leaving the
 
 ## The Spec-Driven Workflow in Detail
 
-### Stage 1: Define a Use Case
+### Stage 1: Define a Service Contract
 
 PUnit recognizes that **experiments and tests must refer to the same objects**.
 
 In traditional testing, we articulate correctness through a series of test assertions. This works for deterministic systems where we expect 100% success. However, for systems with inherent uncertainty, a test assertion that aborts on failure is of zero use when we want to collect data about the service's behavior. We need to know *how often* it fails, not just that it *did* fail.
 
-We therefore define a **Use Case** and its associated **Service Contract**. The Service Contract is the shared expression of correctness:
+We therefore define a **Service Contract** and its associated **Service Contract**. The Service Contract is the shared expression of correctness:
 - **Experiments** use it as a source of correctness data (to measure behavior).
 - **Probabilistic Tests** use it as a correctness enforcer (to verify performance against a threshold).
 
-A Use Case is a reusable class that invokes your production code and declares an acceptance contract:
+A Service Contract is a reusable class that invokes your production code and declares an acceptance contract:
 
 ```java
-public final class JsonGenerationUseCase
-        implements UseCase<Tuning, String, String> {
+public final class JsonGenerationServiceContract
+        implements ServiceContract<Tuning, String, String> {
 
     @Override
     public Outcome<String> invoke(String prompt, TokenTracker tracker) {
@@ -218,16 +218,16 @@ public final class JsonGenerationUseCase
 }
 ```
 
-The use case is **reused** across experiments AND tests. You define it once.
+The service contract is **reused** across experiments AND tests. You define it once.
 
 ### Stage 2: Run a MEASURE Experiment
 
-Run the use case many times (typically 1000+) to gather empirical data:
+Run the service contract many times (typically 1000+) to gather empirical data:
 
 ```java
 @Experiment
 void measureBaseline() {
-    PUnit.measuring(JsonGenerationUseCase.sampling(PROMPTS, 1000), Tuning.DEFAULT)
+    PUnit.measuring(JsonGenerationServiceContract.sampling(PROMPTS, 1000), Tuning.DEFAULT)
             .run();
 }
 ```
@@ -243,7 +243,7 @@ The experiment writes a baseline file to `src/test/resources/punit/baselines/`:
 ```yaml
 schemaVersion: punit-spec-2
 specId: usecase.json.generation
-useCaseId: usecase.json.generation
+serviceContractId: usecase.json.generation
 generatedAt: 2026-01-12T10:30:00Z
 
 empiricalBasis:
@@ -273,7 +273,7 @@ The test references the baseline. The threshold is derived at runtime:
 ```java
 @ProbabilisticTest
 void jsonGenerationMeetsBaseline() {
-    PUnit.testing(JsonGenerationUseCase.sampling(PROMPTS, 100), Tuning.DEFAULT)
+    PUnit.testing(JsonGenerationServiceContract.sampling(PROMPTS, 100), Tuning.DEFAULT)
             .criterion(PassRate.empirical())
             .assertPasses();
 }
@@ -364,7 +364,7 @@ When you have choices about how to configure a non-deterministic system (model, 
 ```java
 @Experiment
 void compareModels() {
-    PUnit.exploring(JsonGenerationUseCase.sampling(PROMPTS, 20))
+    PUnit.exploring(JsonGenerationServiceContract.sampling(PROMPTS, 20))
             .grid(
                     new Tuning("gpt-4o",       0.3),
                     new Tuning("gpt-4o-mini",  0.3))
@@ -388,7 +388,7 @@ After EXPLORE identifies a promising configuration, use OPTIMIZE to fine-tune a 
 ```java
 @Experiment
 void optimizeTemperature() {
-    PUnit.optimizing(JsonGenerationUseCase.sampling(PROMPTS, 20))
+    PUnit.optimizing(JsonGenerationServiceContract.sampling(PROMPTS, 20))
             .initialFactors(new Tuning("gpt-4o-mini", 1.0))   // start high, optimize down
             .stepper((current, history) ->
                     current.temperature() <= 0.05
@@ -413,7 +413,7 @@ OPTIMIZE iteratively refines a **control factor** through mutation and evaluatio
 
 | Step            | Command             | Output                                  |
 |-----------------|---------------------|-----------------------------------------|
-| Define use case | —                   | `UseCase<F, I, O>` class                |
+| Define service contract | —                   | `ServiceContract<F, I, O>` class                |
 | Run experiment  | `./gradlew exp`     | Baseline file                           |
 | Commit baseline | `git commit`        | Version-controlled baseline             |
 | Run tests       | `./gradlew test`    | Qualified verdicts (VERIFICATION/SMOKE) |

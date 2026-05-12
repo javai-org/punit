@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- **`UseCase` → `ServiceContract`.** The authoring-surface
+  interface renames from `org.javai.punit.api.UseCase<F, I, O>`
+  to `org.javai.punit.api.ServiceContract<F, I, O>`. The
+  abstract/concrete split with `Contract<I, O>` is preserved:
+  `ServiceContract` extends `Contract` exactly as `UseCase` did.
+  Companion types follow:
+  - `UseCaseOutcome<O>` → `ServiceContractOutcome<O>`
+  - `UseCaseAttributes` → `ServiceContractAttributes`
+
+  Builder / factory identifier renames pair with the type
+  rename: `useCaseFactory(...)` → `serviceContractFactory(...)`,
+  `resolveUseCaseId` → `resolveServiceContractId`, parameter and
+  field names `useCase` → `serviceContract` across the API.
+
+  **Migration recipe** (find-and-replace, IDE refactor
+  recommended):
+  - `UseCase`, `UseCaseOutcome`, `UseCaseAttributes` →
+    `ServiceContract`, `ServiceContractOutcome`,
+    `ServiceContractAttributes`
+  - `useCase`, `useCaseFactory`, `useCaseAttributes` →
+    `serviceContract`, `serviceContractFactory`,
+    `serviceContractAttributes`
+
+  **Wire format unchanged.** The RP07 verdict XML attribute
+  remains `use-case-id`; the YAML baseline / spec field remains
+  `useCaseId`. Existing baselines load against the new release
+  without regeneration; existing verdict XML validates against
+  the unchanged RP07 schema. The Java↔wire asymmetry is
+  deliberate — wire-format regeneration is reserved for a
+  later, separate release.
+
+  Rationale: "use case" was overloaded across the field (UML /
+  Jacobson sense, regulatory deployment-scenario sense, generic
+  product-discussion sense) and told a punit author nothing
+  about the artefact's purpose in probabilistic-testing context.
+  "Service contract" names the thing it is: the specification
+  of correct behaviour the framework measures against.
+
 ### Documentation
 
 - **`-alpha` exit criterion closed.** Both gaps the original
@@ -35,23 +75,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 The implication: the original `-alpha` exit criteria are in. The
 qualifier itself is **held**, not dropped — the breaking-change
-train is not yet complete. The next punit release
-(0.7.0-alpha6) is expected to carry the `UseCase` →
-`ServiceContract` rename (see orchestrator
-`plan/directives/DIR-USECASE-RENAME.md`), and the active
-breaking-shaped directives (`DIR-OPTIMIZE-API-DX-punit`,
-`DIR-VERDICT-CATALOG-REBUILD-punit`) still need to be triaged
-as additive or breaking. The qualifier drops when the
+train is not yet complete. The `UseCase` → `ServiceContract`
+rename (see the *Changed (breaking)* entry above) lands in this
+release; further breaking-shaped work (optimize-experiment API
+DX, verdict-catalogue rebuild) still needs to be triaged as
+additive or breaking. The qualifier drops when the
 breaking-change train is genuinely complete, not on the
 mechanical closure of the original criteria — trust in a
 stability signal is built slowly and lost in one move; spending
 the qualifier to absorb anticipated breaks is the cheaper path.
-
-The remaining 0.7.x non-breaking churn is around
-catalog-vs-code documentation alignment (PT12 / PT13
-`java.md` describe a construction surface punit did not adopt —
-that alignment is orchestrator-side, not punit-side, and
-tracked there).
 
 ## [0.7.0-alpha5] - 2026-05-11
 
@@ -329,7 +361,7 @@ on the typed builder.
   "Wilson lower bound:" and drops the prose framing the value as a
   confidence interval.
 - The local `verdict-1.0.xsd` is now diff-clean against the
-  canonical RP07 schema in the orchestrator.
+  canonical RP07 verdict-XML schema.
 
 ### Changed (package drift — breaking FQN change)
 
@@ -409,8 +441,8 @@ to update.
 > 0.7.0-alpha entry; corrects the empirical-threshold-derivation
 > methodology against the javai-R oracle; tightens cost / UX on
 > empirical runs that have no resolvable baseline; and removes
-> orchestrator-internal requirement codes from public source. No
-> breaking API changes vs 0.7.0-alpha.
+> internal tracking codes from public source. No breaking API
+> changes vs 0.7.0-alpha.
 
 ### Fixed
 - **Empirical threshold derivation now applies Wilson at the test

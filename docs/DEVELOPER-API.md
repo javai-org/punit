@@ -31,7 +31,7 @@ the change being a change at all.
 - [The two authoring annotations](#the-two-authoring-annotations)
 - [The PUnit entry point](#the-punit-entry-point)
 - [The Sampling primitive](#the-sampling-primitive)
-- [Use Case and Contract](#use-case-and-contract)
+- [Service Contract and Contract](#use-case-and-contract)
 - [Postconditions: the ContractBuilder surface](#postconditions-the-contractbuilder-surface)
 - [Criteria](#criteria)
 - [The empirical pair pattern](#the-empirical-pair-pattern)
@@ -96,7 +96,7 @@ Each annotation is a JUnit `@Test` meta-tagged `@Tag("punit")`. Every
 parameter — sample count, intent, criterion, threshold, baseline
 binding — lives in the method body, on the typed builder. The
 annotations carry no attributes by design: configuration must be
-typed, must compile-check against the use case, and must be
+typed, must compile-check against the service contract, and must be
 expressible in the language's normal flow. Annotation attributes are
 a strictly weaker channel — strings, integers, class literals — and
 historically forced reflection-driven attribute reading the framework
@@ -165,13 +165,13 @@ the Verdict, not in the JUnit pass/fail signal.
 ## The Sampling primitive
 
 `org.javai.punit.api.Sampling<FT, IT, OT>` describes *how to produce
-samples* — the use case factory, the input cycle, the sample count,
+samples* — the service contract factory, the input cycle, the sample count,
 and the sample-loop governors (budgets, exception policy,
 failure-retention cap).
 
 ```java
 Sampling<F, I, O> sampling = Sampling.of(
-        f -> new MyUseCase(f),       // factory bound to factors
+        f -> new MyServiceContract(f),       // factory bound to factors
         samples,                     // sample count
         input1, input2, input3);     // round-robin input cycle
 ```
@@ -196,13 +196,13 @@ Sampling carries the per-test-loop governors:
 
 ---
 
-## Use Case and Contract
+## Service Contract and Contract
 
-A use case is one Java class implementing `UseCase<FT, IT, OT>`:
+A service contract is one Java class implementing `ServiceContract<FT, IT, OT>`:
 
 ```java
-public class ShoppingBasketUseCase
-        implements UseCase<Factors, Instruction, BasketTranslation> {
+public class ShoppingBasketServiceContract
+        implements ServiceContract<Factors, Instruction, BasketTranslation> {
 
     @Override
     public Outcome<BasketTranslation> invoke(Instruction input, TokenTracker tracker) {
@@ -217,16 +217,16 @@ public class ShoppingBasketUseCase
                 t -> t.actions().isEmpty()
                         ? Outcome.fail("empty-actions", "actions list was empty")
                         : Outcome.ok())
-         .ensure("All actions known", ShoppingBasketUseCase::allKnown);
+         .ensure("All actions known", ShoppingBasketServiceContract::allKnown);
     }
 }
 ```
 
-`UseCase<FT, IT, OT>` extends `Contract<IT, OT>`. The author writes
+`ServiceContract<FT, IT, OT>` extends `Contract<IT, OT>`. The author writes
 one `implements` clause and overrides three methods minimum (`invoke`
 and `postconditions`, plus optional metadata methods).
 
-### What the framework reads from a Use Case
+### What the framework reads from a Service Contract
 
 | Method                                | Purpose                                              | Default                       |
 |---------------------------------------|------------------------------------------------------|-------------------------------|
@@ -242,7 +242,7 @@ and `postconditions`, plus optional metadata methods).
 
 ### Lifecycle and state
 
-The framework constructs **one Use Case instance per factor
+The framework constructs **one Service Contract instance per factor
 configuration** (via the factory declared in Sampling) and reuses it
 across every sample for that configuration. Implementations may carry
 internal state — caches, connection handles, long-lived clients — but
@@ -303,13 +303,6 @@ public final class ContractBuilder<O> {
 A `Postcondition`, `PostconditionEvaluator`, etc. exist as
 public-but-internal types in `org.javai.punit.api`. Authors compose
 through `ContractBuilder`; do not subclass these types directly.
-
-A *parallel* and *unused* `org.javai.punit.contract` package contains
-a duplicate `ServiceContract`, `Postcondition`, matcher family, etc.
-That package is **dead code** scheduled for deletion under
-`DIR-CONTRACT-PACKAGE-REMOVAL-punit`. Authors and contributors must
-**not** reference it. Treat it as not-there; the linter and reviewers
-will agree.
 
 ---
 
@@ -376,7 +369,7 @@ paired against it:
 
 ```java
 private Sampling<F, I, O> shoppingSampling(int samples) {
-    return Sampling.of(f -> new ShoppingBasketUseCase(f), samples, ...inputs);
+    return Sampling.of(f -> new ShoppingBasketServiceContract(f), samples, ...inputs);
 }
 
 @Experiment
@@ -440,7 +433,7 @@ prefix and the ArchUnit regression rules.
 
 | Package                                                                               | Contains                                                                                                                                      | Author may import?                                            |
 |---------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| `org.javai.punit.api`                                                                 | Annotations, UseCase, Contract, ContractBuilder, Sampling, Factor support, ValueMatcher, TestIntent, ThresholdOrigin, Pacing, PacingConfiguration, TokenTracker, … | yes                                                           |
+| `org.javai.punit.api`                                                                 | Annotations, ServiceContract, Contract, ContractBuilder, Sampling, Factor support, ValueMatcher, TestIntent, ThresholdOrigin, Pacing, PacingConfiguration, TokenTracker, … | yes                                                           |
 | `org.javai.punit.api.spec`                                                            | Spec types (Spec, Experiment, ProbabilisticTest, Criterion, EvaluationContext, FactorsStepper, NextFactor, BaselineProvider, …)               | yes                                                           |
 | `org.javai.punit.api.covariate`                                                       | Covariate (interface) and built-in covariate categories                                                                                       | yes                                                           |
 | `org.javai.punit.runtime`                                                                      | `PUnit` entry point only — emitters live under `internal.runtime`                                                                             | yes — for `PUnit` only                                        |
@@ -468,9 +461,9 @@ invariant from regression.
 | `RuntimeArchitectureTest`                                       | punit-core     | `org.javai.punit.runtime` has zero `org.junit` deps. Sentinel-deployable code reaches PUnit here without a JUnit classpath.                                                                                          |
 | `AbstractionLevelArchitectureTest`                              | punit-core     | Abstraction-level discipline across the framework — evaluators / resolvers / deciders must not depend on reporting; renderers must not depend on statistical computation classes.                                   |
 | `SentinelArchitectureTest`                                      | punit-sentinel | Zero `org.junit` deps in punit-sentinel.                                                                                                                                                                             |
-| `RequirementCodeIsolationTest`                                  | all modules    | Orchestrator-internal codes (CT/EX/LT/PT/RC/RP/SC/SN/TH/UC/XM/DG) MUST NOT appear anywhere in src/main/java or src/test/java — including @DisplayName strings, test-class names, test-method names, string literals. |
+| `RequirementCodeIsolationTest`                                  | all modules    | Internal feature-tracking codes (CT/EX/LT/PT/RC/RP/SC/SN/TH/UC/XM/DG) MUST NOT appear anywhere in src/main/java or src/test/java — including @DisplayName strings, test-class names, test-method names, string literals. |
 | `ArtefactEmissionRegressionTest`                                | punit-core     | Every `Experiment.Kind` must emit at least one artefact when `.run()` succeeds. Exhaustive switch over the enum — adding a new Kind without wiring an emitter is a compile-time fail.                                |
-| `PackageStructureArchitectureTest`                              | punit-core     | The **target** package structure punit is moving toward under the cleanup directives `DIR-PACKAGE-DRIFT-FIX-punit` and `DIR-INTERNAL-NAMESPACE-punit`. Each rule names the directive and step that closes it. Current violations are captured in `archunit_store/` via `FreezingArchRule` so the build stays green during the cleanup; each refactor commit shrinks the store. When every store file is empty, the cleanup arc is complete and the rules become permanent regression guards. See the test class javadoc for the full workflow. |
+| `PackageStructureArchitectureTest`                              | punit-core     | The **target** package structure punit is moving toward. Each rule documents the step that closes it. Current violations are captured in `archunit_store/` via `FreezingArchRule` so the build stays green during the cleanup; each refactor commit shrinks the store. When every store file is empty, the cleanup arc is complete and the rules become permanent regression guards. See the test class javadoc for the full workflow. |
 
 To run all architecture-style guards:
 
@@ -579,9 +572,9 @@ Business-level failures travel as data, not as exceptions. Use
 `org.javai.outcome.Outcome<T>` (from the `org.javai:outcome`
 library): return `Outcome.ok(value)` for success,
 `Outcome.fail(name, message)` for an expected business-level failure.
-In the typed authoring surface this surfaces as `UseCaseOutcome<OT>`
+In the typed authoring surface this surfaces as `ServiceContractOutcome<OT>`
 whose `value` is an `Outcome<OT>`; authors write
-`UseCaseOutcome.ok(...)` or `UseCaseOutcome.fail(...)` indirectly
+`ServiceContractOutcome.ok(...)` or `ServiceContractOutcome.fail(...)` indirectly
 through the Contract `apply` dispatch.
 
 Reserve `throw` for genuine *defects*: programming mistakes
@@ -606,18 +599,16 @@ feotest the equivalent is idiomatic `Result<T, E>`.
 
 ## Verdict XML wire format
 
-punit serialises every Verdict to XML using the family's
-**verdict-XML interchange standard (RP07)**:
+punit serialises every Verdict to XML using the javai.org family's
+**verdict-XML interchange standard** (cross-language: punit,
+feotest, javai.org sentinels and dashboards all read and write this
+format):
 
-- **Canonical specification:** `inventory/catalog/reporting/RP07-verdict-xml-interchange/README.md`
-  (in javai-orchestrator).
-- **Canonical XSD schema:** `inventory/catalog/reporting/RP07-verdict-xml-interchange/verdict-1.0.xsd`.
+- **XSD schema:** `punit-report/src/main/resources/org/javai/punit/report/verdict-1.0.xsd`.
 - **Namespace:** `http://javai.org/verdict/1.0`.
 - **Root element:** `<verdict-record>`.
-- **punit's local XSD copy:** `punit-report/src/main/resources/org/javai/punit/report/verdict-1.0.xsd`
-  — must diff clean against the canonical.
 
-The RP07 standard includes pacing, environment metadata, baseline
+The standard includes pacing, environment metadata, baseline
 expiration, and correlation ID. The only punit-specific field not
 serialised to XML is `junitPassed` (JUnit always passes in punit
 because punit owns the verdict; meaningless outside the JUnit
@@ -625,14 +616,13 @@ context).
 
 When modifying the XML format:
 
-- **Consult the RP07 specification in the orchestrator first.**
-- Changes that affect schema semantics should be proposed in the
-  orchestrator, not made unilaterally in punit.
+- Schema semantics are shared across the javai.org framework
+  family — coordinate cross-framework before changing punit's
+  copy in isolation.
 - `<statistics>` carries `wilson-lower` only — the one-sided Wilson
   lower bound at the verdict's `confidence-level`. The upper bound
   carries no operational meaning under a left-tailed test and is
-  not emitted. The local XSD is diff-clean against the canonical
-  XSD; round-trip and schema-validation tests live in
+  not emitted. Round-trip and schema-validation tests live in
   `punit-report`.
 
 ---
@@ -675,8 +665,6 @@ The release process itself is documented in
 - It does not document the methodology. Statistical formulae and
   derivations live in [`STATISTICAL-COMPANION.md`](STATISTICAL-COMPANION.md);
   this document references the companion via the family ontology.
-- It does not invent abstractions. Concepts are owned by the family
-  ontology ([`javai-orchestrator/inventory/DOMAIN-ONTOLOGY.md`](../../inventory/DOMAIN-ONTOLOGY.md));
-  punit's ontology ([`DOMAIN-ONTOLOGY.md`](DOMAIN-ONTOLOGY.md)) maps
-  them onto Java idioms; this document maps them onto a developer's
-  fingertips.
+- It does not invent abstractions. Concepts are mapped onto Java
+  idioms in punit's ontology ([`DOMAIN-ONTOLOGY.md`](DOMAIN-ONTOLOGY.md));
+  this document maps them onto a developer's fingertips.
