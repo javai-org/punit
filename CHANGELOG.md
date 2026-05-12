@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **`-alpha` exit criterion closed.** Both gaps the original
+  0.7.0-alpha CHANGELOG declared as the qualifier's exit criteria
+  are now in:
+  - *Statistical early termination* (PT09 / PT10) landed via #150
+    in 0.7.0-alpha5's window. Failure-inevitable and
+    success-guaranteed short-circuits fire from
+    `Engine.Aggregator`; `disableEarlyTermination()` on
+    `ProbabilisticTest.Builder` covers the opt-out cases.
+  - *Wider feasibility-gate audit* — the headline concern,
+    "configurations whose implied confidence falls below 80% are
+    not yet rejected across all intents," was already closed in
+    `Feasibility.check` (the soundness-floor branch aborts before
+    the intent-specific path, so VERIFICATION and SMOKE trip the
+    same abort). `SoundnessFloorTest` is the end-to-end audit. The
+    alpha4 / alpha5 release notes carried the gap text by inertia;
+    code-side it had been resolved in the alpha2 feasibility-gate
+    arc.
+- **Test-class doc:** `PreflightInvariantsTest` class-level
+  javadoc previously called the soundness floor "intentionally
+  absent — recorded as a gap." That note no longer matched the
+  code path; rewritten to point at `SoundnessFloorTest` as the
+  dedicated audit and `Feasibility.check`'s cross-intent abort as
+  the enforcement seam.
+
+The implication: the next punit release can drop the `-alpha`
+qualifier. The remaining 0.7.x churn is around catalog-vs-code
+documentation alignment (PT12 / PT13 `java.md` describe a
+construction surface punit did not adopt — that alignment is
+orchestrator-side, not punit-side, and tracked there).
+
 ## [0.7.0-alpha5] - 2026-05-11
 
 > **🧪 Experimental release.** Adopts `org.javai:outcome` 0.3.0,

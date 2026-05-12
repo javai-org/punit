@@ -46,14 +46,14 @@ import org.junit.platform.testkit.engine.Events;
  * regression in the future.
  *
  * <p>The soundness floor (≥ 80% confidence regardless of intent) is
- * intentionally absent — the audit recorded it as a gap (configurations
- * whose configured confidence falls below the floor should abort
- * regardless of intent; the framework does not enforce this today).
- * The fix is tracked in a separate orchestrator directive that also
- * handles the consequential reworks in two existing test classes that
- * use {@code .atConfidence(0.50)} as a feasibility workaround. The
- * "do not silently expand scope" instruction in the parent directive
- * makes that a follow-up, not a fix folded into this PR.
+ * covered by its own end-to-end audit, {@code SoundnessFloorTest}.
+ * The cross-intent enforcement lives in {@code Feasibility.check},
+ * which aborts on a below-floor configuration before the
+ * intent-specific branch — so both VERIFICATION and SMOKE trip the
+ * same abort. Keeping the soundness-floor coverage in a separate
+ * test file mirrors the catalog's split between the broader
+ * infeasibility family (here) and the floor-as-its-own-invariant
+ * (there).
  */
 @DisplayName("Pre-flight invariants — end-to-end audit")
 class PreflightInvariantsTest {
