@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0-alpha6] - 2026-05-12
+
+> **🧪 Experimental release.** Breaking: renames the authoring-surface
+> interface `UseCase` → `ServiceContract` and its companion types.
+> See *Changed (breaking)* below for the migration recipe. Wire
+> format unchanged.
+
 ### Changed (breaking)
 
 - **`UseCase` → `ServiceContract`.** The authoring-surface
