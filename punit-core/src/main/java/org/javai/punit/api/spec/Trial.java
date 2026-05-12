@@ -3,7 +3,7 @@ package org.javai.punit.api.spec;
 import java.time.Duration;
 import java.util.Objects;
 
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContractOutcome;
 
 /**
  * One per-sample observation: the input that drove the call, the
@@ -36,7 +36,7 @@ import org.javai.punit.api.UseCaseOutcome;
  */
 public record Trial<IT, OT>(
         IT input,
-        UseCaseOutcome<IT, OT> outcome,
+        ServiceContractOutcome<IT, OT> outcome,
         Duration duration,
         int inputIndex) {
 
@@ -56,7 +56,7 @@ public record Trial<IT, OT>(
      * shape; the engine constructs trials via the canonical
      * constructor with the correct cycled input position.
      */
-    public Trial(IT input, UseCaseOutcome<IT, OT> outcome, Duration duration) {
+    public Trial(IT input, ServiceContractOutcome<IT, OT> outcome, Duration duration) {
         this(input, outcome, duration, 0);
     }
 }

@@ -8,8 +8,8 @@ import java.util.function.Function;
 import org.javai.outcome.Outcome;
 
 /**
- * One named acceptance criterion on a {@link UseCase}'s output. A use
- * case declares its postconditions via {@link UseCase#postconditions()};
+ * One named acceptance criterion on a {@link ServiceContract}'s output. A use
+ * case declares its postconditions via {@link ServiceContract#postconditions()};
  * the framework evaluates each one against every successful sample and
  * surfaces the per-postcondition results in the verdict, the report,
  * and the optimize / explore feedback path.

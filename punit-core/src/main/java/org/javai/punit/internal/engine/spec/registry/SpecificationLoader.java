@@ -185,8 +185,8 @@ public final class SpecificationLoader {
 				inLatency = false;
 
 				if (line.startsWith("specId:") || line.startsWith("useCaseId:")) {
-					// Both the older specId field and useCaseId map to useCaseId
-					builder.useCaseId(extractValue(line));
+					// Both the older specId field and serviceContractId map to serviceContractId
+					builder.serviceContractId(extractValue(line));
 				} else if (line.startsWith("version:")) {
 					builder.version(Integer.parseInt(extractValue(line)));
 				} else if (line.startsWith("generatedAt:")) {

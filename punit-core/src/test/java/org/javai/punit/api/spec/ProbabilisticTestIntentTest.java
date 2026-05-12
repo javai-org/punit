@@ -8,7 +8,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +17,7 @@ class ProbabilisticTestIntentTest {
 
     record Factors(String label) {}
 
-    private static final UseCase<Factors, String, String> ECHO = new UseCase<>() {
+    private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
         @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
@@ -26,7 +26,7 @@ class ProbabilisticTestIntentTest {
 
     private static Sampling<Factors, String, String> sampling() {
         return Sampling.<Factors, String, String>builder()
-                .useCaseFactory(f -> ECHO)
+                .serviceContractFactory(f -> ECHO)
                 .inputs("a")
                 .samples(10)
                 .build();

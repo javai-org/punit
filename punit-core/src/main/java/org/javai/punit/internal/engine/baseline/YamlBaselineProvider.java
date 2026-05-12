@@ -33,36 +33,36 @@ public final class YamlBaselineProvider implements BaselineProvider {
 
     @Override
     public <S extends BaselineStatistics> Optional<S> baselineFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
         String fingerprint = FactorsFingerprint.of(factors);
-        return resolver.resolve(useCaseId, fingerprint, criterionName, statisticsType,
+        return resolver.resolve(serviceContractId, fingerprint, criterionName, statisticsType,
                 currentProfile, declarations);
     }
 
     @Override
     public Optional<String> baselineInputsIdentityFor(
-            String useCaseId, FactorBundle factors,
+            String serviceContractId, FactorBundle factors,
             CovariateProfile currentProfile, List<Covariate> declarations) {
         String fingerprint = FactorsFingerprint.of(factors);
-        return resolver.resolveInputsIdentity(useCaseId, fingerprint,
+        return resolver.resolveInputsIdentity(serviceContractId, fingerprint,
                 currentProfile, declarations);
     }
 
     @Override
     public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
         String fingerprint = FactorsFingerprint.of(factors);
-        return resolver.lookup(useCaseId, fingerprint, criterionName,
+        return resolver.lookup(serviceContractId, fingerprint, criterionName,
                 statisticsType, currentProfile, declarations);
     }
 }

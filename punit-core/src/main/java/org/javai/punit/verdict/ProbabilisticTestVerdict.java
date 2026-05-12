@@ -12,7 +12,7 @@ import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 
 /**
  * The single source of truth for a probabilistic test verdict.
@@ -89,12 +89,12 @@ public record ProbabilisticTestVerdict(
      *
      * @param className the test class name
      * @param methodName the test method name
-     * @param useCaseId the use case identifier, if the test is associated with a use case
+     * @param serviceContractId the use case identifier, if the test is associated with a use case
      */
     public record TestIdentity(
             String className,
             String methodName,
-            Optional<String> useCaseId
+            Optional<String> serviceContractId
     ) {
         public TestIdentity {
             if (className == null || className.isBlank()) {
@@ -103,7 +103,7 @@ public record ProbabilisticTestVerdict(
             if (methodName == null || methodName.isBlank()) {
                 throw new IllegalArgumentException("methodName must not be blank");
             }
-            useCaseId = useCaseId != null ? useCaseId : Optional.empty();
+            serviceContractId = serviceContractId != null ? serviceContractId : Optional.empty();
         }
     }
 
@@ -122,7 +122,7 @@ public record ProbabilisticTestVerdict(
      * @param appliedMultiplier sample multiplier, if one was applied
      * @param intent the test intent (VERIFICATION or SMOKE)
      * @param resolvedConfidence the confidence level used for statistical analysis
-     * @param useCaseAttributes use case attributes (warmup, maxConcurrent, etc.)
+     * @param serviceContractAttributes use case attributes (warmup, maxConcurrent, etc.)
      */
     public record ExecutionSummary(
             int plannedSamples,
@@ -135,16 +135,16 @@ public record ProbabilisticTestVerdict(
             Optional<Double> appliedMultiplier,
             TestIntent intent,
             double resolvedConfidence,
-            UseCaseAttributes useCaseAttributes
+            ServiceContractAttributes serviceContractAttributes
     ) {
         public ExecutionSummary {
             appliedMultiplier = appliedMultiplier.isPresent() ? appliedMultiplier : Optional.empty();
-            useCaseAttributes = useCaseAttributes != null ? useCaseAttributes : UseCaseAttributes.DEFAULT;
+            serviceContractAttributes = serviceContractAttributes != null ? serviceContractAttributes : ServiceContractAttributes.DEFAULT;
         }
 
         /** Convenience accessor for warmup count. */
         public int warmup() {
-            return useCaseAttributes.warmup();
+            return serviceContractAttributes.warmup();
         }
     }
 

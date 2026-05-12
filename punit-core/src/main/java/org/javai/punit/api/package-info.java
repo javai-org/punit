@@ -17,10 +17,10 @@
  *
  * <h2>Foundational types</h2>
  * <ul>
- *   <li>{@link org.javai.punit.api.UseCase} — the interface every
+ *   <li>{@link org.javai.punit.api.ServiceContract} — the interface every
  *       use case implements; carries the service call, the
  *       postcondition contract, and metadata.</li>
- *   <li>{@link org.javai.punit.api.UseCaseOutcome} — the per-sample
+ *   <li>{@link org.javai.punit.api.ServiceContractOutcome} — the per-sample
  *       artefact the framework assembles, carrying the result, the
  *       contract, postcondition results, optional match, tokens,
  *       and duration.</li>

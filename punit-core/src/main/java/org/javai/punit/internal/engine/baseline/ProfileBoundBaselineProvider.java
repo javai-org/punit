@@ -69,60 +69,60 @@ public final class ProfileBoundBaselineProvider implements BaselineProvider {
 
     @Override
     public <S extends BaselineStatistics> Optional<S> baselineFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
-        return delegate.baselineFor(useCaseId, factors, criterionName,
+        return delegate.baselineFor(serviceContractId, factors, criterionName,
                 statisticsType, currentProfile, declarations);
     }
 
     @Override
     public Optional<String> baselineInputsIdentityFor(
-            String useCaseId, FactorBundle factors,
+            String serviceContractId, FactorBundle factors,
             CovariateProfile currentProfile, List<Covariate> declarations) {
         return delegate.baselineInputsIdentityFor(
-                useCaseId, factors, currentProfile, declarations);
+                serviceContractId, factors, currentProfile, declarations);
     }
 
     @Override
     public <S extends BaselineStatistics> Optional<S> baselineFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType) {
-        return delegate.baselineFor(useCaseId, factors, criterionName,
+        return delegate.baselineFor(serviceContractId, factors, criterionName,
                 statisticsType, profile, declarations);
     }
 
     @Override
     public Optional<String> baselineInputsIdentityFor(
-            String useCaseId, FactorBundle factors) {
-        return delegate.baselineInputsIdentityFor(useCaseId, factors,
+            String serviceContractId, FactorBundle factors) {
+        return delegate.baselineInputsIdentityFor(serviceContractId, factors,
                 profile, declarations);
     }
 
     @Override
     public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
-        return delegate.baselineLookup(useCaseId, factors, criterionName,
+        return delegate.baselineLookup(serviceContractId, factors, criterionName,
                 statisticsType, currentProfile, declarations);
     }
 
     @Override
     public <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType) {
-        return delegate.baselineLookup(useCaseId, factors, criterionName,
+        return delegate.baselineLookup(serviceContractId, factors, criterionName,
                 statisticsType, profile, declarations);
     }
 }

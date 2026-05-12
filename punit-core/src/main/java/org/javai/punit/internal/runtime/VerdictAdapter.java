@@ -112,7 +112,7 @@ public final class VerdictAdapter {
         b.identity(
                 meta.className(),
                 meta.methodName(),
-                meta.useCaseId().orElse(null));
+                meta.serviceContractId().orElse(null));
 
         // Execution
         double threshold = scanDoubleDetail(result.criterionResults(), "threshold").orElse(0.0);

@@ -12,10 +12,10 @@ import java.util.Objects;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * static Stream<NamedConfig<MyUseCase>> configs() {
+ * static Stream<NamedConfig<MyServiceContract>> configs() {
  *     return Stream.of(
- *         NamedConfig.of("low-temp", new MyUseCase(llm, "gpt-4o", 0.1)),
- *         NamedConfig.of("high-temp", new MyUseCase(llm, "gpt-4o", 0.9))
+ *         NamedConfig.of("low-temp", new MyServiceContract(llm, "gpt-4o", 0.1)),
+ *         NamedConfig.of("high-temp", new MyServiceContract(llm, "gpt-4o", 0.9))
  *     );
  * }
  * }</pre>

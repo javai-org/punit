@@ -19,11 +19,11 @@ public final class LogVerdictSink implements VerdictSink {
     @Override
     public void accept(ProbabilisticTestVerdict verdict) {
         String testName = verdict.identity().className() + "." + verdict.identity().methodName();
-        String useCaseId = verdict.identity().useCaseId().orElse(testName);
+        String serviceContractId = verdict.identity().serviceContractId().orElse(testName);
         logger.info("[{}] {} — {} — {}",
                 verdict.correlationId(),
                 testName,
-                useCaseId,
+                serviceContractId,
                 verdict.punitVerdict());
     }
 }

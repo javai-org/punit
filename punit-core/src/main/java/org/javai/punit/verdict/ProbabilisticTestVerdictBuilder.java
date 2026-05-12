@@ -13,7 +13,7 @@ import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.InconclusiveReasons;
 import org.javai.punit.api.spec.Verdict;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.internal.engine.budget.SharedBudgetMonitor;
 import org.javai.punit.api.PacingConfiguration;
@@ -50,7 +50,7 @@ public class ProbabilisticTestVerdictBuilder {
     // ── Identity ──────────────────────────────────────────────────────────
     private String className;
     private String methodName;
-    private String useCaseId;
+    private String serviceContractId;
 
     // ── Execution ─────────────────────────────────────────────────────────
     private int plannedSamples;
@@ -63,7 +63,7 @@ public class ProbabilisticTestVerdictBuilder {
     private Double appliedMultiplier;
     private TestIntent intent = TestIntent.VERIFICATION;
     private double resolvedConfidence = 0.95;
-    private UseCaseAttributes useCaseAttributes = UseCaseAttributes.DEFAULT;
+    private ServiceContractAttributes serviceContractAttributes = ServiceContractAttributes.DEFAULT;
 
     // ── Dimensions ────────────────────────────────────────────────────────
     private Integer functionalSuccesses;
@@ -127,10 +127,10 @@ public class ProbabilisticTestVerdictBuilder {
         return this;
     }
 
-    public ProbabilisticTestVerdictBuilder identity(String className, String methodName, String useCaseId) {
+    public ProbabilisticTestVerdictBuilder identity(String className, String methodName, String serviceContractId) {
         this.className = className;
         this.methodName = methodName;
-        this.useCaseId = useCaseId;
+        this.serviceContractId = serviceContractId;
         return this;
     }
 
@@ -159,13 +159,13 @@ public class ProbabilisticTestVerdictBuilder {
         return this;
     }
 
-    public ProbabilisticTestVerdictBuilder useCaseAttributes(UseCaseAttributes useCaseAttributes) {
-        this.useCaseAttributes = useCaseAttributes != null ? useCaseAttributes : UseCaseAttributes.DEFAULT;
+    public ProbabilisticTestVerdictBuilder serviceContractAttributes(ServiceContractAttributes serviceContractAttributes) {
+        this.serviceContractAttributes = serviceContractAttributes != null ? serviceContractAttributes : ServiceContractAttributes.DEFAULT;
         return this;
     }
 
     public ProbabilisticTestVerdictBuilder warmup(int warmup) {
-        this.useCaseAttributes = new UseCaseAttributes(warmup, this.useCaseAttributes.maxConcurrent());
+        this.serviceContractAttributes = new ServiceContractAttributes(warmup, this.serviceContractAttributes.maxConcurrent());
         return this;
     }
 
@@ -342,7 +342,7 @@ public class ProbabilisticTestVerdictBuilder {
         return new TestIdentity(
                 className,
                 methodName,
-                Optional.ofNullable(useCaseId)
+                Optional.ofNullable(serviceContractId)
         );
     }
 
@@ -351,7 +351,7 @@ public class ProbabilisticTestVerdictBuilder {
                 plannedSamples, samplesExecuted, successes, failures,
                 minPassRate, observedPassRate, elapsedMs,
                 Optional.ofNullable(appliedMultiplier),
-                intent, resolvedConfidence, useCaseAttributes
+                intent, resolvedConfidence, serviceContractAttributes
         );
     }
 

@@ -12,7 +12,7 @@ import java.util.Objects;
  * compares the produced value against {@link #expected} using the
  * spec's configured {@link ValueMatcher}. The resulting
  * {@link MatchResult} is attached to the
- * {@link UseCaseOutcome} before it reaches the observer, so a failed
+ * {@link ServiceContractOutcome} before it reaches the observer, so a failed
  * match counts as a sample failure in the usual way.
  *
  * @param input the input to hand to the use case

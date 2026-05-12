@@ -17,7 +17,7 @@ import org.javai.punit.api.CovariateCategory;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
@@ -35,7 +35,7 @@ class PowerAnalysisTest {
     private static final Factors FACTORS = new Factors("m");
     private static final String USE_CASE_ID = "echo-use-case";
 
-    private static final UseCase<Factors, String, String> ECHO = new UseCase<>() {
+    private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
         @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
@@ -47,7 +47,7 @@ class PowerAnalysisTest {
         return () -> {
             Sampling<Factors, String, String> sampling = Sampling
                     .<Factors, String, String>builder()
-                    .useCaseFactory(f -> ECHO)
+                    .serviceContractFactory(f -> ECHO)
                     .inputs("a")
                     .samples(100)
                     .build();
@@ -136,7 +136,7 @@ class PowerAnalysisTest {
         Supplier<Experiment> exploreSupplier = () -> {
             Sampling<Factors, String, String> sampling = Sampling
                     .<Factors, String, String>builder()
-                    .useCaseFactory(f -> ECHO)
+                    .serviceContractFactory(f -> ECHO)
                     .inputs("a")
                     .samples(100)
                     .build();
@@ -261,10 +261,10 @@ class PowerAnalysisTest {
     /**
      * Use case declaring a single CONFIGURATION covariate whose
      * resolver returns a fixed value chosen at construction time.
-     * Modelled on the punitexamples ShoppingBasketUseCase pattern.
+     * Modelled on the punitexamples ShoppingBasketServiceContract pattern.
      */
-    private static UseCase<Factors, String, String> covariateUseCase(String resolvedRegion) {
-        return new UseCase<>() {
+    private static ServiceContract<Factors, String, String> covariateServiceContract(String resolvedRegion) {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -281,10 +281,10 @@ class PowerAnalysisTest {
 
     private static Supplier<Experiment> covariateBaseline(String resolvedRegion) {
         return () -> {
-            UseCase<Factors, String, String> useCase = covariateUseCase(resolvedRegion);
+            ServiceContract<Factors, String, String> serviceContract = covariateServiceContract(resolvedRegion);
             Sampling<Factors, String, String> sampling = Sampling
                     .<Factors, String, String>builder()
-                    .useCaseFactory(f -> useCase)
+                    .serviceContractFactory(f -> serviceContract)
                     .inputs("a")
                     .samples(100)
                     .build();
@@ -341,7 +341,7 @@ class PowerAnalysisTest {
 
     @Test
     @DisplayName("covariate-naïve use case still resolves an unstamped baseline (no regression)")
-    void covariateNaiveUseCaseStillResolvesUnstampedBaseline(@TempDir Path dir) throws IOException {
+    void covariateNaiveServiceContractStillResolvesUnstampedBaseline(@TempDir Path dir) throws IOException {
         // The original ECHO use case declares no covariates. Its
         // baseline has no covariate stamp. The covariate-aware
         // resolver path still selects an unstamped candidate when

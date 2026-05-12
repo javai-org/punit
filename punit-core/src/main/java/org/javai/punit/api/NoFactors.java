@@ -3,7 +3,7 @@ package org.javai.punit.api;
 /**
  * Empty factor record for use cases whose behaviour does not depend
  * on factor values. Use as the {@code FT} type parameter in
- * {@link Sampling}, {@link UseCase}, and the spec builders when the
+ * {@link Sampling}, {@link ServiceContract}, and the spec builders when the
  * test or experiment exercises no factors.
  *
  * <p>Pair with the factor-less {@code PUnit.measuring(sampling)} /
@@ -12,7 +12,7 @@ package org.javai.punit.api;
  *
  * <pre>{@code
  * Sampling<NoFactors, String, String> sampling =
- *         Sampling.of(nf -> new MyUseCase(), 1000, "input1");
+ *         Sampling.of(nf -> new MyServiceContract(), 1000, "input1");
  * PUnit.measuring(sampling).run();
  * }</pre>
  *

@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.PUnitVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.RunMetadata;
@@ -176,7 +176,7 @@ class VerdictSinkBusTest {
                 new ProbabilisticTestVerdict.ExecutionSummary(
                         10, 10, 10, 0, 0.9, 1.0, 100,
                         Optional.empty(), TestIntent.VERIFICATION, 0.95,
-                        UseCaseAttributes.DEFAULT),
+                        ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new ProbabilisticTestVerdict.StatisticalAnalysis(

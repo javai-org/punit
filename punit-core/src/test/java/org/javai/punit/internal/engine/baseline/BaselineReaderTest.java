@@ -48,7 +48,7 @@ class BaselineReaderTest {
         BaselineRecord parsed = roundTrip(Map.of(
                 "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)));
 
-        assertThat(parsed.useCaseId()).isEqualTo("ShoppingBasket");
+        assertThat(parsed.serviceContractId()).isEqualTo("ShoppingBasket");
         assertThat(parsed.methodName()).isEqualTo("measureBaseline");
         assertThat(parsed.factorsFingerprint()).isEqualTo("a1b2c3d4");
         assertThat(parsed.inputsIdentity()).isEqualTo("sha256:abc123");
@@ -141,7 +141,7 @@ class BaselineReaderTest {
 
         BaselineReader.LoadedBaseline loaded = reader.load(file);
 
-        assertThat(loaded.record().useCaseId()).isEqualTo("ShoppingBasket");
+        assertThat(loaded.record().serviceContractId()).isEqualTo("ShoppingBasket");
         assertThat(loaded.integrityWarning())
                 .as("a freshly-written baseline must verify cleanly")
                 .isEmpty();

@@ -80,11 +80,11 @@ public final class VerdictTextRenderer {
         StringBuilder sb = new StringBuilder();
 
         if (exec.warmup() > 0) {
-            String useCaseLabel = verdict.identity().useCaseId().orElse("");
+            String serviceContractLabel = verdict.identity().serviceContractId().orElse("");
             sb.append(PUnitReporter.labelValueLn("Warmup:",
                     String.format("%d invocations discarded%s",
                             exec.warmup(),
-                            useCaseLabel.isEmpty() ? "" : " (" + useCaseLabel + ")")));
+                            serviceContractLabel.isEmpty() ? "" : " (" + serviceContractLabel + ")")));
         }
 
         if (term.reason().isBudgetExhaustion()) {
@@ -316,11 +316,11 @@ public final class VerdictTextRenderer {
         sb.append(statLabel("Observed rate (" + symbols.pHat() + "):",
                 RateFormat.format(exec.observedPassRate())));
         if (exec.warmup() > 0) {
-            String useCaseLabel = verdict.identity().useCaseId().orElse("");
+            String serviceContractLabel = verdict.identity().serviceContractId().orElse("");
             sb.append(statLabel("Warmup:",
                     String.format("%d invocations discarded%s",
                             exec.warmup(),
-                            useCaseLabel.isEmpty() ? "" : " (" + useCaseLabel + ")")));
+                            serviceContractLabel.isEmpty() ? "" : " (" + serviceContractLabel + ")")));
         }
         sb.append("\n");
     }

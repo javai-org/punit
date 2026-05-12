@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.javai.punit.api.FactorBundle;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.Configuration;
@@ -137,14 +137,14 @@ public final class PowerAnalysis {
         BaselineLookup lookup = experiment.dispatch(LOOKUP_DISPATCHER);
         BaselineResolver resolver = new BaselineResolver(baselineDir);
         PassRateStatistics stats = resolver.resolve(
-                lookup.useCaseId(),
+                lookup.serviceContractId(),
                 lookup.factorsFingerprint(),
                 PASS_RATE_CRITERION,
                 PassRateStatistics.class,
                 lookup.profile(),
                 lookup.declarations())
                 .orElseThrow(() -> new IllegalStateException(
-                        "no baseline found for use case '" + lookup.useCaseId()
+                        "no baseline found for use case '" + lookup.serviceContractId()
                                 + "' (factors fingerprint " + lookup.factorsFingerprint()
                                 + (lookup.profile().isEmpty() ? ""
                                         : ", covariates " + formatProfile(lookup.profile()))
@@ -195,7 +195,7 @@ public final class PowerAnalysis {
      * supply at run time.
      */
     private record BaselineLookup(
-            String useCaseId,
+            String serviceContractId,
             String factorsFingerprint,
             CovariateProfile profile,
             List<Covariate> declarations) { }
@@ -203,7 +203,7 @@ public final class PowerAnalysis {
     /**
      * Dispatcher that captures the {@code <FT>} type parameter from the
      * spec's engine-facing view long enough to call
-     * {@code useCaseFactory.apply(factors).id()}, compute the factors
+     * {@code serviceContractFactory.apply(factors).id()}, compute the factors
      * fingerprint, and resolve the use case's covariate profile, then
      * collapses the result back to a non-generic carrier.
      */
@@ -219,15 +219,15 @@ public final class PowerAnalysis {
                     }
                     Configuration<FT, IT, OT> cfg = iterator.next();
                     FT factors = cfg.factors();
-                    UseCase<FT, IT, OT> useCase = spec.useCaseFactory().apply(factors);
-                    String useCaseId = useCase.id();
+                    ServiceContract<FT, IT, OT> serviceContract = spec.serviceContractFactory().apply(factors);
+                    String serviceContractId = serviceContract.id();
                     String fingerprint = FactorsFingerprint.of(FactorBundle.of(factors));
-                    List<Covariate> declarations = useCase.covariates();
+                    List<Covariate> declarations = serviceContract.covariates();
                     CovariateProfile profile = declarations.isEmpty()
                             ? CovariateProfile.empty()
                             : CovariateResolver.defaults().resolve(
-                                    declarations, useCase.customCovariateResolvers());
-                    return new BaselineLookup(useCaseId, fingerprint, profile, declarations);
+                                    declarations, serviceContract.customCovariateResolvers());
+                    return new BaselineLookup(serviceContractId, fingerprint, profile, declarations);
                 }
             };
 

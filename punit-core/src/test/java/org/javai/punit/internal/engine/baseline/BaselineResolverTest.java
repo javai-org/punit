@@ -18,21 +18,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-@DisplayName("BaselineResolver — exact-match by useCaseId + factorsFingerprint")
+@DisplayName("BaselineResolver — exact-match by serviceContractId + factorsFingerprint")
 class BaselineResolverTest {
 
     private final BaselineWriter writer = new BaselineWriter();
 
-    private void writeBaseline(Path dir, String useCaseId, String fingerprint,
+    private void writeBaseline(Path dir, String serviceContractId, String fingerprint,
                                 Map<String, BaselineStatistics> entries) throws IOException {
-        writeBaseline(dir, useCaseId, fingerprint, entries, LatencyIndicator.empty());
+        writeBaseline(dir, serviceContractId, fingerprint, entries, LatencyIndicator.empty());
     }
 
-    private void writeBaseline(Path dir, String useCaseId, String fingerprint,
+    private void writeBaseline(Path dir, String serviceContractId, String fingerprint,
                                 Map<String, BaselineStatistics> entries,
                                 LatencyIndicator indicator) throws IOException {
         BaselineRecord record = new BaselineRecord(
-                useCaseId, "measureBaseline", fingerprint,
+                serviceContractId, "measureBaseline", fingerprint,
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 entries,
                 CovariateProfile.empty(),
@@ -67,7 +67,7 @@ class BaselineResolverTest {
     }
 
     @Test
-    @DisplayName("returns empty when no file matches the (useCaseId, fingerprint) pair")
+    @DisplayName("returns empty when no file matches the (serviceContractId, fingerprint) pair")
     void emptyForNonMatchingFile(@TempDir Path dir) throws IOException {
         writeBaseline(dir, "Other", "a1b2c3d4", Map.of(
                 "bernoulli-pass-rate", new PassRateStatistics(0.5, 100)));
@@ -201,7 +201,7 @@ class BaselineResolverTest {
     @Test
     @DisplayName("covariate-aware overload: picks the matching baseline among siblings")
     void covariateAwarePicksMatching(@TempDir Path dir) throws IOException {
-        // Three baselines with the same useCaseId + fingerprint but
+        // Three baselines with the same serviceContractId + fingerprint but
         // distinct profiles. The covariate-aware resolver must pick
         // the one whose profile matches the current run.
         writeBaselineWithProfile(dir, "DE_FR",

@@ -184,7 +184,7 @@ public final class CovariateResolver {
         if (resolver == null) {
             throw new IllegalStateException(
                     "no resolver registered for custom covariate '" + covariate.name()
-                            + "' — declare it in UseCase.customCovariateResolvers()");
+                            + "' — declare it in ServiceContract.customCovariateResolvers()");
         }
         String value = resolver.get();
         if (value == null) {

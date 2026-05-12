@@ -71,7 +71,7 @@ public final class EmpiricalTestComposer {
         // from the baseline so the comparison is content-coherent. Optional
         // governors (timeBudget, tokenBudget) carry over only if declared.
         Sampling.Builder<FT, IT, OT> samplingBuilder = Sampling.<FT, IT, OT>builder()
-                .useCaseFactory(typedBaseline.useCaseFactory())
+                .serviceContractFactory(typedBaseline.serviceContractFactory())
                 .inputs(InputSupplier.from(cfg::inputs))
                 .samples(testSamples)
                 .tokenCharge(typedBaseline.tokenCharge())

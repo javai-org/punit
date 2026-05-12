@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ValueMatcher;
 import org.javai.punit.api.spec.FactorsStepper.IterationResult;
 
@@ -120,24 +120,24 @@ public final class Experiment implements Spec {
      * Sampling parameters are supplied through the returned builder.
      */
     public static <FT, IT, OT> InlineMeasureBuilder<FT, IT, OT> measuring(
-            Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
+            Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory, FT factors) {
         return new InlineMeasureBuilder<>(
-                Objects.requireNonNull(useCaseFactory, "useCaseFactory"),
+                Objects.requireNonNull(serviceContractFactory, "serviceContractFactory"),
                 Objects.requireNonNull(factors, "factors"));
     }
 
     /** Inline-sampling form of {@link #exploring(Sampling)}. */
     public static <FT, IT, OT> InlineExploreBuilder<FT, IT, OT> exploring(
-            Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
+            Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory) {
         return new InlineExploreBuilder<>(
-                Objects.requireNonNull(useCaseFactory, "useCaseFactory"));
+                Objects.requireNonNull(serviceContractFactory, "serviceContractFactory"));
     }
 
     /** Inline-sampling form of {@link #optimizing(Sampling)}. */
     public static <FT, IT, OT> InlineOptimizeBuilder<FT, IT, OT> optimizing(
-            Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
+            Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory) {
         return new InlineOptimizeBuilder<>(
-                Objects.requireNonNull(useCaseFactory, "useCaseFactory"));
+                Objects.requireNonNull(serviceContractFactory, "serviceContractFactory"));
     }
 
     // ── Public scalar accessors ─────────────────────────────────────
@@ -266,8 +266,8 @@ public final class Experiment implements Spec {
         String experimentId() { return experimentId; }
         int samples() { return sampling.samples(); }
 
-        @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-            return sampling.useCaseFactory();
+        @Override public Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory() {
+            return sampling.serviceContractFactory();
         }
 
         @Override public Optional<Duration> timeBudget() { return sampling.timeBudget(); }
@@ -779,7 +779,7 @@ public final class Experiment implements Spec {
      */
     private static class InlineSamplingState<FT, IT, OT> {
 
-        final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+        final Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory;
         List<IT> inputs;
         int samples = 1000;
         Optional<Duration> timeBudget = Optional.empty();
@@ -789,8 +789,8 @@ public final class Experiment implements Spec {
         ExceptionPolicy exceptionPolicy = ExceptionPolicy.ABORT_TEST;
         int maxExampleFailures = 10;
 
-        InlineSamplingState(Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
-            this.useCaseFactory = useCaseFactory;
+        InlineSamplingState(Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory) {
+            this.serviceContractFactory = serviceContractFactory;
         }
 
         Sampling<FT, IT, OT> toSampling() {
@@ -799,7 +799,7 @@ public final class Experiment implements Spec {
                         "inputs is required — call .inputs(...) before .build()");
             }
             Sampling.Builder<FT, IT, OT> b = Sampling.<FT, IT, OT>builder()
-                    .useCaseFactory(useCaseFactory)
+                    .serviceContractFactory(serviceContractFactory)
                     .inputs(inputs)
                     .samples(samples);
             timeBudget.ifPresent(b::timeBudget);
@@ -823,8 +823,8 @@ public final class Experiment implements Spec {
         private String experimentId;
         private Integer expiresInDays;
 
-        private InlineMeasureBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
-            this.sampling = new InlineSamplingState<>(useCaseFactory);
+        private InlineMeasureBuilder(Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory, FT factors) {
+            this.sampling = new InlineSamplingState<>(serviceContractFactory);
             this.factors = factors;
         }
 
@@ -955,8 +955,8 @@ public final class Experiment implements Spec {
         private List<FT> grid;
         private String experimentId;
 
-        private InlineExploreBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
-            this.sampling = new InlineSamplingState<>(useCaseFactory);
+        private InlineExploreBuilder(Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory) {
+            this.sampling = new InlineSamplingState<>(serviceContractFactory);
         }
 
         public InlineExploreBuilder<FT, IT, OT> inputs(List<IT> inputs) {
@@ -1055,8 +1055,8 @@ public final class Experiment implements Spec {
         private int noImprovementWindow = 5;
         private String experimentId;
 
-        private InlineOptimizeBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory) {
-            this.sampling = new InlineSamplingState<>(useCaseFactory);
+        private InlineOptimizeBuilder(Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory) {
+            this.sampling = new InlineSamplingState<>(serviceContractFactory);
         }
 
         public InlineOptimizeBuilder<FT, IT, OT> inputs(List<IT> inputs) {

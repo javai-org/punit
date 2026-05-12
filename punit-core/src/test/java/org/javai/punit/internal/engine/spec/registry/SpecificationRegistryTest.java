@@ -24,11 +24,11 @@ class SpecificationRegistryTest {
         registry = new SpecificationRegistry(tempDir);
     }
 
-    private void createSpecFile(String useCaseId, double minPassRate) throws IOException {
+    private void createSpecFile(String serviceContractId, double minPassRate) throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append("schemaVersion: punit-spec-1\n");
-        sb.append("specId: ").append(useCaseId).append("\n");
-        sb.append("useCaseId: ").append(useCaseId).append("\n");
+        sb.append("specId: ").append(serviceContractId).append("\n");
+        sb.append("useCaseId: ").append(serviceContractId).append("\n");
         sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
         sb.append("approvedAt: 2026-01-09T12:00:00Z\n");
         sb.append("approvedBy: tester\n");
@@ -57,17 +57,17 @@ class SpecificationRegistryTest {
         String content = sb.toString();
         sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
         
-        Files.writeString(tempDir.resolve(useCaseId + ".yaml"), sb.toString());
+        Files.writeString(tempDir.resolve(serviceContractId + ".yaml"), sb.toString());
     }
 
-    private void createV2SpecFile(String useCaseId, int samples, int successes) throws IOException {
+    private void createV2SpecFile(String serviceContractId, int samples, int successes) throws IOException {
         double successRate = (double) successes / samples;
         int failures = samples - successes;
         
         StringBuilder sb = new StringBuilder();
         sb.append("schemaVersion: punit-spec-2\n");
-        sb.append("specId: ").append(useCaseId).append("\n");
-        sb.append("useCaseId: ").append(useCaseId).append("\n");
+        sb.append("specId: ").append(serviceContractId).append("\n");
+        sb.append("useCaseId: ").append(serviceContractId).append("\n");
         sb.append("generatedAt: 2026-01-09T10:00:00Z\n");
         sb.append("\n");
         sb.append("execution:\n");
@@ -98,7 +98,7 @@ class SpecificationRegistryTest {
         String content = sb.toString();
         sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
 
-        Files.writeString(tempDir.resolve(useCaseId + ".yaml"), sb.toString());
+        Files.writeString(tempDir.resolve(serviceContractId + ".yaml"), sb.toString());
     }
 
     private String computeFingerprint(String content) {
@@ -111,23 +111,23 @@ class SpecificationRegistryTest {
 
         @Test
         @DisplayName("loads spec by use case ID")
-        void loadsSpecByUseCaseId() throws IOException {
-            createSpecFile("TestUseCase", 0.85);
+        void loadsSpecByServiceContractId() throws IOException {
+            createSpecFile("TestServiceContract", 0.85);
 
-            var spec = registry.resolveOrThrow("TestUseCase");
+            var spec = registry.resolveOrThrow("TestServiceContract");
 
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
             assertThat(spec.getMinPassRate()).isEqualTo(0.85);
         }
 
         @Test
         @DisplayName("loads v2 spec with empirical basis")
         void loadsV2SpecWithEmpiricalBasis() throws IOException {
-            createV2SpecFile("TestUseCase", 1000, 900);
+            createV2SpecFile("TestServiceContract", 1000, 900);
 
-            var spec = registry.resolveOrThrow("TestUseCase");
+            var spec = registry.resolveOrThrow("TestServiceContract");
 
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
             assertThat(spec.hasEmpiricalBasis()).isTrue();
             assertThat(spec.getEmpiricalBasis().samples()).isEqualTo(1000);
             assertThat(spec.getEmpiricalBasis().successes()).isEqualTo(900);
@@ -137,20 +137,20 @@ class SpecificationRegistryTest {
         @Test
         @DisplayName("strips older version suffix")
         void stripsOlderVersionSuffix() throws IOException {
-            createSpecFile("TestUseCase", 0.9);
+            createSpecFile("TestServiceContract", 0.9);
 
-            var spec = registry.resolveOrThrow("TestUseCase:v1");
+            var spec = registry.resolveOrThrow("TestServiceContract:v1");
 
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
         }
 
         @Test
         @DisplayName("caches loaded specs")
         void cachesLoadedSpecs() throws IOException {
-            createSpecFile("TestUseCase", 0.85);
+            createSpecFile("TestServiceContract", 0.85);
 
-            var spec1 = registry.resolveOrThrow("TestUseCase");
-            var spec2 = registry.resolveOrThrow("TestUseCase");
+            var spec1 = registry.resolveOrThrow("TestServiceContract");
+            var spec2 = registry.resolveOrThrow("TestServiceContract");
 
             assertThat(spec1).isSameAs(spec2);
         }
@@ -220,15 +220,15 @@ class SpecificationRegistryTest {
 
             var spec = registry.resolveOrThrow("YmlCase");
 
-            assertThat(spec.getUseCaseId()).isEqualTo("YmlCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("YmlCase");
         }
 
         @Test
         @DisplayName("validates v2 spec without approval metadata")
         void validatesV2SpecWithoutApprovalMetadata() throws IOException {
-            createV2SpecFile("TestUseCase", 500, 450);
+            createV2SpecFile("TestServiceContract", 500, 450);
 
-            var spec = registry.resolveOrThrow("TestUseCase");
+            var spec = registry.resolveOrThrow("TestServiceContract");
 
             // v2 specs without approval should still be valid
             assertThat(spec.hasApprovalMetadata()).isFalse();
@@ -244,17 +244,17 @@ class SpecificationRegistryTest {
         @Test
         @DisplayName("returns true for existing spec")
         void returnsTrueForExistingSpec() throws IOException {
-            createSpecFile("TestUseCase", 0.9);
+            createSpecFile("TestServiceContract", 0.9);
 
-            assertThat(registry.exists("TestUseCase")).isTrue();
+            assertThat(registry.exists("TestServiceContract")).isTrue();
         }
 
         @Test
         @DisplayName("returns true for existing v2 spec")
         void returnsTrueForExistingV2Spec() throws IOException {
-            createV2SpecFile("TestUseCase", 100, 90);
+            createV2SpecFile("TestServiceContract", 100, 90);
 
-            assertThat(registry.exists("TestUseCase")).isTrue();
+            assertThat(registry.exists("TestServiceContract")).isTrue();
         }
 
         @Test
@@ -272,18 +272,18 @@ class SpecificationRegistryTest {
         @Test
         @DisplayName("returns true for cached spec")
         void returnsTrueForCachedSpec() throws IOException {
-            createSpecFile("TestUseCase", 0.9);
-            registry.resolveOrThrow("TestUseCase"); // Load into cache
+            createSpecFile("TestServiceContract", 0.9);
+            registry.resolveOrThrow("TestServiceContract"); // Load into cache
 
-            assertThat(registry.exists("TestUseCase")).isTrue();
+            assertThat(registry.exists("TestServiceContract")).isTrue();
         }
 
         @Test
         @DisplayName("handles older version suffix")
         void handlesOlderVersionSuffix() throws IOException {
-            createSpecFile("TestUseCase", 0.9);
+            createSpecFile("TestServiceContract", 0.9);
 
-            assertThat(registry.exists("TestUseCase:v1")).isTrue();
+            assertThat(registry.exists("TestServiceContract:v1")).isTrue();
         }
     }
 
@@ -294,11 +294,11 @@ class SpecificationRegistryTest {
         @Test
         @DisplayName("clears cached specs")
         void clearsCachedSpecs() throws IOException {
-            createSpecFile("TestUseCase", 0.85);
-            var spec1 = registry.resolveOrThrow("TestUseCase");
+            createSpecFile("TestServiceContract", 0.85);
+            var spec1 = registry.resolveOrThrow("TestServiceContract");
 
             registry.clearCache();
-            var spec2 = registry.resolveOrThrow("TestUseCase");
+            var spec2 = registry.resolveOrThrow("TestServiceContract");
 
             assertThat(spec1).isNotSameAs(spec2);
         }
@@ -311,13 +311,13 @@ class SpecificationRegistryTest {
         @Test
         @DisplayName("resolves spec via SpecRepository interface")
         void resolvesSpecViaInterface() throws IOException {
-            createSpecFile("TestUseCase", 0.85);
+            createSpecFile("TestServiceContract", 0.85);
 
             SpecRepository repo = registry;
-            var result = repo.resolve("TestUseCase");
+            var result = repo.resolve("TestServiceContract");
 
             assertThat(result).isPresent();
-            assertThat(result.get().getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(result.get().getServiceContractId()).isEqualTo("TestServiceContract");
         }
 
         @Test
@@ -332,10 +332,10 @@ class SpecificationRegistryTest {
         @Test
         @DisplayName("resolves dimension-qualified latency spec")
         void resolvesDimensionQualifiedLatencySpec() throws IOException {
-            createLatencySpecFile("TestUseCase");
+            createLatencySpecFile("TestServiceContract");
 
             SpecRepository repo = registry;
-            var result = repo.resolve("TestUseCase.latency");
+            var result = repo.resolve("TestServiceContract.latency");
 
             assertThat(result).isPresent();
             assertThat(result.get().hasLatencyBaseline()).isTrue();
@@ -354,10 +354,10 @@ class SpecificationRegistryTest {
         }
     }
 
-    private void createLatencySpecFile(String useCaseId) throws IOException {
+    private void createLatencySpecFile(String serviceContractId) throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append("schemaVersion: punit-spec-2\n");
-        sb.append("useCaseId: ").append(useCaseId).append(".latency\n");
+        sb.append("useCaseId: ").append(serviceContractId).append(".latency\n");
         sb.append("generatedAt: 2026-03-07T10:00:00Z\n");
         sb.append("execution:\n");
         sb.append("  samplesPlanned: 1000\n");
@@ -388,6 +388,6 @@ class SpecificationRegistryTest {
         String content = sb.toString();
         sb.append("contentFingerprint: ").append(computeFingerprint(content)).append("\n");
 
-        Files.writeString(tempDir.resolve(useCaseId + ".latency.yaml"), sb.toString());
+        Files.writeString(tempDir.resolve(serviceContractId + ".latency.yaml"), sb.toString());
     }
 }

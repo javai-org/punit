@@ -14,7 +14,7 @@ import org.javai.punit.api.covariate.Covariate;
  * identifies it, what covariates it is sensitive to, what pacing and
  * warmup it requires.
  *
- * <p>{@code UseCase} extends {@link Contract} — the operational layer
+ * <p>{@code ServiceContract} extends {@link Contract} — the operational layer
  * that carries the service call ({@link Contract#invoke invoke}) and
  * the acceptance criteria ({@link Contract#postconditions(ContractBuilder)
  * postconditions}). An author writing one use case implements one
@@ -24,11 +24,11 @@ import org.javai.punit.api.covariate.Covariate;
  *
  * <p>{@code FT} is the factor record — the configuration the author has
  * chosen to vary. {@code IT} is the per-sample input. {@code OT} is the
- * per-sample output value type, wrapped in an {@link UseCaseOutcome}
+ * per-sample output value type, wrapped in an {@link ServiceContractOutcome}
  * assembled by the framework's {@code apply} dispatch on
  * {@link Contract}.
  *
- * <p>A {@code UseCase} is constructed by the framework once per factor
+ * <p>A {@code ServiceContract} is constructed by the framework once per factor
  * configuration (via the factory declared on the spec). Once
  * constructed the instance must behave as if immutable for the duration
  * of sampling — the framework caches and reuses the same instance
@@ -44,12 +44,12 @@ import org.javai.punit.api.covariate.Covariate;
  * @param <IT> the per-sample input type
  * @param <OT> the per-sample output value type
  */
-public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
+public interface ServiceContract<FT, IT, OT> extends Contract<IT, OT> {
 
     /**
      * An optional per-sample wall-clock bound. When present, the engine
      * records a duration violation for any sample whose
-     * {@link UseCaseOutcome#duration() duration} exceeds the bound. The
+     * {@link ServiceContractOutcome#duration() duration} exceeds the bound. The
      * sample's postcondition results are still collected; the violation
      * is an additional facet, not a short-circuit.
      *
@@ -70,7 +70,7 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      * diagnostics.
      *
      * <p>Defaults to a kebab-cased form of the simple class name
-     * (e.g. {@code ShoppingBasketUseCase} becomes
+     * (e.g. {@code ShoppingBasketServiceContract} becomes
      * {@code shopping-basket-use-case}). Implementations that outgrow
      * the default should override with a fixed, filename-safe string.
      *
@@ -182,15 +182,15 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
 
     /**
      * Computes the default id for a class: the simple class name with
-     * any {@code UseCase} suffix stripped, camel-case boundaries
+     * any {@code ServiceContract} suffix stripped, camel-case boundaries
      * converted to kebab-case, and the whole string lower-cased.
      *
      * <p>Examples:
      * <ul>
-     *   <li>{@code ShoppingBasketUseCase}   → {@code shopping-basket}</li>
+     *   <li>{@code ShoppingBasketServiceContract}   → {@code shopping-basket}</li>
      *   <li>{@code PaymentGateway}          → {@code payment-gateway}</li>
-     *   <li>{@code HTTPClientUseCase}       → {@code http-client}</li>
-     *   <li>{@code SimpleLLMUseCase}        → {@code simple-llm}</li>
+     *   <li>{@code HTTPClientServiceContract}       → {@code http-client}</li>
+     *   <li>{@code SimpleLLMServiceContract}        → {@code simple-llm}</li>
      * </ul>
      *
      * @param type the class to derive an id from
@@ -198,8 +198,8 @@ public interface UseCase<FT, IT, OT> extends Contract<IT, OT> {
      */
     static String defaultIdFor(Class<?> type) {
         String name = type.getSimpleName();
-        if (name.endsWith("UseCase") && name.length() > "UseCase".length()) {
-            name = name.substring(0, name.length() - "UseCase".length());
+        if (name.endsWith("ServiceContract") && name.length() > "ServiceContract".length()) {
+            name = name.substring(0, name.length() - "ServiceContract".length());
         }
         StringBuilder out = new StringBuilder(name.length() + 4);
         for (int i = 0; i < name.length(); i++) {

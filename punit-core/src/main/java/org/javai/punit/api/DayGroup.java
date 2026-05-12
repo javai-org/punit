@@ -28,7 +28,7 @@ import java.time.DayOfWeek;
  * covariateDayOfWeek = { @DayGroup(MONDAY) }
  * }</pre>
  *
- * @see UseCase#covariateDayOfWeek()
+ * @see ServiceContract#covariateDayOfWeek()
  */
 @Documented
 @Target({})

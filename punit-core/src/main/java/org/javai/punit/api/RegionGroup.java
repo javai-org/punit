@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
  * covariateRegion = { @RegionGroup("US") }
  * }</pre>
  *
- * @see UseCase#covariateRegion()
+ * @see ServiceContract#covariateRegion()
  */
 @Documented
 @Target({})

@@ -18,8 +18,8 @@ import org.javai.punit.api.spec.BaselineStatistics;
  * <p>Mirrors the schema documented in
  * {@code docs/DES-BASELINE-YAML-SCHEMA.md}.
  *
- * @param useCaseId           the use case's stable identity, as
- *                            returned by {@code UseCase.id()}
+ * @param serviceContractId           the use case's stable identity, as
+ *                            returned by {@code ServiceContract.id()}
  * @param methodName          the spec-method name that produced
  *                            this baseline
  * @param factorsFingerprint  short hash of the factor values the
@@ -40,7 +40,7 @@ import org.javai.punit.api.spec.BaselineStatistics;
  *        different profile.
  */
 public record BaselineRecord(
-        String useCaseId,
+        String serviceContractId,
         String methodName,
         String factorsFingerprint,
         String inputsIdentity,
@@ -51,7 +51,7 @@ public record BaselineRecord(
         LatencyIndicator latencyIndicator) {
 
     public BaselineRecord {
-        Objects.requireNonNull(useCaseId, "useCaseId");
+        Objects.requireNonNull(serviceContractId, "serviceContractId");
         Objects.requireNonNull(methodName, "methodName");
         Objects.requireNonNull(factorsFingerprint, "factorsFingerprint");
         Objects.requireNonNull(inputsIdentity, "inputsIdentity");
@@ -59,8 +59,8 @@ public record BaselineRecord(
         Objects.requireNonNull(statisticsByCriterionName, "statisticsByCriterionName");
         Objects.requireNonNull(covariateProfile, "covariateProfile");
         Objects.requireNonNull(latencyIndicator, "latencyIndicator");
-        if (useCaseId.isBlank()) {
-            throw new IllegalArgumentException("useCaseId must not be blank");
+        if (serviceContractId.isBlank()) {
+            throw new IllegalArgumentException("serviceContractId must not be blank");
         }
         if (methodName.isBlank()) {
             throw new IllegalArgumentException("methodName must not be blank");
@@ -85,7 +85,7 @@ public record BaselineRecord(
      * {@link #latencyIndicator()} to {@link LatencyIndicator#empty()}.
      */
     public BaselineRecord(
-            String useCaseId,
+            String serviceContractId,
             String methodName,
             String factorsFingerprint,
             String inputsIdentity,
@@ -93,7 +93,7 @@ public record BaselineRecord(
             Instant generatedAt,
             Map<String, BaselineStatistics> statisticsByCriterionName,
             CovariateProfile covariateProfile) {
-        this(useCaseId, methodName, factorsFingerprint, inputsIdentity,
+        this(serviceContractId, methodName, factorsFingerprint, inputsIdentity,
                 sampleCount, generatedAt, statisticsByCriterionName,
                 covariateProfile, LatencyIndicator.empty());
     }
@@ -106,14 +106,14 @@ public record BaselineRecord(
      * {@link LatencyIndicator#empty()}.
      */
     public BaselineRecord(
-            String useCaseId,
+            String serviceContractId,
             String methodName,
             String factorsFingerprint,
             String inputsIdentity,
             int sampleCount,
             Instant generatedAt,
             Map<String, BaselineStatistics> statisticsByCriterionName) {
-        this(useCaseId, methodName, factorsFingerprint, inputsIdentity,
+        this(serviceContractId, methodName, factorsFingerprint, inputsIdentity,
                 sampleCount, generatedAt, statisticsByCriterionName,
                 CovariateProfile.empty(), LatencyIndicator.empty());
     }
@@ -124,14 +124,14 @@ public record BaselineRecord(
      * <p>Empty covariate profile (the default — covariate-insensitive
      * baselines):
      * <pre>{@code
-     * {useCaseId}.{methodName}-{factorsFingerprint}.yaml
+     * {serviceContractId}.{methodName}-{factorsFingerprint}.yaml
      * }</pre>
      *
      * <p>Non-empty covariate profile — one 4-char hash per covariate,
      * in declaration order, separated by hyphens after the factors
      * fingerprint:
      * <pre>{@code
-     * {useCaseId}.{methodName}-{factorsFingerprint}-{cov1}-{cov2}...-{covN}.yaml
+     * {serviceContractId}.{methodName}-{factorsFingerprint}-{cov1}-{cov2}...-{covN}.yaml
      * }</pre>
      *
      * <p>The empty-profile form is byte-identical to the
@@ -140,7 +140,7 @@ public record BaselineRecord(
      */
     public String filename() {
         StringBuilder name = new StringBuilder()
-                .append(useCaseId).append('.').append(methodName)
+                .append(serviceContractId).append('.').append(methodName)
                 .append('-').append(factorsFingerprint);
         for (String hash : CovariateHashing.hashesFor(covariateProfile)) {
             name.append('-').append(hash);

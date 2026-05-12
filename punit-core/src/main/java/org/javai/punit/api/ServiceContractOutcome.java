@@ -16,7 +16,7 @@ import org.javai.outcome.Outcome;
  *
  * <h2>Author-side note</h2>
  *
- * <p>Authors do not construct {@code UseCaseOutcome} directly. They
+ * <p>Authors do not construct {@code ServiceContractOutcome} directly. They
  * implement {@link Contract#invoke(Object, TokenTracker) invoke}
  * returning {@link Outcome.Ok} or {@link Outcome.Fail}; the framework's
  * {@code apply} default wraps that with timing, cost diff, postcondition
@@ -51,7 +51,7 @@ import org.javai.outcome.Outcome;
  *            input parameter so {@code Contract<I, O>} can be carried)
  * @param <O> the per-sample output value type
  */
-public record UseCaseOutcome<I, O>(
+public record ServiceContractOutcome<I, O>(
         Outcome<O> result,
         Contract<I, O> contract,
         List<PostconditionResult> postconditionResults,
@@ -59,7 +59,7 @@ public record UseCaseOutcome<I, O>(
         long tokens,
         Duration duration) {
 
-    public UseCaseOutcome {
+    public ServiceContractOutcome {
         Objects.requireNonNull(result, "result");
         Objects.requireNonNull(contract, "contract");
         Objects.requireNonNull(postconditionResults, "postconditionResults");

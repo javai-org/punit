@@ -17,7 +17,7 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PUnitVerdict;
@@ -53,7 +53,7 @@ class VerdictXmlReaderTest {
             ProbabilisticTestVerdict result = roundTrip(original);
 
             // Class name without use-case-id maps to use-case-id in the verdict-XML standard
-            assertThat(result.identity().useCaseId()).contains("com.example.MyTest");
+            assertThat(result.identity().serviceContractId()).contains("com.example.MyTest");
             assertThat(result.identity().methodName()).isEqualTo("shouldPass");
         }
 
@@ -297,16 +297,16 @@ class VerdictXmlReaderTest {
 
     @Nested
     @DisplayName("round-trip: use case ID")
-    class UseCaseIdRoundTrip {
+    class ServiceContractIdRoundTrip {
 
         @Test
         @DisplayName("preserves use case ID when present")
-        void preservesUseCaseId() throws Exception {
-            ProbabilisticTestVerdict original = verdictWithUseCaseId();
+        void preservesServiceContractId() throws Exception {
+            ProbabilisticTestVerdict original = verdictWithServiceContractId();
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.identity().useCaseId()).contains("payment-gateway");
+            assertThat(result.identity().serviceContractId()).contains("payment-gateway");
         }
     }
 
@@ -321,7 +321,7 @@ class VerdictXmlReaderTest {
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
-            assertThat(result.identity().useCaseId()).contains("payment-gateway");
+            assertThat(result.identity().serviceContractId()).contains("payment-gateway");
             assertThat(result.functional()).isPresent();
             assertThat(result.latency()).isPresent();
             assertThat(result.provenance()).isPresent();
@@ -369,7 +369,7 @@ class VerdictXmlReaderTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", "shouldPass", Optional.empty()),
                 new ExecutionSummary(100, 100, 95, 5, 0.9, 0.95, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948,
@@ -502,7 +502,7 @@ class VerdictXmlReaderTest {
         );
     }
 
-    private ProbabilisticTestVerdict verdictWithUseCaseId() {
+    private ProbabilisticTestVerdict verdictWithServiceContractId() {
         ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         TestIdentity identity = new TestIdentity(
                 "com.example.MyTest", "shouldPass", Optional.of("payment-gateway"));

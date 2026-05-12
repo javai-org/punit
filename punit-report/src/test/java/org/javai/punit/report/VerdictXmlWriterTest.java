@@ -27,7 +27,7 @@ import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.verdict.TerminationReason;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.*;
 import org.javai.punit.verdict.PUnitVerdict;
@@ -561,12 +561,12 @@ class VerdictXmlWriterTest {
 
     @Nested
     @DisplayName("use case ID")
-    class UseCaseIdTests {
+    class ServiceContractIdTests {
 
         @Test
         @DisplayName("uses use-case-id when present")
-        void includesUseCaseId() throws Exception {
-            ProbabilisticTestVerdict verdict = verdictWithUseCaseId();
+        void includesServiceContractId() throws Exception {
+            ProbabilisticTestVerdict verdict = verdictWithServiceContractId();
 
             Document doc = writeAndParse(verdict);
             Element identity = firstElement(doc, "identity");
@@ -599,7 +599,7 @@ class VerdictXmlWriterTest {
                 Instant.parse("2026-03-11T14:30:00Z"),
                 new TestIdentity("com.example.MyTest", "shouldPass", Optional.empty()),
                 new ExecutionSummary(100, 100, 95, 5, 0.9, 0.95, 150,
-                        Optional.empty(), TestIntent.VERIFICATION, 0.95, UseCaseAttributes.DEFAULT),
+                        Optional.empty(), TestIntent.VERIFICATION, 0.95, ServiceContractAttributes.DEFAULT),
                 Optional.empty(),
                 Optional.empty(),
                 new StatisticalAnalysis(0.95, 0.0218, 0.8948,
@@ -730,7 +730,7 @@ class VerdictXmlWriterTest {
         );
     }
 
-    private ProbabilisticTestVerdict verdictWithUseCaseId() {
+    private ProbabilisticTestVerdict verdictWithServiceContractId() {
         ProbabilisticTestVerdict base = minimalVerdict(true, PUnitVerdict.PASS);
         TestIdentity identity = new TestIdentity(
                 "com.example.MyTest", "shouldPass", Optional.of("payment-gateway"));

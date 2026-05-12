@@ -54,7 +54,7 @@ class SpecificationLoaderLatencyTest {
 
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
 
-            assertThat(spec.getUseCaseId()).isEqualTo("TestCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestCase");
             assertThat(spec.getMinPassRate()).isEqualTo(0.85);
             assertThat(spec.hasLatencyBaseline()).isFalse();
         }
@@ -66,7 +66,7 @@ class SpecificationLoaderLatencyTest {
 
             ExecutionSpecification spec = SpecificationLoader.parseYaml(yaml);
 
-            assertThat(spec.getUseCaseId()).isEqualTo("TestCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestCase");
             assertThat(spec.getMinPassRate()).isEqualTo(0.85);
             assertThat(spec.hasLatencyBaseline()).isTrue();
         }

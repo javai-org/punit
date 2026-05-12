@@ -47,9 +47,9 @@ public enum ExperimentMode {
      *
      * <h3>Example</h3>
      * <pre>{@code
-     * @MeasureExperiment(useCase = ShoppingUseCase.class, samples = 1000)
-     * void measureShoppingSearch(ShoppingUseCase useCase) {
-     *     useCase.searchProducts("headphones");
+     * @MeasureExperiment(serviceContract = ShoppingServiceContract.class, samples = 1000)
+     * void measureShoppingSearch(ShoppingServiceContract serviceContract) {
+     *     serviceContract.searchProducts("headphones");
      * }
      * }</pre>
      *
@@ -173,10 +173,10 @@ public enum ExperimentMode {
      * <p>This allows annotation defaults of {@code 0} to act as "use mode default":
      * <pre>{@code
      * // Uses MEASURE default (1000)
-     * @Experiment(mode = MEASURE, useCase = MyUseCase.class)
+     * @Experiment(mode = MEASURE, serviceContract = MyServiceContract.class)
      *
      * // Explicit override (500 samples)
-     * @Experiment(mode = MEASURE, useCase = MyUseCase.class, samples = 500)
+     * @Experiment(mode = MEASURE, serviceContract = MyServiceContract.class, samples = 500)
      * }</pre>
      *
      * @param tentativeSampleSize the sample size from the annotation (0 = use default)

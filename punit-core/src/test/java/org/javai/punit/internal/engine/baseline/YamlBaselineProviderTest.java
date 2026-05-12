@@ -137,10 +137,10 @@ class YamlBaselineProviderTest {
                 .anyMatch(n -> n.contains("predates integrity verification"));
     }
 
-    private BaselineRecord baseline(String useCaseId, String fingerprint,
+    private BaselineRecord baseline(String serviceContractId, String fingerprint,
                                      Map<String, BaselineStatistics> entries) {
         return new BaselineRecord(
-                useCaseId, "measureBaseline", fingerprint,
+                serviceContractId, "measureBaseline", fingerprint,
                 "sha256:irrelevant", 1000, Instant.parse("2026-04-26T15:30:00Z"),
                 entries);
     }

@@ -17,7 +17,7 @@ class ExecutionSpecificationTest {
 
     private ExecutionSpecification.Builder validBuilder() {
         return ExecutionSpecification.builder()
-            .useCaseId("TestUseCase")
+            .serviceContractId("TestServiceContract")
             .approvedAt(Instant.now())
             .approvedBy("tester");
     }
@@ -31,7 +31,7 @@ class ExecutionSpecificationTest {
         void buildsWithAllFields() {
             Instant now = Instant.now();
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .useCaseId("TestUseCase")
+                .serviceContractId("TestServiceContract")
                 .version(2)
                 .approvedAt(now)
                 .approvedBy("approver")
@@ -43,9 +43,9 @@ class ExecutionSpecificationTest {
                 .empiricalBasis(100, 85)
                 .build();
 
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
-            // getSpecId() is deprecated and returns useCaseId
-            assertThat(spec.getUseCaseId()).isEqualTo("TestUseCase");
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
+            // getSpecId() is deprecated and returns serviceContractId
+            assertThat(spec.getServiceContractId()).isEqualTo("TestServiceContract");
             assertThat(spec.getVersion()).isEqualTo(2);
             assertThat(spec.getApprovedAt()).isEqualTo(now);
             assertThat(spec.getApprovedBy()).isEqualTo("approver");
@@ -58,25 +58,25 @@ class ExecutionSpecificationTest {
         }
 
         @Test
-        @DisplayName("throws on null useCaseId")
-        void throwsOnNullUseCaseId() {
+        @DisplayName("throws on null serviceContractId")
+        void throwsOnNullServiceContractId() {
             assertThatThrownBy(() -> 
                 ExecutionSpecification.builder()
                     .build()
             ).isInstanceOf(NullPointerException.class)
-             .hasMessageContaining("useCaseId");
+             .hasMessageContaining("serviceContractId");
         }
         
         @Test
-        @DisplayName("specId sets useCaseId for backwards compatibility")
-        void specIdSetsUseCaseId() {
+        @DisplayName("specId sets serviceContractId for backwards compatibility")
+        void specIdSetsServiceContractId() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .useCaseId("LegacySpec")  // deprecated, but should still work
+                .serviceContractId("LegacySpec")  // deprecated, but should still work
                 .approvedAt(Instant.now())
                 .approvedBy("tester")
                 .build();
             
-            assertThat(spec.getUseCaseId()).isEqualTo("LegacySpec");
+            assertThat(spec.getServiceContractId()).isEqualTo("LegacySpec");
         }
 
         @Test
@@ -232,8 +232,8 @@ class ExecutionSpecificationTest {
         @DisplayName("isApproved returns false when approvedAt is null")
         void isApprovedReturnsFalseWhenApprovedAtNull() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .useCaseId("Spec")
-                .useCaseId("UseCase")
+                .serviceContractId("Spec")
+                .serviceContractId("ServiceContract")
                 .approvedBy("approver")
                 .build();
 
@@ -244,8 +244,8 @@ class ExecutionSpecificationTest {
         @DisplayName("isApproved returns false when approvedBy is null")
         void isApprovedReturnsFalseWhenApprovedByNull() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .useCaseId("Spec")
-                .useCaseId("UseCase")
+                .serviceContractId("Spec")
+                .serviceContractId("ServiceContract")
                 .approvedAt(Instant.now())
                 .build();
 
@@ -256,8 +256,8 @@ class ExecutionSpecificationTest {
         @DisplayName("isApproved returns false when approvedBy is empty")
         void isApprovedReturnsFalseWhenApprovedByEmpty() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .useCaseId("Spec")
-                .useCaseId("UseCase")
+                .serviceContractId("Spec")
+                .serviceContractId("ServiceContract")
                 .approvedAt(Instant.now())
                 .approvedBy("")
                 .build();
@@ -283,8 +283,8 @@ class ExecutionSpecificationTest {
         @DisplayName("succeeds without approval metadata (v2 behavior)")
         void succeedsWithoutApprovalMetadata() {
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                .useCaseId("Spec")
-                .useCaseId("UseCase")
+                .serviceContractId("Spec")
+                .serviceContractId("ServiceContract")
                 .empiricalBasis(100, 90)
                 .build();
 

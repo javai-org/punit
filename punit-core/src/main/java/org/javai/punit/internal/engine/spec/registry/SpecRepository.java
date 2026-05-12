@@ -17,7 +17,7 @@ public interface SpecRepository {
 	/**
 	 * Resolves a specification by its ID.
 	 *
-	 * @param specId the specification ID (e.g., use case ID, or dimension-qualified ID like "MyUseCase.latency")
+	 * @param specId the specification ID (e.g., use case ID, or dimension-qualified ID like "MyServiceContract.latency")
 	 * @return the specification if found, or empty if not available in this repository
 	 */
 	Optional<ExecutionSpecification> resolve(String specId);

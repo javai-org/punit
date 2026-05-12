@@ -31,18 +31,18 @@ import java.lang.annotation.Target;
  *
  * <h2>Example: Full Factorial Design</h2>
  * <pre>{@code
- * @Experiment(mode = ExperimentMode.EXPLORE, useCase = ShoppingUseCase.class)
+ * @Experiment(mode = ExperimentMode.EXPLORE, serviceContract = ShoppingServiceContract.class)
  * @FactorSource("fullFactorial")
  * void exploreAllCombinations(
  *     @Factor("model") String model,
  *     @Factor("temperature") double temperature,
- *     UseCaseProvider provider
+ *     ServiceContractProvider provider
  * ) {
  *     // Configure use case with factor values
- *     provider.register(ShoppingUseCase.class, () ->
- *         new ShoppingUseCase(createAssistant(model, temperature)));
- *     ShoppingUseCase useCase = provider.getInstance(ShoppingUseCase.class);
- *     useCase.searchProducts("headphones");
+ *     provider.register(ShoppingServiceContract.class, () ->
+ *         new ShoppingServiceContract(createAssistant(model, temperature)));
+ *     ShoppingServiceContract serviceContract = provider.getInstance(ShoppingServiceContract.class);
+ *     serviceContract.searchProducts("headphones");
  * }
  *
  * static Stream<FactorArguments> fullFactorial() {
@@ -103,8 +103,8 @@ public @interface FactorSource {
      * <h2>Example</h2>
      * <pre>{@code
      * @FactorSource(value = "configs", factors = {"model", "temp", "query"})
-     * void exploreConfigs(ShoppingUseCase useCase) {
-     *     // useCase is pre-configured with model/temp
+     * void exploreConfigs(ShoppingServiceContract serviceContract) {
+     *     // serviceContract is pre-configured with model/temp
      *     // query can be obtained from the factor values if needed
      * }
      *

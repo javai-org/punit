@@ -7,7 +7,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.EngineResult;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.ExperimentResult;
@@ -37,7 +37,7 @@ class EarlyTerminationIntegrationTest {
     record Factors() {}
 
     /** Returns Outcome.ok every sample. */
-    private static class AlwaysPass implements UseCase<Factors, Integer, Boolean> {
+    private static class AlwaysPass implements ServiceContract<Factors, Integer, Boolean> {
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -45,7 +45,7 @@ class EarlyTerminationIntegrationTest {
     }
 
     /** Returns Outcome.fail every sample — a clean failure-inevitable shape. */
-    private static class AlwaysFail implements UseCase<Factors, Integer, Boolean> {
+    private static class AlwaysFail implements ServiceContract<Factors, Integer, Boolean> {
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure");
@@ -57,7 +57,7 @@ class EarlyTerminationIntegrationTest {
      * indefinitely. The counter is per-instance, so one instance per
      * spec run is the intended use.
      */
-    private static class FailsThenPasses implements UseCase<Factors, Integer, Boolean> {
+    private static class FailsThenPasses implements ServiceContract<Factors, Integer, Boolean> {
         private final int failsFirst;
         private int seen = 0;
         FailsThenPasses(int failsFirst) { this.failsFirst = failsFirst; }
@@ -70,10 +70,10 @@ class EarlyTerminationIntegrationTest {
     }
 
     private static Sampling<Factors, Integer, Boolean> sampling(
-            java.util.function.Function<Factors, UseCase<Factors, Integer, Boolean>> factory,
+            java.util.function.Function<Factors, ServiceContract<Factors, Integer, Boolean>> factory,
             int samples) {
         return Sampling.<Factors, Integer, Boolean>builder()
-                .useCaseFactory(factory)
+                .serviceContractFactory(factory)
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();

@@ -12,7 +12,7 @@ import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.ExperimentResult;
 import org.javai.punit.api.spec.FailureCount;
@@ -36,7 +36,7 @@ class PostconditionFailureHistogramTest {
      * one that always fails ("alwaysFails"), one that fails when input
      * is even ("evenFails").
      */
-    private static class TwoClauseUseCase implements UseCase<Factors, Integer, Integer> {
+    private static class TwoClauseServiceContract implements ServiceContract<Factors, Integer, Integer> {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
@@ -54,7 +54,7 @@ class PostconditionFailureHistogramTest {
     void histogramAccumulates() {
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> new TwoClauseUseCase())
+                .serviceContractFactory(f -> new TwoClauseServiceContract())
                 .inputs(1, 2, 3, 4, 5, 6)
                 .samples(6)
                 .build();
@@ -74,7 +74,7 @@ class PostconditionFailureHistogramTest {
     void exemplarsCapAtThree() {
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> new TwoClauseUseCase())
+                .serviceContractFactory(f -> new TwoClauseServiceContract())
                 .inputs(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
                 .samples(10)
                 .build();
@@ -94,13 +94,13 @@ class PostconditionFailureHistogramTest {
     @Test
     @DisplayName("a use case with no postconditions produces an empty histogram")
     void emptyHistogramWhenNoClauses() {
-        UseCase<Factors, Integer, Integer> noClauses = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> noClauses = new ServiceContract<>() {
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
             @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> noClauses)
+                .serviceContractFactory(f -> noClauses)
                 .inputs(1, 2, 3)
                 .samples(3)
                 .build();
@@ -115,7 +115,7 @@ class PostconditionFailureHistogramTest {
     @Test
     @DisplayName("apply-level Outcome.Fail does not contribute to the postcondition histogram")
     void applyFailDoesNotAppearInHistogram() {
-        UseCase<Factors, Integer, Integer> applyFail = new UseCase<>() {
+        ServiceContract<Factors, Integer, Integer> applyFail = new ServiceContract<>() {
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) {
                 return Outcome.fail("upstream-error", "always fails at apply");
             }
@@ -125,7 +125,7 @@ class PostconditionFailureHistogramTest {
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> applyFail)
+                .serviceContractFactory(f -> applyFail)
                 .inputs(1)
                 .samples(5)
                 .build();
@@ -144,7 +144,7 @@ class PostconditionFailureHistogramTest {
     void resultMirrorsSummary() {
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> new TwoClauseUseCase())
+                .serviceContractFactory(f -> new TwoClauseServiceContract())
                 .inputs(1, 2, 3, 4)
                 .samples(4)
                 .build();
@@ -172,7 +172,7 @@ class PostconditionFailureHistogramTest {
     void optimizeIterationCarriesHistogram() {
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
-                .useCaseFactory(f -> new TwoClauseUseCase())
+                .serviceContractFactory(f -> new TwoClauseServiceContract())
                 .inputs(1, 2)
                 .samples(2)
                 .build();
@@ -208,7 +208,7 @@ class PostconditionFailureHistogramTest {
 
     /** A two-clause use case keyed on GridFactors so the explore test
      *  can use distinct grid points. */
-    private static class GridTwoClauseUseCase implements UseCase<GridFactors, Integer, Integer> {
+    private static class GridTwoClauseServiceContract implements ServiceContract<GridFactors, Integer, Integer> {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
@@ -222,7 +222,7 @@ class PostconditionFailureHistogramTest {
     void exploreArtefactSurfacesPerConfigHistogram() {
         var sampling = Sampling
                 .<GridFactors, Integer, Integer>builder()
-                .useCaseFactory(f -> new GridTwoClauseUseCase())
+                .serviceContractFactory(f -> new GridTwoClauseServiceContract())
                 .inputs(1)
                 .samples(1)
                 .build();

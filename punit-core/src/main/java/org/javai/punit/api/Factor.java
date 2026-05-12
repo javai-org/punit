@@ -14,17 +14,17 @@ import java.lang.annotation.Target;
  *
  * <h2>Example</h2>
  * <pre>{@code
- * @Experiment(mode = ExperimentMode.EXPLORE, useCase = ShoppingUseCase.class)
+ * @Experiment(mode = ExperimentMode.EXPLORE, serviceContract = ShoppingServiceContract.class)
  * @FactorSource("configurations")
  * void exploreModelConfigs(
  *     @Factor("model") String model,
  *     @Factor("temperature") double temperature,
- *     ShoppingUseCase useCase
+ *     ShoppingServiceContract serviceContract
  * ) {
  *     // Factors configure the use case
- *     useCase.setModel(model);
- *     useCase.setTemperature(temperature);
- *     useCase.execute();
+ *     serviceContract.setModel(model);
+ *     serviceContract.setTemperature(temperature);
+ *     serviceContract.execute();
  * }
  *
  * static Stream<Arguments> configurations() {
@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
  * <p>Factor values are used to derive output file names for each configuration:
  * <pre>
  * build/punit/baselines/
- * └── ShoppingUseCase/
+ * └── ShoppingServiceContract/
  *     ├── model-gpt-4_temperature-0.0.yaml
  *     ├── model-gpt-4_temperature-0.7.yaml
  *     └── model-gpt-3.5-turbo_temperature-0.0.yaml

@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
  *
  * <h2>Example</h2>
  * <pre>{@code
- * public class ShoppingBasketUseCase {
+ * public class ShoppingBasketServiceContract {
  *
  *     @FactorProvider
  *     public static List<FactorArguments> singleInstruction() {
@@ -47,15 +47,15 @@ import java.lang.annotation.Target;
  *
  * <h2>Usage in Experiments</h2>
  * <pre>{@code
- * @MeasureExperiment(samples = 1000, useCase = ShoppingBasketUseCase.class)
- * @FactorSource("ShoppingBasketUseCase#singleInstruction")
- * void measureBaseline(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
+ * @MeasureExperiment(samples = 1000, serviceContract = ShoppingBasketServiceContract.class)
+ * @FactorSource("ShoppingBasketServiceContract#singleInstruction")
+ * void measureBaseline(ShoppingBasketServiceContract serviceContract, @Factor("instruction") String instruction) {
  *     // All 1000 samples use the same instruction
  * }
  *
- * @MeasureExperiment(samples = 1000, useCase = ShoppingBasketUseCase.class)
- * @FactorSource("ShoppingBasketUseCase#standardInstructions")
- * void measureWithVariety(ShoppingBasketUseCase useCase, @Factor("instruction") String instruction) {
+ * @MeasureExperiment(samples = 1000, serviceContract = ShoppingBasketServiceContract.class)
+ * @FactorSource("ShoppingBasketServiceContract#standardInstructions")
+ * void measureWithVariety(ShoppingBasketServiceContract serviceContract, @Factor("instruction") String instruction) {
  *     // Samples cycle through the standard instructions
  * }
  * }</pre>

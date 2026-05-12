@@ -22,7 +22,7 @@ class BaselineProvenanceTest {
         @DisplayName("should format with all fields")
         void shouldFormatWithAllFields() {
             var provenance = new BaselineProvenance(
-                "ShoppingUseCase-a1b2.yaml",
+                "ShoppingServiceContract-a1b2.yaml",
                 "a1b2c3d4",
                 Instant.parse("2026-01-10T14:30:00Z"),
                 1000,
@@ -31,7 +31,7 @@ class BaselineProvenanceTest {
             
             var readable = provenance.toHumanReadable();
             
-            assertThat(readable).contains("ShoppingUseCase-a1b2.yaml");
+            assertThat(readable).contains("ShoppingServiceContract-a1b2.yaml");
             assertThat(readable).contains("2026-01-10");
             assertThat(readable).contains("1000 samples");
         }

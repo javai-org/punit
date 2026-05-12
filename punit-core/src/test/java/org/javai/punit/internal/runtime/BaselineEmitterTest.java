@@ -13,7 +13,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.internal.engine.Engine;
@@ -25,8 +25,8 @@ import org.yaml.snakeyaml.Yaml;
 @DisplayName("BaselineEmitter — misuse contract and per-sample emission")
 class BaselineEmitterTest {
 
-    private static final UseCase<NoFactors, Integer, Boolean> ALWAYS_PASSES = new UseCase<>() {
-        @Override public String id() { return "AlwaysPassesUseCase"; }
+    private static final ServiceContract<NoFactors, Integer, Boolean> ALWAYS_PASSES = new ServiceContract<>() {
+        @Override public String id() { return "AlwaysPassesServiceContract"; }
         @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(true);
@@ -35,7 +35,7 @@ class BaselineEmitterTest {
 
     private static Sampling<NoFactors, Integer, Boolean> sampling() {
         return Sampling.<NoFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> ALWAYS_PASSES)
+                .serviceContractFactory(f -> ALWAYS_PASSES)
                 .inputs(1, 2, 3)
                 .samples(10)
                 .build();
@@ -80,8 +80,8 @@ class BaselineEmitterTest {
                 .withMessageContaining("no recorded summary");
     }
 
-    private static final UseCase<NoFactors, Integer, String> EVENS_PASS = new UseCase<>() {
-        @Override public String id() { return "EvensPassUseCase"; }
+    private static final ServiceContract<NoFactors, Integer, String> EVENS_PASS = new ServiceContract<>() {
+        @Override public String id() { return "EvensPassServiceContract"; }
         @Override public void postconditions(ContractBuilder<String> b) {
             b.ensure("non-blank", s -> s.isBlank()
                     ? Outcome.fail("blank", "value was blank")
@@ -98,7 +98,7 @@ class BaselineEmitterTest {
     void omitsResultProjection() {
         Sampling<NoFactors, Integer, String> sampling = Sampling
                 .<NoFactors, Integer, String>builder()
-                .useCaseFactory(f -> EVENS_PASS)
+                .serviceContractFactory(f -> EVENS_PASS)
                 .inputs(2, 3) // alternating pass / fail by parity
                 .samples(4)   // 4 samples cycle the 2-input list twice
                 .build();

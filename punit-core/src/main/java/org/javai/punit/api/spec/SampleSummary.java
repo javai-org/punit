@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.javai.punit.api.LatencyResult;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContractOutcome;
 
 /**
  * Per-configuration aggregate of observed samples. Produced by the
@@ -50,7 +50,7 @@ import org.javai.punit.api.UseCaseOutcome;
  * @param <OT> the outcome value type
  */
 public record SampleSummary<OT>(
-        List<UseCaseOutcome<?, OT>> outcomes,
+        List<ServiceContractOutcome<?, OT>> outcomes,
         Duration elapsed,
         int successes,
         int failures,
@@ -106,7 +106,7 @@ public record SampleSummary<OT>(
      * the passing-only latency result populated.
      */
     public SampleSummary(
-            List<UseCaseOutcome<?, OT>> outcomes,
+            List<ServiceContractOutcome<?, OT>> outcomes,
             Duration elapsed,
             int successes,
             int failures,
@@ -127,7 +127,7 @@ public record SampleSummary<OT>(
      * {@link #passingLatencyResult()} to {@link LatencyResult#empty()}.
      */
     public SampleSummary(
-            List<UseCaseOutcome<?, OT>> outcomes,
+            List<ServiceContractOutcome<?, OT>> outcomes,
             Duration elapsed,
             int successes,
             int failures,
@@ -151,13 +151,13 @@ public record SampleSummary<OT>(
      * directly with a populated trials list.
      */
     public static <OT> SampleSummary<OT> from(
-            List<UseCaseOutcome<?, OT>> outcomes,
+            List<ServiceContractOutcome<?, OT>> outcomes,
             Duration elapsed,
             LatencyResult latencyResult,
             TerminationReason terminationReason) {
         int s = 0, f = 0;
         long tokens = 0L;
-        for (UseCaseOutcome<?, OT> o : outcomes) {
+        for (ServiceContractOutcome<?, OT> o : outcomes) {
             if (o.value().isOk()) s++;
             else f++;
             tokens += o.tokens();
@@ -172,7 +172,7 @@ public record SampleSummary<OT>(
      * {@link LatencyResult#empty()} and {@code terminationReason} to
      * {@link TerminationReason#COMPLETED}.
      */
-    public static <OT> SampleSummary<OT> from(List<UseCaseOutcome<?, OT>> outcomes, Duration elapsed) {
+    public static <OT> SampleSummary<OT> from(List<ServiceContractOutcome<?, OT>> outcomes, Duration elapsed) {
         return from(outcomes, elapsed, LatencyResult.empty(), TerminationReason.COMPLETED);
     }
 

@@ -28,7 +28,7 @@ import org.javai.punit.internal.engine.explore.ExploreOutputWriter;
  * <ul>
  *   <li>{@link #emit(Experiment, Path)} — production: writes one
  *       file per configuration under
- *       {@code {baseDir}/{useCaseId}/{readableStem}.yaml}.</li>
+ *       {@code {baseDir}/{serviceContractId}/{readableStem}.yaml}.</li>
  *   <li>{@link #emit(Experiment, BiConsumer)} — test seam: yields
  *       {@code (relativePath, content)} pairs to the supplied sink so
  *       tests can scrutinise the output without touching disk.</li>
@@ -46,7 +46,7 @@ public final class ExploreEmitter {
      * Persist EXPLORE artefacts under {@code baseDir}.
      *
      * @param experiment a completed {@link Experiment.Kind#EXPLORE EXPLORE} experiment
-     * @param baseDir directory under which {@code {useCaseId}/...yaml} files
+     * @param baseDir directory under which {@code {serviceContractId}/...yaml} files
      *                land. Created if missing.
      */
     public static void emit(Experiment experiment, Path baseDir) {
@@ -70,7 +70,7 @@ public final class ExploreEmitter {
     /**
      * Emit EXPLORE artefacts to a sink. The sink receives one
      * {@code (relativePath, yamlContent)} pair per configuration —
-     * {@code relativePath} is {@code {useCaseId}/{readableStem}.yaml}.
+     * {@code relativePath} is {@code {serviceContractId}/{readableStem}.yaml}.
      *
      * <p>This is the test-seam overload: a test passes a
      * {@code BiConsumer} that captures into a {@code Map<String, String>}
@@ -101,11 +101,11 @@ public final class ExploreEmitter {
                 for (PerConfigSummary<?, ?> entry : entries) {
                     @SuppressWarnings("unchecked")
                     FT factors = (FT) entry.factors();
-                    String useCaseId = typed.useCaseFactory().apply(factors).id();
+                    String serviceContractId = typed.serviceContractFactory().apply(factors).id();
                     FactorBundle bundle = FactorBundle.of(factors);
                     String stem = writer.filenameFor(bundle);
-                    String yaml = writer.writeYaml(useCaseId, bundle, entry);
-                    sink.accept(useCaseId + "/" + stem + ".yaml", yaml);
+                    String yaml = writer.writeYaml(serviceContractId, bundle, entry);
+                    sink.accept(serviceContractId + "/" + stem + ".yaml", yaml);
                 }
                 return null;
             }

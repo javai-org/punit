@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  * <p>Required fields:
  * <ul>
  *   <li>{@code schemaVersion} - must be "punit-spec-1"</li>
- *   <li>{@code useCaseId} - non-empty string</li>
+ *   <li>{@code serviceContractId} - non-empty string</li>
  *   <li>{@code generatedAt} - ISO-8601 timestamp</li>
  *   <li>{@code execution.samplesPlanned} - positive integer</li>
  *   <li>{@code execution.samplesExecuted} - non-negative integer</li>
@@ -77,9 +77,9 @@ public final class SpecSchemaValidator {
         }
         
         // Use case ID
-        String useCaseId = extractField(content, "useCaseId");
-        if (useCaseId == null || useCaseId.isEmpty()) {
-            errors.add("Missing required field: useCaseId");
+        String serviceContractId = extractField(content, "useCaseId");
+        if (serviceContractId == null || serviceContractId.isEmpty()) {
+            errors.add("Missing required field: serviceContractId");
         }
         
         // Generated timestamp

@@ -37,7 +37,7 @@ import org.javai.punit.internal.util.HashUtils;
  * </ul>
  *
  * <p>Hashes appear in the filename in the order the covariates were
- * declared by {@code UseCase.covariates()}; {@link CovariateProfile}
+ * declared by {@code ServiceContract.covariates()}; {@link CovariateProfile}
  * preserves that order through resolution and round-trip, so the
  * implementation here just iterates the profile's value map.
  */

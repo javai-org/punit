@@ -8,7 +8,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
@@ -26,8 +26,8 @@ public final class FeasibilitySubjects {
 
     public static final String USE_CASE_ID = "feasibility-use-case";
 
-    private static UseCase<NoFactors, Integer, Boolean> alwaysPasses() {
-        return new UseCase<>() {
+    private static ServiceContract<NoFactors, Integer, Boolean> alwaysPasses() {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);
@@ -38,7 +38,7 @@ public final class FeasibilitySubjects {
 
     private static Sampling<NoFactors, Integer, Boolean> sampling(int samples) {
         return Sampling.<NoFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> alwaysPasses())
+                .serviceContractFactory(f -> alwaysPasses())
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();

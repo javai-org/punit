@@ -11,7 +11,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
@@ -50,7 +50,7 @@ class LatencyEverywhereIntegrationTest {
     record F(String label) {}
 
     /** Use case that succeeds when input length is even, fails otherwise. */
-    private static class EvenLengthUseCase implements UseCase<F, String, Integer> {
+    private static class EvenLengthServiceContract implements ServiceContract<F, String, Integer> {
         @Override public String id() { return "latency-everywhere-test"; }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
@@ -70,7 +70,7 @@ class LatencyEverywhereIntegrationTest {
     void exploreRowCarriesLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
-                .useCaseFactory(f -> new EvenLengthUseCase())
+                .serviceContractFactory(f -> new EvenLengthServiceContract())
                 .inputs(MIXED_INPUTS)
                 .samples(6)
                 .build();
@@ -109,7 +109,7 @@ class LatencyEverywhereIntegrationTest {
     void optimizeIterationsCarryLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
-                .useCaseFactory(f -> new EvenLengthUseCase())
+                .serviceContractFactory(f -> new EvenLengthServiceContract())
                 .inputs(MIXED_INPUTS)
                 .samples(6)
                 .build();
@@ -150,7 +150,7 @@ class LatencyEverywhereIntegrationTest {
     void measureBaselineCarriesLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
-                .useCaseFactory(f -> new EvenLengthUseCase())
+                .serviceContractFactory(f -> new EvenLengthServiceContract())
                 .inputs(MIXED_INPUTS)
                 .samples(6)
                 .build();
@@ -180,7 +180,7 @@ class LatencyEverywhereIntegrationTest {
     void verdictCarriesDescriptiveLatency() {
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
-                .useCaseFactory(f -> new EvenLengthUseCase())
+                .serviceContractFactory(f -> new EvenLengthServiceContract())
                 .inputs(MIXED_INPUTS)
                 .samples(6)
                 .build();
@@ -209,7 +209,7 @@ class LatencyEverywhereIntegrationTest {
     @DisplayName("Zero passing samples → no latency block emitted")
     void zeroPassingProducesNoBlock() {
         // Use case that always fails the postcondition.
-        UseCase<F, String, Integer> alwaysFail = new UseCase<>() {
+        ServiceContract<F, String, Integer> alwaysFail = new ServiceContract<>() {
             @Override public String id() { return "always-fail"; }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
@@ -220,7 +220,7 @@ class LatencyEverywhereIntegrationTest {
         };
         Sampling<F, String, Integer> sampling = Sampling
                 .<F, String, Integer>builder()
-                .useCaseFactory(f -> alwaysFail)
+                .serviceContractFactory(f -> alwaysFail)
                 .inputs("a", "b")
                 .samples(2)
                 .build();

@@ -16,7 +16,7 @@ import java.util.Optional;
 import javax.xml.stream.XMLStreamException;
 
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.UseCaseAttributes;
+import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.report.VerdictXmlWriter;
 import org.javai.punit.verdict.ExpirationStatus;
 import org.javai.punit.verdict.PUnitVerdict;
@@ -200,7 +200,7 @@ class VerdictXmlConformanceTest {
                 100, 100, 95, 5,
                 0.9, 0.95, 200L,
                 Optional.empty(), TestIntent.VERIFICATION, 0.95,
-                UseCaseAttributes.DEFAULT);
+                ServiceContractAttributes.DEFAULT);
         FunctionalDimension functional = new FunctionalDimension(95, 5, 0.95);
         LatencyDimension latency = new LatencyDimension(
                 95, 100, false, Optional.empty(),
@@ -233,7 +233,7 @@ class VerdictXmlConformanceTest {
                 100, 100, 85, 15,
                 0.9, 0.85, 180L,
                 Optional.empty(), TestIntent.VERIFICATION, 0.95,
-                UseCaseAttributes.DEFAULT);
+                ServiceContractAttributes.DEFAULT);
         FunctionalDimension functional = new FunctionalDimension(85, 15, 0.85);
         StatisticalAnalysis statistics = new StatisticalAnalysis(
                 0.95, 0.0357, 0.7821,
@@ -268,7 +268,7 @@ class VerdictXmlConformanceTest {
                 100, 100, 93, 7,
                 0.9, 0.93, 150L,
                 Optional.empty(), TestIntent.VERIFICATION, 0.95,
-                UseCaseAttributes.DEFAULT);
+                ServiceContractAttributes.DEFAULT);
         CovariateStatus covariates = new CovariateStatus(
                 false,
                 List.of(new Misalignment("region", "eu-west-1", "eu-west-2")),
@@ -298,7 +298,7 @@ class VerdictXmlConformanceTest {
                 100, 100, 95, 5,
                 0.9, 0.95, 200L,
                 Optional.empty(), TestIntent.VERIFICATION, 0.95,
-                UseCaseAttributes.DEFAULT);
+                ServiceContractAttributes.DEFAULT);
         FunctionalDimension functional = new FunctionalDimension(95, 5, 0.95);
         BaselineSummary baseline = new BaselineSummary(
                 "ShoppingBasket.yaml",

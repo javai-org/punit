@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  *
  * <h2>Example: Stop When 90% Success Rate Achieved</h2>
  * <pre>{@code
- * @Experiment(useCase = "usecase.json.generation", samplesPerConfig = 100)
+ * @Experiment(serviceContract = "usecase.json.generation", samplesPerConfig = 100)
  * @ExperimentGoal(successRate = 0.90)
  * @ExperimentDesign({
  *     @Config(model = "gpt-3.5-turbo", temperature = 0.0),

@@ -9,7 +9,7 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.internal.engine.baseline.PowerAnalysis;
 import org.javai.punit.runtime.PUnit;
@@ -34,8 +34,8 @@ public final class PreflightInvariantSubjects {
 
     private PreflightInvariantSubjects() { }
 
-    private static UseCase<NoFactors, Integer, Boolean> countingAlwaysPasses() {
-        return new UseCase<>() {
+    private static ServiceContract<NoFactors, Integer, Boolean> countingAlwaysPasses() {
+        return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 INVOKE_COUNT.incrementAndGet();
@@ -47,7 +47,7 @@ public final class PreflightInvariantSubjects {
 
     private static Sampling<NoFactors, Integer, Boolean> sampling(int samples) {
         return Sampling.<NoFactors, Integer, Boolean>builder()
-                .useCaseFactory(f -> countingAlwaysPasses())
+                .serviceContractFactory(f -> countingAlwaysPasses())
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();

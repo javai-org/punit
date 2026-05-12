@@ -54,7 +54,7 @@ public interface BaselineProvider {
      *         none is selectable
      */
     <S extends BaselineStatistics> Optional<S> baselineFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
@@ -66,7 +66,7 @@ public interface BaselineProvider {
      * {@link EmpiricalChecks#inputsIdentityMatch} integrity check.
      */
     Optional<String> baselineInputsIdentityFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             CovariateProfile currentProfile,
             List<Covariate> declarations);
@@ -78,11 +78,11 @@ public interface BaselineProvider {
      * baselines whose own profile is empty.
      */
     default <S extends BaselineStatistics> Optional<S> baselineFor(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType) {
-        return baselineFor(useCaseId, factors, criterionName, statisticsType,
+        return baselineFor(serviceContractId, factors, criterionName, statisticsType,
                 CovariateProfile.empty(), List.of());
     }
 
@@ -92,8 +92,8 @@ public interface BaselineProvider {
      * empty.
      */
     default Optional<String> baselineInputsIdentityFor(
-            String useCaseId, FactorBundle factors) {
-        return baselineInputsIdentityFor(useCaseId, factors,
+            String serviceContractId, FactorBundle factors) {
+        return baselineInputsIdentityFor(serviceContractId, factors,
                 CovariateProfile.empty(), List.of());
     }
 
@@ -109,14 +109,14 @@ public interface BaselineProvider {
      * the notes from the selection algorithm.
      */
     default <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType,
             CovariateProfile currentProfile,
             List<Covariate> declarations) {
         return BaselineLookup.of(baselineFor(
-                useCaseId, factors, criterionName, statisticsType,
+                serviceContractId, factors, criterionName, statisticsType,
                 currentProfile, declarations));
     }
 
@@ -130,11 +130,11 @@ public interface BaselineProvider {
      * covariate-aware lookup.
      */
     default <S extends BaselineStatistics> BaselineLookup<S> baselineLookup(
-            String useCaseId,
+            String serviceContractId,
             FactorBundle factors,
             String criterionName,
             Class<S> statisticsType) {
-        return baselineLookup(useCaseId, factors, criterionName, statisticsType,
+        return baselineLookup(serviceContractId, factors, criterionName, statisticsType,
                 CovariateProfile.empty(), List.of());
     }
 
@@ -146,7 +146,7 @@ public interface BaselineProvider {
     BaselineProvider EMPTY = new BaselineProvider() {
         @Override
         public <S extends BaselineStatistics> Optional<S> baselineFor(
-                String useCaseId,
+                String serviceContractId,
                 FactorBundle factors,
                 String criterionName,
                 Class<S> statisticsType,
@@ -157,7 +157,7 @@ public interface BaselineProvider {
 
         @Override
         public Optional<String> baselineInputsIdentityFor(
-                String useCaseId, FactorBundle factors,
+                String serviceContractId, FactorBundle factors,
                 CovariateProfile currentProfile, List<Covariate> declarations) {
             return Optional.empty();
         }

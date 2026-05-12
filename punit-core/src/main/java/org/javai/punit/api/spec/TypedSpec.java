@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-import org.javai.punit.api.UseCase;
+import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ValueMatcher;
 
 /**
@@ -30,7 +30,7 @@ public interface TypedSpec<FT, IT, OT> {
 
     Iterator<Configuration<FT, IT, OT>> configurations();
 
-    Function<FT, UseCase<FT, IT, OT>> useCaseFactory();
+    Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory();
 
     default Optional<ValueMatcher<OT>> matcher() {
         return Optional.empty();

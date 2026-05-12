@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
  *
  * <h2>Example: Finding the Cheapest Acceptable Model</h2>
  * <pre>{@code
- * @Experiment(useCase = "usecase.json.generation", samplesPerConfig = 100)
+ * @Experiment(serviceContract = "usecase.json.generation", samplesPerConfig = 100)
  * @ExperimentGoal(successRate = 0.90)
  * @ExperimentDesign({
  *     // Ordered cheapest-first

@@ -28,7 +28,7 @@ class BaselineWriterTest {
 
     private BaselineRecord recordWith(Map<String, BaselineStatistics> stats) {
         return new BaselineRecord(
-                "ShoppingBasketUseCase",
+                "ShoppingBasketServiceContract",
                 "measureBaseline",
                 "a1b2c3d4",
                 "sha256:7d3a8c1e9b2f",
@@ -47,7 +47,7 @@ class BaselineWriterTest {
 
         assertThat(root)
                 .containsEntry("schemaVersion", "punit-baseline-2")
-                .containsEntry("useCaseId", "ShoppingBasketUseCase")
+                .containsEntry("useCaseId", "ShoppingBasketServiceContract")
                 .containsEntry("methodName", "measureBaseline")
                 .containsEntry("factorsFingerprint", "a1b2c3d4")
                 .containsEntry("inputsIdentity", "sha256:7d3a8c1e9b2f")
@@ -124,7 +124,7 @@ class BaselineWriterTest {
     private BaselineRecord recordWithLatency(
             Map<String, BaselineStatistics> stats, LatencyIndicator indicator) {
         return new BaselineRecord(
-                "ShoppingBasketUseCase",
+                "ShoppingBasketServiceContract",
                 "measureBaseline",
                 "a1b2c3d4",
                 "sha256:7d3a8c1e9b2f",
@@ -148,7 +148,7 @@ class BaselineWriterTest {
         assertThat(file)
                 .exists()
                 .isEqualTo(baselineDir.resolve(
-                        "ShoppingBasketUseCase.measureBaseline-a1b2c3d4.yaml"));
+                        "ShoppingBasketServiceContract.measureBaseline-a1b2c3d4.yaml"));
 
         String content = Files.readString(file);
         assertThat(content).contains("schemaVersion: punit-baseline-2");
@@ -205,7 +205,7 @@ class BaselineWriterTest {
         profile.put("model_version", "v1");
 
         BaselineRecord record = new BaselineRecord(
-                "ShoppingBasketUseCase",
+                "ShoppingBasketServiceContract",
                 "measureBaseline",
                 "a1b2c3d4",
                 "sha256:7d3a8c1e9b2f",

@@ -8,15 +8,15 @@ import java.util.function.BooleanSupplier;
 import org.javai.punit.api.spec.ExceptionPolicy;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContract;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.api.ValueMatcher;
 import org.javai.punit.api.spec.SampleExecutor;
 import org.javai.punit.api.spec.SampleObserver;
 
 /**
  * One-at-a-time sample executor. Invokes
- * {@code useCase.apply(input, tracker)} on the calling thread and
+ * {@code serviceContract.apply(input, tracker)} on the calling thread and
  * forwards outcomes along with the wall-clock time taken. Consults
  * the caller's early-stop predicate between samples so the engine
  * can enforce wall-clock and token budgets, and honours the use
@@ -30,7 +30,7 @@ import org.javai.punit.api.spec.SampleObserver;
  *
  * <h2>Pacing behaviour</h2>
  *
- * <p>Pacing is read from {@link UseCase#pacing()} once per call —
+ * <p>Pacing is read from {@link ServiceContract#pacing()} once per call —
  * pacing is a service-level property, so a single {@code runSamples}
  * call sees a consistent limit. The pacing delay is inserted
  * <em>between</em> samples, so the first sample dispatches immediately
@@ -44,7 +44,7 @@ import org.javai.punit.api.spec.SampleObserver;
  * always runs at concurrency 1, which is &le; any positive cap.
  *
  * <p>Business-level failures are signalled by the use case returning
- * a {@link UseCaseOutcome} whose inner {@link org.javai.outcome.Outcome}
+ * a {@link ServiceContractOutcome} whose inner {@link org.javai.outcome.Outcome}
  * is a {@code Fail}; the executor just forwards those. Defects —
  * exceptions thrown from {@code apply} — are routed through the
  * observer's {@code onDefect} channel, which the engine's aggregator
@@ -56,7 +56,7 @@ public final class SerialSampleExecutor implements SampleExecutor {
 
     @Override
     public <FT, IT, OT> void runSamples(
-            UseCase<FT, IT, OT> useCase,
+            ServiceContract<FT, IT, OT> serviceContract,
             List<IT> inputs,
             List<OT> expected,
             Optional<ValueMatcher<OT>> matcher,
@@ -76,7 +76,7 @@ public final class SerialSampleExecutor implements SampleExecutor {
                     "matcher is required when expected outputs are supplied");
         }
 
-        Pacing pacing = useCase.pacing();
+        Pacing pacing = serviceContract.pacing();
         long minDelayMillis = pacing.effectiveMinDelayMillis();
         TokenTracker tracker = new InMemoryTokenTracker();
         boolean matching = !expected.isEmpty();
@@ -94,13 +94,13 @@ public final class SerialSampleExecutor implements SampleExecutor {
             int inputIndex = (cycleStart + i) % inputs.size();
             IT input = inputs.get(inputIndex);
             long t0 = System.nanoTime();
-            UseCaseOutcome<IT, OT> outcome;
+            ServiceContractOutcome<IT, OT> outcome;
             try {
                 if (matching) {
                     OT expectedValue = expected.get(inputIndex % expected.size());
-                    outcome = useCase.apply(input, expectedValue, matcher.get(), tracker);
+                    outcome = serviceContract.apply(input, expectedValue, matcher.get(), tracker);
                 } else {
-                    outcome = useCase.apply(input, tracker);
+                    outcome = serviceContract.apply(input, tracker);
                 }
             } catch (Throwable t) {
                 Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);

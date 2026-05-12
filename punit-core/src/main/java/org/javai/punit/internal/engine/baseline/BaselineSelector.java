@@ -71,7 +71,7 @@ final class BaselineSelector {
     private BaselineSelector() { }
 
     /**
-     * @param candidates  baselines whose {@code (useCaseId,
+     * @param candidates  baselines whose {@code (serviceContractId,
      *                    factorsFingerprint)} already match the lookup
      * @param currentProfile  the profile resolved for the current run
      * @param declarations    the use case's covariate declarations,

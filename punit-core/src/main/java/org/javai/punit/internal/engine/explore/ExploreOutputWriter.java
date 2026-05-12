@@ -54,17 +54,17 @@ public final class ExploreOutputWriter {
      * Build the explore-output YAML for one configuration. Pure -
      * no I/O.
      *
-     * @param useCaseId the use case identifier (becomes the
+     * @param serviceContractId the use case identifier (becomes the
      *                  {@code useCaseId:} field).
      * @param factorBundle the configuration's factor bundle (becomes
      *                     the {@code factors:} block).
      * @param entry the per-config summary plus planned sample count.
      * @return YAML matching the canonical explore-output schema.
      */
-    public String writeYaml(String useCaseId, FactorBundle factorBundle, PerConfigSummary<?, ?> entry) {
+    public String writeYaml(String serviceContractId, FactorBundle factorBundle, PerConfigSummary<?, ?> entry) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("schemaVersion", SCHEMA_VERSION);
-        root.put("useCaseId", useCaseId);
+        root.put("useCaseId", serviceContractId);
         root.put("generatedAt", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
         root.put("factors", factorsBlock(factorBundle));
         root.put("execution", executionBlock(entry));

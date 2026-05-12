@@ -14,8 +14,8 @@ import org.javai.outcome.Outcome.Ok;
  * The operational layer of a use case: how to invoke the service for
  * one sample, and what counts as success when the service returns.
  *
- * <p>{@link UseCase} extends this interface, so an author writing
- * {@code class MyUseCase implements UseCase<F, I, O>} satisfies both
+ * <p>{@link ServiceContract} extends this interface, so an author writing
+ * {@code class MyServiceContract implements ServiceContract<F, I, O>} satisfies both
  * surfaces with one {@code implements} clause. The author overrides
  * exactly two methods:
  *
@@ -56,7 +56,7 @@ public interface Contract<I, O> {
      *       apply-level failure. Postconditions are not evaluated (no
      *       result was produced). The full {@link org.javai.outcome.Failure}
      *       — symbolic name, message, optional cause — is preserved on
-     *       the {@link UseCaseOutcome} for diagnostics.</li>
+     *       the {@link ServiceContractOutcome} for diagnostics.</li>
      * </ul>
      *
      * <h4>How the framework treats a thrown exception</h4>
@@ -121,7 +121,7 @@ public interface Contract<I, O> {
      * <p>Concrete default; the framework dispatches to this form when
      * the test/experiment hasn't configured matching.
      */
-    default UseCaseOutcome<I, O> apply(I input, TokenTracker tracker) {
+    default ServiceContractOutcome<I, O> apply(I input, TokenTracker tracker) {
         return runSample(input, tracker, Optional.empty());
     }
 
@@ -132,7 +132,7 @@ public interface Contract<I, O> {
      * form when the test/experiment configured an expected list but
      * no custom matcher.
      */
-    default UseCaseOutcome<I, O> apply(I input, O expected, TokenTracker tracker) {
+    default ServiceContractOutcome<I, O> apply(I input, O expected, TokenTracker tracker) {
         return apply(input, expected, ValueMatcher.equality(), tracker);
     }
 
@@ -141,12 +141,12 @@ public interface Contract<I, O> {
      * Concrete default; the framework dispatches to this form when
      * the test/experiment configured matching with a custom matcher.
      */
-    default UseCaseOutcome<I, O> apply(I input, O expected, ValueMatcher<O> matcher, TokenTracker tracker) {
+    default ServiceContractOutcome<I, O> apply(I input, O expected, ValueMatcher<O> matcher, TokenTracker tracker) {
         return runSample(input, tracker,
                 Optional.of(value -> matcher.match(expected, value)));
     }
 
-    private UseCaseOutcome<I, O> runSample(
+    private ServiceContractOutcome<I, O> runSample(
             I input,
             TokenTracker tracker,
             Optional<Function<O, MatchResult>> matchStep) {
@@ -165,7 +165,7 @@ public interface Contract<I, O> {
                 ? matchStep.map(step -> step.apply(ok2.value()))
                 : Optional.empty();
 
-        return new UseCaseOutcome<>(
+        return new ServiceContractOutcome<>(
                 result,
                 this,
                 clauseResults,
@@ -179,6 +179,6 @@ public interface Contract<I, O> {
         for (Postcondition<O> p : postconditions()) {
             out.addAll(p.evaluateAll(value));
         }
-        return out;   // UseCaseOutcome canonical constructor defensive-copies
+        return out;   // ServiceContractOutcome canonical constructor defensive-copies
     }
 }

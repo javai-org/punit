@@ -19,8 +19,8 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @MeasureExperiment(samples = 1000)
  * @InputSource("testInstructions")
- * void measure(ShoppingBasketUseCase useCase, String instruction) {
- *     useCase.translateInstruction(instruction);
+ * void measure(ShoppingBasketServiceContract serviceContract, String instruction) {
+ *     serviceContract.translateInstruction(instruction);
  * }
  *
  * static Stream<String> testInstructions() {
@@ -35,8 +35,8 @@ import java.lang.annotation.Target;
  *
  * @MeasureExperiment(samples = 1000)
  * @InputSource("goldenInputs")
- * void measure(ShoppingBasketUseCase useCase, TranslationInput input) {
- *     useCase.translateInstruction(input.instruction(), input.expected());
+ * void measure(ShoppingBasketServiceContract serviceContract, TranslationInput input) {
+ *     serviceContract.translateInstruction(input.instruction(), input.expected());
  * }
  *
  * static Stream<TranslationInput> goldenInputs() {
@@ -52,8 +52,8 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @MeasureExperiment(samples = 1000)
  * @InputSource(file = "golden/shopping.json")
- * void measure(ShoppingBasketUseCase useCase, TranslationInput input) {
- *     useCase.translateInstruction(input.instruction(), input.expected());
+ * void measure(ShoppingBasketServiceContract serviceContract, TranslationInput input) {
+ *     serviceContract.translateInstruction(input.instruction(), input.expected());
  * }
  * }</pre>
  *

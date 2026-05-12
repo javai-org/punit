@@ -14,16 +14,16 @@ import java.lang.annotation.Target;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * @ExploreExperiment(useCase = MyUseCase.class, samplesPerConfig = 20)
+ * @ExploreExperiment(serviceContract = MyServiceContract.class, samplesPerConfig = 20)
  * @ConfigSource("modelConfigurations")
- * void compareModels(MyUseCase useCase) {
- *     useCase.execute(input);
+ * void compareModels(MyServiceContract serviceContract) {
+ *     serviceContract.execute(input);
  * }
  *
- * static Stream<NamedConfig<MyUseCase>> modelConfigurations() {
+ * static Stream<NamedConfig<MyServiceContract>> modelConfigurations() {
  *     return Stream.of(
- *         NamedConfig.of("gpt-4o-mini", new MyUseCase(llm, "gpt-4o-mini", 0.1)),
- *         NamedConfig.of("gpt-4o", new MyUseCase(llm, "gpt-4o", 0.1))
+ *         NamedConfig.of("gpt-4o-mini", new MyServiceContract(llm, "gpt-4o-mini", 0.1)),
+ *         NamedConfig.of("gpt-4o", new MyServiceContract(llm, "gpt-4o", 0.1))
  *     );
  * }
  * }</pre>

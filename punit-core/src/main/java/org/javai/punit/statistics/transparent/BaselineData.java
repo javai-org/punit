@@ -8,7 +8,7 @@ import java.time.Instant;
  * <p>This record holds the baseline information needed to build a statistical
  * explanation without depending on the spec package.
  *
- * @param sourceFile The spec file path/name (e.g., "ShoppingUseCase.yaml")
+ * @param sourceFile The spec file path/name (e.g., "ShoppingServiceContract.yaml")
  * @param generatedAt When the spec was generated
  * @param baselineSamples Number of samples in the baseline experiment
  * @param baselineSuccesses Number of successes in the baseline experiment

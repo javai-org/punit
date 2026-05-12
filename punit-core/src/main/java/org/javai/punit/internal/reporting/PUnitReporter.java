@@ -173,7 +173,7 @@ public final class PUnitReporter {
      * ensuring values line up across multiple lines:
      * <pre>
      * Mode:                SPEC-DRIVEN
-     * Spec:                ShoppingUseCase
+     * Spec:                ShoppingServiceContract
      * Threshold:           0.9500 (derived from baseline)
      * </pre>
      *

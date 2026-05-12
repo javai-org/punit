@@ -12,8 +12,8 @@ import java.util.OptionalLong;
  * <p>Pacing is a property of the service under test, not of a specific
  * experiment or probabilistic test exercising it. Every test of the
  * same service should respect the same rate limit, so authors declare
- * pacing on their {@link UseCase} implementation via
- * {@link UseCase#pacing()} rather than on a spec builder.
+ * pacing on their {@link ServiceContract} implementation via
+ * {@link ServiceContract#pacing()} rather than on a spec builder.
  *
  * <h2>Composition rule — most restrictive wins</h2>
  *

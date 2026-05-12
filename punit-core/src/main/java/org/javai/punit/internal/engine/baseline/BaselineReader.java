@@ -103,7 +103,7 @@ public final class BaselineReader {
                             + SCHEMA_VERSION_VALUE + "')");
         }
 
-        String useCaseId = requireString(root, FIELD_USE_CASE_ID);
+        String serviceContractId = requireString(root, FIELD_USE_CASE_ID);
         String methodName = requireString(root, FIELD_METHOD_NAME);
         String factorsFingerprint = requireString(root, FIELD_FACTORS_FINGERPRINT);
         String inputsIdentity = requireString(root, FIELD_INPUTS_IDENTITY);
@@ -132,7 +132,7 @@ public final class BaselineReader {
         CovariateProfile profile = parseCovariates(root);
 
         return new BaselineRecord(
-                useCaseId, methodName, factorsFingerprint,
+                serviceContractId, methodName, factorsFingerprint,
                 inputsIdentity, sampleCount, generatedAt, entries, profile,
                 latencyIndicator);
     }

@@ -162,7 +162,7 @@ class ExpirationWarningRendererTest {
 
     private ExecutionSpecification createSpec(ExpirationPolicy policy) {
         return ExecutionSpecification.builder()
-            .useCaseId("test.usecase")
+            .serviceContractId("test.usecase")
             .expirationPolicy(policy)
             .build();
     }

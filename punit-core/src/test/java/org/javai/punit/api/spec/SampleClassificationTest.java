@@ -13,8 +13,8 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.UseCase;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContract;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,32 +25,32 @@ class SampleClassificationTest {
     record Factors() {}
 
     /** Use case stand-in with no max-latency bound. */
-    private static final UseCase<Factors, String, Integer> USE_CASE = new UseCase<>() {
+    private static final ServiceContract<Factors, String, Integer> USE_CASE = new ServiceContract<>() {
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
     };
 
-    private static UseCaseOutcome<String, Integer> outcomeOk(int value, Duration duration, long tokens) {
-        return new UseCaseOutcome<>(
+    private static ServiceContractOutcome<String, Integer> outcomeOk(int value, Duration duration, long tokens) {
+        return new ServiceContractOutcome<>(
                 Outcome.ok(value), USE_CASE,
                 List.of(), Optional.empty(),
                 tokens, duration);
     }
 
-    private static UseCaseOutcome<String, Integer> outcomeOkWith(
+    private static ServiceContractOutcome<String, Integer> outcomeOkWith(
             List<PostconditionResult> results, Optional<MatchResult> match,
             Duration duration, long tokens) {
-        return new UseCaseOutcome<>(
+        return new ServiceContractOutcome<>(
                 Outcome.ok(0), USE_CASE,
                 results, match,
                 tokens, duration);
     }
 
-    private static UseCaseOutcome<String, Integer> outcomeFail(
+    private static ServiceContractOutcome<String, Integer> outcomeFail(
             String name, String message, Duration duration, long tokens) {
-        return new UseCaseOutcome<>(
+        return new ServiceContractOutcome<>(
                 Outcome.fail(name, message), USE_CASE,
                 List.of(), Optional.empty(),
                 tokens, duration);
@@ -92,14 +92,14 @@ class SampleClassificationTest {
         @Test
         @DisplayName("apply-level Outcome.Ok exceeding max-latency surfaces a DurationViolation")
         void okExceedingMaxLatency() {
-            UseCase<Factors, String, Integer> bounded = new UseCase<>() {
+            ServiceContract<Factors, String, Integer> bounded = new ServiceContract<>() {
                 @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) { return Outcome.ok(0); }
                 @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
                 @Override public Optional<Duration> maxLatency() {
                     return Optional.of(Duration.ofMillis(100));
                 }
             };
-            var outcome = new UseCaseOutcome<>(
+            var outcome = new ServiceContractOutcome<>(
                     Outcome.ok(0), bounded, List.<PostconditionResult>of(), Optional.<MatchResult>empty(),
                     0L, Duration.ofMillis(250));
 
@@ -113,14 +113,14 @@ class SampleClassificationTest {
         @Test
         @DisplayName("apply-level Outcome.Ok at exactly max-latency does not violate")
         void okAtMaxLatencyExact() {
-            UseCase<Factors, String, Integer> bounded = new UseCase<>() {
+            ServiceContract<Factors, String, Integer> bounded = new ServiceContract<>() {
                 @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) { return Outcome.ok(0); }
                 @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
                 @Override public Optional<Duration> maxLatency() {
                     return Optional.of(Duration.ofMillis(100));
                 }
             };
-            var outcome = new UseCaseOutcome<>(
+            var outcome = new ServiceContractOutcome<>(
                     Outcome.ok(0), bounded, List.<PostconditionResult>of(), Optional.<MatchResult>empty(),
                     0L, Duration.ofMillis(100));
 

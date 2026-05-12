@@ -43,16 +43,16 @@ class ProbabilisticTestVerdictBuilderTest {
 
             assertThat(verdict.identity().className()).isEqualTo("MyTestClass");
             assertThat(verdict.identity().methodName()).isEqualTo("shouldPass");
-            assertThat(verdict.identity().useCaseId()).contains("payment-gateway");
+            assertThat(verdict.identity().serviceContractId()).contains("payment-gateway");
         }
 
         @Test
-        void buildsIdentityWithoutUseCaseId() {
+        void buildsIdentityWithoutServiceContractId() {
             ProbabilisticTestVerdict verdict = minimalBuilder()
                     .identity("MyTestClass", "shouldPass", null)
                     .build();
 
-            assertThat(verdict.identity().useCaseId()).isEmpty();
+            assertThat(verdict.identity().serviceContractId()).isEmpty();
         }
 
         @Test
@@ -454,7 +454,7 @@ class ProbabilisticTestVerdictBuilderTest {
         void capturesExpirationInfoWhenSpecPresent() {
             Instant baselineEnd = Instant.now().minus(Duration.ofDays(5));
             ExecutionSpecification spec = ExecutionSpecification.builder()
-                    .useCaseId("test-uc")
+                    .serviceContractId("test-uc")
                     .empiricalBasis(1000, 940, baselineEnd)
                     .expirationPolicy(30, baselineEnd)
                     .build();

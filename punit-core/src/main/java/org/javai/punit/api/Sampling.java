@@ -48,7 +48,7 @@ import org.javai.punit.api.spec.ExceptionPolicy;
  *
  * <pre>{@code
  * private Sampling<F, I, O> sampling(int samples) {
- *     return Sampling.of(f -> new MyUseCase(f), samples, input1, input2);
+ *     return Sampling.of(f -> new MyServiceContract(f), samples, input1, input2);
  * }
  *
  * @PUnitExperiment Experiment baseline() {
@@ -88,7 +88,7 @@ import org.javai.punit.api.spec.ExceptionPolicy;
  * <h2>Two construction paths</h2>
  *
  * <ul>
- *   <li>{@link #of(Function, int, List) Sampling.of(useCase, samples, inputs)}
+ *   <li>{@link #of(Function, int, List) Sampling.of(serviceContract, samples, inputs)}
  *       — compact form for the common case. Defaults applied for all
  *       optional knobs (no budgets, {@code FAIL} on exhaustion,
  *       {@code ABORT_TEST} on exception, {@code maxExampleFailures = 10}).</li>
@@ -98,7 +98,7 @@ import org.javai.punit.api.spec.ExceptionPolicy;
  */
 public final class Sampling<FT, IT, OT> {
 
-    private final Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+    private final Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory;
     private final InputSupplier<IT> inputs;
     private final int samples;
     private final Optional<Duration> timeBudget;
@@ -111,7 +111,7 @@ public final class Sampling<FT, IT, OT> {
     private final Optional<ValueMatcher<OT>> matcher;
 
     private Sampling(Builder<FT, IT, OT> b) {
-        this.useCaseFactory = b.useCaseFactory;
+        this.serviceContractFactory = b.serviceContractFactory;
         this.inputs = b.inputs;
         this.samples = b.samples;
         this.timeBudget = b.timeBudget;
@@ -135,7 +135,7 @@ public final class Sampling<FT, IT, OT> {
      *
      * <pre>{@code
      * Sampling.<FT, IT, OT>builder()
-     *         .useCaseFactory(useCaseFactory)
+     *         .serviceContractFactory(serviceContractFactory)
      *         .inputs(inputs)
      *         .samples(samples)
      *         .build();
@@ -148,11 +148,11 @@ public final class Sampling<FT, IT, OT> {
      * builder ceremony for the 80% case.
      */
     public static <FT, IT, OT> Sampling<FT, IT, OT> of(
-            Function<FT, UseCase<FT, IT, OT>> useCaseFactory,
+            Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory,
             int samples,
             List<IT> inputs) {
         return Sampling.<FT, IT, OT>builder()
-                .useCaseFactory(useCaseFactory)
+                .serviceContractFactory(serviceContractFactory)
                 .inputs(inputs)
                 .samples(samples)
                 .build();
@@ -164,15 +164,15 @@ public final class Sampling<FT, IT, OT> {
      */
     @SafeVarargs
     public static <FT, IT, OT> Sampling<FT, IT, OT> of(
-            Function<FT, UseCase<FT, IT, OT>> useCaseFactory,
+            Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory,
             int samples,
             IT... inputs) {
         Objects.requireNonNull(inputs, "inputs");
-        return of(useCaseFactory, samples, List.of(inputs));
+        return of(serviceContractFactory, samples, List.of(inputs));
     }
 
-    public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
-        return useCaseFactory;
+    public Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory() {
+        return serviceContractFactory;
     }
 
     /**
@@ -272,7 +272,7 @@ public final class Sampling<FT, IT, OT> {
 
     private Builder<FT, IT, OT> copyToBuilder() {
         Builder<FT, IT, OT> b = new Builder<>();
-        b.useCaseFactory = this.useCaseFactory;
+        b.serviceContractFactory = this.serviceContractFactory;
         b.inputs = this.inputs;
         b.samples = this.samples;
         b.timeBudget = this.timeBudget;
@@ -288,7 +288,7 @@ public final class Sampling<FT, IT, OT> {
 
     public static final class Builder<FT, IT, OT> {
 
-        private Function<FT, UseCase<FT, IT, OT>> useCaseFactory;
+        private Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory;
         private InputSupplier<IT> inputs;
         private int samples = 1000;
         private Optional<Duration> timeBudget = Optional.empty();
@@ -302,8 +302,8 @@ public final class Sampling<FT, IT, OT> {
 
         private Builder() {}
 
-        public Builder<FT, IT, OT> useCaseFactory(Function<FT, UseCase<FT, IT, OT>> factory) {
-            this.useCaseFactory = Objects.requireNonNull(factory, "useCaseFactory");
+        public Builder<FT, IT, OT> serviceContractFactory(Function<FT, ServiceContract<FT, IT, OT>> factory) {
+            this.serviceContractFactory = Objects.requireNonNull(factory, "serviceContractFactory");
             return this;
         }
 
@@ -436,8 +436,8 @@ public final class Sampling<FT, IT, OT> {
         }
 
         public Sampling<FT, IT, OT> build() {
-            if (useCaseFactory == null) {
-                throw new IllegalStateException("useCaseFactory is required");
+            if (serviceContractFactory == null) {
+                throw new IllegalStateException("serviceContractFactory is required");
             }
             if (inputs == null) {
                 throw new IllegalStateException("inputs is required");

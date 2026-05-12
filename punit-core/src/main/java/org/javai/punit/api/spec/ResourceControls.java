@@ -32,7 +32,7 @@ import java.util.OptionalLong;
  * @param tokenCharge static per-sample charge; default 0
  * @param budgetPolicy what to do on budget exhaustion; default FAIL
  * @param exceptionPolicy how to treat a thrown exception from
- *                       {@code UseCase.apply}; default ABORT_TEST
+ *                       {@code ServiceContract.apply}; default ABORT_TEST
  * @param maxExampleFailures cap on retained failure detail; default 10
  */
 public record ResourceControls(

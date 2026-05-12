@@ -4,11 +4,11 @@ import java.time.Duration;
 import java.util.List;
 
 import org.javai.punit.api.LatencyResult;
-import org.javai.punit.api.UseCaseOutcome;
+import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.statistics.LatencyStatistics;
 
 /**
- * Bridge between a list of observed {@link UseCaseOutcome} durations
+ * Bridge between a list of observed {@link ServiceContractOutcome} durations
  * and the {@link LatencyResult} record.
  *
  * <p>Computation delegates to
@@ -24,7 +24,7 @@ final class LatencyPercentileComputer {
 
     private LatencyPercentileComputer() {}
 
-    static <OT> LatencyResult computeFrom(List<UseCaseOutcome<?, OT>> outcomes) {
+    static <OT> LatencyResult computeFrom(List<ServiceContractOutcome<?, OT>> outcomes) {
         if (outcomes.isEmpty()) {
             return LatencyResult.empty();
         }

@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * Evaluates the postconditions of a service contract against a use
  * case's raw result. Exposed as a first-class collaborator on
- * {@link UseCaseOutcome} so the outcome can be interrogated lazily —
+ * {@link ServiceContractOutcome} so the outcome can be interrogated lazily —
  * the engine counts pass/fail through one evaluation per sample; a
  * reporter or diagnostic consumer can later ask the same outcome for
  * the full enumeration without re-running the service.
@@ -27,7 +27,7 @@ public interface PostconditionEvaluator<R> {
 
     /**
      * The trivial evaluator — declares no postconditions and returns an
-     * empty list for every result. Used by {@link UseCaseOutcome#ok(Object)}
+     * empty list for every result. Used by {@link ServiceContractOutcome#ok(Object)}
      * when the author just wants to hand back a value without a
      * contract.
      */
@@ -45,7 +45,7 @@ public interface PostconditionEvaluator<R> {
     /**
      * An evaluator that declares a single always-failing postcondition
      * with the given failure code name and message. Used by
-     * {@link UseCaseOutcome#fail(String, String)} so a contract-free
+     * {@link ServiceContractOutcome#fail(String, String)} so a contract-free
      * failure still reports via the standard postcondition channel.
      */
     static <R> PostconditionEvaluator<R> alwaysFailing(String name, String message) {
