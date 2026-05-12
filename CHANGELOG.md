@@ -33,11 +33,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   dedicated audit and `Feasibility.check`'s cross-intent abort as
   the enforcement seam.
 
-The implication: the next punit release can drop the `-alpha`
-qualifier. The remaining 0.7.x churn is around catalog-vs-code
-documentation alignment (PT12 / PT13 `java.md` describe a
-construction surface punit did not adopt — that alignment is
-orchestrator-side, not punit-side, and tracked there).
+The implication: the original `-alpha` exit criteria are in. The
+qualifier itself is **held**, not dropped — the breaking-change
+train is not yet complete. The next punit release
+(0.7.0-alpha6) is expected to carry the `UseCase` →
+`ServiceContract` rename (see orchestrator
+`plan/directives/DIR-USECASE-RENAME.md`), and the active
+breaking-shaped directives (`DIR-OPTIMIZE-API-DX-punit`,
+`DIR-VERDICT-CATALOG-REBUILD-punit`) still need to be triaged
+as additive or breaking. The qualifier drops when the
+breaking-change train is genuinely complete, not on the
+mechanical closure of the original criteria — trust in a
+stability signal is built slowly and lost in one move; spending
+the qualifier to absorb anticipated breaks is the cheaper path.
+
+The remaining 0.7.x non-breaking churn is around
+catalog-vs-code documentation alignment (PT12 / PT13
+`java.md` describe a construction surface punit did not adopt —
+that alignment is orchestrator-side, not punit-side, and
+tracked there).
 
 ## [0.7.0-alpha5] - 2026-05-11
 
