@@ -153,6 +153,11 @@ class PostconditionFailureHistogramTest {
                         .testing(sampling, new Factors())
                         .criterion(PassRate.<Integer>meeting(
                                 0.5, org.javai.punit.api.ThresholdOrigin.SLA))
+                        // Opt out of statistical early termination —
+                        // this test exercises the histogram pipeline
+                        // across all four declared samples, not the
+                        // failure-inevitable short-circuit.
+                        .disableEarlyTermination()
                         .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);

@@ -216,6 +216,34 @@ public class BinomialProportionEstimator {
         return STANDARD_NORMAL.cumulativeProbability(z);
     }
     
+    /**
+     * Minimum sample count for the normal approximation to the binomial
+     * to be statistically meaningful at the given target rate.
+     *
+     * <p>The classical sufficiency rule is {@code n · p ≥ 5} and
+     * {@code n · (1 − p) ≥ 5}, giving
+     * <pre>
+     *   n_min = ⌈5 / min(p, 1 − p)⌉
+     * </pre>
+     *
+     * <p>Below this floor the sampling distribution is too skewed for
+     * the normal approximation to underwrite a verdict; the run must
+     * continue past a guaranteed-success short-circuit until the floor
+     * is met.
+     *
+     * @param targetRate the proportion at which the floor is evaluated, in (0, 1)
+     * @return the minimum number of trials for the normal approximation
+     *         to be valid at {@code targetRate}
+     */
+    public int minSamplesForNormalApproximation(double targetRate) {
+        if (Double.isNaN(targetRate) || targetRate <= 0.0 || targetRate >= 1.0) {
+            throw new IllegalArgumentException(
+                    "targetRate must be in (0, 1), got: " + targetRate);
+        }
+        double tighter = Math.min(targetRate, 1.0 - targetRate);
+        return (int) Math.ceil(5.0 / tighter);
+    }
+
     private void validateInputs(int successes, int trials) {
         if (trials <= 0) {
             throw new IllegalArgumentException("Trials must be positive, got: " + trials);

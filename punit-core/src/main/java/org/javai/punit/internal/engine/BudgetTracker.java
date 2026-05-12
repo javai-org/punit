@@ -71,6 +71,24 @@ final class BudgetTracker {
         tokenTotal += tokenCharge + sampleReportedTokens;
     }
 
+    /**
+     * Records a statistical early-termination reason
+     * ({@link TerminationReason#IMPOSSIBILITY} or
+     * {@link TerminationReason#SUCCESS_GUARANTEED}). Called by the
+     * Aggregator after a sample whose outcome makes the verdict
+     * mathematically determined.
+     *
+     * <p>Has no effect if a termination reason has already been
+     * recorded — budget-exhaustion reasons that fired earlier in the
+     * same loop are not clobbered. Subsequent calls to
+     * {@link #shouldStopBeforeNextSample()} will return true.
+     */
+    void recordEarlyTermination(TerminationReason reason) {
+        if (termination == TerminationReason.COMPLETED) {
+            termination = reason;
+        }
+    }
+
     /** How many tokens the configuration has consumed so far. */
     long tokenTotal() {
         return tokenTotal;

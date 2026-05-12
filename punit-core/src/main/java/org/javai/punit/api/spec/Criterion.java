@@ -1,6 +1,7 @@
 package org.javai.punit.api.spec;
 
 import java.util.Map;
+import java.util.OptionalDouble;
 
 /**
  * A spec-level claim evaluated against the observed sample aggregate.
@@ -82,5 +83,26 @@ public interface Criterion<OT, S extends BaselineStatistics> {
      */
     default Map<String, Object> empiricalDetail() {
         return Map.of();
+    }
+
+    /**
+     * The up-front pass-rate threshold this criterion targets, if any.
+     *
+     * <p>Returned non-empty only when the criterion is built against a
+     * contractual rate known before sampling begins (e.g.
+     * {@code PassRate.meeting(0.95, SLA)}). The engine consults this
+     * to short-circuit the sample loop when the threshold is
+     * mathematically unreachable (failure inevitable) or already
+     * guaranteed (success guaranteed). Criteria that derive their
+     * threshold at evaluate time — empirical pass-rate modes,
+     * percentile-latency claims — leave the default empty and run
+     * every planned sample.
+     *
+     * @return the pass-rate threshold in [0, 1], or empty if this
+     *         criterion does not expose an up-front threshold suitable
+     *         for early termination
+     */
+    default OptionalDouble earlyTerminationPassRate() {
+        return OptionalDouble.empty();
     }
 }

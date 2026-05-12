@@ -421,6 +421,24 @@ class VerdictAdapterTest {
             assertThat(verdict.termination().reason())
                     .isEqualTo(TerminationReason.METHOD_TOKEN_BUDGET_EXHAUSTED);
         }
+
+        @Test
+        @DisplayName("IMPOSSIBILITY → IMPOSSIBILITY")
+        void impossibility() {
+            ProbabilisticTestVerdict verdict = adapt(resultWithTermination(
+                    org.javai.punit.api.spec.TerminationReason.IMPOSSIBILITY));
+            assertThat(verdict.termination().reason())
+                    .isEqualTo(TerminationReason.IMPOSSIBILITY);
+        }
+
+        @Test
+        @DisplayName("SUCCESS_GUARANTEED → SUCCESS_GUARANTEED")
+        void successGuaranteed() {
+            ProbabilisticTestVerdict verdict = adapt(resultWithTermination(
+                    org.javai.punit.api.spec.TerminationReason.SUCCESS_GUARANTEED));
+            assertThat(verdict.termination().reason())
+                    .isEqualTo(TerminationReason.SUCCESS_GUARANTEED);
+        }
     }
 
     @Nested

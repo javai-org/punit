@@ -265,6 +265,8 @@ public final class VerdictAdapter {
             case COMPLETED -> TerminationReason.COMPLETED;
             case TIME_BUDGET -> TerminationReason.METHOD_TIME_BUDGET_EXHAUSTED;
             case TOKEN_BUDGET -> TerminationReason.METHOD_TOKEN_BUDGET_EXHAUSTED;
+            case IMPOSSIBILITY -> TerminationReason.IMPOSSIBILITY;
+            case SUCCESS_GUARANTEED -> TerminationReason.SUCCESS_GUARANTEED;
         };
     }
 }
