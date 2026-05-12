@@ -46,7 +46,7 @@ dependencies {
     api("org.opentest4j:opentest4j:1.3.0")
 
     // Apache Commons Statistics — for statistical calculations (confidence intervals, distributions)
-    implementation("org.apache.commons:commons-statistics-distribution:1.2")
+    implementation("org.apache.commons:commons-statistics-distribution:1.3")
 
     // SnakeYAML — for YAML serialization in spec generation
     implementation("org.yaml:snakeyaml:2.6")
@@ -59,15 +59,15 @@ dependencies {
     api("org.javai:outcome:0.3.0")
 
     // Logging
-    implementation("org.apache.logging.log4j:log4j-api:2.25.4")
-    runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.4")
-    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
+    implementation("org.apache.logging.log4j:log4j-api:2.26.0")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.26.0")
+    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0")
 
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.25.4")
-    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.26.0")
+    testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0")
     // punit-report provides the default VerdictSink (XML) via ServiceLoader;
     // emission tests assert on the XML output reaching disk.
     testImplementation(project(":punit-report"))
