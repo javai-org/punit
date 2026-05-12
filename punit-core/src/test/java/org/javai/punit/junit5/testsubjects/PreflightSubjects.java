@@ -17,7 +17,7 @@ import org.javai.punit.runtime.PUnit;
 /**
  * Test subjects for the baseline-existence preflight short-circuit.
  *
- * <p>The use case carries a static invoke counter. Tests that exercise
+ * <p>The service contract carries a static invoke counter. Tests that exercise
  * the short-circuit assert the counter ends at zero — the framework
  * must not have driven the engine when the verdict was structurally
  * guaranteed to be INCONCLUSIVE-no-baseline.
@@ -29,7 +29,7 @@ public final class PreflightSubjects {
 
     private PreflightSubjects() { }
 
-    /** Always-passing use case that records every invocation. */
+    /** Always-passing service contract that records every invocation. */
     private static ServiceContract<NoFactors, Integer, Boolean> countingServiceContract() {
         return new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
@@ -51,7 +51,7 @@ public final class PreflightSubjects {
 
     /**
      * Empirical test against a baseline directory that holds nothing for
-     * this use case → preflight short-circuit, engine never runs, JUnit
+     * this service contract → preflight short-circuit, engine never runs, JUnit
      * aborts.
      */
     public static final class EmpiricalNoBaselineTest {

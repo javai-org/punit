@@ -195,7 +195,7 @@ class EngineIntegrationTest {
     @Test
     @DisplayName("expectations: matching actuals count as successes; mismatches count as failures")
     void instanceConformanceDrivesVerdict() {
-        // Use case: mirror the input, but uppercase it (deliberately wrong for half).
+        // Service contract: mirror the input, but uppercase it (deliberately wrong for half).
         ServiceContract<LlmFactors, String, String> upperCase = new ServiceContract<>() {
             @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {

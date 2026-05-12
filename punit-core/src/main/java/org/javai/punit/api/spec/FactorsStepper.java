@@ -7,8 +7,8 @@ import java.util.Objects;
 /**
  * Produces the next factors for an {@link Experiment} iteration
  * given the current factors and the history of scored iterations
- * so far. The returned factors are passed to the use case factory
- * to construct the next iteration's use case instance.
+ * so far. The returned factors are passed to the service contract factory
+ * to construct the next iteration's service contract instance.
  *
  * <p>An optimize search walks through the factor space; each
  * invocation is one step in that walk. Implementations encode the

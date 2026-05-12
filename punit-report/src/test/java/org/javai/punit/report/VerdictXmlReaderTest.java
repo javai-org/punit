@@ -296,11 +296,11 @@ class VerdictXmlReaderTest {
     }
 
     @Nested
-    @DisplayName("round-trip: use case ID")
+    @DisplayName("round-trip: service contract ID")
     class ServiceContractIdRoundTrip {
 
         @Test
-        @DisplayName("preserves use case ID when present")
+        @DisplayName("preserves service contract ID when present")
         void preservesServiceContractId() throws Exception {
             ProbabilisticTestVerdict original = verdictWithServiceContractId();
 

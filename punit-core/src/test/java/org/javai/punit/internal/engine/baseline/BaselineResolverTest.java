@@ -162,7 +162,7 @@ class BaselineResolverTest {
     @DisplayName("4-arg overload ignores covariate-tagged files when no declarations are supplied")
     void noDeclarationsOverloadSkipsCovariateTaggedFiles(@TempDir Path dir) throws IOException {
         // The 4-arg overload (no declarations) restricts to
-        // empty-profile baselines — use cases that don't declare
+        // empty-profile baselines — service contracts that don't declare
         // covariates use the default baseline. The covariate-aware
         // overload (with declarations + profile) is exercised in
         // covariateAwarePicksMatching below.

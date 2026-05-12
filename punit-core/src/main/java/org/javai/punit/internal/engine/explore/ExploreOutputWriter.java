@@ -54,7 +54,7 @@ public final class ExploreOutputWriter {
      * Build the explore-output YAML for one configuration. Pure -
      * no I/O.
      *
-     * @param serviceContractId the use case identifier (becomes the
+     * @param serviceContractId the service contract identifier (becomes the
      *                  {@code useCaseId:} field).
      * @param factorBundle the configuration's factor bundle (becomes
      *                     the {@code factors:} block).

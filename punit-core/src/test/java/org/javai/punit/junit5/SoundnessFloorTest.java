@@ -26,7 +26,7 @@ import org.junit.platform.testkit.engine.Events;
  * the developer described their intent.
  *
  * <p>Each abort-shaped test verifies the engine never ran via a
- * counter probe on the use case's {@code invoke}.
+ * counter probe on the service contract's {@code invoke}.
  */
 @DisplayName("Soundness floor — confidence-floor enforcement, not intent-gated")
 class SoundnessFloorTest {

@@ -18,7 +18,7 @@ import java.util.Optional;
  * @param description human-readable label of what was compared
  *                    (e.g. {@code "translation equals reference"})
  * @param expected the expected value the author declared
- * @param actual the value produced by the use case invocation
+ * @param actual the value produced by the service contract invocation
  * @param matches {@code true} when the matcher classified the two as
  *                equivalent
  * @param diff optional human-readable description of the difference;

@@ -11,7 +11,7 @@ import org.javai.outcome.Outcome;
  * The artefact assembled by {@link Contract#apply(Object, TokenTracker)}
  * for one sample. Self-sufficient — every recipient (probabilistic test
  * asserter, baseline writer, optimize meta-prompt builder, explore diff
- * renderer) consumes it without reaching back to the use case for
+ * renderer) consumes it without reaching back to the service contract for
  * additional state.
  *
  * <h2>Author-side note</h2>

@@ -259,7 +259,7 @@ class PowerAnalysisTest {
     private static final String COVARIATE_USE_CASE_ID = "covariate-echo";
 
     /**
-     * Use case declaring a single CONFIGURATION covariate whose
+     * Service contract declaring a single CONFIGURATION covariate whose
      * resolver returns a fixed value chosen at construction time.
      * Modelled on the punitexamples ShoppingBasketServiceContract pattern.
      */
@@ -313,7 +313,7 @@ class PowerAnalysisTest {
     }
 
     @Test
-    @DisplayName("resolves a covariate-stamped baseline whose profile aligns with the use case")
+    @DisplayName("resolves a covariate-stamped baseline whose profile aligns with the service contract")
     void resolvesCovariateStampedBaseline(@TempDir Path dir) throws IOException {
         writeCovariateStampedBaseline(dir, 0.80, 1000, Map.of("region", "EU"));
 
@@ -325,7 +325,7 @@ class PowerAnalysisTest {
     @Test
     @DisplayName("covariate-stamped baseline whose profile does not align → IllegalStateException naming the profile")
     void coVariateMismatchThrowsAndNamesProfile(@TempDir Path dir) throws IOException {
-        // Baseline is stamped with region=US; the use case resolves
+        // Baseline is stamped with region=US; the service contract resolves
         // region=EU. The selector rejects the EU candidate (no
         // matching baseline for the resolved profile) and the
         // diagnostic must surface the resolved profile so the
@@ -340,9 +340,9 @@ class PowerAnalysisTest {
     }
 
     @Test
-    @DisplayName("covariate-naïve use case still resolves an unstamped baseline (no regression)")
+    @DisplayName("covariate-naïve service contract still resolves an unstamped baseline (no regression)")
     void covariateNaiveServiceContractStillResolvesUnstampedBaseline(@TempDir Path dir) throws IOException {
-        // The original ECHO use case declares no covariates. Its
+        // The original ECHO service contract declares no covariates. Its
         // baseline has no covariate stamp. The covariate-aware
         // resolver path still selects an unstamped candidate when
         // declarations are empty — this is the no-regression case

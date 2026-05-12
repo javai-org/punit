@@ -26,7 +26,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
  *       under one configuration to a test running under a different
  *       configuration would invalidate the statistical claim.</li>
  *   <li><b>Score = number of matching covariates.</b> Among
- *       remaining candidates, count how many of the use case's
+ *       remaining candidates, count how many of the service contract's
  *       declared covariates match between the current profile and
  *       the candidate's profile.</li>
  *   <li><b>Highest score wins.</b> Exact match (all covariates
@@ -44,9 +44,9 @@ import org.javai.punit.api.covariate.CovariateProfile;
  *       selected as the default.</li>
  * </ol>
  *
- * <h2>Covariate-insensitive use cases</h2>
+ * <h2>Covariate-insensitive service contracts</h2>
  *
- * <p>When the use case declares no covariates ({@code declarations}
+ * <p>When the service contract declares no covariates ({@code declarations}
  * is empty), only candidates whose own profile is empty are
  * considered — covariate-insensitive baselines on disk continue to
  * resolve byte-identically.
@@ -74,7 +74,7 @@ final class BaselineSelector {
      * @param candidates  baselines whose {@code (serviceContractId,
      *                    factorsFingerprint)} already match the lookup
      * @param currentProfile  the profile resolved for the current run
-     * @param declarations    the use case's covariate declarations,
+     * @param declarations    the service contract's covariate declarations,
      *                        in declaration order
      * @return the best-matching baseline, or empty when no candidate
      *         is selectable (CONFIGURATION mismatch on every
@@ -111,7 +111,7 @@ final class BaselineSelector {
             return SelectionReport.NONE;
         }
         // No covariate declarations → only match unstamped baselines.
-        // Covariate-insensitive use cases resolve byte-identically.
+        // Covariate-insensitive service contracts resolve byte-identically.
         if (declarations.isEmpty()) {
             return new SelectionReport(
                     candidates.stream()

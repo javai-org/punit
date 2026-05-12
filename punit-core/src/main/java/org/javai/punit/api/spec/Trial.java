@@ -7,7 +7,7 @@ import org.javai.punit.api.ServiceContractOutcome;
 
 /**
  * One per-sample observation: the input that drove the call, the
- * outcome the use case returned (or that the engine synthesised
+ * outcome the service contract returned (or that the engine synthesised
  * under {@link ExceptionPolicy#FAIL_SAMPLE}), the wall-clock
  * duration of the invocation, and the position of the input in
  * the spec's inputs list.
@@ -27,7 +27,7 @@ import org.javai.punit.api.ServiceContractOutcome;
  * re-deriving the cycling formula.
  *
  * @param input      the per-sample input that drove this trial
- * @param outcome    the outcome the use case returned (success or fail)
+ * @param outcome    the outcome the service contract returned (success or fail)
  * @param duration   wall-clock duration of the invocation
  * @param inputIndex zero-based position of {@code input} in the
  *                   spec's inputs list

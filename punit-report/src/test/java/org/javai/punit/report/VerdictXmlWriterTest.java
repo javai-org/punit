@@ -560,7 +560,7 @@ class VerdictXmlWriterTest {
     }
 
     @Nested
-    @DisplayName("use case ID")
+    @DisplayName("service contract ID")
     class ServiceContractIdTests {
 
         @Test

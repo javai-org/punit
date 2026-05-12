@@ -76,7 +76,7 @@ public final class SpecSchemaValidator {
                        ". Supported: " + SUPPORTED_SCHEMA_VERSIONS);
         }
         
-        // Use case ID
+        // Service contract ID
         String serviceContractId = extractField(content, "useCaseId");
         if (serviceContractId == null || serviceContractId.isEmpty()) {
             errors.add("Missing required field: serviceContractId");

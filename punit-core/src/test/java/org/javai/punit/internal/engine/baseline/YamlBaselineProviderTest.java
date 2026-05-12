@@ -24,7 +24,7 @@ class YamlBaselineProviderTest {
     private final BaselineWriter writer = new BaselineWriter();
 
     @Test
-    @DisplayName("returns the recorded statistics when use case + factors fingerprint match")
+    @DisplayName("returns the recorded statistics when service contract + factors fingerprint match")
     void resolvesPresent(@TempDir Path dir) throws IOException {
         FactorBundle bundle = FactorBundle.of(new Factors("gpt-4o", 0.0));
         BaselineRecord record = baseline("ShoppingBasket", FactorsFingerprint.of(bundle),

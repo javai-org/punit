@@ -13,7 +13,7 @@ import java.util.Objects;
  * {@link #equality()} treats {@link Objects#equals(Object, Object)}
  * as the comparison.
  *
- * @param <T> the type being compared (typically the use case's output
+ * @param <T> the type being compared (typically the service contract's output
  *            type or a projection of it)
  */
 @FunctionalInterface

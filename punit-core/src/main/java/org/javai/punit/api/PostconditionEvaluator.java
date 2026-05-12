@@ -15,7 +15,7 @@ import java.util.List;
  * equal {@link PostconditionResult} lists. The engine relies on this
  * to make per-sample evaluation idempotent.
  *
- * @param <R> the raw result type produced by the use case
+ * @param <R> the raw result type produced by the service contract
  */
 public interface PostconditionEvaluator<R> {
 

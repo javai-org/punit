@@ -18,7 +18,7 @@ import org.javai.outcome.Outcome;
  * read.
  *
  * <p>Built from a {@link ServiceContractOutcome} plus the
- * {@link ServiceContract#maxLatency() use case's max-latency bound}. The
+ * {@link ServiceContract#maxLatency() service contract's max-latency bound}. The
  * classifier (a static helper) reads everything it needs from those
  * two sources; it does not consult the {@link
  * Contract Contract} for evaluation
@@ -28,7 +28,7 @@ import org.javai.outcome.Outcome;
  * <p>Two shapes:
  *
  * <ul>
- *   <li>**Apply-level failure**: when the use case's
+ *   <li>**Apply-level failure**: when the service contract's
  *       {@link Contract#invoke invoke}
  *       returned {@link Outcome.Fail}, postcondition evaluation is
  *       skipped — there is no value to evaluate. The classification
@@ -49,7 +49,7 @@ import org.javai.outcome.Outcome;
  * @param postconditionResults pre-evaluated per-clause results;
  *                            empty when {@link #applyFailed()}
  * @param durationViolation   present when the sample exceeded the
- *                            use case's {@link
+ *                            service contract's {@link
  *                            ServiceContract#maxLatency() declared max}
  * @param match               the instance-conformance match result,
  *                            if matching was configured for this run
@@ -128,7 +128,7 @@ public record SampleClassification(
 
     /**
      * Classify one sample. Reads the outcome's pre-evaluated
-     * postcondition results and match; reads the use case's
+     * postcondition results and match; reads the service contract's
      * max-latency bound to detect a duration violation.
      */
     public static <I, O> SampleClassification classify(

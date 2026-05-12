@@ -115,7 +115,7 @@ public final class BaselineWriter {
         root.put(FIELD_STATISTICS, stats);
 
         if (!record.covariateProfile().isEmpty()) {
-            // Insertion order of the profile is the use case's
+            // Insertion order of the profile is the service contract's
             // covariate-declaration order — preserved on the way out
             // so the filename hashes appear in the same order.
             root.put(FIELD_COVARIATES,

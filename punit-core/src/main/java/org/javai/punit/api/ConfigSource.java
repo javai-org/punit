@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * References a static method that provides named use case configurations for EXPLORE mode.
+ * References a static method that provides named service contract configurations for EXPLORE mode.
  *
- * <p>Each configuration is a fully-constructed, immutable use case instance paired with
- * a name. The use case instance <em>is</em> the factor specification — there is no need
+ * <p>Each configuration is a fully-constructed, immutable service contract instance paired with
+ * a name. The service contract instance <em>is</em> the factor specification — there is no need
  * for separate factor maps or factor annotations.
  *
  * <h2>Usage</h2>
@@ -43,8 +43,8 @@ public @interface ConfigSource {
      *
      * <p>Resolution order:
      * <ul>
-     *   <li>Simple name — search test class, then use case class</li>
-     *   <li>{@code ClassName#methodName} — search test class package, then use case package</li>
+     *   <li>Simple name — search test class, then service contract class</li>
+     *   <li>{@code ClassName#methodName} — search test class package, then service contract package</li>
      *   <li>Fully qualified — direct lookup</li>
      * </ul>
      */

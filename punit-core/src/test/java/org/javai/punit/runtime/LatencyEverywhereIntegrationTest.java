@@ -49,7 +49,7 @@ class LatencyEverywhereIntegrationTest {
 
     record F(String label) {}
 
-    /** Use case that succeeds when input length is even, fails otherwise. */
+    /** Service contract that succeeds when input length is even, fails otherwise. */
     private static class EvenLengthServiceContract implements ServiceContract<F, String, Integer> {
         @Override public String id() { return "latency-everywhere-test"; }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
@@ -208,7 +208,7 @@ class LatencyEverywhereIntegrationTest {
     @Test
     @DisplayName("Zero passing samples → no latency block emitted")
     void zeroPassingProducesNoBlock() {
-        // Use case that always fails the postcondition.
+        // Service contract that always fails the postcondition.
         ServiceContract<F, String, Integer> alwaysFail = new ServiceContract<>() {
             @Override public String id() { return "always-fail"; }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {

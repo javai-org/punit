@@ -24,7 +24,7 @@ import org.javai.punit.api.spec.TypedSpec;
  * baseline supplier — every other parameter is implicit, derived
  * from the baseline by reference at compose time. The integrity
  * guarantee follows by construction: the test's {@link Sampling}
- * cannot drift from the baseline's on factors, use case, inputs, or
+ * cannot drift from the baseline's on factors, service contract, inputs, or
  * governors.
  *
  * <p>Uses the {@link Spec.Dispatcher} wildcard-capture pattern to

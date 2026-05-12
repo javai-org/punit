@@ -55,7 +55,7 @@ public final class ProbabilisticTest implements Spec {
      * {@link Experiment#measuring(Sampling, Object) Experiment.measuring(...)}.
      * The shared reference is what guarantees the test and the
      * baseline are drawn from the same sampling population — same
-     * use case, same input list, same governors. Without that
+     * service contract, same input list, same governors. Without that
      * sameness, the empirical comparison is statistically
      * incoherent.
      *

@@ -773,7 +773,7 @@ public final class Experiment implements Spec {
     // ── Inline builders ─────────────────────────────────────────────
 
     /**
-     * Carries the sampling-level state (use case factory, inputs,
+     * Carries the sampling-level state (service contract factory, inputs,
      * samples, governors) shared by all inline experiment builders.
      * Subclasses add the kind-specific overlay state.
      */

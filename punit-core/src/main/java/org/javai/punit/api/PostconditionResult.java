@@ -6,7 +6,7 @@ import java.util.Optional;
 import org.javai.outcome.Outcome;
 
 /**
- * The result of evaluating one postcondition against a use case's raw
+ * The result of evaluating one postcondition against a service contract's raw
  * result.
  *
  * @param description human-readable description of what was checked

@@ -139,7 +139,7 @@ public final class EmpiricalChecks {
      *
      * <p>An empirical comparison is statistically meaningful only when
      * the test and the baseline draw from the same sampling population.
-     * Same use case + same factors is one half; same input list — by
+     * Same service contract + same factors is one half; same input list — by
      * content, not by reference, since the two processes don't share
      * memory — is the other. {@code Sampling.inputsIdentity()} is the
      * SHA-256 content hash that captures the inputs half (per

@@ -27,7 +27,7 @@ import org.javai.punit.api.covariate.TimeOfDayCovariate;
 import org.javai.punit.api.covariate.TimezoneCovariate;
 
 /**
- * Resolves a use case's declared covariates into a
+ * Resolves a service contract's declared covariates into a
  * {@link CovariateProfile} at the start of an experiment or test run.
  *
  * <p>Built-in resolution dispatches on the {@link Covariate} sealed
@@ -49,7 +49,7 @@ import org.javai.punit.api.covariate.TimezoneCovariate;
  *       {@value #REGION_OTHER_LABEL}.</li>
  *   <li>{@link TimezoneCovariate} — return the configured zone's IANA
  *       id (e.g. {@code Europe/Zurich}). No partitioning.</li>
- *   <li>{@link CustomCovariate} — invoke the supplier the use case
+ *   <li>{@link CustomCovariate} — invoke the supplier the service contract
  *       provides; fail fast if no resolver is registered.</li>
  * </ul>
  *
@@ -110,7 +110,7 @@ public final class CovariateResolver {
     /**
      * Resolve all declarations into a profile.
      *
-     * @param declarations the covariates declared by the use case;
+     * @param declarations the covariates declared by the service contract;
      *                     never null
      * @param customCovariateResolvers resolvers for custom-covariate
      *                                 names; never null. Missing

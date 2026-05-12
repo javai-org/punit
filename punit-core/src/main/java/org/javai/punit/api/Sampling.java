@@ -11,7 +11,7 @@ import org.javai.punit.api.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.spec.ExceptionPolicy;
 
 /**
- * Describes <em>how</em> to produce samples — the use case factory,
+ * Describes <em>how</em> to produce samples — the service contract factory,
  * the input cycle, the sample count, and the sample-loop governors
  * (budgets, exception policy, failure-retention cap).
  *
@@ -29,7 +29,7 @@ import org.javai.punit.api.spec.ExceptionPolicy;
  * pass rate degraded from the rate the baseline measured?</em> For
  * that question to be statistically coherent, the test and the
  * baseline must be drawn from the same sampling population — same
- * use case, same input list, same factors, same sample-loop
+ * service contract, same input list, same factors, same sample-loop
  * governors. Anything that differs between them confounds the
  * comparison. By passing the same {@code Sampling} value into both
  * the measure and the test, Java's reference semantics enforce that
@@ -238,7 +238,7 @@ public final class Sampling<FT, IT, OT> {
      * the engine pairs each input with its expected value at sample
      * time and runs {@link #matcher()} (or
      * {@link ValueMatcher#equality()}) to compare against the
-     * use case's produced value.
+     * service contract's produced value.
      */
     public List<OT> expected() {
         return expected;
@@ -398,7 +398,7 @@ public final class Sampling<FT, IT, OT> {
          * Configures instance-conformance matching: pairs each input
          * with the expected value at the same index, and uses the
          * default {@link ValueMatcher#equality() equality matcher} to
-         * compare the use case's produced value against it.
+         * compare the service contract's produced value against it.
          *
          * <p>For richer comparisons (case-insensitive string equality,
          * JSON structural equivalence, …) use the
@@ -417,7 +417,7 @@ public final class Sampling<FT, IT, OT> {
         /**
          * Configures instance-conformance matching with a custom
          * matcher. The matcher is invoked per sample against
-         * {@code expected[i]} and the use case's produced value.
+         * {@code expected[i]} and the service contract's produced value.
          *
          * @param expectedOutputs values paired by index with
          *                        {@link #inputs(List)}; must be the

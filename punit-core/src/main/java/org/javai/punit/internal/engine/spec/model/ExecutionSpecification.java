@@ -94,11 +94,11 @@ public final class ExecutionSpecification {
 	}
 
 	/**
-	 * Returns the use case ID.
+	 * Returns the service contract ID.
 	 *
-	 * <p>This is the primary identifier for both the use case and the specification.
+	 * <p>This is the primary identifier for both the service contract and the specification.
 	 *
-	 * @return the use case ID
+	 * @return the service contract ID
 	 */
 	public String getServiceContractId() {
 		return serviceContractId;
@@ -271,7 +271,7 @@ public final class ExecutionSpecification {
 	/**
 	 * Returns the invocation footprint.
 	 *
-	 * <p>The footprint uniquely identifies the combination of use case,
+	 * <p>The footprint uniquely identifies the combination of service contract,
 	 * factors, and covariate declarations. Only baselines with matching
 	 * footprints are candidates for selection.
 	 *
@@ -282,9 +282,9 @@ public final class ExecutionSpecification {
 	}
 
 	/**
-	 * Returns the use case attributes from the spec.
+	 * Returns the service contract attributes from the spec.
 	 *
-	 * @return the use case attributes (never null)
+	 * @return the service contract attributes (never null)
 	 */
 	public ServiceContractAttributes getServiceContractAttributes() {
 		return serviceContractAttributes;

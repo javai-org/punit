@@ -1,7 +1,7 @@
 package org.javai.punit.api;
 
 /**
- * Empty factor record for use cases whose behaviour does not depend
+ * Empty factor record for service contracts whose behaviour does not depend
  * on factor values. Use as the {@code FT} type parameter in
  * {@link Sampling}, {@link ServiceContract}, and the spec builders when the
  * test or experiment exercises no factors.
@@ -23,7 +23,7 @@ package org.javai.punit.api;
  * <p>{@link FactorBundle#of(Object) FactorBundle.of(NoFactors.INSTANCE)}
  * yields the empty bundle, which the baseline-filename serialiser
  * treats by omitting the {@code factorBundleHash} segment — the
- * file is named purely by use case and inputs, exactly as a
+ * file is named purely by service contract and inputs, exactly as a
  * factor-less run should be.
  */
 public record NoFactors() {

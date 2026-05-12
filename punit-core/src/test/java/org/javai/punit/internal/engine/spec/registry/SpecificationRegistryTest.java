@@ -110,7 +110,7 @@ class SpecificationRegistryTest {
     class Resolve {
 
         @Test
-        @DisplayName("loads spec by use case ID")
+        @DisplayName("loads spec by service contract ID")
         void loadsSpecByServiceContractId() throws IOException {
             createSpecFile("TestServiceContract", 0.85);
 

@@ -99,9 +99,9 @@ public final class BaselineResolver {
      * best-match selection.
      *
      * @param currentProfile the resolved covariate profile for the
-     *                       current run; empty when the use case
+     *                       current run; empty when the service contract
      *                       declared no covariates
-     * @param declarations   the use case's covariate declarations,
+     * @param declarations   the service contract's covariate declarations,
      *                       in declaration order; empty when the use
      *                       case declared no covariates
      * @return the {@link BaselineStatistics} of the requested kind for
@@ -169,7 +169,7 @@ public final class BaselineResolver {
         }
         if (!statisticsType.isInstance(entry)) {
             throw new IllegalStateException(
-                    "Baseline for use case '" + serviceContractId + "' carries criterion '"
+                    "Baseline for service contract '" + serviceContractId + "' carries criterion '"
                             + criterionName + "' as " + entry.getClass().getSimpleName()
                             + " but the criterion declares "
                             + statisticsType.getSimpleName()

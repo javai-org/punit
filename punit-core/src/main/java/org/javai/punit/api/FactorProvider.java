@@ -63,12 +63,12 @@ import java.lang.annotation.Target;
  * <h2>Placement</h2>
  * <p>Factor providers can be placed in:
  * <ul>
- *   <li><b>Use case classes</b> - When the use case author wants to provide
+ *   <li><b>Service contract classes</b> - When the service contract author wants to provide
  *       canonical, domain-appropriate factor values that experimenters can use</li>
  *   <li><b>Experiment classes</b> - When factor values are specific to a
  *       particular experiment or exploration</li>
  *   <li><b>Dedicated factor source classes</b> - When factor values are
- *       shared across multiple use cases or experiments</li>
+ *       shared across multiple service contracts or experiments</li>
  * </ul>
  *
  * @see FactorSource

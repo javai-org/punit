@@ -19,7 +19,7 @@ import org.javai.punit.api.spec.BaselineStatistics;
  * against the captured values.
  *
  * <p>The framework constructs one of these per probabilistic-test run
- * after resolving the run's covariate profile from the use case, so
+ * after resolving the run's covariate profile from the service contract, so
  * that {@link ProbabilisticTest#dispatch}
  * implementations can call the convenience overloads on
  * {@code BaselineProvider} and still exercise covariate-aware
@@ -60,7 +60,7 @@ public final class ProfileBoundBaselineProvider implements BaselineProvider {
         if (declarations.isEmpty()) {
             // No covariates declared → no binding needed. Skipping
             // the wrapper keeps stack traces and toString honest for
-            // non-covariate use cases.
+            // non-covariate service contracts.
             return delegate;
         }
         return new ProfileBoundBaselineProvider(delegate,

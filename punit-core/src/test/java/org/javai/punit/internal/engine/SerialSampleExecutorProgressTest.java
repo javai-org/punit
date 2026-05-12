@@ -49,7 +49,7 @@ class SerialSampleExecutorProgressTest {
         System.setOut(originalOut);
     }
 
-    /** Use case whose outcome alternates pass/fail by input parity. */
+    /** Service contract whose outcome alternates pass/fail by input parity. */
     private static final class AlternatingServiceContract implements ServiceContract<Void, Integer, String> {
         @Override public String id() { return "Alternating"; }
         @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
@@ -94,7 +94,7 @@ class SerialSampleExecutorProgressTest {
     }
 
     @Test
-    @DisplayName("a defect (use case throws) still advances the counter")
+    @DisplayName("a defect (service contract throws) still advances the counter")
     void defectAlsoAdvancesCounter() {
         ServiceContract<Void, Integer, String> alwaysThrows = new ServiceContract<>() {
             @Override public String id() { return "AlwaysThrows"; }

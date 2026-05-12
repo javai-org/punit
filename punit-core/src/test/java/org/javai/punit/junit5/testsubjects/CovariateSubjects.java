@@ -20,7 +20,7 @@ import org.javai.punit.runtime.PUnit;
 /**
  * Test subjects for {@link org.javai.punit.junit5.CovariateRoundTripTest}.
  *
- * <p>The use case declares one custom covariate ({@code region}) whose
+ * <p>The service contract declares one custom covariate ({@code region}) whose
  * resolver reads a system property. The test sets the property in
  * {@code @BeforeEach}, runs a measure to stamp a baseline with the
  * resolved value, then runs an empirical test that should resolve
@@ -34,7 +34,7 @@ public final class CovariateSubjects {
     private CovariateSubjects() { }
 
     /**
-     * A use case that always passes and declares a single CONFIGURATION
+     * A service contract that always passes and declares a single CONFIGURATION
      * covariate read from {@link #REGION_PROPERTY}. Hard-gating
      * CONFIGURATION means a test under {@code region=APAC} cannot
      * silently fall back to a baseline measured under {@code region=EU}.

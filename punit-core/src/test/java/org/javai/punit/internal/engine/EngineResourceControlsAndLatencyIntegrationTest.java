@@ -40,7 +40,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
 
     record Factors(String model) {}
 
-    /** Deterministic duration-scripted use case. */
+    /** Deterministic duration-scripted service contract. */
     private static final class ScriptedLatencyServiceContract implements ServiceContract<Factors, Integer, Integer> {
         private final long[] scriptMillis;
         private int index = 0;
@@ -106,7 +106,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         // Declaring a static per-sample charge of 100 matches the
         // BudgetTracker's pre-sample projection: after 2 samples the
         // running total is 200, and projected 200 + 100 > 250 aborts
-        // the 3rd before it runs. A use case that reports 100 tokens
+        // the 3rd before it runs. A service contract that reports 100 tokens
         // per outcome would be accounted post-sample; the *projection*
         // is static, so this scenario uses tokenCharge to model it.
         ServiceContract<Factors, Integer, Integer> zeroOutcomeTokens = new ServiceContract<>() {

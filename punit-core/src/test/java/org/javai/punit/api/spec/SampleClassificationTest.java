@@ -24,7 +24,7 @@ class SampleClassificationTest {
 
     record Factors() {}
 
-    /** Use case stand-in with no max-latency bound. */
+    /** Service contract stand-in with no max-latency bound. */
     private static final ServiceContract<Factors, String, Integer> USE_CASE = new ServiceContract<>() {
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());

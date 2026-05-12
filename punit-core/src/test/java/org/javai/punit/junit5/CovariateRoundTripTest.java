@@ -20,7 +20,7 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Events;
 
 /**
- * End-to-end covariate wiring: a use case declares a custom
+ * End-to-end covariate wiring: a service contract declares a custom
  * {@code region} covariate; a measure experiment writes a baseline
  * stamped with the resolved value; an empirical test resolves the
  * matching baseline at evaluate time. Demonstrates that the

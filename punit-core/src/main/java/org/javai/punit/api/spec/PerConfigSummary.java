@@ -21,7 +21,7 @@ import java.util.Objects;
  *                       termination. {@code summary.total()} reports
  *                       what actually ran.
  * @param <FT> factor record type
- * @param <OT> use case output type
+ * @param <OT> service contract output type
  */
 public record PerConfigSummary<FT, OT>(
         FT factors,

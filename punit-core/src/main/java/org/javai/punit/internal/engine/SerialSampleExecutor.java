@@ -43,7 +43,7 @@ import org.javai.punit.api.spec.SampleObserver;
  * <p>{@code maxConcurrent} is informational here — a serial executor
  * always runs at concurrency 1, which is &le; any positive cap.
  *
- * <p>Business-level failures are signalled by the use case returning
+ * <p>Business-level failures are signalled by the service contract returning
  * a {@link ServiceContractOutcome} whose inner {@link org.javai.outcome.Outcome}
  * is a {@code Fail}; the executor just forwards those. Defects —
  * exceptions thrown from {@code apply} — are routed through the

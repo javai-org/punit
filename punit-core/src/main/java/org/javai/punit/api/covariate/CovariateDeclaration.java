@@ -10,9 +10,9 @@ import org.javai.punit.api.ServiceContractAttributes;
 import org.javai.punit.internal.util.HashUtils;
 
 /**
- * The set of covariates declared by a use case.
+ * The set of covariates declared by a service contract.
  *
- * <p>A covariate declaration captures which covariates are relevant for a use case:
+ * <p>A covariate declaration captures which covariates are relevant for a service contract:
  * <ul>
  *   <li>Standard covariates with built-in definitions (day groups, time periods, region groups, timezone)</li>
  *   <li>Custom covariates with explicit categories</li>
@@ -34,7 +34,7 @@ import org.javai.punit.internal.util.HashUtils;
  * @param regionGroups the region partition groups
  * @param timezoneEnabled whether timezone identity covariate is active
  * @param customCovariates map of custom covariate key to category
- * @param serviceContractAttributes use case attributes (warmup, maxConcurrent, etc.)
+ * @param serviceContractAttributes service contract attributes (warmup, maxConcurrent, etc.)
  */
 public record CovariateDeclaration(
         List<DayGroupDefinition> dayGroups,

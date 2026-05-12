@@ -8,7 +8,7 @@ import java.util.List;
  * <p>Used in two contexts:
  * <ol>
  *   <li>As a parameter in experiment methods for accessing factor values</li>
- *   <li>In {@code ServiceContractProvider.registerWithFactors()} callbacks for configuring use cases</li>
+ *   <li>In {@code ServiceContractProvider.registerWithFactors()} callbacks for configuring service contracts</li>
  * </ol>
  *
  * <h2>In Experiment Methods</h2>
@@ -20,7 +20,7 @@ import java.util.List;
  * }
  * }</pre>
  *
- * <h2>In Use Case Factory</h2>
+ * <h2>In Service Contract Factory</h2>
  * <pre>{@code
  * provider.registerWithFactors(ShoppingServiceContract.class, factors -> {
  *     String model = factors.getString("model");

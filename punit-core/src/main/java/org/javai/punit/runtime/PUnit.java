@@ -109,7 +109,7 @@ public final class PUnit {
 
     /**
      * Factor-less form of {@link #testing(Sampling, Object)} — for
-     * use cases whose behaviour does not depend on factor values.
+     * service contracts whose behaviour does not depend on factor values.
      * Equivalent to {@code testing(sampling, NoFactors.INSTANCE)}.
      * The sampling's {@code FT} must be {@link NoFactors}.
      */
@@ -137,7 +137,7 @@ public final class PUnit {
 
     /**
      * Factor-less form of {@link #measuring(Sampling, Object)} — for
-     * use cases whose behaviour does not depend on factor values.
+     * service contracts whose behaviour does not depend on factor values.
      * Equivalent to {@code measuring(sampling, NoFactors.INSTANCE)}.
      * The sampling's {@code FT} must be {@link NoFactors}.
      */
@@ -216,7 +216,7 @@ public final class PUnit {
      * profile-bound decorator carrying the run's covariate profile,
      * so the engine and pre-flight feasibility see covariate-aware
      * baseline lookups. {@link ProfileBoundBaselineProvider#bind}
-     * returns the wrapped delegate unchanged when the use case
+     * returns the wrapped delegate unchanged when the service contract
      * declared no covariates, so non-covariate tests pay no cost
      * here.
      */
@@ -650,7 +650,7 @@ public final class PUnit {
          *   <li>Default: off.</li>
          * </ol>
          *
-         * <p>Use case: audit / compliance documentation where the
+         * <p>Service contract: audit / compliance documentation where the
          * statistical reasoning behind a passing verdict has to be
          * shown, not just inferred from the absence of a failure.
          */

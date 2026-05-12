@@ -89,7 +89,7 @@ public record ProbabilisticTestVerdict(
      *
      * @param className the test class name
      * @param methodName the test method name
-     * @param serviceContractId the use case identifier, if the test is associated with a use case
+     * @param serviceContractId the service contract identifier, if the test is associated with a service contract
      */
     public record TestIdentity(
             String className,
@@ -122,7 +122,7 @@ public record ProbabilisticTestVerdict(
      * @param appliedMultiplier sample multiplier, if one was applied
      * @param intent the test intent (VERIFICATION or SMOKE)
      * @param resolvedConfidence the confidence level used for statistical analysis
-     * @param serviceContractAttributes use case attributes (warmup, maxConcurrent, etc.)
+     * @param serviceContractAttributes service contract attributes (warmup, maxConcurrent, etc.)
      */
     public record ExecutionSummary(
             int plannedSamples,

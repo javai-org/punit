@@ -38,7 +38,7 @@ import java.lang.annotation.Target;
  *     @Factor("temperature") double temperature,
  *     ServiceContractProvider provider
  * ) {
- *     // Configure use case with factor values
+ *     // Configure service contract with factor values
  *     provider.register(ShoppingServiceContract.class, () ->
  *         new ShoppingServiceContract(createAssistant(model, temperature)));
  *     ShoppingServiceContract serviceContract = provider.getInstance(ShoppingServiceContract.class);

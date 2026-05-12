@@ -144,7 +144,7 @@ public final class PowerAnalysis {
                 lookup.profile(),
                 lookup.declarations())
                 .orElseThrow(() -> new IllegalStateException(
-                        "no baseline found for use case '" + lookup.serviceContractId()
+                        "no baseline found for service contract '" + lookup.serviceContractId()
                                 + "' (factors fingerprint " + lookup.factorsFingerprint()
                                 + (lookup.profile().isEmpty() ? ""
                                         : ", covariates " + formatProfile(lookup.profile()))
@@ -204,7 +204,7 @@ public final class PowerAnalysis {
      * Dispatcher that captures the {@code <FT>} type parameter from the
      * spec's engine-facing view long enough to call
      * {@code serviceContractFactory.apply(factors).id()}, compute the factors
-     * fingerprint, and resolve the use case's covariate profile, then
+     * fingerprint, and resolve the service contract's covariate profile, then
      * collapses the result back to a non-generic carrier.
      */
     private static final Spec.Dispatcher<BaselineLookup> LOOKUP_DISPATCHER =

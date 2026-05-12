@@ -32,7 +32,7 @@ class PostconditionFailureHistogramTest {
     record Factors() {}
 
     /**
-     * Use case that always returns the input's value. Two postconditions:
+     * Service contract that always returns the input's value. Two postconditions:
      * one that always fails ("alwaysFails"), one that fails when input
      * is even ("evenFails").
      */
@@ -92,7 +92,7 @@ class PostconditionFailureHistogramTest {
     }
 
     @Test
-    @DisplayName("a use case with no postconditions produces an empty histogram")
+    @DisplayName("a service contract with no postconditions produces an empty histogram")
     void emptyHistogramWhenNoClauses() {
         ServiceContract<Factors, Integer, Integer> noClauses = new ServiceContract<>() {
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
@@ -206,7 +206,7 @@ class PostconditionFailureHistogramTest {
 
     record GridFactors(String label) {}
 
-    /** A two-clause use case keyed on GridFactors so the explore test
+    /** A two-clause service contract keyed on GridFactors so the explore test
      *  can use distinct grid points. */
     private static class GridTwoClauseServiceContract implements ServiceContract<GridFactors, Integer, Integer> {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {

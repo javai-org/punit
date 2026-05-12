@@ -18,7 +18,7 @@ import org.javai.punit.api.spec.BaselineStatistics;
  * <p>Mirrors the schema documented in
  * {@code docs/DES-BASELINE-YAML-SCHEMA.md}.
  *
- * @param serviceContractId           the use case's stable identity, as
+ * @param serviceContractId           the service contract's stable identity, as
  *                            returned by {@code ServiceContract.id()}
  * @param methodName          the spec-method name that produced
  *                            this baseline
@@ -33,7 +33,7 @@ import org.javai.punit.api.spec.BaselineStatistics;
  *        {@link BaselineStatistics} entry per criterion, keyed by
  *        {@code Criterion.name()}
  * @param covariateProfile    the resolved covariate profile under
- *        which this baseline was measured. Empty when the use case
+ *        which this baseline was measured. Empty when the service contract
  *        declared no covariates (covariate-insensitive baselines).
  *        Part of the baseline's identity — a baseline measured under
  *        one profile must not silently match a test running under a

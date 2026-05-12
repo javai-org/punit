@@ -9,10 +9,10 @@ import org.javai.punit.api.ServiceContractOutcome;
  * {@link SampleExecutor} pushes one event per completed sample; the
  * engine's sample-loop aggregator implements this interface.
  *
- * <p>Two event channels: {@link #onSample} fires when the use case
+ * <p>Two event channels: {@link #onSample} fires when the service contract
  * returns normally (with {@link org.javai.outcome.Outcome.Ok Ok} or
  * {@link org.javai.outcome.Outcome.Fail Fail}); {@link #onDefect}
- * fires when the use case throws. The default {@code onDefect}
+ * fires when the service contract throws. The default {@code onDefect}
  * rethrows — preserving the {@code ABORT_TEST} semantics — but the
  * engine's aggregator overrides it for the spec's exception policy.
  *

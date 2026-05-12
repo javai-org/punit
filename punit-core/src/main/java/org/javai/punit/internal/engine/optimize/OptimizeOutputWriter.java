@@ -37,7 +37,7 @@ public final class OptimizeOutputWriter {
      * Build the optimize-output YAML for one optimize run. Pure —
      * no I/O.
      *
-     * @param serviceContractId the use case identifier
+     * @param serviceContractId the service contract identifier
      * @param experimentId the experiment identifier (becomes the
      *                     filename stem)
      * @param objective {@code "MAXIMIZE"} or {@code "MINIMIZE"}

@@ -7,7 +7,7 @@ import java.util.Set;
 import org.javai.punit.api.CovariateCategory;
 
 /**
- * A covariate declaration on a use case.
+ * A covariate declaration on a service contract.
  *
  * <p>A covariate is an environmental variable that the developer does
  * not control but that influences outcomes — day of week, time of day,

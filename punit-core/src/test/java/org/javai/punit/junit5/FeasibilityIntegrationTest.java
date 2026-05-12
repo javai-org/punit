@@ -139,7 +139,7 @@ class FeasibilityIntegrationTest {
     @DisplayName("SMOKE + contractual SLA threshold + undersized sample — engine runs silently")
     void contractualSmokeInfeasibleAllowed() {
         Events events = run(FeasibilitySubjects.ContractualSmokeInfeasible.class);
-        // Subject's use case always passes; contractual evaluator does
+        // Subject's service contract always passes; contractual evaluator does
         // observed >= threshold, so observed=1.0 >= 0.9999 → PASS.
         // The point of this test is the run wasn't *aborted*.
         events.assertStatistics(stats -> stats.started(1));

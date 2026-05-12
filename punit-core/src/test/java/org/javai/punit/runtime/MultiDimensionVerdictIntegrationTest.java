@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
  * fails.
  *
  * <p>Each scenario controls its inputs deterministically: the functional
- * outcome is scripted via the use case's postcondition, and the latency
+ * outcome is scripted via the service contract's postcondition, and the latency
  * dimension is gated by asymmetric thresholds — trivially-passing
  * ({@code p95Millis = 10_000_000}) or trivially-failing ({@code p95Millis
  * = 0}) — so the dimensional verdict does not depend on wall-clock

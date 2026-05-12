@@ -7,7 +7,7 @@ import java.util.OptionalLong;
 
 /**
  * A typed declaration of how fast, and how concurrently, the engine is
- * permitted to invoke a use case.
+ * permitted to invoke a service contract.
  *
  * <p>Pacing is a property of the service under test, not of a specific
  * experiment or probabilistic test exercising it. Every test of the

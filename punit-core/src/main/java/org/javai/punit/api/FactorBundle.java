@@ -26,7 +26,7 @@ import java.util.TreeMap;
  *       declaring-class simple name supplies the entry key (e.g.
  *       {@code LlmModel.GPT_4O} → {@code {"LlmModel":"GPT_4O"}}), and
  *       the constant is lifted as an {@link EnumValue}. This is the
- *       sugar for use cases parameterised over a single named, finite
+ *       sugar for service contracts parameterised over a single named, finite
  *       set of choices, where defining a one-component wrapper record
  *       would add ceremony without information.</li>
  * </ul>

@@ -35,7 +35,7 @@ class ExploreOutputWriterTest {
 
     record LlmFactors(String model, double temperature) {}
 
-    /** Always-passing use case. Output type is the input length, for trivial sampling. */
+    /** Always-passing service contract. Output type is the input length, for trivial sampling. */
     private static class LengthServiceContract implements ServiceContract<LlmFactors, String, Integer> {
         @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
@@ -227,7 +227,7 @@ class ExploreOutputWriterTest {
         throw new AssertionError("expected IllegalArgumentException for non-EXPLORE experiment");
     }
 
-    /** Use case with a configured id, useful for asserting on the emitted relative path. */
+    /** Service contract with a configured id, useful for asserting on the emitted relative path. */
     private static final class IdServiceContract implements ServiceContract<LlmFactors, String, Integer> {
         private final String id;
         IdServiceContract(String id) { this.id = id; }

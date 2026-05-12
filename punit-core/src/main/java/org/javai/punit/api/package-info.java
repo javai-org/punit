@@ -18,7 +18,7 @@
  * <h2>Foundational types</h2>
  * <ul>
  *   <li>{@link org.javai.punit.api.ServiceContract} — the interface every
- *       use case implements; carries the service call, the
+ *       service contract implements; carries the service call, the
  *       postcondition contract, and metadata.</li>
  *   <li>{@link org.javai.punit.api.ServiceContractOutcome} — the per-sample
  *       artefact the framework assembles, carrying the result, the
@@ -30,7 +30,7 @@
  *       representation used by baseline-spec filenames and the YAML
  *       factor block.</li>
  *   <li>{@link org.javai.punit.api.NoFactors} — empty factor record
- *       for use cases whose behaviour does not depend on factor
+ *       for service contracts whose behaviour does not depend on factor
  *       values; pairs with the factor-less {@code PUnit.measuring} /
  *       {@code PUnit.testing} overloads.</li>
  * </ul>

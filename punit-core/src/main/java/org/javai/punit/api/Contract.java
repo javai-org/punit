@@ -11,7 +11,7 @@ import org.javai.outcome.Outcome.Fail;
 import org.javai.outcome.Outcome.Ok;
 
 /**
- * The operational layer of a use case: how to invoke the service for
+ * The operational layer of a service contract: how to invoke the service for
  * one sample, and what counts as success when the service returns.
  *
  * <p>{@link ServiceContract} extends this interface, so an author writing
@@ -92,7 +92,7 @@ public interface Contract<I, O> {
      * to populate it, and reads the resulting clause list out via the
      * no-arg {@link #postconditions()} accessor.
      *
-     * <p>Use cases that genuinely have no acceptance criteria
+     * <p>Service contracts that genuinely have no acceptance criteria
      * (smoke-test scaffolding, throwaway fixtures) leave the body
      * empty — the explicit empty body marks the choice.
      *

@@ -158,7 +158,7 @@ public final class BaselineEmitter {
         }
 
         // The resolved covariate profile is part of the baseline's
-        // identity. The use case's declarations + custom resolvers
+        // identity. The service contract's declarations + custom resolvers
         // feed the resolver; the resulting profile is stamped into
         // the BaselineRecord and surfaces as a covariate-hash tail
         // in the filename, plus a covariates: block in the YAML body.

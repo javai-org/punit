@@ -12,7 +12,7 @@ import java.util.TreeSet;
  * profile. The structured value flows to verdict-text renderers,
  * HTML report emitters, and JSON sinks.
  *
- * <p>Empty profiles (the use case declared no covariates) produce
+ * <p>Empty profiles (the service contract declared no covariates) produce
  * the {@link #aligned() aligned} state with no misalignments. A
  * baseline profile that matches the observed profile component-
  * by-component also produces aligned. Any divergence — different

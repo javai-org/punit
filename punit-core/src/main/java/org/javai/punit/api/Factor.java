@@ -21,7 +21,7 @@ import java.lang.annotation.Target;
  *     @Factor("temperature") double temperature,
  *     ShoppingServiceContract serviceContract
  * ) {
- *     // Factors configure the use case
+ *     // Factors configure the service contract
  *     serviceContract.setModel(model);
  *     serviceContract.setTemperature(temperature);
  *     serviceContract.execute();
