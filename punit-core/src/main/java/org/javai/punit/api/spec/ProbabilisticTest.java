@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
@@ -141,6 +142,7 @@ public final class ProbabilisticTest implements Spec {
         private final Optional<ValueMatcher<OT>> matcher;
         private final List<Registered<OT>> registered;
         private final TestIntent intent;
+        private final boolean earlyTerminationDisabled;
 
         private SampleSummary<OT> summary;
 
@@ -151,6 +153,7 @@ public final class ProbabilisticTest implements Spec {
             this.matcher = Optional.ofNullable(b.matcher);
             this.registered = List.copyOf(b.registered);
             this.intent = b.intent;
+            this.earlyTerminationDisabled = b.earlyTerminationDisabled;
         }
 
         @Override public Function<FT, UseCase<FT, IT, OT>> useCaseFactory() {
@@ -335,6 +338,26 @@ public final class ProbabilisticTest implements Spec {
         @Override public BudgetExhaustionPolicy budgetPolicy() { return sampling.budgetPolicy(); }
         @Override public ExceptionPolicy exceptionPolicy() { return sampling.exceptionPolicy(); }
         @Override public int maxExampleFailures() { return sampling.maxExampleFailures(); }
+
+        @Override
+        public Optional<EarlyTerminationContext> earlyTermination() {
+            if (earlyTerminationDisabled) {
+                return Optional.empty();
+            }
+            for (Registered<OT> entry : registered) {
+                if (entry.role() != CriterionRole.REQUIRED) {
+                    continue;
+                }
+                OptionalDouble threshold = entry.criterion().earlyTerminationPassRate();
+                if (threshold.isPresent()) {
+                    double rate = threshold.getAsDouble();
+                    int floor = new org.javai.punit.statistics.BinomialProportionEstimator()
+                            .minSamplesForNormalApproximation(rate);
+                    return Optional.of(new EarlyTerminationContext(rate, floor));
+                }
+            }
+            return Optional.empty();
+        }
     }
 
     // ── Builder ──────────────────────────────────────────────────────
@@ -347,6 +370,7 @@ public final class ProbabilisticTest implements Spec {
         private ValueMatcher<OT> matcher;
         private final List<Registered<OT>> registered = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
+        private boolean earlyTerminationDisabled = false;
 
         private Builder(Sampling<FT, IT, OT> sampling, FT factors) {
             this.sampling = sampling;
@@ -412,6 +436,31 @@ public final class ProbabilisticTest implements Spec {
             return this;
         }
 
+        /**
+         * Run every declared sample regardless of statistical
+         * determination. Disables the framework's mid-run short-circuit
+         * so the sample loop continues even after the verdict is
+         * mathematically determined (threshold unreachable or
+         * guaranteed).
+         *
+         * <p>Use when the full sample count is wanted for downstream
+         * data (a follow-on baseline emission, a complete latency
+         * distribution, exhaustive failure exemplars) and the
+         * cost-saving short-circuit is not the right behaviour. The
+         * resulting summary's {@code terminationReason} is
+         * {@code COMPLETED} — no spurious {@code IMPOSSIBILITY} /
+         * {@code SUCCESS_GUARANTEED} annotation.
+         *
+         * <p>Unrelated to the optimize loop's
+         * {@code OptimizeBuilder.disableEarlyTermination()}, which
+         * controls a heuristic no-improvement window on a different
+         * builder.
+         */
+        public Builder<FT, IT, OT> disableEarlyTermination() {
+            this.earlyTerminationDisabled = true;
+            return this;
+        }
+
         public ProbabilisticTest build() {
             if (!expected.isEmpty() && matcher == null) {
                 matcher = ValueMatcher.equality();
@@ -446,6 +495,7 @@ public final class ProbabilisticTest implements Spec {
         private ValueMatcher<OT> matcher;
         private final List<Registered<OT>> registered = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
+        private boolean earlyTerminationDisabled = false;
 
         private InlineBuilder(Function<FT, UseCase<FT, IT, OT>> useCaseFactory, FT factors) {
             this.useCaseFactory = useCaseFactory;
@@ -527,6 +577,16 @@ public final class ProbabilisticTest implements Spec {
         }
 
         /**
+         * Run every declared sample regardless of statistical
+         * determination. Mirrors {@link Builder#disableEarlyTermination()}
+         * on the inline builder.
+         */
+        public InlineBuilder<FT, IT, OT> disableEarlyTermination() {
+            this.earlyTerminationDisabled = true;
+            return this;
+        }
+
+        /**
          * Expected outputs, parallel to {@code inputs()}. Length is
          * checked at the call site when {@code inputs} has already been
          * set on this inline builder; otherwise the check defers to a
@@ -603,6 +663,9 @@ public final class ProbabilisticTest implements Spec {
 
             Builder<FT, IT, OT> delegate = new Builder<>(sampling, factors);
             delegate.intent(intent);
+            if (earlyTerminationDisabled) {
+                delegate.disableEarlyTermination();
+            }
             if (!expected.isEmpty()) {
                 delegate.expectedOutputs(expected);
             }

@@ -16,8 +16,10 @@ import org.javai.punit.api.UseCase;
 import org.javai.punit.api.UseCaseOutcome;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.Configuration;
+import org.javai.punit.api.spec.EarlyTerminationContext;
 import org.javai.punit.api.spec.EngineResult;
 import org.javai.punit.api.spec.ExceptionPolicy;
+import org.javai.punit.api.spec.TerminationReason;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.api.spec.SampleClassification;
@@ -108,7 +110,9 @@ public final class Engine {
                 cycleStart,
                 spec.exceptionPolicy(),
                 spec.maxExampleFailures(),
-                tracker);
+                tracker,
+                spec.earlyTermination(),
+                cfg.samples());
 
         long t0 = System.nanoTime();
         executor.runSamples(
@@ -138,6 +142,10 @@ public final class Engine {
         private final ExceptionPolicy exceptionPolicy;
         private final int maxExampleFailures;
         private final BudgetTracker tracker;
+        private final int plannedSamples;
+        private final Optional<EarlyTerminationContext> earlyTermination;
+        private final int requiredSuccesses;
+        private final int minSamplesForValidity;
         // retained is exposed via the summary; failure detail beyond
         // maxExampleFailures is elided. allForLatency holds durations
         // from every sample so the all-samples latency stats never
@@ -166,13 +174,30 @@ public final class Engine {
                    int cycleStart,
                    ExceptionPolicy exceptionPolicy,
                    int maxExampleFailures,
-                   BudgetTracker tracker) {
+                   BudgetTracker tracker,
+                   Optional<EarlyTerminationContext> earlyTermination,
+                   int plannedSamples) {
             this.useCase = useCase;
             this.inputs = inputs;
             this.cycleStart = cycleStart;
             this.exceptionPolicy = exceptionPolicy;
             this.maxExampleFailures = maxExampleFailures;
             this.tracker = tracker;
+            this.plannedSamples = plannedSamples;
+            this.earlyTermination = earlyTermination;
+            // Cached once: required-successes = ceil(plannedSamples * minPassRate),
+            // and the statistical-validity floor below which a guaranteed-success
+            // short-circuit must not fire. Both zero when no context is supplied
+            // (measure / explore / optimize / empirical / opt-out paths).
+            if (earlyTermination.isPresent()) {
+                EarlyTerminationContext ctx = earlyTermination.get();
+                this.requiredSuccesses =
+                        (int) Math.ceil(plannedSamples * ctx.minPassRate());
+                this.minSamplesForValidity = ctx.minSamplesForValidity();
+            } else {
+                this.requiredSuccesses = 0;
+                this.minSamplesForValidity = 0;
+            }
         }
 
         @Override
@@ -240,6 +265,43 @@ public final class Engine {
             recordPostconditionFailures(index, classification);
             FailureLineEmitter.emit(index, classification);
             tokensConsumed += classification.tokens() + tracker.tokenCharge();
+            checkStatisticalEarlyTermination();
+        }
+
+        /**
+         * After each recorded sample, check whether the spec's
+         * contractual pass-rate threshold is now mathematically
+         * unreachable (failure inevitable) or already met and locked
+         * in (success guaranteed, subject to the
+         * statistical-validity floor). On a hit, signals the
+         * {@link BudgetTracker} so the executor halts before the next
+         * sample.
+         *
+         * <p>No-op when no early-termination context was supplied:
+         * measure / explore / optimize specs, empirical-mode
+         * probabilistic tests, and probabilistic tests whose author
+         * called {@code disableEarlyTermination()}.
+         *
+         * <p>Failure-inevitable wins when both would fire in the
+         * same sample — it takes precedence over a (necessarily
+         * stale) success-guaranteed reading.
+         */
+        private void checkStatisticalEarlyTermination() {
+            if (earlyTermination.isEmpty()) {
+                return;
+            }
+            int observed = successes + failures;
+            int remaining = plannedSamples - observed;
+            int maxPossibleSuccesses = successes + remaining;
+            if (maxPossibleSuccesses < requiredSuccesses) {
+                tracker.recordEarlyTermination(TerminationReason.IMPOSSIBILITY);
+                return;
+            }
+            if (successes >= requiredSuccesses
+                    && observed >= minSamplesForValidity
+                    && remaining > 0) {
+                tracker.recordEarlyTermination(TerminationReason.SUCCESS_GUARANTEED);
+            }
         }
 
         private void recordPostconditionFailures(int index, SampleClassification classification) {

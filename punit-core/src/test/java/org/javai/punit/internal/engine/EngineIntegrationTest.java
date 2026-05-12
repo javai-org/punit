@@ -137,6 +137,11 @@ class EngineIntegrationTest {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
                 .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
+                // Opt this test out of statistical early termination —
+                // its assertion exercises the verdict for an all-fail
+                // run with the full declared sample count, not the
+                // failure-inevitable short-circuit.
+                .disableEarlyTermination()
                 .build();
 
         EngineResult outcome = new Engine().run(spec);

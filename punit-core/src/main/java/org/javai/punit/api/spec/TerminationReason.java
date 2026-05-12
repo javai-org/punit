@@ -17,5 +17,20 @@ public enum TerminationReason {
     TIME_BUDGET,
 
     /** Token budget reached before all samples completed. */
-    TOKEN_BUDGET
+    TOKEN_BUDGET,
+
+    /**
+     * Threshold became mathematically unreachable: even if every remaining
+     * sample passes, the observed pass rate cannot meet the declared
+     * threshold. Verdict is FAIL.
+     */
+    IMPOSSIBILITY,
+
+    /**
+     * Threshold is mathematically guaranteed: enough samples have already
+     * passed that the threshold holds regardless of the remaining outcomes,
+     * and the run has cleared the statistical-validity floor. Verdict is
+     * PASS.
+     */
+    SUCCESS_GUARANTEED
 }

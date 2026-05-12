@@ -180,6 +180,11 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
     }
 
     @Override
+    public OptionalDouble earlyTerminationPassRate() {
+        return contractualTarget();
+    }
+
+    @Override
     public Map<String, Object> empiricalDetail() {
         if (mode == Mode.CONTRACTUAL) {
             return Map.of();

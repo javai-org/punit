@@ -57,4 +57,19 @@ public interface TypedSpec<FT, IT, OT> {
     default BudgetExhaustionPolicy budgetPolicy() { return BudgetExhaustionPolicy.FAIL; }
     default ExceptionPolicy exceptionPolicy() { return ExceptionPolicy.ABORT_TEST; }
     default int maxExampleFailures() { return 10; }
+
+    /**
+     * Engine-facing context for statistical early termination of the
+     * sample loop. Specs that publish a context here cause the engine
+     * to short-circuit when the threshold is unreachable
+     * (failure-inevitable) or mathematically guaranteed.
+     *
+     * <p>Default: {@link Optional#empty()} — every planned sample
+     * runs. Measure / explore / optimize specs leave this default
+     * unchanged; only {@link ProbabilisticTest} with a contractual
+     * pass-rate criterion overrides it.
+     */
+    default Optional<EarlyTerminationContext> earlyTermination() {
+        return Optional.empty();
+    }
 }
