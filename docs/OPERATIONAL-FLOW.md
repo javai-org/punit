@@ -51,11 +51,11 @@ void apiMeetsSla() {
 The threshold is **derived from empirical data** gathered through experiments:
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Service Contract ──▶ EXPLORE ──▶ OPTIMIZE ──▶ MEASURE ──▶ Spec ──▶ Test             │
-│              (compare)    (tune)       (1000+)     (commit)  (threshold      │
-│                                                               derived)       │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ Service Contract ──▶ EXPLORE ──▶ OPTIMIZE ──▶ MEASURE ──▶ Baseline ──▶ Test        │
+│                     (compare)     (tune)     (large N)    (commit) (with baseline) │
+│                                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Workflow:** Explore → Optimize → Measure → Commit Spec → Test
