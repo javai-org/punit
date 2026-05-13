@@ -330,6 +330,8 @@ public final class Experiment implements Spec {
         private MeasureBuilder(Sampling<FT, IT, OT> sampling, FT factors) {
             this.sampling = sampling;
             this.factors = factors;
+            this.expected = sampling.expected();
+            this.matcher = sampling.matcher().orElse(null);
         }
 
         public MeasureBuilder<FT, IT, OT> experimentId(String id) {

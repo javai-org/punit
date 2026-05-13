@@ -533,6 +533,92 @@ This test gates on the SLA pass rate AND the SLA latency target, and
 elsewhere) for diagnostic purposes — without letting that comparison
 fail the test.
 
+### Instance conformance — comparing produced values against expected outputs
+
+Postconditions on the service contract (Part 1) describe what *any*
+acceptable output looks like — a basket translation is a parseable JSON
+object, every action is valid for its context, every quantity is a
+positive integer. Some tests need a sharper question: for *this*
+input, did the service produce *that* specific output? That is
+**instance conformance** — per-sample comparison against an expected
+value indexed alongside the inputs.
+
+Instance conformance is opt-in. When configured, the engine pairs each
+input with the expected value at the same index and runs a
+`ValueMatcher<O>` against the service's produced value. The match
+outcome contributes to the sample's pass/fail in exactly the same way
+a failed postcondition does — pass-rate criteria see one pass-or-fail
+verdict per sample, regardless of whether the failure came from a
+postcondition or a mismatched expectation.
+
+The default matcher is `ValueMatcher.equality()` — strict `equals`.
+Authors supply a custom `ValueMatcher` when equality is too brittle:
+case-insensitive string equality, structural JSON equivalence,
+numeric tolerance, normalised transcript comparison, and so on.
+
+**Where to configure it.** Two call shapes are supported, and they
+mean different things.
+
+**Shape A — on the `Sampling` fixture.** The matcher is a property
+of the fixture itself: every consumer of this `Sampling` (one test,
+multiple tests against different factors, the paired measure run, a
+future explore or optimize run) sees the same comparison strategy:
+
+```java
+Sampling<Provider, AudioSample, TranscriptionResult> sampling = Sampling
+        .<Provider, AudioSample, TranscriptionResult>builder()
+        .serviceContractFactory(SpeechToTextServiceContract::new)
+        .inputs(audioSamples)
+        .samples(audioSamples.size())
+        .matching(expectedTranscripts, normalisedTranscript)  // ← lives on the fixture
+        .build();
+
+PUnit.testing(sampling, Provider.DEEPGRAM)
+        .criterion(PassRate.meeting(0.5, ThresholdOrigin.SLO))
+        .assertPasses();
+```
+
+This is the **recommended default for production suites**. It
+eliminates test/measure drift by construction — the matcher lives in
+exactly one place, so an empirical baseline collected with the same
+`Sampling` is checked against the same comparison strategy the test
+uses.
+
+**Shape B — on the spec builder.** The matcher is a property of the
+spec, not the fixture. Two situations call for this:
+
+```java
+PUnit.testing(sampling, Provider.DEEPGRAM)
+        .expectedOutputs(expectedTranscripts)        // ← lives on the spec
+        .matcher(normalisedTranscript)
+        .criterion(PassRate.meeting(0.5, ThresholdOrigin.SLO))
+        .assertPasses();
+```
+
+Use shape B when:
+
+- **Inline sampling form.** There is no separate `Sampling` value to
+  carry the matcher because the `Sampling` is being assembled on the
+  spec builder itself:
+  ```java
+  PUnit.testing(factors)
+          .serviceContractFactory(MyServiceContract::new)
+          .inputs(inputs)
+          .samples(50)
+          .expectedOutputs(expected)
+          .matcher(normalisedTranscript)
+          .criterion(...)
+          .assertPasses();
+  ```
+- **Per-spec override.** The same fixture is consumed by multiple
+  specs with different comparison strategies — strict in one test,
+  lenient in another. Spec-builder values always override values
+  carried on `Sampling`.
+
+When both shape A and shape B are used on the same call, **shape B
+wins**: the spec builder's `expectedOutputs(...)` and `matcher(...)`
+override what the fixture carries.
+
 ### The verdict
 
 `assertPasses()` translates the engine's verdict into a JUnit outcome:

@@ -332,6 +332,172 @@ class EngineIntegrationTest {
     }
 
     @Test
+    @DisplayName("ProbabilisticTest: matcher configured on Sampling.Builder.matching(...) drives the verdict")
+    void testPathPropagatesMatcherFromSampling() {
+        ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
+        ValueMatcher<String> caseInsensitive =
+                (exp, act) -> exp.equalsIgnoreCase(act)
+                        ? MatchResult.pass("equalsIgnoreCase", exp, act)
+                        : MatchResult.fail("equalsIgnoreCase", exp, act,
+                                "case-insensitive comparison failed");
+
+        Sampling<LlmFactors, String, String> sampling = Sampling
+                .<LlmFactors, String, String>builder()
+                .serviceContractFactory(f -> returnSameCase)
+                .inputs("HELLO", "WORLD")
+                .samples(10)
+                .matching(List.of("hello", "world"), caseInsensitive)
+                .build();
+
+        ProbabilisticTest spec = ProbabilisticTest
+                .testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
+                .build();
+
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsEntry("successes", 10);
+        assertThat(detail).containsEntry("failures", 0);
+    }
+
+    @Test
+    @DisplayName("Experiment: matcher configured on Sampling.Builder.matching(...) drives the measure run")
+    void measurePathPropagatesMatcherFromSampling() {
+        ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
+        ValueMatcher<String> caseInsensitive =
+                (exp, act) -> exp.equalsIgnoreCase(act)
+                        ? MatchResult.pass("equalsIgnoreCase", exp, act)
+                        : MatchResult.fail("equalsIgnoreCase", exp, act,
+                                "case-insensitive comparison failed");
+
+        Sampling<LlmFactors, String, String> sampling = Sampling
+                .<LlmFactors, String, String>builder()
+                .serviceContractFactory(f -> returnSameCase)
+                .inputs("HELLO", "WORLD")
+                .samples(2)
+                .matching(List.of("hello", "world"), caseInsensitive)
+                .build();
+
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0)).build();
+        EngineResult outcome = new Engine().run(spec);
+        assertThat(((ExperimentResult) outcome).message())
+                .contains("passRate=1.000");
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTest: spec-builder matcher overrides the matcher carried on Sampling")
+    void testPathSpecBuilderMatcherOverridesSampling() {
+        ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
+        ValueMatcher<String> alwaysFail = (exp, act) ->
+                MatchResult.fail("alwaysFail", exp, act, "fixture matcher must not run");
+        ValueMatcher<String> caseInsensitive =
+                (exp, act) -> exp.equalsIgnoreCase(act)
+                        ? MatchResult.pass("equalsIgnoreCase", exp, act)
+                        : MatchResult.fail("equalsIgnoreCase", exp, act,
+                                "case-insensitive comparison failed");
+
+        Sampling<LlmFactors, String, String> sampling = Sampling
+                .<LlmFactors, String, String>builder()
+                .serviceContractFactory(f -> returnSameCase)
+                .inputs("HELLO", "WORLD")
+                .samples(4)
+                .matching(List.of("hello", "world"), alwaysFail)
+                .build();
+
+        ProbabilisticTest spec = ProbabilisticTest
+                .testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .matcher(caseInsensitive)  // override
+                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
+                .build();
+
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsEntry("successes", 4);
+        assertThat(detail).containsEntry("failures", 0);
+    }
+
+    @Test
+    @DisplayName("Experiment: spec-builder matcher overrides the matcher carried on Sampling")
+    void measurePathSpecBuilderMatcherOverridesSampling() {
+        ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
+        ValueMatcher<String> alwaysFail = (exp, act) ->
+                MatchResult.fail("alwaysFail", exp, act, "fixture matcher must not run");
+        ValueMatcher<String> caseInsensitive =
+                (exp, act) -> exp.equalsIgnoreCase(act)
+                        ? MatchResult.pass("equalsIgnoreCase", exp, act)
+                        : MatchResult.fail("equalsIgnoreCase", exp, act,
+                                "case-insensitive comparison failed");
+
+        Sampling<LlmFactors, String, String> sampling = Sampling
+                .<LlmFactors, String, String>builder()
+                .serviceContractFactory(f -> returnSameCase)
+                .inputs("HELLO", "WORLD")
+                .samples(2)
+                .matching(List.of("hello", "world"), alwaysFail)
+                .build();
+
+        Experiment spec = Experiment.measuring(sampling, new LlmFactors("gpt-4o", 0.0))
+                .matcher(caseInsensitive)  // override
+                .build();
+        EngineResult outcome = new Engine().run(spec);
+        assertThat(((ExperimentResult) outcome).message())
+                .contains("passRate=1.000");
+    }
+
+    @Test
+    @DisplayName("ProbabilisticTest: spec-builder expectedOutputs overrides the expected list carried on Sampling")
+    void testPathSpecBuilderExpectedOverridesSampling() {
+        ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
+
+        // Sampling carries deliberately-wrong expected values; spec builder
+        // restates them correctly. The spec list must win.
+        Sampling<LlmFactors, String, String> sampling = Sampling
+                .<LlmFactors, String, String>builder()
+                .serviceContractFactory(f -> returnSameCase)
+                .inputs("a", "b")
+                .samples(4)
+                .matching(List.of("X", "Y"))   // wrong; equality matcher will fail every sample
+                .build();
+
+        ProbabilisticTest spec = ProbabilisticTest
+                .testing(sampling, new LlmFactors("gpt-4o", 0.0))
+                .expectedOutputs("a", "b")     // override with correct values
+                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
+                .build();
+
+        var result = (ProbabilisticTestResult) new Engine().run(spec);
+        var detail = result.criterionResults().get(0).result().detail();
+        assertThat(detail).containsEntry("successes", 4);
+        assertThat(detail).containsEntry("failures", 0);
+    }
+
+    @Test
     @DisplayName("ProbabilisticTest.Builder.expectedOutputs: length mismatch throws IllegalArgumentException at the call site")
     void testPathBoundExpectedOutputsRejectsLengthMismatch() {
         Sampling<LlmFactors, String, String> sampling = identityStringSampling("a", "b");
