@@ -375,6 +375,8 @@ public final class ProbabilisticTest implements Spec {
         private Builder(Sampling<FT, IT, OT> sampling, FT factors) {
             this.sampling = sampling;
             this.factors = factors;
+            this.expected = sampling.expected();
+            this.matcher = sampling.matcher().orElse(null);
         }
 
         /** Register a criterion that contributes to the combined verdict. */
