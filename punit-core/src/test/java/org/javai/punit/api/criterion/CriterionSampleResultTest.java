@@ -24,7 +24,7 @@ class CriterionSampleResultTest {
 
         assertThat(r.outcome()).isEqualTo(CriterionSampleOutcome.PASS);
         assertThat(r.postconditionResults()).containsExactly(pr);
-        assertThat(r.transformFailure()).isEmpty();
+        assertThat(r.reason()).isEmpty();
     }
 
     @Test
@@ -34,7 +34,7 @@ class CriterionSampleResultTest {
 
         assertThat(r.outcome()).isEqualTo(CriterionSampleOutcome.FAIL);
         assertThat(r.postconditionResults()).containsExactly(pr);
-        assertThat(r.transformFailure()).isEmpty();
+        assertThat(r.reason()).isEmpty();
     }
 
     @Test
@@ -44,7 +44,7 @@ class CriterionSampleResultTest {
 
         assertThat(r.outcome()).isEqualTo(CriterionSampleOutcome.INCONCLUSIVE);
         assertThat(r.postconditionResults()).isEmpty();
-        assertThat(r.transformFailure()).contains(tf);
+        assertThat(r.reason()).contains(tf);
     }
 
     @Test
@@ -55,7 +55,7 @@ class CriterionSampleResultTest {
                 List.of(),
                 Optional.empty()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("transformFailure");
+                .hasMessageContaining("reason");
     }
 
     @Test
@@ -82,6 +82,6 @@ class CriterionSampleResultTest {
                 List.of(),
                 Optional.of(tf)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("transformFailure");
+                .hasMessageContaining("reason");
     }
 }

@@ -30,7 +30,7 @@ class TransformingCriterionTest {
         assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.PASS);
         assertThat(result.postconditionResults()).hasSize(1);
         assertThat(result.postconditionResults().get(0).passed()).isTrue();
-        assertThat(result.transformFailure()).isEmpty();
+        assertThat(result.reason()).isEmpty();
     }
 
     @Test
@@ -47,7 +47,7 @@ class TransformingCriterionTest {
         assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.FAIL);
         assertThat(result.postconditionResults()).hasSize(1);
         assertThat(result.postconditionResults().get(0).failed()).isTrue();
-        assertThat(result.transformFailure()).isEmpty();
+        assertThat(result.reason()).isEmpty();
     }
 
     @Test
@@ -61,8 +61,8 @@ class TransformingCriterionTest {
 
         assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.INCONCLUSIVE);
         assertThat(result.postconditionResults()).isEmpty();
-        assertThat(result.transformFailure()).isPresent();
-        Outcome.Fail<?> failure = result.transformFailure().get();
+        assertThat(result.reason()).isPresent();
+        Outcome.Fail<?> failure = result.reason().get();
         assertThat(failure.failure().id().name()).isEqualTo("parse-error");
         assertThat(failure.failure().message()).isEqualTo("expected an integer");
     }
@@ -80,8 +80,8 @@ class TransformingCriterionTest {
 
         assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.INCONCLUSIVE);
         assertThat(result.postconditionResults()).isEmpty();
-        assertThat(result.transformFailure()).isPresent();
-        Outcome.Fail<?> failure = result.transformFailure().get();
+        assertThat(result.reason()).isPresent();
+        Outcome.Fail<?> failure = result.reason().get();
         assertThat(failure.failure().message()).isEqualTo("kaboom");
     }
 

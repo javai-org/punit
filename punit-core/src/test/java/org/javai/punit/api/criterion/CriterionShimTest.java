@@ -110,7 +110,7 @@ class CriterionShimTest {
         CriterionSampleResult result = sole.evaluate(value);
 
         assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.PASS);
-        assertThat(result.transformFailure()).isEmpty();
+        assertThat(result.reason()).isEmpty();
         assertThat(result.postconditionResults()).hasSameSizeAs(legacy);
         for (int i = 0; i < legacy.size(); i++) {
             PostconditionResult a = legacy.get(i);

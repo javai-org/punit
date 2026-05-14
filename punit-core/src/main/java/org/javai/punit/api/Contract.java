@@ -249,7 +249,7 @@ public interface Contract<I, O> {
         // (which consumes a flat List<PostconditionResult>) is fed the
         // per-postcondition results on PASS / FAIL, and a single synthetic
         // failed PostconditionResult on INCONCLUSIVE — preserving the
-        // transform Failure's name and message for diagnostics. The
+        // reason's name and message for diagnostics. The
         // synthetic-result-on-INCONCLUSIVE mapping is the step-2 default
         // for the denominator policy; a configurable policy is the subject
         // of a later step.
@@ -259,11 +259,10 @@ public interface Contract<I, O> {
             switch (result.outcome()) {
                 case PASS, FAIL -> out.addAll(result.postconditionResults());
                 case INCONCLUSIVE -> {
-                    Outcome.Fail<?> transformFailure =
-                            result.transformFailure().orElseThrow();
+                    Outcome.Fail<?> reason = result.reason().orElseThrow();
                     out.add(PostconditionResult.failed(
-                            criterion.id() + " transform",
-                            transformFailure));
+                            criterion.id(),
+                            reason));
                 }
             }
         }

@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
  * Step 2's aggregate-mapping default: an INCONCLUSIVE per-sample
  * criterion result is folded into the verdict path as a single
  * synthetic failed {@link PostconditionResult} preserving the
- * transform failure's name and message. Verifies this end-to-end
- * through the engine's per-sample apply path.
+ * reason's name and message. Verifies this end-to-end through the
+ * engine's per-sample apply path.
  */
 class InconclusiveFoldsIntoFailTest {
 
@@ -56,8 +56,8 @@ class InconclusiveFoldsIntoFailTest {
                 contract.apply("not-a-number", tracker);
 
         // The engine folds INCONCLUSIVE into a single failed
-        // PostconditionResult that names the criterion's transform
-        // and preserves the transform Failure's name and message.
+        // PostconditionResult identified by the criterion's id and
+        // carrying the reason's name and message.
         assertThat(outcome.postconditionResults()).hasSize(1);
         PostconditionResult r = outcome.postconditionResults().get(0);
         assertThat(r.failed()).isTrue();
