@@ -21,6 +21,7 @@ module org.javai.punit.core {
 
     // ── Public API surface ────────────────────────────────────
     exports org.javai.punit.api;
+    exports org.javai.punit.api.criterion;
     exports org.javai.punit.api.spec;
     exports org.javai.punit.api.covariate;
     exports org.javai.punit.api.match;
