@@ -11,6 +11,7 @@ import org.javai.outcome.Outcome.Fail;
 import org.javai.outcome.Outcome.Ok;
 import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.criterion.Criterion;
+import org.javai.punit.api.criterion.CriterionSampleResult;
 import org.javai.punit.api.criterion.DefaultCriterion;
 
 /**
@@ -246,20 +247,27 @@ public interface Contract<I, O> {
     }
 
     private List<PostconditionResult> evaluateClauses(O value) {
-        // Read through criteria() rather than postconditions() directly.
-        // For the single-criterion default (the K=1 case that recovers
-        // today's behaviour), this is a no-op behavioural change: the
-        // synthesised criterion's postconditions() returns the same
-        // list as the contract's. For contracts that declare explicit
-        // criteria, the evaluation walks each criterion's postcondition
-        // chain in the order the criteria were added. Step 1 evaluates
-        // all criteria's postconditions flatly into a single list; the
-        // per-criterion separation required by the composite verdict
-        // is the subject of a later step.
+        // Walk criteria via per-sample evaluate(value). For each criterion
+        // we get a three-valued CriterionSampleResult; the verdict path
+        // (which consumes a flat List<PostconditionResult>) is fed the
+        // per-postcondition results on PASS / FAIL, and a single synthetic
+        // failed PostconditionResult on INCONCLUSIVE — preserving the
+        // transform Failure's name and message for diagnostics. The
+        // synthetic-result-on-INCONCLUSIVE mapping is the step-2 default
+        // for the denominator policy; a configurable policy is the subject
+        // of a later step.
         List<PostconditionResult> out = new ArrayList<>();
         for (Criterion<O> criterion : criteria()) {
-            for (Postcondition<O> p : criterion.postconditions()) {
-                out.addAll(p.evaluateAll(value));
+            CriterionSampleResult result = criterion.evaluate(value);
+            switch (result.outcome()) {
+                case PASS, FAIL -> out.addAll(result.postconditionResults());
+                case INCONCLUSIVE -> {
+                    Outcome.Fail<?> transformFailure =
+                            result.transformFailure().orElseThrow();
+                    out.add(PostconditionResult.failed(
+                            criterion.id() + " transform",
+                            transformFailure));
+                }
             }
         }
         return out;   // ServiceContractOutcome canonical constructor defensive-copies
