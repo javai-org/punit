@@ -1,29 +1,27 @@
 package org.javai.punit.api.criterion;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.Postcondition;
 
 /**
  * The single-criterion default a {@link Contract} resolves to when
- * the author has not explicitly declared criteria. The default
- * criterion's postconditions are exactly the contract's existing
- * {@link Contract#postconditions()}; its identifier is derived from
- * the contract's class name.
+ * the author has not explicitly declared criteria. Wraps the
+ * contract's existing {@link Contract#postconditions()} as a direct
+ * (no-transform) criterion; its identifier is derived from the
+ * contract's class name.
  *
- * <p>This type exists to make the K=1 isomorphism concrete: a
- * contract written today, with no awareness of the criterion
- * vocabulary, is still a single-criterion contract under the new
- * model. The same postconditions evaluated in the same order produce
- * the same per-trial pass / fail outcomes as before.
+ * <p>This type makes the K=1 isomorphism concrete: a contract
+ * written today, with no awareness of the criterion vocabulary, is
+ * still a single-criterion contract under the model. The same
+ * postconditions evaluated in the same order against the same value
+ * produce the same per-postcondition results as before.
  *
  * <p>The class is final and constructible only via its single public
- * constructor. It is the framework's shim, not an extension point.
- * Authors wanting the multi-criterion authoring surface implement
- * {@link Criterion} directly and supply their criteria via
+ * constructor. It is the framework's K=1 shim, not an extension
+ * point. Authors wanting the multi-criterion authoring surface use
+ * the {@link Criteria} factory and supply their criteria via
  * {@link Contract#criteria(CriteriaBuilder)}; they do not extend or
  * instantiate {@code DefaultCriterion}.
  *
@@ -51,38 +49,21 @@ public final class DefaultCriterion<O> implements Criterion<O> {
         return id;
     }
 
-    /**
-     * Returns the contract's postconditions directly. Bypasses the
-     * default {@link Criterion#postconditions()} materialiser because
-     * the chain already lives on the contract.
-     */
     @Override
-    public List<Postcondition<O>> postconditions() {
-        return contract.postconditions();
+    public CriterionSampleResult evaluate(O value) {
+        return DirectCriterion.evaluateChain(id, contract.postconditions(), value);
     }
 
     /**
      * Lowercase-hyphenated form of the contract class's simple name.
      * Stable for a given concrete contract class; unique within the
      * K=1 criteria list (trivially).
-     *
-     * <p>Examples:
-     * <ul>
-     *   <li>{@code ShoppingBasketContract} → {@code "shopping-basket-contract"}</li>
-     *   <li>{@code PaymentGatewaySLA} → {@code "payment-gateway-sla"}</li>
-     *   <li>An anonymous subclass yields a derived token incorporating
-     *       the enclosing class's simple name; the exact token is an
-     *       implementation detail and is only required to be stable
-     *       and report-readable.</li>
-     * </ul>
      */
     private static String deriveId(Class<?> type) {
         String simple = type.getSimpleName();
         if (simple.isEmpty()) {
             // Anonymous inner class. Fall back to a stable derived
-            // token from the enclosing-class hierarchy. getName() is
-            // unique per concrete class and stable for the life of
-            // the JVM; we trim it to keep the id readable.
+            // token from the enclosing-class hierarchy.
             String full = type.getName();
             int lastDollar = full.lastIndexOf('$');
             simple = lastDollar >= 0 ? full.substring(0, lastDollar) : full;
@@ -90,12 +71,11 @@ public final class DefaultCriterion<O> implements Criterion<O> {
             if (lastDot >= 0) simple = simple.substring(lastDot + 1);
             simple = simple + "-anon";
         }
-        // Camel-case to hyphen-separated lowercase.
         StringBuilder sb = new StringBuilder(simple.length() + 8);
         for (int i = 0; i < simple.length(); i++) {
             char c = simple.charAt(i);
             if (i > 0 && Character.isUpperCase(c)
-                && !Character.isUpperCase(simple.charAt(i - 1))) {
+                    && !Character.isUpperCase(simple.charAt(i - 1))) {
                 sb.append('-');
             }
             sb.append(Character.toLowerCase(c));

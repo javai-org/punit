@@ -1,0 +1,67 @@
+package org.javai.punit.api.criterion;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+
+import org.javai.outcome.Outcome;
+import org.javai.punit.api.Postcondition;
+
+/**
+ * A criterion that first transforms the contract's output {@code O}
+ * to a derived form {@code D}, then evaluates its postcondition
+ * chain against the derived value. Transform failure
+ * ({@link Outcome.Fail} or a thrown exception) classifies the sample
+ * as {@link CriterionSampleOutcome#INCONCLUSIVE INCONCLUSIVE}; the
+ * postcondition chain is not evaluated.
+ *
+ * <p>Package-private; constructed by
+ * {@link Criteria#transforming(String, Function, java.util.function.Consumer)}.
+ * Authors do not reference this type directly.
+ *
+ * @param <O> the contract's per-sample output value type
+ * @param <D> the type the postcondition chain evaluates against
+ *            after the transform succeeds
+ */
+final class TransformingCriterion<O, D> implements Criterion<O> {
+
+    private final String id;
+    private final Function<O, Outcome<D>> transform;
+    private final List<Postcondition<D>> postconditions;
+
+    TransformingCriterion(
+            String id,
+            Function<O, Outcome<D>> transform,
+            List<Postcondition<D>> postconditions) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.transform = Objects.requireNonNull(transform, "transform");
+        this.postconditions = List.copyOf(
+                Objects.requireNonNull(postconditions, "postconditions"));
+    }
+
+    @Override
+    public String id() {
+        return id;
+    }
+
+    @Override
+    public CriterionSampleResult evaluate(O value) {
+        Outcome<D> derived;
+        try {
+            derived = transform.apply(value);
+        } catch (RuntimeException e) {
+            String message = e.getMessage() != null
+                    ? e.getMessage()
+                    : e.getClass().getSimpleName();
+            // Outcome.fail returns Outcome<D>; the sealed hierarchy
+            // guarantees it is an Outcome.Fail<D> instance.
+            derived = Outcome.fail("transform-threw", message);
+        }
+        return switch (derived) {
+            case Outcome.Ok<D> ok ->
+                    DirectCriterion.evaluateChain(id, postconditions, ok.value());
+            case Outcome.Fail<D> f ->
+                    CriterionSampleResult.inconclusive(id, f);
+        };
+    }
+}

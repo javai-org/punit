@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ContractBuilder;
-import org.javai.punit.api.CovariateCategory;
+import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;

@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.javai.punit.api.CovariateCategory;
+import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 

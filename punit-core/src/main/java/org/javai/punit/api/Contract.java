@@ -11,6 +11,7 @@ import org.javai.outcome.Outcome.Fail;
 import org.javai.outcome.Outcome.Ok;
 import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.criterion.Criterion;
+import org.javai.punit.api.criterion.CriterionSampleResult;
 import org.javai.punit.api.criterion.DefaultCriterion;
 
 /**
@@ -30,8 +31,7 @@ import org.javai.punit.api.criterion.DefaultCriterion;
  *       {@link TokenTracker}.</li>
  *   <li>{@link #postconditions(ContractBuilder) postconditions} —
  *       declares the contract's clauses by populating the supplied
- *       builder with {@code ensure(...)} and {@code deriving(...)}
- *       calls.</li>
+ *       builder with {@code ensure(...)} calls.</li>
  * </ul>
  *
  * <p>The three {@code apply} forms are concrete defaults the
@@ -54,7 +54,7 @@ public interface Contract<I, O> {
      * <ul>
      *   <li>{@link Outcome.Ok} — the framework treats the sample as a
      *       candidate for postcondition evaluation. The carried value is
-     *       what each {@code ensure}/{@code deriving} clause sees.</li>
+     *       what each {@code ensure} clause sees.</li>
      *   <li>{@link Outcome.Fail} — the framework treats the sample as an
      *       apply-level failure. Postconditions are not evaluated (no
      *       result was produced). The full {@link org.javai.outcome.Failure}
@@ -87,9 +87,7 @@ public interface Contract<I, O> {
 
     /**
      * Declare this contract's postcondition clauses by calling
-     * {@link ContractBuilder#ensure ensure} and
-     * {@link ContractBuilder#deriving deriving} on the supplied
-     * builder.
+     * {@link ContractBuilder#ensure ensure} on the supplied builder.
      *
      * <p>The framework constructs a fresh builder, calls this method
      * to populate it, and reads the resulting clause list out via the
@@ -246,20 +244,26 @@ public interface Contract<I, O> {
     }
 
     private List<PostconditionResult> evaluateClauses(O value) {
-        // Read through criteria() rather than postconditions() directly.
-        // For the single-criterion default (the K=1 case that recovers
-        // today's behaviour), this is a no-op behavioural change: the
-        // synthesised criterion's postconditions() returns the same
-        // list as the contract's. For contracts that declare explicit
-        // criteria, the evaluation walks each criterion's postcondition
-        // chain in the order the criteria were added. Step 1 evaluates
-        // all criteria's postconditions flatly into a single list; the
-        // per-criterion separation required by the composite verdict
-        // is the subject of a later step.
+        // Walk criteria via per-sample evaluate(value). For each criterion
+        // we get a three-valued CriterionSampleResult; the verdict path
+        // (which consumes a flat List<PostconditionResult>) is fed the
+        // per-postcondition results on PASS / FAIL, and a single synthetic
+        // failed PostconditionResult on INCONCLUSIVE — preserving the
+        // reason's name and message for diagnostics. The
+        // synthetic-result-on-INCONCLUSIVE mapping is the step-2 default
+        // for the denominator policy; a configurable policy is the subject
+        // of a later step.
         List<PostconditionResult> out = new ArrayList<>();
         for (Criterion<O> criterion : criteria()) {
-            for (Postcondition<O> p : criterion.postconditions()) {
-                out.addAll(p.evaluateAll(value));
+            CriterionSampleResult result = criterion.evaluate(value);
+            switch (result.outcome()) {
+                case PASS, FAIL -> out.addAll(result.postconditionResults());
+                case INCONCLUSIVE -> {
+                    Outcome.Fail<?> reason = result.reason().orElseThrow();
+                    out.add(PostconditionResult.failed(
+                            criterion.id(),
+                            reason));
+                }
             }
         }
         return out;   // ServiceContractOutcome canonical constructor defensive-copies

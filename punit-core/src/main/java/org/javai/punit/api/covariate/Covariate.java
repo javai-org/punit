@@ -4,8 +4,6 @@ import java.time.DayOfWeek;
 import java.util.List;
 import java.util.Set;
 
-import org.javai.punit.api.CovariateCategory;
-
 /**
  * A covariate declaration on a service contract.
  *

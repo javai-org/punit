@@ -41,7 +41,7 @@
  *       evidential) vs SMOKE (sentinel, non-evidential).</li>
  *   <li>{@link org.javai.punit.api.ThresholdOrigin} — provenance of a
  *       criterion's threshold (SLA, SLO, POLICY, EMPIRICAL, …).</li>
- *   <li>{@link org.javai.punit.api.CovariateCategory} — covariate
+ *   <li>{@link org.javai.punit.api.covariate.CovariateCategory} — covariate
  *       classification used by baseline matching.</li>
  *   <li>{@link org.javai.punit.api.BudgetExhaustedBehavior},
  *       {@link org.javai.punit.api.ExceptionHandling},

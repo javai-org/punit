@@ -1,43 +1,50 @@
 package org.javai.punit.api.criterion;
 
-import java.util.List;
-
-import org.javai.punit.api.ContractBuilder;
-import org.javai.punit.api.Postcondition;
-
 /**
  * A named, contract-level partition of the functional dimension. A
- * criterion groups a set of postconditions whose pass / fail outcomes
- * form one statistical stream; a {@link org.javai.punit.api.Contract}
- * may carry one criterion (the common case today) or several, each
- * tested independently.
+ * criterion is a unit that judges a single sample's produced value
+ * and yields one of {PASS, FAIL, INCONCLUSIVE}; a
+ * {@link org.javai.punit.api.Contract} may carry one criterion (the
+ * common case today) or several, each evaluated independently.
  *
- * <p>This interface introduces the methodological vocabulary of a
- * criterion without yet adding the rest of the per-criterion
- * configuration the statistical companion eventually requires (mode,
- * procedure direction, denominator policy, confidence level, threshold
- * derivation rule, validation set). Those are the subject of later
- * evolution. For now a criterion is the **identity** and the
- * **postcondition chain**; everything else is inherited from the
- * surrounding contract.
+ * <h2>What lives at this interface</h2>
+ *
+ * <p>The public surface is deliberately minimal: an identifier and a
+ * per-sample evaluation method. Anything else a downstream consumer
+ * (verdict path, report, sentinel) needs about the criterion's
+ * behaviour on a sample rides on the returned
+ * {@link CriterionSampleResult} — per-postcondition pass/fail
+ * details, transform-failure detail when the outcome is
+ * {@link CriterionSampleOutcome#INCONCLUSIVE}, and any other
+ * diagnostic content the implementation chooses to carry.
  *
  * <h2>Authoring</h2>
  *
- * <p>The {@link #postconditions(ContractBuilder)} method mirrors the
- * shape today's {@link org.javai.punit.api.Contract#postconditions(ContractBuilder)}
- * carries: the framework supplies a fresh
- * {@link ContractBuilder}, the author populates it with
- * {@code ensure(...)} / {@code deriving(...)} calls, and the framework
- * collects the result. The default body is empty — a criterion with
- * no postconditions admits every observation.
+ * <p>The idiomatic authoring path is the {@link Criteria} factory:
+ * {@link Criteria#direct(String, java.util.function.Consumer)} for a
+ * criterion whose postconditions evaluate directly against the
+ * contract's output, or
+ * {@link Criteria#transforming(String, java.util.function.Function,
+ * java.util.function.Consumer)} for a criterion that first transforms
+ * the contract's output to a derived form, then evaluates
+ * postconditions against the derived value. The factory produces
+ * implementations that own the per-sample machinery — authors do not
+ * reimplement evaluate-then-classify by hand.
  *
- * <h2>Single-criterion contracts</h2>
+ * <p>Direct implementation of this interface is supported but is
+ * not the expected path; the factory entry points cover the
+ * methodology's two shapes (transform / no-transform) and enforce
+ * the one-transform-per-criterion cap structurally.
+ *
+ * <h2>The single-criterion default</h2>
  *
  * <p>A contract that does not explicitly declare criteria yields a
- * single criterion derived from its existing
- * {@link org.javai.punit.api.Contract#postconditions(ContractBuilder)}.
- * The K=1 case is the same statistical object as today's single-stream
- * contract; the methodology recovers it unchanged.
+ * single-criterion list (the K=1 default) whose postconditions are
+ * the contract's existing
+ * {@link org.javai.punit.api.Contract#postconditions()}. That
+ * default criterion is a {@code direct} criterion under the hood; it
+ * has no transform, and its per-sample outcome is restricted to PASS
+ * or FAIL (INCONCLUSIVE cannot arise without a transform).
  *
  * @param <O> the contract's per-sample output value type
  */
@@ -55,31 +62,22 @@ public interface Criterion<O> {
     String id();
 
     /**
-     * Declare this criterion's postcondition chain by calling
-     * {@link ContractBuilder#ensure ensure} and
-     * {@link ContractBuilder#deriving deriving} on the supplied
-     * builder.
+     * Evaluate this criterion against one sample's produced value.
      *
-     * <p>The default body is empty. A criterion with no postconditions
-     * admits every observation.
+     * <p>The returned {@link CriterionSampleResult} carries the
+     * three-valued per-sample outcome, the per-postcondition results
+     * for the chain that ran (empty on INCONCLUSIVE), and the
+     * transform failure that caused INCONCLUSIVE (empty otherwise).
      *
-     * @param b the builder to populate
+     * <p>Whether this criterion carries an internal transform, and
+     * over what derived type its postcondition chain evaluates, is
+     * an implementation detail not visible at this interface. The
+     * factory-produced implementations supply the per-sample
+     * machinery: transform-fails-into-INCONCLUSIVE,
+     * postcondition-fails-into-FAIL, all-passes-into-PASS.
+     *
+     * @param value the contract's produced output for this sample
+     * @return the criterion's per-sample evaluation record
      */
-    default void postconditions(ContractBuilder<O> b) {
-        // Default: no postconditions. Subclasses override to declare
-        // their chain.
-    }
-
-    /**
-     * Resolves this criterion's clauses to an immutable list. The
-     * framework hook; do not override. The default implementation
-     * builds a fresh {@link ContractBuilder}, calls
-     * {@link #postconditions(ContractBuilder)} to populate it, and
-     * returns the built list.
-     */
-    default List<Postcondition<O>> postconditions() {
-        ContractBuilder<O> b = new ContractBuilder<>();
-        postconditions(b);
-        return b.build();
-    }
+    CriterionSampleResult evaluate(O value);
 }

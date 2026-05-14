@@ -63,68 +63,6 @@ class ContractBuilderTest {
     }
 
     @Nested
-    @DisplayName("deriving")
-    class Derivations {
-
-        @Test
-        @DisplayName("the nested lambda's clauses are typed at the derived type")
-        void nestedClausesTypedAtDerived() {
-            List<Postcondition<String>> clauses = new ContractBuilder<String>()
-                    .deriving("length",
-                            s -> Outcome.ok(s.length()),
-                            sub -> sub
-                                    .ensure("positive length", (Integer n) -> n > 0
-                                            ? Outcome.ok()
-                                            : Outcome.fail("zero", "n=0"))
-                                    .ensure("at most 10", (Integer n) -> n <= 10
-                                            ? Outcome.ok()
-                                            : Outcome.fail("too-long", "n=" + n)))
-                    .build();
-
-            assertThat(clauses).hasSize(1);
-            Postcondition.Derived<?, ?> d = (Postcondition.Derived<?, ?>) clauses.get(0);
-            assertThat(d.description()).isEqualTo("length");
-            assertThat(d.nested()).extracting(Postcondition::description)
-                    .containsExactly("positive length", "at most 10");
-        }
-
-        @Test
-        @DisplayName("ensure and deriving compose in any order")
-        void mixedComposition() {
-            List<Postcondition<String>> clauses = new ContractBuilder<String>()
-                    .ensure("non-empty", s -> s.isEmpty()
-                            ? Outcome.fail("empty", "")
-                            : Outcome.ok())
-                    .deriving("length",
-                            s -> Outcome.ok(s.length()),
-                            sub -> sub.ensure("positive", (Integer n) -> n > 0
-                                    ? Outcome.ok()
-                                    : Outcome.fail("zero", "")))
-                    .ensure("starts upper", s -> Character.isUpperCase(s.charAt(0))
-                            ? Outcome.ok()
-                            : Outcome.fail("not-upper", ""))
-                    .build();
-
-            assertThat(clauses).extracting(Postcondition::description)
-                    .containsExactly("non-empty", "length", "starts upper");
-        }
-
-        @Test
-        @DisplayName("an empty nested lambda produces a derivation with no children")
-        void emptyNestedAllowed() {
-            List<Postcondition<String>> clauses = new ContractBuilder<String>()
-                    .deriving("length",
-                            s -> Outcome.ok(s.length()),
-                            sub -> { /* no clauses */ })
-                    .build();
-
-            assertThat(clauses).hasSize(1);
-            Postcondition.Derived<?, ?> d = (Postcondition.Derived<?, ?>) clauses.get(0);
-            assertThat(d.nested()).isEmpty();
-        }
-    }
-
-    @Nested
     @DisplayName("build")
     class Build {
 

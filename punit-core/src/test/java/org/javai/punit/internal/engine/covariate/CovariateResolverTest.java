@@ -21,7 +21,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import org.javai.punit.api.CovariateCategory;
+import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.junit.jupiter.api.DisplayName;
