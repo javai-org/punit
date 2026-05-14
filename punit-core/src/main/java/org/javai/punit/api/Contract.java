@@ -31,8 +31,7 @@ import org.javai.punit.api.criterion.DefaultCriterion;
  *       {@link TokenTracker}.</li>
  *   <li>{@link #postconditions(ContractBuilder) postconditions} —
  *       declares the contract's clauses by populating the supplied
- *       builder with {@code ensure(...)} and {@code deriving(...)}
- *       calls.</li>
+ *       builder with {@code ensure(...)} calls.</li>
  * </ul>
  *
  * <p>The three {@code apply} forms are concrete defaults the
@@ -55,7 +54,7 @@ public interface Contract<I, O> {
      * <ul>
      *   <li>{@link Outcome.Ok} — the framework treats the sample as a
      *       candidate for postcondition evaluation. The carried value is
-     *       what each {@code ensure}/{@code deriving} clause sees.</li>
+     *       what each {@code ensure} clause sees.</li>
      *   <li>{@link Outcome.Fail} — the framework treats the sample as an
      *       apply-level failure. Postconditions are not evaluated (no
      *       result was produced). The full {@link org.javai.outcome.Failure}
@@ -88,9 +87,7 @@ public interface Contract<I, O> {
 
     /**
      * Declare this contract's postcondition clauses by calling
-     * {@link ContractBuilder#ensure ensure} and
-     * {@link ContractBuilder#deriving deriving} on the supplied
-     * builder.
+     * {@link ContractBuilder#ensure ensure} on the supplied builder.
      *
      * <p>The framework constructs a fresh builder, calls this method
      * to populate it, and reads the resulting clause list out via the
