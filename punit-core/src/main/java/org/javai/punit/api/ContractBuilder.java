@@ -89,9 +89,13 @@ public final class ContractBuilder<O> {
     /**
      * Returns the accumulated clauses as an immutable list. Called by
      * the framework after the author's {@code postconditions} method
-     * has populated the builder. Authors do not call this directly.
+     * has populated the builder. Authors do not call this directly;
+     * the method is part of the framework's public surface only so
+     * that types in sibling packages (notably
+     * {@code org.javai.punit.api.criterion.Criterion}) can resolve a
+     * builder they populated.
      */
-    List<Postcondition<O>> build() {
+    public List<Postcondition<O>> build() {
         return List.copyOf(clauses);
     }
 }
