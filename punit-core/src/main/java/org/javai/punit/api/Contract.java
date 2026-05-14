@@ -9,6 +9,9 @@ import java.util.function.Function;
 import org.javai.outcome.Outcome;
 import org.javai.outcome.Outcome.Fail;
 import org.javai.outcome.Outcome.Ok;
+import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Criterion;
+import org.javai.punit.api.criterion.DefaultCriterion;
 
 /**
  * The operational layer of a service contract: how to invoke the service for
@@ -114,6 +117,74 @@ public interface Contract<I, O> {
     }
 
     /**
+     * Declare this contract's criteria — the partition of the
+     * functional dimension into named statistical streams — by
+     * calling {@link CriteriaBuilder#add(Criterion) add} on the
+     * supplied builder.
+     *
+     * <p>The default body is empty. A contract that does not
+     * explicitly declare criteria yields a single-criterion list
+     * derived from its existing {@link #postconditions(ContractBuilder)}.
+     * Today's contracts therefore satisfy the criterion model
+     * without code change: the contract <em>is</em> one criterion.
+     *
+     * <p>A contract may not override both this method (so that the
+     * resulting list is non-empty) and
+     * {@link #postconditions(ContractBuilder)} (so that the resulting
+     * chain is non-empty) at the same time. The two overrides
+     * estimate different quantities — one criterion's chain versus
+     * the criteria list — and the framework rejects the ambiguity at
+     * the first {@link #criteria()} access. Move the postconditions
+     * onto the criteria, or remove the explicit
+     * {@code criteria(CriteriaBuilder)} override and let the
+     * single-criterion default apply.
+     *
+     * @param b the builder to populate
+     */
+    default void criteria(CriteriaBuilder<O> b) {
+        // Default: no explicit criteria. The default criteria()
+        // accessor synthesises a single criterion from the contract's
+        // existing postconditions.
+    }
+
+    /**
+     * Resolves the contract's criteria to an immutable list. The
+     * framework hook; do not override. The default implementation
+     * delegates to {@link #criteria(CriteriaBuilder)}; when the
+     * author has not declared explicit criteria, the result is a
+     * single-criterion list whose postconditions are exactly
+     * {@link #postconditions()}.
+     *
+     * @throws IllegalStateException if the contract declares both an
+     *         explicit criteria list (non-empty {@code criteria(CriteriaBuilder)}
+     *         override) and a non-empty postcondition chain
+     *         (non-empty {@code postconditions(ContractBuilder)}
+     *         override). The two are structurally ambiguous; the
+     *         framework will not pick one for the author.
+     */
+    default List<Criterion<O>> criteria() {
+        CriteriaBuilder<O> b = new CriteriaBuilder<>();
+        criteria(b);
+        if (b.isEmpty()) {
+            return List.of(new DefaultCriterion<>(this));
+        }
+        if (!postconditions().isEmpty()) {
+            throw new IllegalStateException(
+                    "Contract " + getClass().getName()
+                            + " declares both a non-empty postcondition chain"
+                            + " (via postconditions(ContractBuilder)) and an"
+                            + " explicit criteria list (via"
+                            + " criteria(CriteriaBuilder)). The two overrides"
+                            + " estimate different quantities; the framework"
+                            + " will not pick one. Move the postconditions"
+                            + " onto a criterion, or remove the explicit"
+                            + " criteria override and rely on the"
+                            + " single-criterion default.");
+        }
+        return b.build();
+    }
+
+    /**
      * Run one sample without an expected value or a matcher.
      * Postconditions are evaluated against the produced value; no
      * match step.
@@ -175,9 +246,21 @@ public interface Contract<I, O> {
     }
 
     private List<PostconditionResult> evaluateClauses(O value) {
+        // Read through criteria() rather than postconditions() directly.
+        // For the single-criterion default (the K=1 case that recovers
+        // today's behaviour), this is a no-op behavioural change: the
+        // synthesised criterion's postconditions() returns the same
+        // list as the contract's. For contracts that declare explicit
+        // criteria, the evaluation walks each criterion's postcondition
+        // chain in the order the criteria were added. Step 1 evaluates
+        // all criteria's postconditions flatly into a single list; the
+        // per-criterion separation required by the composite verdict
+        // is the subject of a later step.
         List<PostconditionResult> out = new ArrayList<>();
-        for (Postcondition<O> p : postconditions()) {
-            out.addAll(p.evaluateAll(value));
+        for (Criterion<O> criterion : criteria()) {
+            for (Postcondition<O> p : criterion.postconditions()) {
+                out.addAll(p.evaluateAll(value));
+            }
         }
         return out;   // ServiceContractOutcome canonical constructor defensive-copies
     }
