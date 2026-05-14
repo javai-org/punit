@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import org.javai.punit.api.CovariateCategory;
-
 /**
  * A day-of-week covariate. Days within a single inner set match the
  * same baseline; days falling outside every declared partition form

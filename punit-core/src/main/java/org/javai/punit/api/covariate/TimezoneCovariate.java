@@ -1,7 +1,5 @@
 package org.javai.punit.api.covariate;
 
-import org.javai.punit.api.CovariateCategory;
-
 /**
  * A timezone covariate. The system timezone (resolved at sample time)
  * is captured as an exact-string identity covariate — no partitioning,

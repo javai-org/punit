@@ -5,8 +5,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
-import org.javai.punit.api.CovariateCategory;
-
 /**
  * A region covariate. Each region is an ISO 3166-1 alpha-2 country
  * code (e.g. {@code "FR"}, {@code "DE"}). Regions within a single

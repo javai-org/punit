@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.CovariateCategory;
+import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ContractBuilder;

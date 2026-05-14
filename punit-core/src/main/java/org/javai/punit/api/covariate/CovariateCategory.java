@@ -1,4 +1,4 @@
-package org.javai.punit.api;
+package org.javai.punit.api.covariate;
 
 /**
  * Classification of covariates by their nature and matching semantics.

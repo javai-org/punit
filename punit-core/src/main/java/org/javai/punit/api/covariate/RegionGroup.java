@@ -1,4 +1,4 @@
-package org.javai.punit.api;
+package org.javai.punit.api.covariate;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;

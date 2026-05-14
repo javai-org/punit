@@ -3,8 +3,6 @@ package org.javai.punit.api.covariate;
 import java.util.List;
 import java.util.Objects;
 
-import org.javai.punit.api.CovariateCategory;
-
 /**
  * A time-of-day covariate. Each period string takes the form
  * {@code HH:mm/Nh} (start time, slash, duration in hours).

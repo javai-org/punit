@@ -2,8 +2,6 @@ package org.javai.punit.api.covariate;
 
 import java.util.Objects;
 
-import org.javai.punit.api.CovariateCategory;
-
 /**
  * A custom covariate. The framework knows the name and the category;
  * the resolution mechanism (how the value is captured at sample time)
