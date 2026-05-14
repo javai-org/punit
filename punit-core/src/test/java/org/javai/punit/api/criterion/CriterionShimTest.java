@@ -14,22 +14,13 @@ import org.javai.punit.api.TokenTracker;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for the vocabulary shim introduced by the first step of the
- * multi-criterion rollout. Asserts that:
- *
- * <ul>
- *   <li>A contract with no explicit criteria yields a single-criterion
- *       list derived from its postconditions, with the same chain in
- *       the same order.</li>
- *   <li>A contract that declares both a non-empty postconditions chain
- *       and a non-empty explicit criteria list throws at first
- *       criteria() access — the framework refuses the structural
- *       ambiguity.</li>
- *   <li>The engine's read-through criteria() produces the same
- *       per-sample postcondition results as the legacy direct read.</li>
- *   <li>The default-criterion identifier is stable across calls and
- *       readable as a report token.</li>
- * </ul>
+ * Tests for the criterion vocabulary as reshaped in step 2 of the
+ * multi-criterion rollout: {@link Criterion} now exposes only
+ * {@code id()} and {@code evaluate(value)}. The K=1 isomorphism is
+ * preserved — a contract written today, with no awareness of the
+ * criterion vocabulary, produces the same per-sample postcondition
+ * results through the criterion-mediated path as through a direct
+ * read of {@link Contract#postconditions()}.
  */
 class CriterionShimTest {
 
@@ -54,7 +45,8 @@ class CriterionShimTest {
         }
     }
 
-    // A contract with explicit criteria (one criterion in this case).
+    // A contract with explicit criteria, declared via the Criteria
+    // factory (the idiomatic authoring path).
     static final class ExplicitCriteriaContract implements Contract<String, String> {
         @Override
         public Outcome<String> invoke(String input, TokenTracker tracker) {
@@ -68,20 +60,11 @@ class CriterionShimTest {
 
         @Override
         public void criteria(CriteriaBuilder<String> b) {
-            b.add(new Criterion<String>() {
-                @Override
-                public String id() {
-                    return "well-formed";
-                }
-
-                @Override
-                public void postconditions(ContractBuilder<String> cb) {
-                    cb.ensure("non-empty", v ->
+            b.add(Criteria.direct("well-formed",
+                    cb -> cb.ensure("non-empty", v ->
                             v.isEmpty()
                                     ? Outcome.fail("empty", "")
-                                    : Outcome.ok());
-                }
-            });
+                                    : Outcome.ok())));
         }
     }
 
@@ -101,38 +84,52 @@ class CriterionShimTest {
 
         @Override
         public void criteria(CriteriaBuilder<String> b) {
-            b.add(new Criterion<String>() {
-                @Override
-                public String id() {
-                    return "other";
-                }
-
-                @Override
-                public void postconditions(ContractBuilder<String> cb) {
-                    cb.ensure("starts-with-h", v ->
+            b.add(Criteria.direct("other",
+                    cb -> cb.ensure("starts-with-h", v ->
                             v.startsWith("h")
                                     ? Outcome.ok()
-                                    : Outcome.fail("no-h", ""));
-                }
-            });
+                                    : Outcome.fail("no-h", ""))));
         }
     }
 
     @Test
-    void singleCriterionDefaultDerivesFromPostconditions() {
+    void singleCriterionDefaultEvaluatesSameAsLegacyPostconditionsWalk() {
+        // The K=1 default's per-sample evaluation must produce the
+        // same postcondition results as a direct walk of the
+        // contract's postconditions(). Step 2's behaviour-preserving
+        // invariant.
         var contract = new SingleStreamContract();
-        List<Criterion<String>> criteria = contract.criteria();
+        String value = "hello world";
 
-        assertThat(criteria).hasSize(1);
-        Criterion<String> sole = criteria.get(0);
+        List<PostconditionResult> legacy = new java.util.ArrayList<>();
+        for (Postcondition<String> p : contract.postconditions()) {
+            legacy.addAll(p.evaluateAll(value));
+        }
 
-        List<Postcondition<String>> fromCriterion = sole.postconditions();
-        List<Postcondition<String>> fromContract = contract.postconditions();
+        Criterion<String> sole = contract.criteria().get(0);
+        CriterionSampleResult result = sole.evaluate(value);
 
-        assertThat(fromCriterion).hasSameSizeAs(fromContract);
-        // Same postconditions in the same order — the synthesised
-        // criterion is a thin pass-through.
-        assertThat(fromCriterion).containsExactlyElementsOf(fromContract);
+        assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.PASS);
+        assertThat(result.transformFailure()).isEmpty();
+        assertThat(result.postconditionResults()).hasSameSizeAs(legacy);
+        for (int i = 0; i < legacy.size(); i++) {
+            PostconditionResult a = legacy.get(i);
+            PostconditionResult b = result.postconditionResults().get(i);
+            assertThat(b.description()).isEqualTo(a.description());
+            assertThat(b.passed()).isEqualTo(a.passed());
+        }
+    }
+
+    @Test
+    void singleCriterionDefaultClassifiesFailWhenAnyPostconditionFails() {
+        var contract = new SingleStreamContract();
+        // "world" passes "non-empty" but fails "starts with greeting".
+        CriterionSampleResult result = contract.criteria().get(0).evaluate("world");
+
+        assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.FAIL);
+        assertThat(result.postconditionResults()).hasSize(2);
+        assertThat(result.postconditionResults().get(0).passed()).isTrue();
+        assertThat(result.postconditionResults().get(1).failed()).isTrue();
     }
 
     @Test
@@ -142,8 +139,15 @@ class CriterionShimTest {
         String second = contract.criteria().get(0).id();
         assertThat(first).isEqualTo(second);
         assertThat(first).isNotBlank();
-        // Should be a reasonable report-friendly token.
         assertThat(first).matches("[a-z0-9-]+");
+    }
+
+    @Test
+    void defaultCriterionIdDerivedFromContractClass() {
+        var contract = new SingleStreamContract();
+        String id = contract.criteria().get(0).id();
+        // SingleStreamContract → single-stream-contract.
+        assertThat(id).isEqualTo("single-stream-contract");
     }
 
     @Test
@@ -153,7 +157,8 @@ class CriterionShimTest {
 
         assertThat(criteria).hasSize(1);
         assertThat(criteria.get(0).id()).isEqualTo("well-formed");
-        assertThat(criteria.get(0).postconditions()).hasSize(1);
+        CriterionSampleResult result = criteria.get(0).evaluate("hello");
+        assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.PASS);
     }
 
     @Test
@@ -164,45 +169,5 @@ class CriterionShimTest {
                 .hasMessageContaining("postconditions(ContractBuilder)")
                 .hasMessageContaining("criteria(CriteriaBuilder)")
                 .hasMessageContaining(BothOverriddenContract.class.getName());
-    }
-
-    @Test
-    void engineReadThroughCriteriaMatchesLegacyDirectRead() {
-        // The K=1 path's evaluation must produce the same per-sample
-        // postcondition results as a direct evaluation of the legacy
-        // postconditions() list. This is the behaviour-preserving
-        // invariant of step 1.
-        var contract = new SingleStreamContract();
-        String value = "hello world";
-
-        // Legacy path — direct read.
-        var legacyResults = new java.util.ArrayList<PostconditionResult>();
-        for (Postcondition<String> p : contract.postconditions()) {
-            legacyResults.addAll(p.evaluateAll(value));
-        }
-
-        // New path — read through criteria().
-        var newResults = new java.util.ArrayList<PostconditionResult>();
-        for (Criterion<String> c : contract.criteria()) {
-            for (Postcondition<String> p : c.postconditions()) {
-                newResults.addAll(p.evaluateAll(value));
-            }
-        }
-
-        assertThat(newResults).hasSameSizeAs(legacyResults);
-        for (int i = 0; i < legacyResults.size(); i++) {
-            PostconditionResult a = legacyResults.get(i);
-            PostconditionResult b = newResults.get(i);
-            assertThat(b.description()).isEqualTo(a.description());
-            assertThat(b.passed()).isEqualTo(a.passed());
-        }
-    }
-
-    @Test
-    void defaultCriterionIdDerivedFromContractClass() {
-        var contract = new SingleStreamContract();
-        String id = contract.criteria().get(0).id();
-        // SingleStreamContract → single-stream-contract.
-        assertThat(id).isEqualTo("single-stream-contract");
     }
 }
