@@ -9,7 +9,10 @@ import java.util.Map;
 import java.util.Optional;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.internal.engine.emit.LatencySection;
+import org.javai.punit.verdict.CriterionRow;
+import org.javai.punit.verdict.PerCriterionStructure;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.ExecutionSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.FunctionalDimension;
@@ -169,6 +172,9 @@ final class HtmlReportWriter {
         html.append("<pre class=\"level3\">").append(VerdictTextRenderer.renderStatisticalAnalysisHtml(verdict)).append("</pre>\n");
         html.append("</details>\n");
 
+        // Level 3: methodology-level per-criterion breakdown (sibling to Statistical Analysis)
+        appendPerCriterionBreakdown(html, verdict);
+
         // Per-clause failure histogram (only when non-empty)
         appendPostconditionFailures(html, verdict.postconditionFailures());
 
@@ -300,6 +306,62 @@ final class HtmlReportWriter {
         };
     }
 
+    private static String verdictCssClass(Verdict verdict) {
+        return switch (verdict) {
+            case PASS -> "punit-pass";
+            case FAIL -> "punit-fail";
+            case INCONCLUSIVE -> "punit-inconclusive";
+        };
+    }
+
+    private static String formatRate(double value) {
+        if (Double.isNaN(value)) {
+            return "&mdash;";
+        }
+        return String.format(java.util.Locale.ROOT, "%.4f", value);
+    }
+
+    /**
+     * Renders the methodology-level per-criterion breakdown as a
+     * nested {@code <details>} block at the deepest expansion level.
+     * Each row appears as its own group, headed by the criterion's
+     * identifier (no separate "Criterion" label — the id is the
+     * heading). The latency criterion is intentionally absent here:
+     * latency is surfaced once, in the dedicated p50 / p95 / p99
+     * columns at level 1 and the Statistical Analysis block at level
+     * 3. The block is omitted entirely when no per-criterion
+     * structure is present (legacy 1.0 XML, apply-level-failure
+     * runs).
+     */
+    private static void appendPerCriterionBreakdown(
+            StringBuilder html, ProbabilisticTestVerdict verdict) {
+        Optional<PerCriterionStructure> opt = verdict.perCriterion();
+        if (opt.isEmpty() || opt.get().criteria().isEmpty()) {
+            return;
+        }
+        PerCriterionStructure pc = opt.get();
+        html.append("<details>\n");
+        html.append("<summary>Per-criterion breakdown</summary>\n");
+        html.append("<div class=\"per-criterion\">\n");
+        for (CriterionRow row : pc.criteria()) {
+            html.append("<div class=\"criterion-block\">\n");
+            html.append("<h4>").append(escape(row.criterionId()))
+                    .append(" <span class=\"").append(verdictCssClass(row.verdict()))
+                    .append("\">").append(row.verdict().name()).append("</span></h4>\n");
+            html.append("<dl>\n");
+            html.append("<dt>Pass</dt><dd>").append(row.pass()).append("</dd>\n");
+            html.append("<dt>Fail</dt><dd>").append(row.fail()).append("</dd>\n");
+            html.append("<dt>Inconclusive</dt><dd>").append(row.inconclusive()).append("</dd>\n");
+            html.append("<dt>Total</dt><dd>").append(row.total()).append("</dd>\n");
+            html.append("<dt>Observed rate</dt><dd>").append(formatRate(row.observedRate())).append("</dd>\n");
+            html.append("<dt>Threshold</dt><dd>").append(formatRate(row.threshold())).append("</dd>\n");
+            html.append("</dl>\n");
+            html.append("</div>\n");
+        }
+        html.append("</div>\n");
+        html.append("</details>\n");
+    }
+
     private static String escape(String text) {
         if (text == null) return "";
         return text.replace("&", "&amp;")
@@ -410,6 +472,23 @@ final class HtmlReportWriter {
                 .punit-pass { color: var(--pass-color); font-weight: 600; }
                 .punit-fail { color: var(--fail-color); font-weight: 600; }
                 .punit-inconclusive { color: var(--inconclusive-color); font-weight: 600; }
+                .per-criterion { padding: 0.5rem 0 0.25rem 0.5rem; }
+                .criterion-block { margin: 0.25rem 0 0.75rem 0; }
+                .criterion-block h4 {
+                    font-size: 0.875rem;
+                    font-family: monospace;
+                    margin-bottom: 0.25rem;
+                }
+                .criterion-block dl {
+                    display: grid;
+                    grid-template-columns: max-content 1fr;
+                    column-gap: 1rem;
+                    row-gap: 0.1rem;
+                    font-size: 0.8125rem;
+                    margin-left: 0.5rem;
+                }
+                .criterion-block dt { color: var(--text-muted); }
+                .criterion-block dd { font-family: monospace; }
                 .latency-observed { color: #adb5bd; }
                 .latency-pass { color: var(--pass-color); font-weight: 600; }
                 .latency-fail { color: var(--fail-color); font-weight: 600; }

@@ -13,6 +13,8 @@ import org.javai.punit.verdict.TokenMode;
 import org.javai.punit.internal.engine.emit.LatencySection;
 import org.javai.punit.verdict.TerminationReason;
 import org.javai.punit.api.ServiceContractAttributes;
+import org.javai.punit.verdict.CriterionRow;
+import org.javai.punit.verdict.PerCriterionStructure;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CostSummary;
 import org.javai.punit.verdict.ProbabilisticTestVerdict.CovariateStatus;
@@ -534,7 +536,82 @@ class HtmlReportWriterTest {
         }
     }
 
+    @Nested
+    @DisplayName("Per-criterion breakdown")
+    class PerCriterionBreakdown {
+
+        @Test
+        @DisplayName("renders a Per-criterion breakdown <details> block when perCriterion is present")
+        void rendersBlockWhenPresent() {
+            PerCriterionStructure pc = new PerCriterionStructure(
+                    List.of(new CriterionRow(
+                            "bernoulli-pass-rate",
+                            org.javai.punit.api.spec.Verdict.PASS,
+                            95, 5, 0, 0.95, 0.9)),
+                    org.javai.punit.api.spec.Verdict.PASS);
+
+            String html = HtmlReportWriter.generate(List.of(verdictWithPerCriterion(pc)));
+
+            assertThat(html).contains("<summary>Per-criterion breakdown</summary>");
+            assertThat(html).contains("bernoulli-pass-rate");
+            assertThat(html).contains("0.9500");
+            assertThat(html).contains("0.9000");
+        }
+
+        @Test
+        @DisplayName("omits the block entirely when perCriterion is empty")
+        void omitsBlockWhenAbsent() {
+            String html = HtmlReportWriter.generate(List.of(passingVerdict()));
+
+            assertThat(html).doesNotContain("Per-criterion breakdown");
+        }
+
+        @Test
+        @DisplayName("renders NaN observed-rate and threshold as a dash, not the literal NaN")
+        void rendersNaNAsDash() {
+            PerCriterionStructure pc = new PerCriterionStructure(
+                    List.of(new CriterionRow(
+                            "bernoulli-pass-rate",
+                            org.javai.punit.api.spec.Verdict.INCONCLUSIVE,
+                            0, 0, 0, Double.NaN, Double.NaN)),
+                    org.javai.punit.api.spec.Verdict.INCONCLUSIVE);
+
+            String html = HtmlReportWriter.generate(List.of(verdictWithPerCriterion(pc)));
+
+            assertThat(html).contains("<summary>Per-criterion breakdown</summary>");
+            assertThat(html).contains("&mdash;");
+            assertThat(html).doesNotContain(">NaN<");
+        }
+
+        @Test
+        @DisplayName("each row's verdict carries the matching three-valued CSS class")
+        void verdictBadgeCarriesCssClass() {
+            PerCriterionStructure failingPc = new PerCriterionStructure(
+                    List.of(new CriterionRow(
+                            "bernoulli-pass-rate",
+                            org.javai.punit.api.spec.Verdict.FAIL,
+                            65, 35, 0, 0.65, 0.9)),
+                    org.javai.punit.api.spec.Verdict.FAIL);
+
+            String html = HtmlReportWriter.generate(List.of(verdictWithPerCriterion(failingPc)));
+
+            // The verdict badge inside the per-criterion block is wrapped in
+            // a span carrying the verdict's CSS class.
+            assertThat(html).contains("<span class=\"punit-fail\">FAIL</span>");
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    private ProbabilisticTestVerdict verdictWithPerCriterion(PerCriterionStructure pc) {
+        ProbabilisticTestVerdict base = passingVerdict();
+        return new ProbabilisticTestVerdict(
+                base.correlationId(), base.timestamp(), base.identity(), base.execution(),
+                base.functional(), base.latency(), base.statistics(), base.covariates(),
+                base.cost(), base.pacing(), base.provenance(), base.termination(),
+                base.environmentMetadata(), base.junitPassed(), base.punitVerdict(),
+                base.verdictReason(), base.postconditionFailures(), Optional.of(pc));
+    }
 
     private ProbabilisticTestVerdict passingVerdict() {
         return minimalVerdict("shouldPass", true, PUnitVerdict.PASS);

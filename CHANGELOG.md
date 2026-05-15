@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (HTML report — per-criterion breakdown)
+
+- **HTML report renders the methodology-level per-criterion
+  decomposition** at the deepest expansion level of each test row.
+  When the verdict carries a `<per-criterion>` structure (verdict
+  XML 1.2, or in-memory results that produced one), the new
+  `Per-criterion breakdown` `<details>` block lists one block per
+  criterion, headed by the criterion's identifier. Each block
+  shows the three-valued verdict (PASS / FAIL / INCONCLUSIVE) with
+  the existing verdict-CSS colouring, the per-outcome sample
+  counts (pass / fail / inconclusive / total), the observed
+  marginal pass-rate, and the threshold the row was judged
+  against. `NaN` observed-rates and thresholds render as a dash.
+  The block is omitted entirely for runs that produced no
+  per-criterion structure (legacy 1.0 XML, apply-level-failure
+  runs).
+- **Composite verdict is not duplicated as a separate line.** The
+  level-1 verdict column already carries the composite under the
+  step-4 cutover (the composite *is* the test's verdict); the new
+  block surfaces the rows the composite was composed from.
+- **Latency is not added as a per-criterion row.** It remains
+  surfaced once, in the dedicated p50 / p95 / p99 columns at
+  level 1 and the Statistical Analysis block at level 3.
+
 ### Removed (`ProbabilisticTestResult` back-compat constructors)
 
 - **`ProbabilisticTestResult` 5-arg, 6-arg, 7-arg, 8-arg, and 9-arg
