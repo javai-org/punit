@@ -220,12 +220,37 @@ public final class ProbabilisticTest implements Spec {
                 }
             }
 
-            Verdict composed = Verdict.compose(evaluated);
+            Verdict legacyAggregate = Verdict.compose(evaluated);
             EngineRunSummary engineSummary = buildEngineSummary(s, evaluated, baselineFilename);
             PerCriterionEvaluation perCriterionEvaluation =
                     PerCriterionVerdicts.derive(evaluated, s.criterionSampleCounts());
+            // Substitute the functional verdict-component's verdict with
+            // the per-criterion composite, then continue to use
+            // Verdict.compose for cross-dimension aggregation. This keeps
+            // latency-dimension criteria (PercentileLatency etc.) in
+            // their existing role — they remain spec-layer EvaluatedCriterion
+            // entries and contribute to the final verdict under the
+            // existing INCONCLUSIVE-first composition rule — while the
+            // functional dimension's verdict is now driven by the
+            // methodology-level per-criterion composite under the
+            // FAIL-dominant aggregation rule (§1.4.6).
+            //
+            // The substitution is a no-op for K=1 contracts (per-criterion
+            // composite over one verdict equals that verdict; step-3's
+            // K=1 isomorphism test pins this), preserving byte-identical
+            // behaviour. For K>1 contracts the hiding-result case flips:
+            // a single failing criterion now drives the functional
+            // verdict to FAIL.
+            //
+            // Empty per-criterion evaluation (apply-level-failure runs
+            // where Contract.evaluateClauses never fired) leaves the
+            // legacy compose result intact.
+            List<EvaluatedCriterion> compositeAdjusted = perCriterionEvaluation.perCriterionVerdicts().isEmpty()
+                    ? evaluated
+                    : substituteFunctionalVerdict(evaluated, perCriterionEvaluation.compositeVerdict());
+            Verdict authoritative = Verdict.compose(compositeAdjusted);
             return new ProbabilisticTestResult(
-                    composed, factorBundle, evaluated, intent,
+                    authoritative, factorBundle, evaluated, intent,
                     List.copyOf(warnings),
                     CovariateAlignment.compute(
                             CovariateProfile.empty(),
@@ -233,7 +258,35 @@ public final class ProbabilisticTest implements Spec {
                     Optional.empty(),
                     s.failuresByPostcondition(),
                     engineSummary,
-                    perCriterionEvaluation);
+                    perCriterionEvaluation,
+                    Optional.of(legacyAggregate));
+        }
+
+        /**
+         * Returns a copy of {@code evaluated} in which the
+         * {@code bernoulli-pass-rate} entry's verdict is replaced by
+         * the supplied composite verdict. Other entries (latency,
+         * future dimensions) pass through unchanged. When no
+         * bernoulli-pass-rate entry is present (a spec without a
+         * functional criterion — currently unreachable but defensively
+         * supported), the list is returned unchanged.
+         */
+        private static List<EvaluatedCriterion> substituteFunctionalVerdict(
+                List<EvaluatedCriterion> evaluated, Verdict composite) {
+            List<EvaluatedCriterion> out = new java.util.ArrayList<>(evaluated.size());
+            for (EvaluatedCriterion ec : evaluated) {
+                if ("bernoulli-pass-rate".equals(ec.result().criterionName())) {
+                    CriterionResult substituted = new CriterionResult(
+                            ec.result().criterionName(),
+                            composite,
+                            ec.result().explanation(),
+                            ec.result().detail());
+                    out.add(new EvaluatedCriterion(substituted, ec.role()));
+                } else {
+                    out.add(ec);
+                }
+            }
+            return out;
         }
 
         /**
