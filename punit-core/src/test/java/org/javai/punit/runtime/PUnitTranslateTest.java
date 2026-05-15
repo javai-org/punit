@@ -15,8 +15,10 @@ import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.covariate.CovariateAlignment;
 import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.CriterionRole;
+import org.javai.punit.api.spec.EngineRunSummary;
 import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.InconclusiveReasons;
+import org.javai.punit.api.spec.PerCriterionEvaluation;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 import org.junit.jupiter.api.AfterEach;
@@ -172,7 +174,9 @@ class PUnitTranslateTest {
                 warnings,
                 CovariateAlignment.none(),
                 Optional.empty(),
-                Map.of());
+                Map.of(),
+                EngineRunSummary.empty(),
+                PerCriterionEvaluation.empty());
     }
 
     private static ProbabilisticTestResult passResult() {
@@ -185,7 +189,9 @@ class PUnitTranslateTest {
                 CriterionRole.REQUIRED);
         return new ProbabilisticTestResult(
                 Verdict.PASS, FACTORS, List.of(ec),
-                TestIntent.VERIFICATION, List.of());
+                TestIntent.VERIFICATION, List.of(),
+                CovariateAlignment.none(), Optional.empty(), Map.of(),
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
     }
 
     private static ProbabilisticTestResult failResult() {
@@ -198,6 +204,8 @@ class PUnitTranslateTest {
                 CriterionRole.REQUIRED);
         return new ProbabilisticTestResult(
                 Verdict.FAIL, FACTORS, List.of(ec),
-                TestIntent.VERIFICATION, List.of());
+                TestIntent.VERIFICATION, List.of(),
+                CovariateAlignment.none(), Optional.empty(), Map.of(),
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
     }
 }

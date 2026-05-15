@@ -30,6 +30,7 @@ import org.javai.punit.api.spec.EngineRunSummary;
 import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.PerCriterionEvaluation;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.verdict.ProbabilisticTestVerdict;
@@ -106,7 +107,7 @@ class VerdictAdapterIntegrationTest {
                 Verdict.INCONCLUSIVE, FactorBundle.of(new Factors()),
                 List.of(), TestIntent.VERIFICATION, List.of(),
                 misaligned, Optional.empty(), Map.of(),
-                EngineRunSummary.empty());
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
 
         ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(
                 result,
@@ -152,7 +153,8 @@ class VerdictAdapterIntegrationTest {
                                 100),
                         TerminationReason.COMPLETED,
                         0.95,
-                        Optional.of("payment-gateway.yaml")));
+                        Optional.of("payment-gateway.yaml")),
+                PerCriterionEvaluation.empty());
     }
 
     private static String serialise(ProbabilisticTestVerdict verdict) throws Exception {

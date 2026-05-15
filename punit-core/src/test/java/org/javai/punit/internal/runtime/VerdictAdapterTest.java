@@ -20,6 +20,7 @@ import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
 import org.javai.punit.api.spec.InconclusiveReasons;
+import org.javai.punit.api.spec.PerCriterionEvaluation;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.verdict.TerminationReason;
@@ -117,7 +118,7 @@ class VerdictAdapterTest {
                     Verdict.PASS, FactorBundle.of(new Factors()),
                     List.of(), TestIntent.SMOKE, List.of(),
                     CovariateAlignment.none(), Optional.empty(), Map.of(),
-                    EngineRunSummary.empty());
+                    EngineRunSummary.empty(), PerCriterionEvaluation.empty());
 
             ProbabilisticTestVerdict verdict = adapt(result);
 
@@ -235,7 +236,7 @@ class VerdictAdapterTest {
                     Verdict.INCONCLUSIVE, FactorBundle.of(new Factors()),
                     List.of(), TestIntent.VERIFICATION, List.of(),
                     misaligned, Optional.empty(), Map.of(),
-                    EngineRunSummary.empty());
+                    EngineRunSummary.empty(), PerCriterionEvaluation.empty());
 
             ProbabilisticTestVerdict verdict = adapt(result);
 
@@ -330,7 +331,7 @@ class VerdictAdapterTest {
                     Verdict.FAIL, FactorBundle.of(new Factors()),
                     List.of(), TestIntent.VERIFICATION, List.of(),
                     CovariateAlignment.none(), Optional.empty(), hist,
-                    EngineRunSummary.empty());
+                    EngineRunSummary.empty(), PerCriterionEvaluation.empty());
 
             ProbabilisticTestVerdict verdict = adapt(result);
 
@@ -371,7 +372,8 @@ class VerdictAdapterTest {
                             LatencyResult.empty(),
                             org.javai.punit.api.spec.TerminationReason.COMPLETED,
                             0.95,
-                            Optional.of("payment-gateway-1fbf-54c6-86a6.yaml")));
+                            Optional.of("payment-gateway-1fbf-54c6-86a6.yaml")),
+                    PerCriterionEvaluation.empty());
 
             ProbabilisticTestVerdict verdict = adapt(result);
 
@@ -478,7 +480,7 @@ class VerdictAdapterTest {
                 v, FactorBundle.of(new Factors()),
                 List.of(), TestIntent.VERIFICATION, List.of(),
                 CovariateAlignment.none(), Optional.empty(), Map.of(),
-                EngineRunSummary.empty());
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
     }
 
     /**
@@ -499,7 +501,7 @@ class VerdictAdapterTest {
                 Verdict.INCONCLUSIVE, FactorBundle.of(new Factors()),
                 List.of(ec), TestIntent.VERIFICATION, List.of(),
                 CovariateAlignment.none(), Optional.empty(), Map.of(),
-                EngineRunSummary.empty());
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
     }
 
     private static ProbabilisticTestResult resultWithEngineSummary(
@@ -508,7 +510,7 @@ class VerdictAdapterTest {
                 v, FactorBundle.of(new Factors()),
                 List.of(), TestIntent.VERIFICATION, List.of(),
                 CovariateAlignment.none(), Optional.empty(), Map.of(),
-                engine);
+                engine, PerCriterionEvaluation.empty());
     }
 
     private static ProbabilisticTestResult resultWithCriteria(
@@ -523,7 +525,7 @@ class VerdictAdapterTest {
                 List.of(new EvaluatedCriterion(cr, CriterionRole.REQUIRED)),
                 TestIntent.VERIFICATION, List.of(),
                 CovariateAlignment.none(), Optional.empty(), Map.of(),
-                EngineRunSummary.empty());
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
     }
 
     private static ProbabilisticTestResult resultWithTermination(
