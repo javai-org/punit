@@ -41,7 +41,9 @@ public record ProbabilisticTestVerdict(
         boolean junitPassed,
         PUnitVerdict punitVerdict,
         String verdictReason,
-        Map<String, FailureCount> postconditionFailures
+        Map<String, FailureCount> postconditionFailures,
+        Optional<PerCriterionStructure> perCriterion,
+        Optional<org.javai.punit.api.spec.Verdict> legacyAggregateVerdict
 ) {
 
     public ProbabilisticTestVerdict {
@@ -51,13 +53,48 @@ public record ProbabilisticTestVerdict(
         postconditionFailures = postconditionFailures != null
                 ? Collections.unmodifiableMap(new LinkedHashMap<>(postconditionFailures))
                 : Map.of();
+        perCriterion = perCriterion != null ? perCriterion : Optional.empty();
+        legacyAggregateVerdict = legacyAggregateVerdict != null
+                ? legacyAggregateVerdict
+                : Optional.empty();
+    }
+
+    /**
+     * Backward-compatible constructor for the 17-component shape that
+     * predates the per-criterion structural surface (CR09 / CR01 in
+     * the verdict XML). Defaults both new components to empty. Used
+     * by test fixtures and any producer that doesn't yet thread the
+     * per-criterion structure through.
+     */
+    public ProbabilisticTestVerdict(
+            String correlationId,
+            Instant timestamp,
+            TestIdentity identity,
+            ExecutionSummary execution,
+            Optional<FunctionalDimension> functional,
+            Optional<LatencyDimension> latency,
+            StatisticalAnalysis statistics,
+            CovariateStatus covariates,
+            CostSummary cost,
+            Optional<PacingSummary> pacing,
+            Optional<SpecProvenance> provenance,
+            Termination termination,
+            Map<String, String> environmentMetadata,
+            boolean junitPassed,
+            PUnitVerdict punitVerdict,
+            String verdictReason,
+            Map<String, FailureCount> postconditionFailures) {
+        this(correlationId, timestamp, identity, execution, functional, latency,
+                statistics, covariates, cost, pacing, provenance, termination,
+                environmentMetadata, junitPassed, punitVerdict, verdictReason,
+                postconditionFailures, Optional.empty(), Optional.empty());
     }
 
     /**
      * Backward-compatible constructor for the 16-component shape that
      * predates the per-postcondition failure histogram. Defaults the
-     * histogram to an empty map. Used by test fixtures and any
-     * producer that doesn't yet thread the histogram through.
+     * histogram to an empty map and the per-criterion structure /
+     * legacy aggregate to empty.
      */
     public ProbabilisticTestVerdict(
             String correlationId,
@@ -79,7 +116,7 @@ public record ProbabilisticTestVerdict(
         this(correlationId, timestamp, identity, execution, functional, latency,
                 statistics, covariates, cost, pacing, provenance, termination,
                 environmentMetadata, junitPassed, punitVerdict, verdictReason,
-                Map.of());
+                Map.of(), Optional.empty(), Optional.empty());
     }
 
     // ── TestIdentity ──────────────────────────────────────────────────────
