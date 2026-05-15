@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed (`ProbabilisticTestResult` back-compat constructors)
+
+- **`ProbabilisticTestResult` 5-arg, 6-arg, 7-arg, 8-arg, and 9-arg
+  back-compat constructors** withdrawn. Introduced over the rollouts
+  that added `CovariateAlignment`, `contractRef`,
+  `failuresByPostcondition`, `EngineRunSummary`, and
+  `PerCriterionEvaluation` respectively, they have served their
+  migration purpose; every caller now passes the canonical 10-arg
+  form. The `withCovariates(...)` and `withContractRef(...)`
+  copy-on-write methods are unchanged.
+
 ### Removed (`SampleSummary` back-compat constructors)
 
 - **`SampleSummary` 9-arg, 10-arg, and 11-arg back-compat
