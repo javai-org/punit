@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed (`SampleSummary` back-compat constructors)
+
+- **`SampleSummary` 9-arg, 10-arg, and 11-arg back-compat
+  constructors** withdrawn. Introduced over the step-3 / step-4 /
+  step-5 rollout, they have served their migration purpose; every
+  caller now passes the full canonical 12-arg form (outcomes,
+  elapsed, successes, failures, tokensConsumed, failuresDropped,
+  latencyResult, terminationReason, trials, failuresByPostcondition,
+  passingLatencyResult, criterionSampleCounts). A follow-on directive
+  will revisit the shape of `SampleSummary` itself — the canonical
+  arity is the right thing to sweep first, then the shape.
+
 ### Removed (legacy-aggregate deprecation close-out)
 
 - **`ProbabilisticTestResult.legacyAggregateVerdict`** —

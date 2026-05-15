@@ -86,7 +86,8 @@ class TrialTest {
                 2, 0, 0L, 0,
                 LatencyResult.empty(),
                 TerminationReason.COMPLETED,
-                trials);
+                trials,
+                java.util.Map.of(), LatencyResult.empty(), List.of());
 
         assertThat(summary.trials()).hasSize(2);
         assertThat(summary.trials().get(0).input()).isEqualTo("a");
@@ -108,12 +109,13 @@ class TrialTest {
                         2, 0, 0L, 0,
                         LatencyResult.empty(),
                         TerminationReason.COMPLETED,
-                        oneTrial))
+                        oneTrial,
+                        java.util.Map.of(), LatencyResult.empty(), List.of()))
                 .withMessageContaining("trials");
     }
 
     @Test
-    @DisplayName("SampleSummary accepts an empty trials list (back-compat path)")
+    @DisplayName("SampleSummary accepts an empty trials list")
     void summaryAcceptsEmptyTrials() {
         ServiceContractOutcome<String, Integer> okOutcome = ok(1);
         SampleSummary<Integer> summary = new SampleSummary<>(
@@ -122,7 +124,8 @@ class TrialTest {
                 1, 0, 0L, 0,
                 LatencyResult.empty(),
                 TerminationReason.COMPLETED,
-                List.of());
+                List.of(),
+                java.util.Map.of(), LatencyResult.empty(), List.of());
 
         assertThat(summary.trials()).isEmpty();
     }
