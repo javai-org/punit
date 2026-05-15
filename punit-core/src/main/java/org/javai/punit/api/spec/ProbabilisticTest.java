@@ -222,6 +222,8 @@ public final class ProbabilisticTest implements Spec {
 
             Verdict composed = Verdict.compose(evaluated);
             EngineRunSummary engineSummary = buildEngineSummary(s, evaluated, baselineFilename);
+            PerCriterionEvaluation perCriterionEvaluation =
+                    PerCriterionVerdicts.derive(evaluated, s.criterionSampleCounts());
             return new ProbabilisticTestResult(
                     composed, factorBundle, evaluated, intent,
                     List.copyOf(warnings),
@@ -230,7 +232,8 @@ public final class ProbabilisticTest implements Spec {
                             baselineProfile),
                     Optional.empty(),
                     s.failuresByPostcondition(),
-                    engineSummary);
+                    engineSummary,
+                    perCriterionEvaluation);
         }
 
         /**
