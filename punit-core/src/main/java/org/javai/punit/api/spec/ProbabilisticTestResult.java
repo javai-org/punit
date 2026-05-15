@@ -63,7 +63,8 @@ public record ProbabilisticTestResult(
         Optional<String> contractRef,
         Map<String, FailureCount> failuresByPostcondition,
         EngineRunSummary engineSummary,
-        PerCriterionEvaluation perCriterionEvaluation) implements EngineResult {
+        PerCriterionEvaluation perCriterionEvaluation,
+        Optional<Verdict> legacyAggregateVerdict) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
@@ -76,14 +77,39 @@ public record ProbabilisticTestResult(
         Objects.requireNonNull(failuresByPostcondition, "failuresByPostcondition");
         Objects.requireNonNull(engineSummary, "engineSummary");
         Objects.requireNonNull(perCriterionEvaluation, "perCriterionEvaluation");
+        Objects.requireNonNull(legacyAggregateVerdict, "legacyAggregateVerdict");
         criterionResults = List.copyOf(criterionResults);
         warnings = List.copyOf(warnings);
         failuresByPostcondition = Map.copyOf(failuresByPostcondition);
     }
 
     /**
+     * Backward-compatible 10-arg constructor that defaults
+     * {@link #legacyAggregateVerdict()} to {@link Optional#empty()}.
+     * The legacy aggregate is a transitional artefact carried for one
+     * release after the composite-verdict cutover; a follow-on
+     * directive removes it.
+     */
+    public ProbabilisticTestResult(
+            Verdict verdict,
+            FactorBundle factors,
+            List<EvaluatedCriterion> criterionResults,
+            TestIntent intent,
+            List<String> warnings,
+            CovariateAlignment covariates,
+            Optional<String> contractRef,
+            Map<String, FailureCount> failuresByPostcondition,
+            EngineRunSummary engineSummary,
+            PerCriterionEvaluation perCriterionEvaluation) {
+        this(verdict, factors, criterionResults, intent, warnings,
+                covariates, contractRef, failuresByPostcondition,
+                engineSummary, perCriterionEvaluation, Optional.empty());
+    }
+
+    /**
      * Backward-compatible 9-arg constructor that defaults
-     * {@link #perCriterionEvaluation()} to {@link PerCriterionEvaluation#empty()}.
+     * {@link #perCriterionEvaluation()} to {@link PerCriterionEvaluation#empty()}
+     * and {@link #legacyAggregateVerdict()} to {@link Optional#empty()}.
      */
     public ProbabilisticTestResult(
             Verdict verdict,
@@ -97,7 +123,7 @@ public record ProbabilisticTestResult(
             EngineRunSummary engineSummary) {
         this(verdict, factors, criterionResults, intent, warnings,
                 covariates, contractRef, failuresByPostcondition,
-                engineSummary, PerCriterionEvaluation.empty());
+                engineSummary, PerCriterionEvaluation.empty(), Optional.empty());
     }
 
     /**
@@ -180,7 +206,7 @@ public record ProbabilisticTestResult(
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
                 covariates, contractRef, failuresByPostcondition,
-                engineSummary, perCriterionEvaluation);
+                engineSummary, perCriterionEvaluation, legacyAggregateVerdict);
     }
 
     /**
@@ -201,6 +227,6 @@ public record ProbabilisticTestResult(
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
                 covariates, wrapped, failuresByPostcondition,
-                engineSummary, perCriterionEvaluation);
+                engineSummary, perCriterionEvaluation, legacyAggregateVerdict);
     }
 }

@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (behavioural)
+
+- **Composite verdict is now the contract's overall verdict authority.**
+  Step 4 of the multi-criterion rollout. `ProbabilisticTestResult.verdict()`
+  is now driven by the methodology-level per-criterion composite under
+  the FAIL-dominant rule (companion §1.4.6) rather than the legacy
+  spec-layer flat-aggregation over the functional verdict-component
+  alone. Cross-dimension aggregation (functional + latency) continues
+  to flow through `Verdict.compose` — the per-criterion composite
+  substitutes the functional verdict-component's verdict, then
+  compose handles cross-dimension under the existing INCONCLUSIVE-first
+  rule.
+
+  **K=1 contracts:** byte-identical. The per-criterion composite
+  over one verdict equals that verdict, so the substitution is a
+  no-op.
+
+  **K>1 contracts:** the *hiding result* case — one criterion
+  genuinely failing, others passing, flat-aggregation passing — now
+  reports FAIL at the harness boundary. Authors of K>1 contracts
+  whose JUnit outcome changed should review.
+
+  **Empty per-criterion evaluation** (apply-level-failure runs where
+  `Contract.evaluateClauses` never fired): falls back to the legacy
+  flat-aggregation result.
+
+### Added
+
+- **`ProbabilisticTestResult.legacyAggregateVerdict`** —
+  `Optional<Verdict>` component carrying the pre-cutover
+  `Verdict.compose(evaluated)` value. Transitional artefact carried
+  for one release so authors of affected K>1 contracts can see what
+  the verdict was pre-step-4. A follow-on directive removes it.
+
+- **Transparent-stats audit-trail callout.** When the pre-cutover
+  legacy aggregate differs from the composite, the per-criterion
+  block in the transparent-stats output emits a line noting the
+  pre-cutover verdict and the new authoritative composite. Replaces
+  step 3's evidence-gathering callout.
+
+### Deferred to follow-on directive
+
+- **Verdict-XML schema bump to `verdict-1.1.xsd`** — explicit
+  per-criterion table and composite element. The existing
+  `<verdict>` element correctly carries the composite as the
+  authoritative value because `ProbabilisticTestResult.verdict()`
+  returns the composite. The XSD bump adds explanatory surfaces
+  (per-criterion breakdown, explicit composite element) and is the
+  subject of a separate directive after we gather experience from
+  this cutover. Cross-framework coordination (feotest reader) lands
+  with that directive.
+
+- **Conformance-fixture consumption** from javai-R v0.8.0 remains
+  pending per a separate directive.
+
 ## [0.7.0-alpha6] - 2026-05-12
 
 > **🧪 Experimental release.** Breaking: renames the authoring-surface
