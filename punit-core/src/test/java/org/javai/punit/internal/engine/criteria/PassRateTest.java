@@ -48,7 +48,8 @@ class PassRateTest {
                 successes, failures, 0L, 0,
                 LatencyResult.empty(),
                 TerminationReason.COMPLETED,
-                List.of());
+                List.of(),
+                java.util.Map.of(), LatencyResult.empty(), List.of());
     }
 
     private static ServiceContractOutcome<Object, String> stubOutcome(Outcome<String> result) {

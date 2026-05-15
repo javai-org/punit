@@ -60,7 +60,8 @@ class CriterionResultDetailTest {
                 2, 0, 0L, 0,
                 latency,
                 TerminationReason.COMPLETED,
-                List.of());
+                List.of(),
+                java.util.Map.of(), LatencyResult.empty(), List.of());
     }
 
     private static final String DEFAULT_IDENTITY = "sha256:test-default-identity";

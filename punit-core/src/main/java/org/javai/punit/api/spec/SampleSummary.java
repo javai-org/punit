@@ -101,73 +101,6 @@ public record SampleSummary<OT>(
     }
 
     /**
-     * Backward-compatible 11-arg constructor that defaults
-     * {@link #criterionSampleCounts()} to an empty list. Test fixtures
-     * and call sites that don't carry per-criterion sample counts
-     * construct via this overload; the engine constructs summaries via
-     * the canonical constructor with the per-criterion counts populated
-     * from per-sample {@link org.javai.punit.api.criterion.CriterionSampleResult}s.
-     */
-    public SampleSummary(
-            List<ServiceContractOutcome<?, OT>> outcomes,
-            Duration elapsed,
-            int successes,
-            int failures,
-            long tokensConsumed,
-            int failuresDropped,
-            LatencyResult latencyResult,
-            TerminationReason terminationReason,
-            List<Trial<?, OT>> trials,
-            Map<String, FailureCount> failuresByPostcondition,
-            LatencyResult passingLatencyResult) {
-        this(outcomes, elapsed, successes, failures, tokensConsumed,
-                failuresDropped, latencyResult, terminationReason, trials,
-                failuresByPostcondition, passingLatencyResult, List.of());
-    }
-
-    /**
-     * Backward-compatible 10-arg constructor that defaults
-     * {@link #passingLatencyResult()} to {@link LatencyResult#empty()}
-     * and {@link #criterionSampleCounts()} to an empty list.
-     */
-    public SampleSummary(
-            List<ServiceContractOutcome<?, OT>> outcomes,
-            Duration elapsed,
-            int successes,
-            int failures,
-            long tokensConsumed,
-            int failuresDropped,
-            LatencyResult latencyResult,
-            TerminationReason terminationReason,
-            List<Trial<?, OT>> trials,
-            Map<String, FailureCount> failuresByPostcondition) {
-        this(outcomes, elapsed, successes, failures, tokensConsumed,
-                failuresDropped, latencyResult, terminationReason, trials,
-                failuresByPostcondition, LatencyResult.empty(), List.of());
-    }
-
-    /**
-     * Backward-compatible 9-arg constructor that defaults
-     * {@link #failuresByPostcondition()} to an empty map,
-     * {@link #passingLatencyResult()} to {@link LatencyResult#empty()},
-     * and {@link #criterionSampleCounts()} to an empty list.
-     */
-    public SampleSummary(
-            List<ServiceContractOutcome<?, OT>> outcomes,
-            Duration elapsed,
-            int successes,
-            int failures,
-            long tokensConsumed,
-            int failuresDropped,
-            LatencyResult latencyResult,
-            TerminationReason terminationReason,
-            List<Trial<?, OT>> trials) {
-        this(outcomes, elapsed, successes, failures, tokensConsumed,
-                failuresDropped, latencyResult, terminationReason, trials,
-                Map.of(), LatencyResult.empty(), List.of());
-    }
-
-    /**
      * Tally successes, failures and tokens from an uncapped outcome
      * list; attach the supplied latency and termination metadata.
      *
@@ -189,7 +122,8 @@ public record SampleSummary<OT>(
             tokens += o.tokens();
         }
         return new SampleSummary<>(outcomes, elapsed, s, f, tokens, 0,
-                latencyResult, terminationReason, List.of());
+                latencyResult, terminationReason, List.of(),
+                Map.of(), LatencyResult.empty(), List.of());
     }
 
     /**

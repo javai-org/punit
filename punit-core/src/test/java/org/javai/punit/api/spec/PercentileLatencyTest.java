@@ -42,7 +42,8 @@ class PercentileLatencyTest {
                 successes, failures, 0L, 0,
                 latency,
                 TerminationReason.COMPLETED,
-                List.of());
+                List.of(),
+                java.util.Map.of(), LatencyResult.empty(), List.of());
     }
 
     private static ServiceContractOutcome<Object, String> stubOutcome(Outcome<String> result) {
