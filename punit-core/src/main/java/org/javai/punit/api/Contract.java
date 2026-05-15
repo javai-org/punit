@@ -226,9 +226,9 @@ public interface Contract<I, O> {
         Duration duration = Duration.ofNanos(System.nanoTime() - start);
         long sampleTokens = Math.max(0L, tracker.totalTokens() - startTokens);
 
-        List<PostconditionResult> clauseResults = result instanceof Ok<O> ok
+        ClauseEvaluation clauseEvaluation = result instanceof Ok<O> ok
                 ? evaluateClauses(ok.value())
-                : List.of();   // postcondition evaluation skipped on apply-level failure
+                : ClauseEvaluation.empty();   // postcondition evaluation skipped on apply-level failure
 
         Optional<MatchResult> match = result instanceof Ok<O> ok2
                 ? matchStep.map(step -> step.apply(ok2.value()))
@@ -237,13 +237,14 @@ public interface Contract<I, O> {
         return new ServiceContractOutcome<>(
                 result,
                 this,
-                clauseResults,
+                clauseEvaluation.postconditionResults(),
                 match,
                 sampleTokens,
-                duration);
+                duration,
+                clauseEvaluation.criterionSampleResults());
     }
 
-    private List<PostconditionResult> evaluateClauses(O value) {
+    private ClauseEvaluation evaluateClauses(O value) {
         // Walk criteria via per-sample evaluate(value). For each criterion
         // we get a three-valued CriterionSampleResult; the verdict path
         // (which consumes a flat List<PostconditionResult>) is fed the
@@ -252,20 +253,34 @@ public interface Contract<I, O> {
         // reason's name and message for diagnostics. The
         // synthetic-result-on-INCONCLUSIVE mapping is the step-2 default
         // for the denominator policy; a configurable policy is the subject
-        // of a later step.
-        List<PostconditionResult> out = new ArrayList<>();
+        // of a later step. The per-criterion sample results are retained
+        // verbatim alongside the flat list so downstream consumers — the
+        // per-criterion accumulator, the per-criterion verdict computation
+        // — can read the methodology-level partition unit's behaviour
+        // without re-walking the criteria.
+        List<PostconditionResult> flat = new ArrayList<>();
+        List<CriterionSampleResult> perCriterion = new ArrayList<>();
         for (Criterion<O> criterion : criteria()) {
             CriterionSampleResult result = criterion.evaluate(value);
+            perCriterion.add(result);
             switch (result.outcome()) {
-                case PASS, FAIL -> out.addAll(result.postconditionResults());
+                case PASS, FAIL -> flat.addAll(result.postconditionResults());
                 case INCONCLUSIVE -> {
                     Outcome.Fail<?> reason = result.reason().orElseThrow();
-                    out.add(PostconditionResult.failed(
+                    flat.add(PostconditionResult.failed(
                             criterion.id(),
                             reason));
                 }
             }
         }
-        return out;   // ServiceContractOutcome canonical constructor defensive-copies
+        return new ClauseEvaluation(flat, perCriterion);
+    }
+
+    record ClauseEvaluation(
+            List<PostconditionResult> postconditionResults,
+            List<CriterionSampleResult> criterionSampleResults) {
+        static ClauseEvaluation empty() {
+            return new ClauseEvaluation(List.of(), List.of());
+        }
     }
 }
