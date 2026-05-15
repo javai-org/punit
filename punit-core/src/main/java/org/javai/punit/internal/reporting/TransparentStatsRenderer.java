@@ -8,9 +8,12 @@ import java.util.Map;
 import org.javai.punit.api.covariate.CovariateAlignment;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.CriterionSampleCounts;
 import org.javai.punit.api.spec.EvaluatedCriterion;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.PerCriterionEvaluation;
+import org.javai.punit.api.spec.PerCriterionVerdict;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
 
@@ -85,6 +88,8 @@ public final class TransparentStatsRenderer {
         for (EvaluatedCriterion entry : result.criterionResults()) {
             renderCriterion(sb, entry);
         }
+
+        renderPerCriterionEvaluation(sb, result.verdict(), result.perCriterionEvaluation());
 
         renderPostconditionFailures(sb, result.failuresByPostcondition());
 
@@ -286,6 +291,59 @@ public final class TransparentStatsRenderer {
                 sb.append("      • ").append(ex.input())
                         .append(" → ").append(ex.reason()).append('\n');
             }
+        }
+        sb.append('\n');
+    }
+
+    /**
+     * Renders the per-criterion methodology-level evaluation: one row
+     * per criterion (id, PASS/FAIL/INCONCLUSIVE counts, observed
+     * pass-rate, threshold, derived verdict), the composite verdict,
+     * and — when composite and the legacy flat-aggregation verdict
+     * disagree — a short callout pointing the reader at the per-criterion
+     * table.
+     *
+     * <p>The composite is observational in this step: the contract's
+     * overall verdict authority is unchanged. The disagreement callout
+     * is the empirical channel by which the disagreement frequency on
+     * real contracts can be observed before any cutover.
+     *
+     * <p>Skipped when no per-criterion data was captured (apply-level
+     * failure paths, or runs whose engine summary used the
+     * back-compat constructor without populating per-criterion counts).
+     */
+    private static void renderPerCriterionEvaluation(
+            StringBuilder sb,
+            Verdict overallVerdict,
+            PerCriterionEvaluation evaluation) {
+        List<PerCriterionVerdict> rows = evaluation.perCriterionVerdicts();
+        if (rows.isEmpty()) {
+            return;
+        }
+        sb.append("  Per-criterion verdicts\n");
+        for (PerCriterionVerdict row : rows) {
+            CriterionSampleCounts c = row.counts();
+            String observedStr = Double.isNaN(row.observed())
+                    ? "n/a"
+                    : formatRate(row.observed());
+            String thresholdStr = Double.isNaN(row.threshold())
+                    ? "n/a"
+                    : formatRate(row.threshold());
+            sb.append("    ").append(row.criterionId())
+                    .append(" → ").append(row.verdict()).append('\n');
+            sb.append(label("Counts:", String.format(Locale.ROOT,
+                    "pass=%d, fail=%d, inconclusive=%d, total=%d",
+                    c.pass(), c.fail(), c.inconclusive(), c.total())));
+            sb.append(label("Observed rate:", observedStr));
+            sb.append(label("Threshold:", thresholdStr));
+        }
+        sb.append(label("Composite:", evaluation.compositeVerdict().toString()));
+        if (evaluation.compositeVerdict() != overallVerdict) {
+            sb.append("    ! Composite verdict (")
+                    .append(evaluation.compositeVerdict())
+                    .append(") differs from overall verdict (")
+                    .append(overallVerdict)
+                    .append("); see per-criterion table above.\n");
         }
         sb.append('\n');
     }
