@@ -79,11 +79,14 @@ public final class VerdictXmlReader {
         String verdictReason = optionalAttribute(verdictEl, "reason").orElse("");
         boolean junitPassed = punitVerdict != PUnitVerdict.FAIL;
 
-        Optional<Element> perCriterionEl = optionalElement(root, "per-criterion");
+        // The reader is permissive: a <legacy-aggregate> element that
+        // appears inside <per-criterion> (from a 1.1 emitter still in
+        // service) is silently ignored. The transitional surface was
+        // removed in verdict-1.2.xsd; older emitters' output continues
+        // to parse without surprise.
         Optional<org.javai.punit.verdict.PerCriterionStructure> perCriterion =
-                perCriterionEl.flatMap(this::readPerCriterionStructure);
-        Optional<org.javai.punit.api.spec.Verdict> legacyAggregateVerdict =
-                perCriterionEl.flatMap(this::readLegacyAggregate);
+                optionalElement(root, "per-criterion")
+                        .flatMap(this::readPerCriterionStructure);
 
         return new ProbabilisticTestVerdict(
                 correlationId, timestamp, identity, execution,
@@ -95,8 +98,7 @@ public final class VerdictXmlReader {
                 environment,
                 junitPassed, punitVerdict, verdictReason,
                 Map.of(),
-                perCriterion,
-                legacyAggregateVerdict
+                perCriterion
         );
     }
 
@@ -105,9 +107,6 @@ public final class VerdictXmlReader {
         NodeList rows = perCriterionEl.getElementsByTagNameNS(
                 VerdictXmlWriter.NAMESPACE, "criterion");
         Optional<Element> compositeEl = optionalElement(perCriterionEl, "composite");
-        // No criterion rows AND no composite element → no methodology-level
-        // decomposition was emitted (the element exists only to carry a
-        // <legacy-aggregate>). Treat as absent.
         if (rows.getLength() == 0 && compositeEl.isEmpty()) {
             return Optional.empty();
         }
@@ -140,12 +139,6 @@ public final class VerdictXmlReader {
                 });
         return Optional.of(new org.javai.punit.verdict.PerCriterionStructure(
                 criteria, composite));
-    }
-
-    private Optional<org.javai.punit.api.spec.Verdict> readLegacyAggregate(
-            Element perCriterionEl) {
-        return optionalElement(perCriterionEl, "legacy-aggregate")
-                .map(e -> org.javai.punit.api.spec.Verdict.valueOf(e.getAttribute("value")));
     }
 
     private TestIdentity readIdentity(Element el) {

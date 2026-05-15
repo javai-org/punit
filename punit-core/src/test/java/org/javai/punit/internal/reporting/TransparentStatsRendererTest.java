@@ -401,12 +401,6 @@ class TransparentStatsRendererTest {
 
         private static ProbabilisticTestResult resultWithEvaluation(
                 Verdict overall, PerCriterionEvaluation evaluation) {
-            return resultWithEvaluation(overall, evaluation, Optional.empty());
-        }
-
-        private static ProbabilisticTestResult resultWithEvaluation(
-                Verdict overall, PerCriterionEvaluation evaluation,
-                Optional<Verdict> legacyAggregateVerdict) {
             return new ProbabilisticTestResult(
                     overall,
                     FactorBundle.empty(),
@@ -417,8 +411,7 @@ class TransparentStatsRendererTest {
                     Optional.empty(),
                     Map.of(),
                     EngineRunSummary.empty(),
-                    evaluation,
-                    legacyAggregateVerdict);
+                    evaluation);
         }
 
         @Test
@@ -453,72 +446,6 @@ class TransparentStatsRendererTest {
                     .contains("0.8500")
                     .contains("Composite:")
                     .contains("PASS");
-        }
-
-        @Test
-        @DisplayName("emits audit-trail callout when pre-cutover legacy aggregate differs from composite")
-        void legacyAggregateCallout() {
-            // K>1 hiding result: composite (FAIL) is now authoritative;
-            // the legacy pre-cutover aggregate was PASS. The callout
-            // surfaces the change for one release as an audit trail.
-            PerCriterionEvaluation eval = new PerCriterionEvaluation(
-                    List.of(
-                            new PerCriterionVerdict(
-                                    "good",
-                                    Verdict.PASS,
-                                    new CriterionSampleCounts("good", 100, 0, 0),
-                                    1.0,
-                                    0.85),
-                            new PerCriterionVerdict(
-                                    "bad",
-                                    Verdict.FAIL,
-                                    new CriterionSampleCounts("bad", 60, 40, 0),
-                                    0.60,
-                                    0.85)),
-                    Verdict.FAIL);
-
-            String rendered = TransparentStatsRenderer.render(
-                    "test", resultWithEvaluation(Verdict.FAIL, eval, Optional.of(Verdict.PASS)));
-
-            assertThat(rendered)
-                    .contains("Pre-cutover aggregate verdict was PASS")
-                    .contains("per-criterion composite (FAIL) is now authoritative");
-        }
-
-        @Test
-        @DisplayName("no audit-trail callout when legacy aggregate equals composite")
-        void noCalloutWhenAligned() {
-            PerCriterionEvaluation eval = new PerCriterionEvaluation(
-                    List.of(new PerCriterionVerdict(
-                            "only",
-                            Verdict.PASS,
-                            new CriterionSampleCounts("only", 100, 0, 0),
-                            1.0,
-                            0.85)),
-                    Verdict.PASS);
-
-            String rendered = TransparentStatsRenderer.render(
-                    "test", resultWithEvaluation(Verdict.PASS, eval, Optional.of(Verdict.PASS)));
-
-            assertThat(rendered).doesNotContain("Pre-cutover aggregate verdict");
-        }
-
-        @Test
-        @DisplayName("no audit-trail callout when legacy aggregate is absent")
-        void noCalloutWhenLegacyAbsent() {
-            PerCriterionEvaluation eval = new PerCriterionEvaluation(
-                    List.of(new PerCriterionVerdict(
-                            "only",
-                            Verdict.FAIL,
-                            new CriterionSampleCounts("only", 60, 40, 0),
-                            0.60,
-                            0.85)),
-                    Verdict.FAIL);
-
-            String rendered = TransparentStatsRenderer.render(
-                    "test", resultWithEvaluation(Verdict.FAIL, eval));
-
-            assertThat(rendered).doesNotContain("Pre-cutover aggregate verdict");
         }
 
         @Test

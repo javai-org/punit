@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed (legacy-aggregate deprecation close-out)
+
+- **`ProbabilisticTestResult.legacyAggregateVerdict`** —
+  the transitional `Optional<Verdict>` field introduced at the
+  step-4 cutover for one release as an audit-trail aid for K>1
+  contracts whose JUnit outcome changed. The one-release window has
+  closed; the field is gone. `ProbabilisticTest.conclude(...)` no
+  longer computes the pre-cutover legacy aggregate.
+
+- **`ProbabilisticTestVerdict.legacyAggregateVerdict`** and the
+  matching builder setter — same field at the persistence layer, also
+  gone.
+
+- **`<legacy-aggregate>` XML element** — the transitional one-release
+  child of `<per-criterion>` is withdrawn. The schema bumps from
+  `verdict-1.1.xsd` to `verdict-1.2.xsd`; the new schema's
+  `PerCriterionType` carries `<criterion>*` and `<composite>` only.
+  Both `verdict-1.0.xsd` and `verdict-1.1.xsd` are retained for one
+  release each as references. The `VerdictXmlReader` remains
+  permissive — a stray `<legacy-aggregate>` element from a 1.1
+  emitter still in service is silently ignored at parse, not
+  rejected.
+
+- **Transparent-stats audit-trail callout** — the per-criterion block
+  no longer emits the "pre-cutover aggregate verdict was X; the
+  composite is now authoritative" callout. The block renders the
+  per-criterion table and the composite line only.
+
 ### Added (verdict-XML 1.1 schema)
 
 - **`verdict-1.1.xsd`** — additive schema bump under the existing

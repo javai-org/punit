@@ -89,8 +89,7 @@ public final class TransparentStatsRenderer {
             renderCriterion(sb, entry);
         }
 
-        renderPerCriterionEvaluation(sb, result.perCriterionEvaluation(),
-                result.legacyAggregateVerdict());
+        renderPerCriterionEvaluation(sb, result.perCriterionEvaluation());
 
         renderPostconditionFailures(sb, result.failuresByPostcondition());
 
@@ -300,15 +299,8 @@ public final class TransparentStatsRenderer {
      * Renders the per-criterion methodology-level evaluation: one row
      * per criterion (id, PASS/FAIL/INCONCLUSIVE counts, observed
      * pass-rate, threshold, derived verdict) and the composite verdict
-     * — which, after the composite-verdict cutover, drives the
+     * — which, since the composite-verdict cutover, drives the
      * contract's overall verdict.
-     *
-     * <p>When a legacy aggregate verdict is present and differs from
-     * the composite, the renderer emits an audit-trail callout
-     * noting the pre-cutover value. This is a transitional aid for
-     * authors of K&gt;1 contracts whose JUnit outcome changed at the
-     * cutover; a follow-on directive removes both the legacy aggregate
-     * field and this callout.
      *
      * <p>Skipped when no per-criterion data was captured (apply-level
      * failure paths, or runs whose engine summary used the
@@ -316,8 +308,7 @@ public final class TransparentStatsRenderer {
      */
     private static void renderPerCriterionEvaluation(
             StringBuilder sb,
-            PerCriterionEvaluation evaluation,
-            java.util.Optional<Verdict> legacyAggregateVerdict) {
+            PerCriterionEvaluation evaluation) {
         List<PerCriterionVerdict> rows = evaluation.perCriterionVerdicts();
         if (rows.isEmpty()) {
             return;
@@ -340,15 +331,6 @@ public final class TransparentStatsRenderer {
             sb.append(label("Threshold:", thresholdStr));
         }
         sb.append(label("Composite:", evaluation.compositeVerdict().toString()));
-        legacyAggregateVerdict.ifPresent(legacy -> {
-            if (legacy != evaluation.compositeVerdict()) {
-                sb.append("    ! Pre-cutover aggregate verdict was ")
-                        .append(legacy)
-                        .append("; the per-criterion composite (")
-                        .append(evaluation.compositeVerdict())
-                        .append(") is now authoritative — see the per-criterion table above.\n");
-            }
-        });
         sb.append('\n');
     }
 }
