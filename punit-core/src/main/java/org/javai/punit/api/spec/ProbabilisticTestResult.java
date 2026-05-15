@@ -62,7 +62,8 @@ public record ProbabilisticTestResult(
         CovariateAlignment covariates,
         Optional<String> contractRef,
         Map<String, FailureCount> failuresByPostcondition,
-        EngineRunSummary engineSummary) implements EngineResult {
+        EngineRunSummary engineSummary,
+        PerCriterionEvaluation perCriterionEvaluation) implements EngineResult {
 
     public ProbabilisticTestResult {
         Objects.requireNonNull(verdict, "verdict");
@@ -74,9 +75,29 @@ public record ProbabilisticTestResult(
         Objects.requireNonNull(contractRef, "contractRef");
         Objects.requireNonNull(failuresByPostcondition, "failuresByPostcondition");
         Objects.requireNonNull(engineSummary, "engineSummary");
+        Objects.requireNonNull(perCriterionEvaluation, "perCriterionEvaluation");
         criterionResults = List.copyOf(criterionResults);
         warnings = List.copyOf(warnings);
         failuresByPostcondition = Map.copyOf(failuresByPostcondition);
+    }
+
+    /**
+     * Backward-compatible 9-arg constructor that defaults
+     * {@link #perCriterionEvaluation()} to {@link PerCriterionEvaluation#empty()}.
+     */
+    public ProbabilisticTestResult(
+            Verdict verdict,
+            FactorBundle factors,
+            List<EvaluatedCriterion> criterionResults,
+            TestIntent intent,
+            List<String> warnings,
+            CovariateAlignment covariates,
+            Optional<String> contractRef,
+            Map<String, FailureCount> failuresByPostcondition,
+            EngineRunSummary engineSummary) {
+        this(verdict, factors, criterionResults, intent, warnings,
+                covariates, contractRef, failuresByPostcondition,
+                engineSummary, PerCriterionEvaluation.empty());
     }
 
     /**
@@ -158,7 +179,8 @@ public record ProbabilisticTestResult(
     public ProbabilisticTestResult withCovariates(CovariateAlignment covariates) {
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
-                covariates, contractRef, failuresByPostcondition, engineSummary);
+                covariates, contractRef, failuresByPostcondition,
+                engineSummary, perCriterionEvaluation);
     }
 
     /**
@@ -178,6 +200,7 @@ public record ProbabilisticTestResult(
                 : Optional.of(contractRef);
         return new ProbabilisticTestResult(
                 verdict, factors, criterionResults, intent, warnings,
-                covariates, wrapped, failuresByPostcondition, engineSummary);
+                covariates, wrapped, failuresByPostcondition,
+                engineSummary, perCriterionEvaluation);
     }
 }

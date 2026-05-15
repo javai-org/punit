@@ -16,6 +16,7 @@ import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.Configuration;
+import org.javai.punit.api.spec.CriterionSampleCounts;
 import org.javai.punit.api.spec.EarlyTerminationContext;
 import org.javai.punit.api.spec.EngineResult;
 import org.javai.punit.api.spec.ExceptionPolicy;
@@ -162,6 +163,13 @@ public final class Engine {
         private final List<Trial<?, OT>> trials = new ArrayList<>();
         private final LinkedHashMap<String, MutableFailureBucket> failuresByPostcondition =
                 new LinkedHashMap<>();
+        // Per-criterion sample-outcome counts, keyed by criterion id and
+        // populated from each sample's CriterionSampleResult stream.
+        // LinkedHashMap preserves the criterion declaration order so
+        // reporters render criteria in the order the contract declared
+        // them.
+        private final LinkedHashMap<String, MutableCriterionCounts> criterionCounts =
+                new LinkedHashMap<>();
         private static final int EXEMPLAR_CAP_PER_CLAUSE = 3;
         private int successes = 0;
         private int failures = 0;
@@ -263,6 +271,7 @@ public final class Engine {
                 }
             }
             recordPostconditionFailures(index, classification);
+            recordCriterionSampleOutcomes(stamped);
             FailureLineEmitter.emit(index, classification);
             tokensConsumed += classification.tokens() + tracker.tokenCharge();
             checkStatisticalEarlyTermination();
@@ -326,6 +335,28 @@ public final class Engine {
             final List<FailureExemplar> exemplars = new ArrayList<>();
         }
 
+        private static final class MutableCriterionCounts {
+            int pass = 0;
+            int fail = 0;
+            int inconclusive = 0;
+        }
+
+        private void recordCriterionSampleOutcomes(ServiceContractOutcome<?, OT> stamped) {
+            // Empty list when the contract had nothing to evaluate (apply-level
+            // failure, synthesised defect outcome) or when this sample's
+            // outcome was constructed without per-criterion detail (test
+            // fixtures using the back-compat constructor).
+            for (var entry : stamped.criterionSampleResults()) {
+                MutableCriterionCounts counts = criterionCounts.computeIfAbsent(
+                        entry.criterionId(), k -> new MutableCriterionCounts());
+                switch (entry.outcome()) {
+                    case PASS -> counts.pass++;
+                    case FAIL -> counts.fail++;
+                    case INCONCLUSIVE -> counts.inconclusive++;
+                }
+            }
+        }
+
         private <I> Trial<IT, OT> trialFor(int index, ServiceContractOutcome<I, OT> stamped) {
             // Trial<IT, OT> requires ServiceContractOutcome<IT, OT>; the wildcard
             // carrier in onSample loses that I; we know the executor only
@@ -359,7 +390,17 @@ public final class Engine {
                     tracker.terminationReason(),
                     trials,
                     immutableFailuresByPostcondition(),
-                    passingLatencyResult);
+                    passingLatencyResult,
+                    immutableCriterionSampleCounts());
+        }
+
+        private List<CriterionSampleCounts> immutableCriterionSampleCounts() {
+            List<CriterionSampleCounts> out = new ArrayList<>(criterionCounts.size());
+            for (var e : criterionCounts.entrySet()) {
+                MutableCriterionCounts c = e.getValue();
+                out.add(new CriterionSampleCounts(e.getKey(), c.pass, c.fail, c.inconclusive));
+            }
+            return List.copyOf(out);
         }
 
         private Map<String, FailureCount> immutableFailuresByPostcondition() {

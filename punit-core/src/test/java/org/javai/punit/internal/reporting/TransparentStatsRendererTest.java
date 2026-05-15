@@ -15,9 +15,15 @@ import org.javai.punit.api.covariate.CovariateAlignment;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.CriterionRole;
+import org.javai.punit.api.spec.CriterionSampleCounts;
+import org.javai.punit.api.spec.EngineRunSummary;
 import org.javai.punit.api.spec.EvaluatedCriterion;
+import org.javai.punit.api.spec.PerCriterionEvaluation;
+import org.javai.punit.api.spec.PerCriterionVerdict;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
+
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -386,6 +392,97 @@ class TransparentStatsRendererTest {
 
             assertThat(rendered).contains("Single trip — 1 failure\n");
             assertThat(rendered).contains("Multi trip — 5 failures\n");
+        }
+    }
+
+    @Nested
+    @DisplayName("Per-criterion methodology block")
+    class PerCriterionBlock {
+
+        private static ProbabilisticTestResult resultWithEvaluation(
+                Verdict overall, PerCriterionEvaluation evaluation) {
+            return new ProbabilisticTestResult(
+                    overall,
+                    FactorBundle.empty(),
+                    List.of(),
+                    TestIntent.VERIFICATION,
+                    List.of(),
+                    CovariateAlignment.none(),
+                    Optional.empty(),
+                    Map.of(),
+                    EngineRunSummary.empty(),
+                    evaluation);
+        }
+
+        @Test
+        @DisplayName("renders per-criterion rows with counts, observed rate, threshold")
+        void rendersPerCriterionRows() {
+            PerCriterionEvaluation eval = new PerCriterionEvaluation(
+                    List.of(
+                            new PerCriterionVerdict(
+                                    "response-not-empty",
+                                    Verdict.PASS,
+                                    new CriterionSampleCounts("response-not-empty", 100, 0, 0),
+                                    1.0,
+                                    0.85),
+                            new PerCriterionVerdict(
+                                    "valid-json",
+                                    Verdict.PASS,
+                                    new CriterionSampleCounts("valid-json", 90, 5, 5),
+                                    0.90,
+                                    0.85)),
+                    Verdict.PASS);
+
+            String rendered = TransparentStatsRenderer.render(
+                    "shopping-basket.test", resultWithEvaluation(Verdict.PASS, eval));
+
+            assertThat(rendered)
+                    .contains("Per-criterion verdicts")
+                    .contains("response-not-empty → PASS")
+                    .contains("valid-json → PASS")
+                    .contains("pass=100, fail=0, inconclusive=0, total=100")
+                    .contains("pass=90, fail=5, inconclusive=5, total=100")
+                    .contains("Threshold:")
+                    .contains("0.8500")
+                    .contains("Composite:")
+                    .contains("PASS");
+        }
+
+        @Test
+        @DisplayName("emits disagreement callout when composite differs from overall")
+        void disagreementCallout() {
+            PerCriterionEvaluation eval = new PerCriterionEvaluation(
+                    List.of(
+                            new PerCriterionVerdict(
+                                    "good",
+                                    Verdict.PASS,
+                                    new CriterionSampleCounts("good", 100, 0, 0),
+                                    1.0,
+                                    0.85),
+                            new PerCriterionVerdict(
+                                    "bad",
+                                    Verdict.FAIL,
+                                    new CriterionSampleCounts("bad", 60, 40, 0),
+                                    0.60,
+                                    0.85)),
+                    Verdict.FAIL);
+
+            String rendered = TransparentStatsRenderer.render(
+                    "test", resultWithEvaluation(Verdict.PASS, eval));
+
+            assertThat(rendered)
+                    .contains("Composite verdict (FAIL) differs from overall verdict (PASS)")
+                    .contains("see per-criterion table");
+        }
+
+        @Test
+        @DisplayName("no per-criterion block when evaluation is empty (back-compat path)")
+        void emptyEvaluationOmitsBlock() {
+            String rendered = TransparentStatsRenderer.render(
+                    "test", resultWithEvaluation(Verdict.PASS, PerCriterionEvaluation.empty()));
+
+            assertThat(rendered).doesNotContain("Per-criterion verdicts");
+            assertThat(rendered).doesNotContain("Composite:");
         }
     }
 }

@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.javai.outcome.Outcome;
+import org.javai.punit.api.criterion.CriterionSampleResult;
 
 /**
  * The artefact assembled by {@link Contract#apply(Object, TokenTracker)}
@@ -57,7 +58,8 @@ public record ServiceContractOutcome<I, O>(
         List<PostconditionResult> postconditionResults,
         Optional<MatchResult> match,
         long tokens,
-        Duration duration) {
+        Duration duration,
+        List<CriterionSampleResult> criterionSampleResults) {
 
     public ServiceContractOutcome {
         Objects.requireNonNull(result, "result");
@@ -65,6 +67,7 @@ public record ServiceContractOutcome<I, O>(
         Objects.requireNonNull(postconditionResults, "postconditionResults");
         Objects.requireNonNull(match, "match");
         Objects.requireNonNull(duration, "duration");
+        Objects.requireNonNull(criterionSampleResults, "criterionSampleResults");
         if (tokens < 0) {
             throw new IllegalArgumentException("tokens must be non-negative, got " + tokens);
         }
@@ -72,6 +75,24 @@ public record ServiceContractOutcome<I, O>(
             throw new IllegalArgumentException("duration must be non-negative, got " + duration);
         }
         postconditionResults = List.copyOf(postconditionResults);
+        criterionSampleResults = List.copyOf(criterionSampleResults);
+    }
+
+    /**
+     * Backward-compatible 6-arg constructor that defaults
+     * {@link #criterionSampleResults()} to an empty list. Test fixtures
+     * and call sites that don't carry per-criterion sample detail
+     * construct via this overload; the framework's contract-apply path
+     * constructs via the canonical 7-arg form.
+     */
+    public ServiceContractOutcome(
+            Outcome<O> result,
+            Contract<I, O> contract,
+            List<PostconditionResult> postconditionResults,
+            Optional<MatchResult> match,
+            long tokens,
+            Duration duration) {
+        this(result, contract, postconditionResults, match, tokens, duration, List.of());
     }
 
     /**
