@@ -180,11 +180,6 @@ public final class VerdictAdapter {
         // evaluations leave the field absent.
         b.perCriterion(translatePerCriterion(result.perCriterionEvaluation()));
 
-        // Transitional one-release audit-trail field. Mirrors
-        // ProbabilisticTestResult.legacyAggregateVerdict's Optional;
-        // null leaves the field absent.
-        result.legacyAggregateVerdict().ifPresent(b::legacyAggregateVerdict);
-
         return b.build();
     }
 

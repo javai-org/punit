@@ -220,7 +220,6 @@ public final class ProbabilisticTest implements Spec {
                 }
             }
 
-            Verdict legacyAggregate = Verdict.compose(evaluated);
             EngineRunSummary engineSummary = buildEngineSummary(s, evaluated, baselineFilename);
             PerCriterionEvaluation perCriterionEvaluation =
                     PerCriterionVerdicts.derive(evaluated, s.criterionSampleCounts());
@@ -244,7 +243,7 @@ public final class ProbabilisticTest implements Spec {
             //
             // Empty per-criterion evaluation (apply-level-failure runs
             // where Contract.evaluateClauses never fired) leaves the
-            // legacy compose result intact.
+            // unsubstituted compose result intact.
             List<EvaluatedCriterion> compositeAdjusted = perCriterionEvaluation.perCriterionVerdicts().isEmpty()
                     ? evaluated
                     : substituteFunctionalVerdict(evaluated, perCriterionEvaluation.compositeVerdict());
@@ -258,8 +257,7 @@ public final class ProbabilisticTest implements Spec {
                     Optional.empty(),
                     s.failuresByPostcondition(),
                     engineSummary,
-                    perCriterionEvaluation,
-                    Optional.of(legacyAggregate));
+                    perCriterionEvaluation);
         }
 
         /**
