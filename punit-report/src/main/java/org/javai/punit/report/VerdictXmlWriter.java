@@ -32,7 +32,8 @@ public final class VerdictXmlWriter {
      * standard namespace.
      */
     static final String NAMESPACE = "http://javai.org/verdict/1.0";
-    static final String VERSION = "1.0";
+    static final String VERSION_1_0 = "1.0";
+    static final String VERSION_1_1 = "1.1";
 
     private static final XMLOutputFactory OUTPUT_FACTORY = XMLOutputFactory.newFactory();
 
@@ -64,7 +65,12 @@ public final class VerdictXmlWriter {
     private void writeVerdictRecord(XMLStreamWriter w, ProbabilisticTestVerdict v) throws XMLStreamException {
         w.writeStartElement("verdict-record");
         w.writeDefaultNamespace(NAMESPACE);
-        w.writeAttribute("version", VERSION);
+        // version="1.1" when <per-criterion> content is populated;
+        // "1.0" otherwise. Consumers inspecting the attribute remain
+        // correctly informed about which optional elements may appear.
+        boolean emit11Surface = v.perCriterion().isPresent()
+                || v.legacyAggregateVerdict().isPresent();
+        w.writeAttribute("version", emit11Surface ? VERSION_1_1 : VERSION_1_0);
         w.writeAttribute("timestamp", v.timestamp().toString());
         w.writeAttribute("generator", resolveGenerator());
         if (v.correlationId() != null && !v.correlationId().isEmpty()) {
@@ -85,8 +91,45 @@ public final class VerdictXmlWriter {
         v.pacing().ifPresent(p -> writePacingUnchecked(w, p));
         writeEnvironment(w, v.environmentMetadata());
         writePostconditionFailures(w, v.postconditionFailures());
+        writePerCriterion(w, v);
         writeVerdictElement(w, v);
 
+        w.writeEndElement();
+    }
+
+    private void writePerCriterion(XMLStreamWriter w, ProbabilisticTestVerdict v)
+            throws XMLStreamException {
+        if (v.perCriterion().isEmpty() && v.legacyAggregateVerdict().isEmpty()) {
+            return;
+        }
+        w.writeStartElement("per-criterion");
+        if (v.perCriterion().isPresent()) {
+            org.javai.punit.verdict.PerCriterionStructure pc = v.perCriterion().get();
+            for (org.javai.punit.verdict.CriterionRow row : pc.criteria()) {
+                w.writeStartElement("criterion");
+                w.writeAttribute("id", row.criterionId());
+                w.writeAttribute("verdict", row.verdict().name());
+                w.writeAttribute("pass", Integer.toString(row.pass()));
+                w.writeAttribute("fail", Integer.toString(row.fail()));
+                w.writeAttribute("inconclusive", Integer.toString(row.inconclusive()));
+                w.writeAttribute("total", Integer.toString(row.total()));
+                if (!Double.isNaN(row.observedRate())) {
+                    w.writeAttribute("observed-rate", formatDouble(row.observedRate()));
+                }
+                if (!Double.isNaN(row.threshold())) {
+                    w.writeAttribute("threshold", formatDouble(row.threshold()));
+                }
+                w.writeEndElement();
+            }
+            w.writeStartElement("composite");
+            w.writeAttribute("value", pc.composite().name());
+            w.writeEndElement();
+        }
+        if (v.legacyAggregateVerdict().isPresent()) {
+            w.writeStartElement("legacy-aggregate");
+            w.writeAttribute("value", v.legacyAggregateVerdict().get().name());
+            w.writeEndElement();
+        }
         w.writeEndElement();
     }
 

@@ -174,7 +174,40 @@ public final class VerdictAdapter {
         // field is only meaningful inside the JUnit context).
         b.junitPassed(true);
 
+        // Per-criterion structural decomposition (CR07 / CR09). The
+        // in-memory PerCriterionEvaluation translates row-for-row into
+        // the persistence-layer PerCriterionStructure. Empty
+        // evaluations leave the field absent.
+        b.perCriterion(translatePerCriterion(result.perCriterionEvaluation()));
+
+        // Transitional one-release audit-trail field. Mirrors
+        // ProbabilisticTestResult.legacyAggregateVerdict's Optional;
+        // null leaves the field absent.
+        result.legacyAggregateVerdict().ifPresent(b::legacyAggregateVerdict);
+
         return b.build();
+    }
+
+    private static org.javai.punit.verdict.PerCriterionStructure translatePerCriterion(
+            org.javai.punit.api.spec.PerCriterionEvaluation evaluation) {
+        if (evaluation.perCriterionVerdicts().isEmpty()) {
+            return null;
+        }
+        List<org.javai.punit.verdict.CriterionRow> rows = new java.util.ArrayList<>(
+                evaluation.perCriterionVerdicts().size());
+        for (var v : evaluation.perCriterionVerdicts()) {
+            var counts = v.counts();
+            rows.add(new org.javai.punit.verdict.CriterionRow(
+                    v.criterionId(),
+                    v.verdict(),
+                    counts.pass(),
+                    counts.fail(),
+                    counts.inconclusive(),
+                    v.observed(),
+                    v.threshold()));
+        }
+        return new org.javai.punit.verdict.PerCriterionStructure(
+                rows, evaluation.compositeVerdict());
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
