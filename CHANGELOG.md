@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (verdict-XML 1.1 schema)
+
+- **`verdict-1.1.xsd`** — additive schema bump under the existing
+  `http://javai.org/verdict/1.0` namespace. Adds an optional
+  `<per-criterion>` bundle under `<verdict-record>` carrying the
+  methodology-level decomposition:
+
+  - `<criterion id="…" verdict="PASS|FAIL|INCONCLUSIVE"
+       pass="…" fail="…" inconclusive="…" total="…"
+       observed-rate="…" threshold="…"/>` — one element per
+    criterion the contract declared, in declaration order.
+    `observed-rate` and `threshold` are optional attributes omitted
+    when the in-memory value is `NaN`.
+  - `<composite value="…"/>` — the composite verdict over the rows
+    under the FAIL-dominant rule (§1.4.6).
+  - `<legacy-aggregate value="…"/>` — transitional one-release
+    audit-trail element mirroring `ProbabilisticTestResult.legacyAggregateVerdict()`.
+    Present only when the in-memory `Optional` is populated. A
+    follow-on directive removes both this element and the in-memory
+    field.
+
+  Emitter sets the root `<verdict-record version>` attribute to
+  `"1.1"` when 1.1 content is populated, `"1.0"` otherwise.
+  `verdict-1.0.xsd` is retained for one release as a reference;
+  consumers strictly validating against 1.0 will reject 1.1
+  `<per-criterion>` content (the additive-evolution break).
+
+- **`ProbabilisticTestVerdict`** gains
+  `Optional<PerCriterionStructure> perCriterion` and
+  `Optional<Verdict> legacyAggregateVerdict` components; two
+  back-compat constructors (17-arg, 16-arg) layered to preserve
+  existing call sites.
+
+- **`VerdictXmlReader`** parses both 1.0 and 1.1 messages
+  permissively — the new elements are read when present and absent
+  Optionals are preserved otherwise.
+
+### Cross-framework coordination
+
+- Feotest's verdict reader and emitter follow in their own
+  directive. The shared schema artefact is the coordination point;
+  feotest's update lands when feotest's step-4-equivalent is on
+  the runway.
+
 ### Changed (behavioural)
 
 - **Composite verdict is now the contract's overall verdict authority.**

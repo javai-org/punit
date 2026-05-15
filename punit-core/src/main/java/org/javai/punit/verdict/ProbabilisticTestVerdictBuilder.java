@@ -115,6 +115,13 @@ public class ProbabilisticTestVerdictBuilder {
     // ── Postcondition failure histogram ───────────────────────────────────
     private Map<String, FailureCount> postconditionFailures = Map.of();
 
+    // ── Per-criterion structural decomposition (CR07 / CR09) ──────────────
+    // Optional. Populated by VerdictAdapter from
+    // ProbabilisticTestResult.perCriterionEvaluation() on every normal
+    // run; empty for apply-level-failure paths.
+    private Optional<PerCriterionStructure> perCriterion = Optional.empty();
+    private Optional<Verdict> legacyAggregateVerdict = Optional.empty();
+
     // ── Builder methods ───────────────────────────────────────────────────
 
     public ProbabilisticTestVerdictBuilder correlationId(String correlationId) {
@@ -306,6 +313,29 @@ public class ProbabilisticTestVerdictBuilder {
         return this;
     }
 
+    /**
+     * The per-criterion methodology-level decomposition: one row per
+     * criterion the contract declared, plus the composite verdict.
+     * Populated by {@code VerdictAdapter} from
+     * {@code ProbabilisticTestResult.perCriterionEvaluation()}.
+     * {@code null} leaves the field empty.
+     */
+    public ProbabilisticTestVerdictBuilder perCriterion(PerCriterionStructure perCriterion) {
+        this.perCriterion = Optional.ofNullable(perCriterion);
+        return this;
+    }
+
+    /**
+     * The pre-cutover legacy aggregate verdict, transitional one-release
+     * audit-trail field mirroring
+     * {@code ProbabilisticTestResult.legacyAggregateVerdict()}.
+     * {@code null} leaves the field empty.
+     */
+    public ProbabilisticTestVerdictBuilder legacyAggregateVerdict(Verdict legacyAggregateVerdict) {
+        this.legacyAggregateVerdict = Optional.ofNullable(legacyAggregateVerdict);
+        return this;
+    }
+
     // ── Build ─────────────────────────────────────────────────────────────
 
     public ProbabilisticTestVerdict build() {
@@ -328,7 +358,9 @@ public class ProbabilisticTestVerdictBuilder {
                 identity, execution, functional, latency, statistics,
                 covariates, cost, pacing, provenance, termination,
                 environmentMetadata, junitPassed, punitVerdict, verdictReason,
-                postconditionFailures
+                postconditionFailures,
+                perCriterion,
+                legacyAggregateVerdict
         );
     }
 

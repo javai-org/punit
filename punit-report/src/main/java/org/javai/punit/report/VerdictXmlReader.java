@@ -79,6 +79,12 @@ public final class VerdictXmlReader {
         String verdictReason = optionalAttribute(verdictEl, "reason").orElse("");
         boolean junitPassed = punitVerdict != PUnitVerdict.FAIL;
 
+        Optional<Element> perCriterionEl = optionalElement(root, "per-criterion");
+        Optional<org.javai.punit.verdict.PerCriterionStructure> perCriterion =
+                perCriterionEl.flatMap(this::readPerCriterionStructure);
+        Optional<org.javai.punit.api.spec.Verdict> legacyAggregateVerdict =
+                perCriterionEl.flatMap(this::readLegacyAggregate);
+
         return new ProbabilisticTestVerdict(
                 correlationId, timestamp, identity, execution,
                 functional, latency, statistics, covariates,
@@ -87,8 +93,59 @@ public final class VerdictXmlReader {
                 provenance,
                 termination,
                 environment,
-                junitPassed, punitVerdict, verdictReason
+                junitPassed, punitVerdict, verdictReason,
+                Map.of(),
+                perCriterion,
+                legacyAggregateVerdict
         );
+    }
+
+    private Optional<org.javai.punit.verdict.PerCriterionStructure> readPerCriterionStructure(
+            Element perCriterionEl) {
+        NodeList rows = perCriterionEl.getElementsByTagNameNS(
+                VerdictXmlWriter.NAMESPACE, "criterion");
+        Optional<Element> compositeEl = optionalElement(perCriterionEl, "composite");
+        // No criterion rows AND no composite element → no methodology-level
+        // decomposition was emitted (the element exists only to carry a
+        // <legacy-aggregate>). Treat as absent.
+        if (rows.getLength() == 0 && compositeEl.isEmpty()) {
+            return Optional.empty();
+        }
+        java.util.List<org.javai.punit.verdict.CriterionRow> criteria =
+                new java.util.ArrayList<>(rows.getLength());
+        for (int i = 0; i < rows.getLength(); i++) {
+            Element r = (Element) rows.item(i);
+            org.javai.punit.api.spec.Verdict v = org.javai.punit.api.spec.Verdict.valueOf(
+                    r.getAttribute("verdict"));
+            int pass = Integer.parseInt(r.getAttribute("pass"));
+            int fail = Integer.parseInt(r.getAttribute("fail"));
+            int inc = Integer.parseInt(r.getAttribute("inconclusive"));
+            double observed = optionalAttribute(r, "observed-rate")
+                    .map(Double::parseDouble).orElse(Double.NaN);
+            double threshold = optionalAttribute(r, "threshold")
+                    .map(Double::parseDouble).orElse(Double.NaN);
+            criteria.add(new org.javai.punit.verdict.CriterionRow(
+                    r.getAttribute("id"), v, pass, fail, inc, observed, threshold));
+        }
+        org.javai.punit.api.spec.Verdict composite = compositeEl
+                .map(e -> org.javai.punit.api.spec.Verdict.valueOf(e.getAttribute("value")))
+                // Fallback: when an emitter wrote <criterion> rows without
+                // a <composite> (a defensive read; producing emitters always
+                // pair the two), recompute from the rows.
+                .orElseGet(() -> {
+                    java.util.List<org.javai.punit.api.spec.Verdict> vs =
+                            new java.util.ArrayList<>(criteria.size());
+                    for (var row : criteria) vs.add(row.verdict());
+                    return org.javai.punit.api.spec.Verdict.aggregate(vs);
+                });
+        return Optional.of(new org.javai.punit.verdict.PerCriterionStructure(
+                criteria, composite));
+    }
+
+    private Optional<org.javai.punit.api.spec.Verdict> readLegacyAggregate(
+            Element perCriterionEl) {
+        return optionalElement(perCriterionEl, "legacy-aggregate")
+                .map(e -> org.javai.punit.api.spec.Verdict.valueOf(e.getAttribute("value")));
     }
 
     private TestIdentity readIdentity(Element el) {

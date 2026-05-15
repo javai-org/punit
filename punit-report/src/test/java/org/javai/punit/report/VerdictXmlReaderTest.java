@@ -355,7 +355,124 @@ class VerdictXmlReaderTest {
         }
     }
 
+    @Nested
+    @DisplayName("per-criterion 1.1 surface round-trip")
+    class PerCriterionRoundTrip {
+
+        @Test
+        @DisplayName("K=1 per-criterion bundle round-trips with preserved row, composite, absent legacy-aggregate")
+        void k1RoundTrip() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(new org.javai.punit.verdict.CriterionRow(
+                                    "only",
+                                    org.javai.punit.api.spec.Verdict.PASS,
+                                    100, 0, 0, 1.0, 0.85)),
+                            org.javai.punit.api.spec.Verdict.PASS);
+            ProbabilisticTestVerdict original = verdictWithPerCriterion(
+                    pc, Optional.empty(), PUnitVerdict.PASS);
+
+            ProbabilisticTestVerdict result = roundTrip(original);
+
+            assertThat(result.perCriterion()).isPresent();
+            assertThat(result.perCriterion().get().criteria()).hasSize(1);
+            assertThat(result.perCriterion().get().criteria().get(0).criterionId())
+                    .isEqualTo("only");
+            assertThat(result.perCriterion().get().composite())
+                    .isEqualTo(org.javai.punit.api.spec.Verdict.PASS);
+            assertThat(result.legacyAggregateVerdict()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("K>1 hiding result: rows in order, composite FAIL, legacy-aggregate PASS")
+        void k2WithLegacyAggregateRoundTrip() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(
+                                    new org.javai.punit.verdict.CriterionRow(
+                                            "good",
+                                            org.javai.punit.api.spec.Verdict.PASS,
+                                            100, 0, 0, 1.0, 0.85),
+                                    new org.javai.punit.verdict.CriterionRow(
+                                            "bad",
+                                            org.javai.punit.api.spec.Verdict.FAIL,
+                                            60, 40, 0, 0.60, 0.85)),
+                            org.javai.punit.api.spec.Verdict.FAIL);
+            ProbabilisticTestVerdict original = verdictWithPerCriterion(
+                    pc,
+                    Optional.of(org.javai.punit.api.spec.Verdict.PASS),
+                    PUnitVerdict.FAIL);
+
+            ProbabilisticTestVerdict result = roundTrip(original);
+
+            assertThat(result.perCriterion()).isPresent();
+            var criteria = result.perCriterion().get().criteria();
+            assertThat(criteria).hasSize(2);
+            assertThat(criteria.get(0).criterionId()).isEqualTo("good");
+            assertThat(criteria.get(1).criterionId()).isEqualTo("bad");
+            assertThat(criteria.get(1).verdict())
+                    .isEqualTo(org.javai.punit.api.spec.Verdict.FAIL);
+            assertThat(criteria.get(1).observedRate()).isEqualTo(0.60);
+            assertThat(criteria.get(1).threshold()).isEqualTo(0.85);
+            assertThat(result.perCriterion().get().composite())
+                    .isEqualTo(org.javai.punit.api.spec.Verdict.FAIL);
+            assertThat(result.legacyAggregateVerdict())
+                    .contains(org.javai.punit.api.spec.Verdict.PASS);
+        }
+
+        @Test
+        @DisplayName("NaN observed-rate / threshold round-trip as NaN")
+        void nanRoundTrip() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(new org.javai.punit.verdict.CriterionRow(
+                                    "empty",
+                                    org.javai.punit.api.spec.Verdict.INCONCLUSIVE,
+                                    0, 0, 0,
+                                    Double.NaN, Double.NaN)),
+                            org.javai.punit.api.spec.Verdict.INCONCLUSIVE);
+            ProbabilisticTestVerdict original = verdictWithPerCriterion(
+                    pc, Optional.empty(), PUnitVerdict.INCONCLUSIVE);
+
+            ProbabilisticTestVerdict result = roundTrip(original);
+
+            var row = result.perCriterion().get().criteria().get(0);
+            assertThat(Double.isNaN(row.observedRate())).isTrue();
+            assertThat(Double.isNaN(row.threshold())).isTrue();
+        }
+
+        @Test
+        @DisplayName("absent per-criterion round-trips as empty Optional")
+        void absentRoundTrip() throws Exception {
+            ProbabilisticTestVerdict original = minimalVerdict(true, PUnitVerdict.PASS);
+
+            ProbabilisticTestVerdict result = roundTrip(original);
+
+            assertThat(result.perCriterion()).isEmpty();
+            assertThat(result.legacyAggregateVerdict()).isEmpty();
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    private ProbabilisticTestVerdict verdictWithPerCriterion(
+            org.javai.punit.verdict.PerCriterionStructure perCriterion,
+            Optional<org.javai.punit.api.spec.Verdict> legacyAggregate,
+            PUnitVerdict punitVerdict) {
+        ProbabilisticTestVerdict base = minimalVerdict(
+                punitVerdict != PUnitVerdict.FAIL, punitVerdict);
+        return new ProbabilisticTestVerdict(
+                base.correlationId(), base.timestamp(),
+                base.identity(), base.execution(),
+                base.functional(), base.latency(), base.statistics(),
+                base.covariates(), base.cost(), base.pacing(),
+                base.provenance(), base.termination(),
+                base.environmentMetadata(), base.junitPassed(),
+                base.punitVerdict(), base.verdictReason(),
+                base.postconditionFailures(),
+                Optional.of(perCriterion),
+                legacyAggregate);
+    }
 
     private ProbabilisticTestVerdict roundTrip(ProbabilisticTestVerdict verdict) throws XMLStreamException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
