@@ -10,6 +10,16 @@ signing {
     useGpgCmd()
 }
 
+// Targeted `exports ... to org.javai.punit.report / .sentinel` in
+// module-info.java reference sibling modules that depend on this one,
+// so they are not on the module path when punit-core compiles. javac
+// emits a benign "module not found" warning per target. Suppress the
+// `module` lint category for punit-core to keep the build output clean;
+// downstream modules still resolve the exports at their own compile time.
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-Xlint:-module")
+}
+
 tasks.test {
     // Test subjects under testsubjects/ are JUnit-driven inputs to the
     // TestKit-based integration tests; running them directly would trip
