@@ -37,7 +37,9 @@ class TransparentStatsRendererTest {
                 FactorBundle.empty(),
                 List.of(evaluated),
                 TestIntent.VERIFICATION,
-                List.of());
+                List.of(),
+                CovariateAlignment.none(), Optional.empty(), Map.of(),
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
     }
 
     private static EvaluatedCriterion criterion(
@@ -189,7 +191,9 @@ class TransparentStatsRendererTest {
                 FactorBundle.empty(),
                 List.of(criterion("bernoulli-pass-rate", Verdict.INCONCLUSIVE, "no baseline", Map.of())),
                 TestIntent.VERIFICATION,
-                List.of("rejected file-A — CONFIGURATION mismatch on region (current=APAC, baseline=EU)"));
+                List.of("rejected file-A — CONFIGURATION mismatch on region (current=APAC, baseline=EU)"),
+                CovariateAlignment.none(), Optional.empty(), Map.of(),
+                EngineRunSummary.empty(), PerCriterionEvaluation.empty());
 
         String rendered = TransparentStatsRenderer.render(
                 "test", resultWithWarnings);
@@ -213,7 +217,9 @@ class TransparentStatsRendererTest {
                                     "confidence", 0.95, "wilsonLowerBound", 0.90))),
                     TestIntent.VERIFICATION,
                     List.of(),
-                    alignment);
+                    alignment,
+                    Optional.empty(), Map.of(),
+                    EngineRunSummary.empty(), PerCriterionEvaluation.empty());
         }
 
         @Test
@@ -324,7 +330,8 @@ class TransparentStatsRendererTest {
                     List.of(),
                     CovariateAlignment.none(),
                     java.util.Optional.empty(),
-                    hist);
+                    hist,
+                    EngineRunSummary.empty(), PerCriterionEvaluation.empty());
         }
 
         @Test

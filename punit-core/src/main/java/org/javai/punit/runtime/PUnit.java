@@ -37,6 +37,7 @@ import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.FactorsStepper;
 import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.FailureExemplar;
+import org.javai.punit.api.spec.PerCriterionEvaluation;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Scorer;
@@ -811,7 +812,8 @@ public final class PUnit {
                     CovariateAlignment.compute(observed, CovariateProfile.empty()),
                     contractRefOpt,
                     Map.of(),
-                    EngineRunSummary.empty());
+                    EngineRunSummary.empty(),
+                    PerCriterionEvaluation.empty());
         }
 
         private List<String> preflightFeasibility(
@@ -1021,7 +1023,8 @@ public final class PUnit {
                     CovariateAlignment.compute(ctx.profile, CovariateProfile.empty()),
                     contractRefOpt,
                     Map.of(),
-                    EngineRunSummary.empty());
+                    EngineRunSummary.empty(),
+                    PerCriterionEvaluation.empty());
         }
 
         @SuppressWarnings("unchecked")
