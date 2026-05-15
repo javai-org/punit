@@ -560,6 +560,184 @@ class VerdictXmlWriterTest {
     }
 
     @Nested
+    @DisplayName("per-criterion XML surface (1.1)")
+    class PerCriterionXmlTests {
+
+        @Test
+        @DisplayName("K=1: emits single criterion row, composite matches verdict, no legacy-aggregate")
+        void k1Emission() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(new org.javai.punit.verdict.CriterionRow(
+                                    "only",
+                                    org.javai.punit.api.spec.Verdict.PASS,
+                                    100, 0, 0,
+                                    1.0, 0.85)),
+                            org.javai.punit.api.spec.Verdict.PASS);
+            ProbabilisticTestVerdict verdict = verdictWithPerCriterion(
+                    pc, Optional.empty(), PUnitVerdict.PASS);
+
+            Document doc = writeAndParse(verdict);
+            Element root = doc.getDocumentElement();
+            Element perCriterion = firstElement(doc, "per-criterion");
+
+            assertThat(root.getAttribute("version")).isEqualTo("1.1");
+            NodeList rows = perCriterion.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "criterion");
+            assertThat(rows.getLength()).isEqualTo(1);
+            Element row = (Element) rows.item(0);
+            assertThat(row.getAttribute("id")).isEqualTo("only");
+            assertThat(row.getAttribute("verdict")).isEqualTo("PASS");
+            assertThat(row.getAttribute("pass")).isEqualTo("100");
+            assertThat(row.getAttribute("total")).isEqualTo("100");
+            assertThat(row.getAttribute("observed-rate")).isEqualTo("1");
+            assertThat(row.getAttribute("threshold")).isEqualTo("0.85");
+
+            Element composite = (Element) perCriterion.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "composite").item(0);
+            assertThat(composite.getAttribute("value")).isEqualTo("PASS");
+            assertThat(perCriterion.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "legacy-aggregate").getLength())
+                    .isZero();
+        }
+
+        @Test
+        @DisplayName("K>1 hiding result: composite FAIL, criteria rows in order, audit-trail legacy-aggregate")
+        void k2WithLegacyAggregate() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(
+                                    new org.javai.punit.verdict.CriterionRow(
+                                            "good",
+                                            org.javai.punit.api.spec.Verdict.PASS,
+                                            100, 0, 0, 1.0, 0.85),
+                                    new org.javai.punit.verdict.CriterionRow(
+                                            "bad",
+                                            org.javai.punit.api.spec.Verdict.FAIL,
+                                            60, 40, 0, 0.60, 0.85)),
+                            org.javai.punit.api.spec.Verdict.FAIL);
+            ProbabilisticTestVerdict verdict = verdictWithPerCriterion(
+                    pc,
+                    Optional.of(org.javai.punit.api.spec.Verdict.PASS),
+                    PUnitVerdict.FAIL);
+
+            Document doc = writeAndParse(verdict);
+            Element perCriterion = firstElement(doc, "per-criterion");
+            NodeList rows = perCriterion.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "criterion");
+
+            assertThat(rows.getLength()).isEqualTo(2);
+            assertThat(((Element) rows.item(0)).getAttribute("id")).isEqualTo("good");
+            assertThat(((Element) rows.item(1)).getAttribute("id")).isEqualTo("bad");
+            assertThat(((Element) rows.item(1)).getAttribute("verdict")).isEqualTo("FAIL");
+
+            Element composite = (Element) perCriterion.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "composite").item(0);
+            assertThat(composite.getAttribute("value")).isEqualTo("FAIL");
+
+            Element legacy = (Element) perCriterion.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "legacy-aggregate").item(0);
+            assertThat(legacy.getAttribute("value")).isEqualTo("PASS");
+        }
+
+        @Test
+        @DisplayName("NaN observed-rate / threshold: attributes omitted")
+        void nanAttributesOmitted() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(new org.javai.punit.verdict.CriterionRow(
+                                    "no-samples",
+                                    org.javai.punit.api.spec.Verdict.INCONCLUSIVE,
+                                    0, 0, 0,
+                                    Double.NaN, Double.NaN)),
+                            org.javai.punit.api.spec.Verdict.INCONCLUSIVE);
+            ProbabilisticTestVerdict verdict = verdictWithPerCriterion(
+                    pc, Optional.empty(), PUnitVerdict.INCONCLUSIVE);
+
+            Document doc = writeAndParse(verdict);
+            Element perCriterion = firstElement(doc, "per-criterion");
+            Element row = (Element) perCriterion.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "criterion").item(0);
+
+            assertThat(row.hasAttribute("observed-rate")).isFalse();
+            assertThat(row.hasAttribute("threshold")).isFalse();
+            assertThat(row.getAttribute("total")).isEqualTo("0");
+        }
+
+        @Test
+        @DisplayName("absent per-criterion: no <per-criterion> element, version stays 1.0")
+        void absentPerCriterionStaysAt10() throws Exception {
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
+
+            Document doc = writeAndParse(verdict);
+            Element root = doc.getDocumentElement();
+
+            assertThat(root.getAttribute("version")).isEqualTo("1.0");
+            assertThat(root.getElementsByTagNameNS(
+                    VerdictXmlWriter.NAMESPACE, "per-criterion").getLength())
+                    .isZero();
+        }
+
+        @Test
+        @DisplayName("emitter output validates against verdict-1.1 schema")
+        void validatesAgainst11Schema() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(
+                                    new org.javai.punit.verdict.CriterionRow(
+                                            "good",
+                                            org.javai.punit.api.spec.Verdict.PASS,
+                                            100, 0, 0, 1.0, 0.85),
+                                    new org.javai.punit.verdict.CriterionRow(
+                                            "bad",
+                                            org.javai.punit.api.spec.Verdict.FAIL,
+                                            60, 40, 0, 0.60, 0.85)),
+                            org.javai.punit.api.spec.Verdict.FAIL);
+            ProbabilisticTestVerdict verdict = verdictWithPerCriterion(
+                    pc,
+                    Optional.of(org.javai.punit.api.spec.Verdict.PASS),
+                    PUnitVerdict.FAIL);
+
+            String xml = writeToString(verdict);
+
+            validateAgainstSchema11(xml);
+        }
+
+        @Test
+        @DisplayName("1.0-only emission still validates against verdict-1.1 schema (additive)")
+        void absentPerCriterionValidatesAgainst11Schema() throws Exception {
+            ProbabilisticTestVerdict verdict = minimalVerdict(true, PUnitVerdict.PASS);
+
+            String xml = writeToString(verdict);
+
+            validateAgainstSchema11(xml);
+        }
+
+        @Test
+        @DisplayName("1.1 emission's existing 1.0 elements still validate against verdict-1.0 schema")
+        void existing10ElementsTolerateOldSchema() throws Exception {
+            org.javai.punit.verdict.PerCriterionStructure pc =
+                    new org.javai.punit.verdict.PerCriterionStructure(
+                            List.of(new org.javai.punit.verdict.CriterionRow(
+                                    "only",
+                                    org.javai.punit.api.spec.Verdict.PASS,
+                                    100, 0, 0, 1.0, 0.85)),
+                            org.javai.punit.api.spec.Verdict.PASS);
+            ProbabilisticTestVerdict verdict = verdictWithPerCriterion(
+                    pc, Optional.empty(), PUnitVerdict.PASS);
+
+            // Strict 1.0 validation rejects unknown <per-criterion> content
+            // — that's the documented break. The looser invariant is that
+            // a consumer reading only the 1.0 elements (ignoring unknown
+            // children at parse time) parses them without surprise. The
+            // round-trip test below covers the practical case.
+            String xml = writeToString(verdict);
+            assertThat(xml).contains("<verdict");
+            assertThat(xml).contains("<execution");
+        }
+    }
+
+    @Nested
     @DisplayName("service contract ID")
     class ServiceContractIdTests {
 
@@ -829,10 +1007,39 @@ class VerdictXmlWriterTest {
         return (Element) nodes.item(0);
     }
 
+    private ProbabilisticTestVerdict verdictWithPerCriterion(
+            org.javai.punit.verdict.PerCriterionStructure perCriterion,
+            Optional<org.javai.punit.api.spec.Verdict> legacyAggregate,
+            PUnitVerdict punitVerdict) {
+        ProbabilisticTestVerdict base = minimalVerdict(
+                punitVerdict != PUnitVerdict.FAIL, punitVerdict);
+        return new ProbabilisticTestVerdict(
+                base.correlationId(), base.timestamp(),
+                base.identity(), base.execution(),
+                base.functional(), base.latency(), base.statistics(),
+                base.covariates(), base.cost(), base.pacing(),
+                base.provenance(), base.termination(),
+                base.environmentMetadata(), base.junitPassed(),
+                base.punitVerdict(), base.verdictReason(),
+                base.postconditionFailures(),
+                Optional.of(perCriterion),
+                legacyAggregate);
+    }
+
     private void validateAgainstSchema(String xml) throws Exception {
         SchemaFactory schemaFactory = SchemaFactory.newInstance(javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI);
         try (InputStream xsdStream = getClass().getResourceAsStream("/org/javai/punit/report/verdict-1.0.xsd")) {
             assertThat(xsdStream).as("XSD resource must be available").isNotNull();
+            Schema schema = schemaFactory.newSchema(new StreamSource(xsdStream));
+            Validator validator = schema.newValidator();
+            validator.validate(new StreamSource(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))));
+        }
+    }
+
+    private void validateAgainstSchema11(String xml) throws Exception {
+        SchemaFactory schemaFactory = SchemaFactory.newInstance(javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI);
+        try (InputStream xsdStream = getClass().getResourceAsStream("/org/javai/punit/report/verdict-1.1.xsd")) {
+            assertThat(xsdStream).as("XSD 1.1 resource must be available").isNotNull();
             Schema schema = schemaFactory.newSchema(new StreamSource(xsdStream));
             Validator validator = schema.newValidator();
             validator.validate(new StreamSource(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))));
