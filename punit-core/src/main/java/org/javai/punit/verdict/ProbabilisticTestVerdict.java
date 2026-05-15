@@ -42,8 +42,7 @@ public record ProbabilisticTestVerdict(
         PUnitVerdict punitVerdict,
         String verdictReason,
         Map<String, FailureCount> postconditionFailures,
-        Optional<PerCriterionStructure> perCriterion,
-        Optional<org.javai.punit.api.spec.Verdict> legacyAggregateVerdict
+        Optional<PerCriterionStructure> perCriterion
 ) {
 
     public ProbabilisticTestVerdict {
@@ -54,17 +53,12 @@ public record ProbabilisticTestVerdict(
                 ? Collections.unmodifiableMap(new LinkedHashMap<>(postconditionFailures))
                 : Map.of();
         perCriterion = perCriterion != null ? perCriterion : Optional.empty();
-        legacyAggregateVerdict = legacyAggregateVerdict != null
-                ? legacyAggregateVerdict
-                : Optional.empty();
     }
 
     /**
      * Backward-compatible constructor for the 17-component shape that
      * predates the per-criterion structural surface (CR09 / CR01 in
-     * the verdict XML). Defaults both new components to empty. Used
-     * by test fixtures and any producer that doesn't yet thread the
-     * per-criterion structure through.
+     * the verdict XML). Defaults the per-criterion component to empty.
      */
     public ProbabilisticTestVerdict(
             String correlationId,
@@ -87,14 +81,13 @@ public record ProbabilisticTestVerdict(
         this(correlationId, timestamp, identity, execution, functional, latency,
                 statistics, covariates, cost, pacing, provenance, termination,
                 environmentMetadata, junitPassed, punitVerdict, verdictReason,
-                postconditionFailures, Optional.empty(), Optional.empty());
+                postconditionFailures, Optional.empty());
     }
 
     /**
      * Backward-compatible constructor for the 16-component shape that
      * predates the per-postcondition failure histogram. Defaults the
-     * histogram to an empty map and the per-criterion structure /
-     * legacy aggregate to empty.
+     * histogram to an empty map and the per-criterion structure to empty.
      */
     public ProbabilisticTestVerdict(
             String correlationId,
@@ -116,7 +109,7 @@ public record ProbabilisticTestVerdict(
         this(correlationId, timestamp, identity, execution, functional, latency,
                 statistics, covariates, cost, pacing, provenance, termination,
                 environmentMetadata, junitPassed, punitVerdict, verdictReason,
-                Map.of(), Optional.empty(), Optional.empty());
+                Map.of(), Optional.empty());
     }
 
     // ── TestIdentity ──────────────────────────────────────────────────────

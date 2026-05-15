@@ -120,7 +120,6 @@ public class ProbabilisticTestVerdictBuilder {
     // ProbabilisticTestResult.perCriterionEvaluation() on every normal
     // run; empty for apply-level-failure paths.
     private Optional<PerCriterionStructure> perCriterion = Optional.empty();
-    private Optional<Verdict> legacyAggregateVerdict = Optional.empty();
 
     // ── Builder methods ───────────────────────────────────────────────────
 
@@ -325,17 +324,6 @@ public class ProbabilisticTestVerdictBuilder {
         return this;
     }
 
-    /**
-     * The pre-cutover legacy aggregate verdict, transitional one-release
-     * audit-trail field mirroring
-     * {@code ProbabilisticTestResult.legacyAggregateVerdict()}.
-     * {@code null} leaves the field empty.
-     */
-    public ProbabilisticTestVerdictBuilder legacyAggregateVerdict(Verdict legacyAggregateVerdict) {
-        this.legacyAggregateVerdict = Optional.ofNullable(legacyAggregateVerdict);
-        return this;
-    }
-
     // ── Build ─────────────────────────────────────────────────────────────
 
     public ProbabilisticTestVerdict build() {
@@ -359,8 +347,7 @@ public class ProbabilisticTestVerdictBuilder {
                 covariates, cost, pacing, provenance, termination,
                 environmentMetadata, junitPassed, punitVerdict, verdictReason,
                 postconditionFailures,
-                perCriterion,
-                legacyAggregateVerdict
+                perCriterion
         );
     }
 

@@ -356,11 +356,11 @@ class VerdictXmlReaderTest {
     }
 
     @Nested
-    @DisplayName("per-criterion 1.1 surface round-trip")
+    @DisplayName("per-criterion 1.2 surface round-trip")
     class PerCriterionRoundTrip {
 
         @Test
-        @DisplayName("K=1 per-criterion bundle round-trips with preserved row, composite, absent legacy-aggregate")
+        @DisplayName("K=1 per-criterion bundle round-trips with preserved row, composite")
         void k1RoundTrip() throws Exception {
             org.javai.punit.verdict.PerCriterionStructure pc =
                     new org.javai.punit.verdict.PerCriterionStructure(
@@ -369,8 +369,7 @@ class VerdictXmlReaderTest {
                                     org.javai.punit.api.spec.Verdict.PASS,
                                     100, 0, 0, 1.0, 0.85)),
                             org.javai.punit.api.spec.Verdict.PASS);
-            ProbabilisticTestVerdict original = verdictWithPerCriterion(
-                    pc, Optional.empty(), PUnitVerdict.PASS);
+            ProbabilisticTestVerdict original = verdictWithPerCriterion(pc, PUnitVerdict.PASS);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -380,12 +379,11 @@ class VerdictXmlReaderTest {
                     .isEqualTo("only");
             assertThat(result.perCriterion().get().composite())
                     .isEqualTo(org.javai.punit.api.spec.Verdict.PASS);
-            assertThat(result.legacyAggregateVerdict()).isEmpty();
         }
 
         @Test
-        @DisplayName("K>1 hiding result: rows in order, composite FAIL, legacy-aggregate PASS")
-        void k2WithLegacyAggregateRoundTrip() throws Exception {
+        @DisplayName("K>1 hiding result: rows in order, composite FAIL")
+        void k2RoundTrip() throws Exception {
             org.javai.punit.verdict.PerCriterionStructure pc =
                     new org.javai.punit.verdict.PerCriterionStructure(
                             List.of(
@@ -398,10 +396,7 @@ class VerdictXmlReaderTest {
                                             org.javai.punit.api.spec.Verdict.FAIL,
                                             60, 40, 0, 0.60, 0.85)),
                             org.javai.punit.api.spec.Verdict.FAIL);
-            ProbabilisticTestVerdict original = verdictWithPerCriterion(
-                    pc,
-                    Optional.of(org.javai.punit.api.spec.Verdict.PASS),
-                    PUnitVerdict.FAIL);
+            ProbabilisticTestVerdict original = verdictWithPerCriterion(pc, PUnitVerdict.FAIL);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -416,8 +411,6 @@ class VerdictXmlReaderTest {
             assertThat(criteria.get(1).threshold()).isEqualTo(0.85);
             assertThat(result.perCriterion().get().composite())
                     .isEqualTo(org.javai.punit.api.spec.Verdict.FAIL);
-            assertThat(result.legacyAggregateVerdict())
-                    .contains(org.javai.punit.api.spec.Verdict.PASS);
         }
 
         @Test
@@ -431,8 +424,7 @@ class VerdictXmlReaderTest {
                                     0, 0, 0,
                                     Double.NaN, Double.NaN)),
                             org.javai.punit.api.spec.Verdict.INCONCLUSIVE);
-            ProbabilisticTestVerdict original = verdictWithPerCriterion(
-                    pc, Optional.empty(), PUnitVerdict.INCONCLUSIVE);
+            ProbabilisticTestVerdict original = verdictWithPerCriterion(pc, PUnitVerdict.INCONCLUSIVE);
 
             ProbabilisticTestVerdict result = roundTrip(original);
 
@@ -449,7 +441,47 @@ class VerdictXmlReaderTest {
             ProbabilisticTestVerdict result = roundTrip(original);
 
             assertThat(result.perCriterion()).isEmpty();
-            assertThat(result.legacyAggregateVerdict()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("stray <legacy-aggregate> from a 1.1 emitter is ignored at parse")
+        void legacyAggregateIgnored() throws Exception {
+            // Hand-rolled 1.1-shaped XML carrying a <legacy-aggregate>
+            // child. The permissive reader parses the <per-criterion>
+            // bundle without surprise; the legacy element is silently
+            // discarded.
+            String xml = """
+                    <verdict-record xmlns="http://javai.org/verdict/1.0"
+                                    version="1.1"
+                                    timestamp="2026-03-11T14:30:00Z"
+                                    generator="test">
+                      <identity use-case-id="com.example.Test" test-name="t"/>
+                      <execution planned-samples="1" samples-executed="1"
+                                 successes="1" failures="0" elapsed-ms="0"
+                                 intent="VERIFICATION" confidence="0.95"/>
+                      <statistics confidence-level="0.95" standard-error="0"
+                                  wilson-lower="0" threshold="0.5"
+                                  threshold-origin="SLA"/>
+                      <covariates aligned="true"/>
+                      <termination reason="COMPLETED"/>
+                      <per-criterion>
+                        <criterion id="only" verdict="FAIL"
+                                   pass="60" fail="40" inconclusive="0" total="100"
+                                   observed-rate="0.60" threshold="0.85"/>
+                        <composite value="FAIL"/>
+                        <legacy-aggregate value="PASS"/>
+                      </per-criterion>
+                      <verdict value="FAIL"/>
+                    </verdict-record>
+                    """;
+            ProbabilisticTestVerdict result = reader.read(
+                    new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
+
+            assertThat(result.perCriterion()).isPresent();
+            assertThat(result.perCriterion().get().composite())
+                    .isEqualTo(org.javai.punit.api.spec.Verdict.FAIL);
+            // The <legacy-aggregate> element exists no more — no field
+            // on the parsed verdict record surfaces it.
         }
     }
 
@@ -457,7 +489,6 @@ class VerdictXmlReaderTest {
 
     private ProbabilisticTestVerdict verdictWithPerCriterion(
             org.javai.punit.verdict.PerCriterionStructure perCriterion,
-            Optional<org.javai.punit.api.spec.Verdict> legacyAggregate,
             PUnitVerdict punitVerdict) {
         ProbabilisticTestVerdict base = minimalVerdict(
                 punitVerdict != PUnitVerdict.FAIL, punitVerdict);
@@ -470,8 +501,7 @@ class VerdictXmlReaderTest {
                 base.environmentMetadata(), base.junitPassed(),
                 base.punitVerdict(), base.verdictReason(),
                 base.postconditionFailures(),
-                Optional.of(perCriterion),
-                legacyAggregate);
+                Optional.of(perCriterion));
     }
 
     private ProbabilisticTestVerdict roundTrip(ProbabilisticTestVerdict verdict) throws XMLStreamException {
