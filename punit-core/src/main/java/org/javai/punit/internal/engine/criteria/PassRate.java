@@ -117,6 +117,47 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
     }
 
     /**
+     * Derive a pass-rate spec-criterion from a contract criterion's
+     * posture. Used by the test-spec builder when no
+     * {@code .criterion(...)} was registered: the contract's
+     * acceptance posture drives the spec's evaluator.
+     *
+     * <p>Maps:
+     * <ul>
+     *   <li>{@code STATISTICAL_CONTRACTUAL} → {@link #meeting(double, ThresholdOrigin)}</li>
+     *   <li>{@code STATISTICAL_EMPIRICAL} → {@link #empirical()}</li>
+     * </ul>
+     *
+     * <p>{@code ZERO_TOLERANCE} and {@code IMPLICIT_ZERO_TOLERANCE}
+     * postures are not pass-rate criteria and return {@code empty()} —
+     * the caller is responsible for wiring the SMOKE-classifying
+     * evaluator for those.
+     */
+    public static <OT> Optional<PassRate<OT>> fromPosture(
+            org.javai.punit.api.criterion.CriterionPosture posture) {
+        Objects.requireNonNull(posture, "posture");
+        return switch (posture.kind()) {
+            case STATISTICAL_CONTRACTUAL -> {
+                double threshold = posture.threshold().orElseThrow(() -> new IllegalStateException(
+                        "STATISTICAL_CONTRACTUAL posture without threshold"));
+                ThresholdOrigin origin = posture.origin().orElseThrow(() -> new IllegalStateException(
+                        "STATISTICAL_CONTRACTUAL posture without origin"));
+                PassRate<OT> base = PassRate.meeting(threshold, origin);
+                yield Optional.of(posture.confidenceFloor().isPresent()
+                        ? base.atConfidence(posture.confidenceFloor().getAsDouble())
+                        : base);
+            }
+            case STATISTICAL_EMPIRICAL -> {
+                PassRate<OT> base = PassRate.empirical();
+                yield Optional.of(posture.confidenceFloor().isPresent()
+                        ? base.atConfidence(posture.confidenceFloor().getAsDouble())
+                        : base);
+            }
+            case ZERO_TOLERANCE, IMPLICIT_ZERO_TOLERANCE -> Optional.empty();
+        };
+    }
+
+    /**
      * Returns a new criterion with the declared confidence — used for
      * the empirical path's Wilson-score lower-bound comparison.
      */

@@ -54,4 +54,7 @@ module org.javai.punit.core {
 
     // ── ServiceLoader ─────────────────────────────────────────
     uses org.javai.punit.verdict.VerdictSink;
+    uses org.javai.punit.api.spec.SpecCriterionDeriver;
+    provides org.javai.punit.api.spec.SpecCriterionDeriver
+        with org.javai.punit.internal.engine.criteria.PostureBasedSpecCriterionDeriver;
 }
