@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (MEASURE baseline schema — per-methodology-criterion shape)
+
+- **Baseline YAML schema bumps from `punit-baseline-2` to
+  `punit-baseline-3`.** The `statistics.bernoulli-pass-rate`
+  block now nests a `criteria:` sub-map keyed by methodology
+  criterion id; each entry carries its own `observedPassRate`
+  and `sampleCount`. K=1 contracts (the common case, via the
+  legacy `postconditions(ContractBuilder)` path) produce a
+  single-entry map keyed by the auto-derived
+  `DefaultCriterion.id()`. K&gt;1 contracts (those declaring
+  `criteria(CriteriaBuilder)` explicitly) produce one entry
+  per methodology criterion in contract declaration order. The
+  top-level `latency:` block is unchanged — latency stays at the
+  run level, not partitioned by criterion.
+
+- **`BaselineReader` rejects `punit-baseline-2` files with a
+  re-MEASURE migration message.** No silent read-time adapter
+  — files on disk in the older shape must be regenerated.
+
+- **`PerCriterionPassRateStatistics` is a new `BaselineStatistics`
+  variant** wrapping `Map<String, PassRateStatistics>`. It is
+  what the baseline file's `bernoulli-pass-rate` block
+  deserialises to. The `BaselineResolver` unwraps it for callers
+  that request `PassRateStatistics.class` (the empirical
+  `PassRate` evaluator): single-entry maps yield their lone
+  entry; multi-entry maps fast-fail with an
+  `IllegalStateException` naming the criteria — multi-criterion
+  empirical evaluation awaits the evaluator-inference machinery
+  (deferred to a later directive).
+
+- **`BaselineEmitter` composes the per-criterion structure from
+  the engine's `SampleSummary.criterionSampleCounts()`**, one
+  entry per methodology criterion the engine recorded. No new
+  arithmetic — the per-criterion pass / total counts come
+  straight from the engine's already-recorded data.
+
 ### Added (HTML report — per-criterion breakdown)
 
 - **HTML report renders the methodology-level per-criterion

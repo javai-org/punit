@@ -21,9 +21,11 @@ import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.Configuration;
+import org.javai.punit.api.spec.CriterionSampleCounts;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
@@ -139,8 +141,7 @@ public final class BaselineEmitter {
         SampleSummary<OT> summary = (SampleSummary<OT>) rawSummary;
         int total = summary.total();
         Map<String, BaselineStatistics> stats = new LinkedHashMap<>();
-        stats.put("bernoulli-pass-rate",
-                new PassRateStatistics((double) summary.successes() / (double) total, total));
+        stats.put("bernoulli-pass-rate", buildPerCriterionPassRate(summary));
         // LatencyStatistics retained on the in-memory record under
         // the criterion-name "percentile-latency" so the
         // PercentileLatency criterion's lookup path keeps working.
@@ -186,6 +187,28 @@ public final class BaselineEmitter {
                 stats,
                 profile,
                 latencyIndicator);
+    }
+
+    /**
+     * Build the per-methodology-criterion pass-rate basis from the
+     * engine's recorded {@code criterionSampleCounts}. One entry per
+     * criterion the contract declared, in contract declaration order.
+     * For K=1 (the common case via {@code DefaultCriterion}) this
+     * yields a single-entry map keyed by the auto-derived criterion
+     * id.
+     */
+    private static PerCriterionPassRateStatistics buildPerCriterionPassRate(
+            SampleSummary<?> summary) {
+        Map<String, PassRateStatistics> byCriterion = new LinkedHashMap<>();
+        for (CriterionSampleCounts c : summary.criterionSampleCounts()) {
+            int criterionTotal = c.pass() + c.fail() + c.inconclusive();
+            double observed = criterionTotal == 0
+                    ? 0.0
+                    : (double) c.pass() / (double) criterionTotal;
+            byCriterion.put(c.criterionId(),
+                    new PassRateStatistics(observed, criterionTotal));
+        }
+        return new PerCriterionPassRateStatistics(byCriterion);
     }
 
 }

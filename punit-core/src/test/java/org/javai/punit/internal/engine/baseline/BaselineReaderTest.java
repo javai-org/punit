@@ -16,6 +16,7 @@ import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,10 +44,10 @@ class BaselineReaderTest {
     }
 
     @Test
-    @DisplayName("round-trips a PassRateStatistics record without loss")
+    @DisplayName("round-trips a PerCriterionPassRateStatistics record without loss")
     void roundTripPassRate() {
         BaselineRecord parsed = roundTrip(Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)));
 
         assertThat(parsed.serviceContractId()).isEqualTo("ShoppingBasket");
         assertThat(parsed.methodName()).isEqualTo("measureBaseline");
@@ -56,8 +57,10 @@ class BaselineReaderTest {
         assertThat(parsed.generatedAt()).isEqualTo(Instant.parse("2026-04-26T15:30:00Z"));
 
         BaselineStatistics entry = parsed.statisticsByCriterionName().get("bernoulli-pass-rate");
-        assertThat(entry).isInstanceOf(PassRateStatistics.class);
-        PassRateStatistics passRate = (PassRateStatistics) entry;
+        assertThat(entry).isInstanceOf(PerCriterionPassRateStatistics.class);
+        PerCriterionPassRateStatistics perCriterion = (PerCriterionPassRateStatistics) entry;
+        PassRateStatistics passRate = perCriterion.byCriterion().get("contract");
+        assertThat(passRate).isNotNull();
         assertThat(passRate.observedPassRate()).isEqualTo(0.94);
         assertThat(passRate.sampleCount()).isEqualTo(1000);
     }
@@ -77,7 +80,7 @@ class BaselineReaderTest {
         // non-empty per BaselineRecord's invariant); latency rides on
         // the indicator.
         BaselineRecord parsed = roundTrip(
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)),
                 indicator);
 
         // Reader synthesises the LatencyStatistics map entry from
@@ -102,7 +105,7 @@ class BaselineReaderTest {
     @DisplayName("round-trips both criteria — pass-rate via statistics:, latency via top-level block")
     void roundTripBothCriteria() {
         Map<String, BaselineStatistics> entries = new LinkedHashMap<>();
-        entries.put("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000));
+        entries.put("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000));
         LatencyIndicator indicator = new LatencyIndicator(
                 new LatencyResult(Duration.ofMillis(250), Duration.ofMillis(500),
                         Duration.ofMillis(800), Duration.ofMillis(1200), 1000),
@@ -118,7 +121,7 @@ class BaselineReaderTest {
     @DisplayName("read(Path) wraps parse failure with the file path in the diagnostic")
     void readWrapsErrorWithPath(@TempDir Path tempDir) throws IOException {
         Path file = tempDir.resolve("malformed.yaml");
-        Files.writeString(file, "schemaVersion: punit-baseline-2\n");
+        Files.writeString(file, "schemaVersion: punit-baseline-3\n");
 
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> reader.read(file))
@@ -134,7 +137,7 @@ class BaselineReaderTest {
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 100,
                 Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.9, 100)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.9, 100)),
                 CovariateProfile.empty(),
                 LatencyIndicator.empty());
         Path file = writer.write(original, tempDir);
@@ -155,7 +158,7 @@ class BaselineReaderTest {
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 100,
                 Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.95, 100)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.95, 100)),
                 CovariateProfile.empty(),
                 LatencyIndicator.empty());
         Path file = writer.write(original, tempDir);
@@ -182,7 +185,7 @@ class BaselineReaderTest {
                 "Legacy", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 50,
                 Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.8, 50)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.8, 50)),
                 CovariateProfile.empty(),
                 LatencyIndicator.empty());
         Path file = writer.write(original, tempDir);
@@ -210,13 +213,15 @@ class BaselineReaderTest {
                 + "generatedAt: 2026-04-26T15:30:00Z\n"
                 + "statistics:\n"
                 + "  bernoulli-pass-rate:\n"
-                + "    observedPassRate: 0.5\n"
-                + "    sampleCount: 1\n";
+                + "    criteria:\n"
+                + "      contract:\n"
+                + "        observedPassRate: 0.5\n"
+                + "        sampleCount: 1\n";
 
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> reader.parse(yaml))
                 .withMessageContaining("punit-baseline-99")
-                .withMessageContaining("punit-baseline-2");
+                .withMessageContaining("punit-baseline-3");
     }
 
     @Test
@@ -230,7 +235,7 @@ class BaselineReaderTest {
     @Test
     @DisplayName("rejects a missing required field with the field name in the diagnostic")
     void rejectsMissingField() {
-        String yaml = "schemaVersion: punit-baseline-2\n"
+        String yaml = "schemaVersion: punit-baseline-3\n"
                 + "useCaseId: x\n";
 
         assertThatExceptionOfType(IllegalArgumentException.class)
@@ -241,7 +246,7 @@ class BaselineReaderTest {
     @Test
     @DisplayName("rejects a statistics entry whose shape matches no known statistics kind")
     void rejectsUnknownStatisticsShape() {
-        String yaml = "schemaVersion: punit-baseline-2\n"
+        String yaml = "schemaVersion: punit-baseline-3\n"
                 + "useCaseId: x\n"
                 + "methodName: m\n"
                 + "factorsFingerprint: f\n"
@@ -271,7 +276,7 @@ class BaselineReaderTest {
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:abc123", 1000,
                 Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)),
                 CovariateProfile.of(profile));
 
         BaselineRecord parsed = reader.parse(writer.toYaml(original));
@@ -289,7 +294,7 @@ class BaselineReaderTest {
         // Older YAML predates the covariates: block. The reader must
         // accept it and assign the empty profile so old baselines on
         // disk continue to work after the upgrade.
-        String yaml = "schemaVersion: punit-baseline-2\n"
+        String yaml = "schemaVersion: punit-baseline-3\n"
                 + "useCaseId: x\n"
                 + "methodName: m\n"
                 + "factorsFingerprint: f\n"
@@ -298,8 +303,10 @@ class BaselineReaderTest {
                 + "generatedAt: 2026-04-26T15:30:00Z\n"
                 + "statistics:\n"
                 + "  bernoulli-pass-rate:\n"
-                + "    observedPassRate: 0.5\n"
-                + "    sampleCount: 1\n";
+                + "    criteria:\n"
+                + "      contract:\n"
+                + "        observedPassRate: 0.5\n"
+                + "        sampleCount: 1\n";
 
         BaselineRecord parsed = reader.parse(yaml);
         assertThat(parsed.covariateProfile().isEmpty()).isTrue();
@@ -308,7 +315,7 @@ class BaselineReaderTest {
     @Test
     @DisplayName("rejects a non-string covariate value")
     void rejectsNonStringCovariate() {
-        String yaml = "schemaVersion: punit-baseline-2\n"
+        String yaml = "schemaVersion: punit-baseline-3\n"
                 + "useCaseId: x\n"
                 + "methodName: m\n"
                 + "factorsFingerprint: f\n"
@@ -317,8 +324,10 @@ class BaselineReaderTest {
                 + "generatedAt: 2026-04-26T15:30:00Z\n"
                 + "statistics:\n"
                 + "  bernoulli-pass-rate:\n"
-                + "    observedPassRate: 0.5\n"
-                + "    sampleCount: 1\n"
+                + "    criteria:\n"
+                + "      contract:\n"
+                + "        observedPassRate: 0.5\n"
+                + "        sampleCount: 1\n"
                 + "covariates:\n"
                 + "  region: 42\n";
 

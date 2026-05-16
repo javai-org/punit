@@ -16,6 +16,7 @@ import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,12 +42,12 @@ class BaselineWriterTest {
     @DisplayName("emits the schema discriminator and identity keys")
     void emitsHeader() {
         String yaml = writer.toYaml(recordWith(Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000))));
 
         Map<String, Object> root = new Yaml().load(yaml);
 
         assertThat(root)
-                .containsEntry("schemaVersion", "punit-baseline-2")
+                .containsEntry("schemaVersion", "punit-baseline-3")
                 .containsEntry("useCaseId", "ShoppingBasketServiceContract")
                 .containsEntry("methodName", "measureBaseline")
                 .containsEntry("factorsFingerprint", "a1b2c3d4")
@@ -56,16 +57,18 @@ class BaselineWriterTest {
     }
 
     @Test
-    @DisplayName("serialises a PassRateStatistics entry with observedPassRate + sampleCount")
+    @DisplayName("serialises a PerCriterionPassRateStatistics entry under criteria.<id> with observedPassRate + sampleCount")
     void serialisesPassRate() {
         String yaml = writer.toYaml(recordWith(Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000))));
 
         Map<String, Object> root = new Yaml().load(yaml);
         Map<String, Object> stats = (Map<String, Object>) root.get("statistics");
         Map<String, Object> entry = (Map<String, Object>) stats.get("bernoulli-pass-rate");
+        Map<String, Object> criteria = (Map<String, Object>) entry.get("criteria");
+        Map<String, Object> contract = (Map<String, Object>) criteria.get("contract");
 
-        assertThat(entry)
+        assertThat(contract)
                 .containsEntry("observedPassRate", 0.94)
                 .containsEntry("sampleCount", 1000);
     }
@@ -82,7 +85,7 @@ class BaselineWriterTest {
         LatencyIndicator indicator = new LatencyIndicator(percentiles, 1000, 1000);
 
         String yaml = writer.toYaml(recordWithLatency(
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)),
                 indicator));
 
         Map<String, Object> root = new Yaml().load(yaml);
@@ -107,7 +110,7 @@ class BaselineWriterTest {
     @DisplayName("serialises pass-rate under statistics: and latency at the top level alongside")
     void serialisesBothCriteria() {
         Map<String, BaselineStatistics> entries = new LinkedHashMap<>();
-        entries.put("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000));
+        entries.put("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000));
         LatencyIndicator indicator = new LatencyIndicator(
                 new LatencyResult(Duration.ofMillis(250), Duration.ofMillis(500),
                         Duration.ofMillis(800), Duration.ofMillis(1200), 1000),
@@ -141,7 +144,7 @@ class BaselineWriterTest {
         Path baselineDir = tempDir.resolve("baselines");
 
         Path file = writer.write(
-                recordWith(Map.of("bernoulli-pass-rate", new PassRateStatistics(0.5, 100))),
+                recordWith(Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.5, 100))),
                 baselineDir);
 
         assertThat(Files.exists(baselineDir)).isTrue();
@@ -151,7 +154,7 @@ class BaselineWriterTest {
                         "ShoppingBasketServiceContract.measureBaseline-a1b2c3d4.yaml"));
 
         String content = Files.readString(file);
-        assertThat(content).contains("schemaVersion: punit-baseline-2");
+        assertThat(content).contains("schemaVersion: punit-baseline-3");
     }
 
     @Test
@@ -159,7 +162,7 @@ class BaselineWriterTest {
             + "preceding it (integrity check)")
     void emitsContentFingerprintAsLastField() {
         String yaml = writer.toYaml(recordWith(Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000))));
 
         // Last non-empty line carries the fingerprint key.
         java.util.List<String> nonEmpty = yaml.lines()
@@ -191,7 +194,7 @@ class BaselineWriterTest {
     @DisplayName("omits the covariates section when the profile is empty (default constructor)")
     void omitsCovariatesWhenEmpty() {
         String yaml = writer.toYaml(recordWith(Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000))));
 
         assertThat(yaml).doesNotContain("covariates:");
     }
@@ -211,7 +214,7 @@ class BaselineWriterTest {
                 "sha256:7d3a8c1e9b2f",
                 1000,
                 Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)),
                 CovariateProfile.of(profile));
 
         String yaml = writer.toYaml(record);

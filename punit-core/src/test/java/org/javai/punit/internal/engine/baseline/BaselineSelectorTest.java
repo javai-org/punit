@@ -13,6 +13,7 @@ import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ import org.junit.jupiter.api.Test;
 class BaselineSelectorTest {
 
     private static final Map<String, BaselineStatistics> STATS =
-            Map.of("bernoulli-pass-rate", new PassRateStatistics(0.9, 100));
+            Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.9, 100));
 
     private static BaselineRecord baseline(String fingerprintTag, CovariateProfile profile) {
         return new BaselineRecord(
