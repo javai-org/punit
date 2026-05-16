@@ -681,6 +681,45 @@ class EngineIntegrationTest {
     }
 
     @Test
+    @DisplayName("Multi-cell explore: every cell starts its input cursor at zero (no cross-cell bleed)")
+    void multiCellExploreStartsEachCellAtInputZero() {
+        ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
+            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(0);
+            }
+        };
+        // Five inputs, three samples per cell — fewer samples than
+        // inputs so the legacy cumulative cursor would skip the first
+        // two inputs of the second cell.
+        Sampling<LlmFactors, String, Integer> shape = Sampling
+                .<LlmFactors, String, Integer>builder()
+                .serviceContractFactory(f -> echo)
+                .inputs("i0", "i1", "i2", "i3", "i4")
+                .samples(3)
+                .build();
+        Experiment spec = Experiment.exploring(shape)
+                .grid(
+                        new LlmFactors("gpt-4o", 0.0),
+                        new LlmFactors("claude-3-sonnet", 0.0))
+                .build();
+
+        new Engine().run(spec);
+
+        var perCellTrials = spec.perConfigSummaries();
+        assertThat(perCellTrials).hasSize(2);
+        for (var perCell : perCellTrials) {
+            // Every cell must start at input 0 and walk forward.
+            // Pre-fix: cell 1 started at input 3 because cell 0
+            // consumed 3 samples, so the factor effect was confounded
+            // with input difficulty.
+            assertThat(perCell.summary().trials())
+                    .extracting(t -> t.inputIndex())
+                    .containsExactly(0, 1, 2);
+        }
+    }
+
+    @Test
     @DisplayName("Experiment.optimizing(shape) runs the stepper/scorer loop up to maxIterations")
     void optimizeSpecRunsIterationLoop() {
         ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {

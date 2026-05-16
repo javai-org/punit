@@ -85,14 +85,19 @@ public final class Engine {
     }
 
     private <FT, IT, OT> EngineResult runTyped(TypedSpec<FT, IT, OT> spec) {
+        // Each configuration starts its input cursor at 0. In an
+        // explore / optimize grid, cells must be compared on the same
+        // inputs so that the factor change is the only variable; an
+        // accumulating cursor across cells confounded the factor with
+        // whichever portion of the input list happened to land in
+        // each cell. Intra-cell semantics are unchanged: sample i of
+        // a cell still uses inputs[i mod inputs.size()].
         Iterator<Configuration<FT, IT, OT>> it = spec.configurations();
-        int cycleStart = 0;
         while (it.hasNext()) {
             Configuration<FT, IT, OT> cfg = it.next();
             ServiceContract<FT, IT, OT> uc = spec.serviceContractFactory().apply(cfg.factors());
-            SampleSummary<OT> summary = runConfig(spec, uc, cfg, cycleStart);
+            SampleSummary<OT> summary = runConfig(spec, uc, cfg, 0);
             spec.consume(cfg, summary);
-            cycleStart = (cycleStart + summary.total()) % cfg.inputs().size();
         }
         return spec.conclude(baselineProvider);
     }
