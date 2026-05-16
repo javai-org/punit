@@ -4,7 +4,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -26,9 +26,11 @@ public final class FeasibilitySubjects {
 
     public static final String USE_CASE_ID = "feasibility-use-case";
 
-    private static ServiceContract<NoFactors, Integer, Boolean> alwaysPasses() {
+    private static ServiceContract<NoFactors, Integer, Boolean> alwaysPassesEmpirical() {
         return new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).empirical();
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);
             }
@@ -36,9 +38,29 @@ public final class FeasibilitySubjects {
         };
     }
 
-    private static Sampling<NoFactors, Integer, Boolean> sampling(int samples) {
+    private static ServiceContract<NoFactors, Integer, Boolean> alwaysPassesContractual() {
+        return new ServiceContract<>() {
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.9999, ThresholdOrigin.SLA);
+            }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(true);
+            }
+            @Override public String id() { return USE_CASE_ID; }
+        };
+    }
+
+    private static Sampling<NoFactors, Integer, Boolean> empiricalSampling(int samples) {
         return Sampling.<NoFactors, Integer, Boolean>builder()
-                .serviceContractFactory(f -> alwaysPasses())
+                .serviceContractFactory(f -> alwaysPassesEmpirical())
+                .inputs(1, 2, 3)
+                .samples(samples)
+                .build();
+    }
+
+    private static Sampling<NoFactors, Integer, Boolean> contractualSampling(int samples) {
+        return Sampling.<NoFactors, Integer, Boolean>builder()
+                .serviceContractFactory(f -> alwaysPassesContractual())
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();
@@ -53,7 +75,7 @@ public final class FeasibilitySubjects {
         void shouldPass() {
             // Baseline rate 0.50; n=50 against rate 0.50 has min Wilson
             // lower bound at observed=1.0 ≈ 0.949 — well above 0.50 → feasible.
-            PUnit.testing(sampling(50))
+            PUnit.testing(empiricalSampling(50))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -69,7 +91,7 @@ public final class FeasibilitySubjects {
             // Baseline rate 0.95; n=10 against rate 0.95 has max Wilson
             // lower bound at observed=1.0 ≈ 0.787 — below 0.95 → infeasible.
             // Default intent is VERIFICATION → throw IllegalStateException.
-            PUnit.testing(sampling(10))
+            PUnit.testing(empiricalSampling(10))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -84,7 +106,7 @@ public final class FeasibilitySubjects {
     public static final class SmokeInfeasible {
         @ProbabilisticTest
         void shouldRunSilently() {
-            PUnit.testing(sampling(10))
+            PUnit.testing(empiricalSampling(10))
                     .criterion(PassRate.<Boolean>empirical())
                     .intent(TestIntent.SMOKE)
                     .assertPasses();
@@ -103,7 +125,7 @@ public final class FeasibilitySubjects {
     public static final class ContractualVerificationInfeasible {
         @ProbabilisticTest
         void shouldFailFast() {
-            PUnit.testing(sampling(50))
+            PUnit.testing(contractualSampling(50))
                     .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -118,7 +140,7 @@ public final class FeasibilitySubjects {
     public static final class ContractualSmokeInfeasible {
         @ProbabilisticTest
         void shouldRunSilently() {
-            PUnit.testing(sampling(50))
+            PUnit.testing(contractualSampling(50))
                     .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .intent(TestIntent.SMOKE)
                     .assertPasses();
