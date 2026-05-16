@@ -18,7 +18,6 @@ import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.internal.engine.Engine;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.internal.runtime.BaselineEmitter;
 import org.javai.punit.internal.runtime.ExploreEmitter;
 import org.javai.punit.internal.runtime.OptimizeEmitter;
@@ -189,7 +188,6 @@ class LatencyEverywhereIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new F("only"))
-                .criterion(PassRate.meeting(0.5, ThresholdOrigin.SLA))
                 .build();
         ProbabilisticTestResult result = (ProbabilisticTestResult) new Engine().run(spec);
         ProbabilisticTestVerdict verdict = VerdictAdapter.adapt(

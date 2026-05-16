@@ -8,7 +8,6 @@ import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**
@@ -59,7 +58,6 @@ public final class RoundTripSubjects {
         @ProbabilisticTest
         void shouldPass() {
             PUnit.testing(sampling(20))
-                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }

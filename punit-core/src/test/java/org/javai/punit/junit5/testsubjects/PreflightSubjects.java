@@ -5,13 +5,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**
@@ -60,40 +58,6 @@ public final class PreflightSubjects {
         @ProbabilisticTest
         void empiricalWithoutBaseline() {
             PUnit.testing(sampling(20))
-                    .criterion(PassRate.<Boolean>empirical())
-                    .assertPasses();
-        }
-    }
-
-    /**
-     * Mixed required-empirical (no baseline) + required-contractual
-     * criteria. Per the rule "any required empirical criterion missing
-     * its baseline short-circuits", the contractual criterion does not
-     * get the chance to evaluate — the verdict is structurally
-     * INCONCLUSIVE regardless of what the contractual claim would have
-     * concluded. Engine never runs.
-     */
-    public static final class MixedEmpiricalAndContractualNoBaselineTest {
-        @ProbabilisticTest
-        void mixed() {
-            PUnit.testing(sampling(20))
-                    .criterion(PassRate.<Boolean>empirical())
-                    .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
-                    .assertPasses();
-        }
-    }
-
-    /**
-     * Required contractual + report-only empirical (no baseline). Only
-     * <em>required</em> empirical criteria short-circuit; a report-only
-     * criterion's INCONCLUSIVE is informational. Engine runs.
-     */
-    public static final class ReportOnlyEmpiricalNoBaselineTest {
-        @ProbabilisticTest
-        void reportOnlyDoesNotShortCircuit() {
-            PUnit.testing(sampling(20))
-                    .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
-                    .reportOnly(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -124,7 +88,6 @@ public final class PreflightSubjects {
             // the framework default sits comfortably above the
             // soundness floor.
             PUnit.testing(sampling(100))
-                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }

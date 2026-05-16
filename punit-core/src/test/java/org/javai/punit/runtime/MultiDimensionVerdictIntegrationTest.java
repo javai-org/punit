@@ -12,7 +12,6 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.PercentileLatency;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.internal.engine.Engine;
@@ -26,7 +25,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Live end-to-end test for the composite-verdict conjunction across
  * functional and temporal dimensions. Drives the engine with two
- * criteria — {@link PassRate} for the functional dimension,
+ * criteria — pass-rate for the functional dimension,
  * {@link PercentileLatency} for the temporal dimension — and asserts
  * that the composite {@code punitVerdict} is the conjunction:
  * {@code PASS} only if both dimensions pass; {@code FAIL} if either
@@ -134,7 +133,6 @@ class MultiDimensionVerdictIntegrationTest {
     void bothDimensionsPass() {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(new AlwaysPassServiceContract(), EVEN_LENGTH_INPUTS), new F("only"))
-                .criterion(PassRate.<Integer>meeting(FUNCTIONAL_THRESHOLD, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Integer>meeting(TRIVIAL_PASS_LATENCY, ThresholdOrigin.SLA))
                 .build();
 
@@ -153,7 +151,6 @@ class MultiDimensionVerdictIntegrationTest {
     void functionalFailsLatencyPasses() {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(new MixedOutcomeServiceContract(), MIXED_INPUTS), new F("only"))
-                .criterion(PassRate.<Integer>meeting(FUNCTIONAL_THRESHOLD, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Integer>meeting(TRIVIAL_PASS_LATENCY, ThresholdOrigin.SLA))
                 .build();
 
@@ -176,7 +173,6 @@ class MultiDimensionVerdictIntegrationTest {
     void functionalPassesLatencyFails() {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(new AlwaysPassServiceContract(), EVEN_LENGTH_INPUTS), new F("only"))
-                .criterion(PassRate.<Integer>meeting(FUNCTIONAL_THRESHOLD, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Integer>meeting(TRIVIAL_FAIL_LATENCY, ThresholdOrigin.SLA))
                 .build();
 

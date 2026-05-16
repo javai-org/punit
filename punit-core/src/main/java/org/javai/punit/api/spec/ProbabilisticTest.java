@@ -537,9 +537,7 @@ public final class ProbabilisticTest implements Spec {
             if (!expected.isEmpty() && matcher == null) {
                 matcher = ValueMatcher.equality();
             }
-            if (registered.isEmpty()) {
-                autoInjectFromContract(sampling, factors, registered);
-            }
+            autoInjectFromContract(sampling, factors, registered);
             return new ProbabilisticTest(new Internal<>(this));
         }
     }
@@ -547,11 +545,14 @@ public final class ProbabilisticTest implements Spec {
     private record Registered<OT>(Criterion<OT, ?> criterion, CriterionRole role) {}
 
     /**
-     * Populate {@code registered} from the contract's criteria postures
-     * when the test builder declared no explicit
-     * {@code .criterion(...)} call. The contract's acceptance posture
-     * is the source of truth; the test builder's call is the
-     * deprecated override that PR #3 retires.
+     * Populate {@code registered} from the contract's criteria postures,
+     * additively per posture. The contract's acceptance posture is the
+     * source of truth; an explicit test-builder {@code .criterion(...)}
+     * suppresses derivation only for criteria of the same class as the
+     * derived one, so a non-PassRate test-builder criterion (e.g.
+     * {@code PercentileLatency}) does not block PassRate auto-injection
+     * from a contract that declared a {@code .meeting(...)} or
+     * {@code .empirical()} posture.
      *
      * <p>Derivation is delegated to the {@link SpecCriterionDeriver}
      * SPI — the implementation in {@code internal.engine.criteria}
@@ -563,9 +564,22 @@ public final class ProbabilisticTest implements Spec {
         ServiceContract<FT, IT, OT> probe = sampling.serviceContractFactory().apply(factors);
         SpecCriterionDeriver deriver = SpecCriterionDeriver.lookup();
         for (org.javai.punit.api.criterion.Criterion<OT> c : probe.criteria()) {
-            deriver.<OT>derive(c.posture()).ifPresent(
-                    sc -> registered.add(new Registered<>(sc, CriterionRole.REQUIRED)));
+            deriver.<OT>derive(c.posture()).ifPresent(sc -> {
+                if (!alreadyRegistered(registered, sc.getClass())) {
+                    registered.add(new Registered<>(sc, CriterionRole.REQUIRED));
+                }
+            });
         }
+    }
+
+    private static <OT> boolean alreadyRegistered(
+            List<Registered<OT>> registered, Class<?> derivedType) {
+        for (Registered<OT> r : registered) {
+            if (derivedType.isInstance(r.criterion())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ── Inline-sampling builder ─────────────────────────────────────

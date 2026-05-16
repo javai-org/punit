@@ -687,6 +687,19 @@ public final class PUnit {
         public void assertPasses() {
             ProbabilisticTest spec = build();
             ServiceContract<FT, IT, OT> serviceContract = sampling.serviceContractFactory().apply(factors);
+            // When the author registered no explicit .criterion(...) the
+            // framework auto-injects from the contract's posture during
+            // build(). The pre-flight gates below iterate
+            // requiredCriteria; populate it from the contract's
+            // auto-derived list so the gates fire even with no
+            // test-builder calls.
+            if (requiredCriteria.isEmpty()) {
+                org.javai.punit.api.spec.SpecCriterionDeriver deriver =
+                        org.javai.punit.api.spec.SpecCriterionDeriver.lookup();
+                for (org.javai.punit.api.criterion.Criterion<OT> c : serviceContract.criteria()) {
+                    deriver.<OT>derive(c.posture()).ifPresent(requiredCriteria::add);
+                }
+            }
             String serviceContractId = serviceContract.id();
             CovariateProfile observed = resolveCovariates(serviceContract);
             BaselineProvider provider = boundProvider(serviceContract, observed);
@@ -895,14 +908,12 @@ public final class PUnit {
                 throw new IllegalStateException(
                         "samples is required — call .samples(n) before .build() / .assertPasses()");
             }
-            if (criterion == null) {
-                throw new IllegalStateException(
-                        "criterion is required — call .criterion(PassRate.empirical()) "
-                                + "or similar before .build() / .assertPasses()");
-            }
             Experiment baseline = Objects.requireNonNull(
                     baselineSupplier.get(),
                     "baseline supplier returned null");
+            // Criterion is optional: when omitted, the test-spec builder
+            // auto-injects from the contract's posture (any empirical
+            // posture maps to PassRate.empirical).
             return EmpiricalTestComposer.compose(baseline, samples, criterion, intent);
         }
 
@@ -992,8 +1003,15 @@ public final class PUnit {
         @SuppressWarnings("unchecked")
         private Optional<ProbabilisticTestResult> baselineExistencePreflight(
                 SpecContext ctx) {
-            // EmpiricalTestBuilder enforces criterion.isEmpirical() at
-            // .criterion(...) time, so the wildcarded cast is safe.
+            // The preflight short-circuit is an optimisation: when the
+            // baseline is missing, skip sampling because the verdict is
+            // structurally INCONCLUSIVE. When the author omitted
+            // .criterion(...) (auto-injection path), skip the preflight
+            // — the engine's evaluation will produce INCONCLUSIVE
+            // naturally if the baseline is missing.
+            if (criterion == null) {
+                return Optional.empty();
+            }
             Criterion<Object, ?> c = (Criterion<Object, ?>) criterion;
             BaselineLookup<?> lookup = probeBaseline(
                     ctx.provider, ctx.serviceContractId, ctx.bundle,
@@ -1029,6 +1047,11 @@ public final class PUnit {
 
         @SuppressWarnings("unchecked")
         private List<String> preflightFeasibility(SpecContext ctx) {
+            if (criterion == null) {
+                // Auto-injection path: feasibility is checked at the
+                // spec/engine layer over the auto-derived criteria.
+                return new ArrayList<>();
+            }
             return new ArrayList<>(Feasibility.check(
                     ctx.samples,
                     (Criterion<Object, ?>) criterion,

@@ -18,7 +18,6 @@ import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.EngineResult;
 import org.javai.punit.api.spec.ExperimentResult;
 import org.javai.punit.api.spec.Experiment;
@@ -80,7 +79,6 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -106,7 +104,6 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -137,7 +134,6 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLO))
                 // Opt this test out of statistical early termination —
                 // its assertion exercises the verdict for an all-fail
                 // run with the full declared sample count, not the
@@ -164,7 +160,6 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.3))
-                .criterion(PassRate.<Boolean>empirical())
                 .build();
 
         EngineResult outcome = new Engine().run(spec);
@@ -294,7 +289,6 @@ class EngineIntegrationTest {
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("hello", "world")
                 .matcher(caseInsensitive)
-                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -326,7 +320,6 @@ class EngineIntegrationTest {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("A", "Q") // first matches under equality, second doesn't
-                .criterion(PassRate.<String>meeting(0.4, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -363,7 +356,6 @@ class EngineIntegrationTest {
 
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
-                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -432,7 +424,6 @@ class EngineIntegrationTest {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .matcher(caseInsensitive)  // override
-                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -499,7 +490,6 @@ class EngineIntegrationTest {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
                 .expectedOutputs("a", "b")     // override with correct values
-                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -839,11 +829,9 @@ class EngineIntegrationTest {
                 .build();
         ProbabilisticTest verification = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
         ProbabilisticTest smoke = ProbabilisticTest
                 .testing(sampling, new LlmFactors("gpt-4o", 0.0))
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .intent(TestIntent.SMOKE)
                 .build();
 

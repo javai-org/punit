@@ -15,7 +15,6 @@ import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.BaselineStatistics;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.ProbabilisticTest;
@@ -58,7 +57,6 @@ class EmpiricalEndToEndIntegrationTest {
     private static ProbabilisticTest empiricalTest(Sampling<Factors, Integer, Boolean> sampling) {
         return ProbabilisticTest
                 .testing(sampling, FACTORS)
-                .criterion(PassRate.<Boolean>empirical())
                 .build();
     }
 

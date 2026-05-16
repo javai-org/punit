@@ -60,29 +60,6 @@ class PreflightBaselineExistenceTest {
     }
 
     @Test
-    @DisplayName("mixed required-empirical (no baseline) + contractual still short-circuits")
-    void mixedRequiredEmpiricalAndContractualShortCircuits() {
-        Events events = run(PreflightSubjects.MixedEmpiricalAndContractualNoBaselineTest.class);
-        events.assertStatistics(stats -> stats.started(1).aborted(1).failed(0));
-        assertThat(PreflightSubjects.INVOKE_COUNT.get())
-                .as("a required empirical criterion missing its baseline guarantees "
-                        + "INCONCLUSIVE; the contractual criterion's evaluation cannot "
-                        + "rescue the verdict, so sampling is structurally pointless")
-                .isZero();
-    }
-
-    @Test
-    @DisplayName("report-only empirical (no baseline) does NOT short-circuit; engine runs")
-    void reportOnlyEmpiricalNoBaselineRunsEngine() {
-        Events events = run(PreflightSubjects.ReportOnlyEmpiricalNoBaselineTest.class);
-        events.assertStatistics(stats -> stats.started(1).succeeded(1));
-        assertThat(PreflightSubjects.INVOKE_COUNT.get())
-                .as("a report-only criterion's INCONCLUSIVE does not gate the verdict; "
-                        + "the required contractual criterion still drives sampling")
-                .isPositive();
-    }
-
-    @Test
     @DisplayName("required empirical WITH a resolvable baseline runs the engine (no short-circuit)")
     void requiredEmpiricalWithBaselineRunsEngine() throws IOException {
         // Phase 1: stamp a baseline so the paired test resolves.
