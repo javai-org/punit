@@ -93,13 +93,21 @@ public interface Contract<I, O> {
      * to populate it, and reads the resulting clause list out via the
      * no-arg {@link #postconditions()} accessor.
      *
-     * <p>Service contracts that genuinely have no acceptance criteria
-     * (smoke-test scaffolding, throwaway fixtures) leave the body
-     * empty — the explicit empty body marks the choice.
+     * <p>The default body is empty — appropriate for contracts that
+     * partition their acceptance into multiple criteria via
+     * {@link #criteria(CriteriaBuilder)} (the clauses live on the
+     * individual criteria rather than at the contract level), and
+     * also for smoke-test scaffolding or throwaway fixtures that
+     * genuinely have no acceptance criteria. Contracts that declare
+     * postconditions at the contract level override this method.
      *
      * @param b the builder to populate
      */
-    void postconditions(ContractBuilder<O> b);
+    default void postconditions(ContractBuilder<O> b) {
+        // No-op default. Override to declare contract-level
+        // postconditions; leave defaulted when the contract uses
+        // criteria(CriteriaBuilder) instead.
+    }
 
     /**
      * Resolves the contract's clauses to an immutable list. The
