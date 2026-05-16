@@ -7,8 +7,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import java.time.Duration;
+
 import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.spec.CriterionSampleCounts;
 import org.javai.punit.api.spec.FactorsStepper.IterationResult;
+import org.javai.punit.api.spec.FailureCount;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Trial;
 import org.javai.punit.internal.engine.emit.LatencySection;
@@ -100,43 +104,19 @@ public final class OptimizeOutputWriter {
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("iteration", idx);
             entry.put("factors", factorsBlock(FactorBundle.of(ir.factors())));
+            // score is optimize-specific (no analogue in EXPLORE) so
+            // it sits flat next to factors; the rest of the iteration
+            // mirrors an EXPLORE cell's block layout — execution,
+            // statistics, cost, latency, resultProjection — so a
+            // reader can navigate optimize iterations with the same
+            // path knowledge they use on exploration outputs.
             entry.put("score", ir.score());
-            entry.put("successes", ir.successes());
-            entry.put("failures", ir.failures());
-            entry.put("samplesExecuted", ir.samplesExecuted());
-            // Per-criterion decomposition (only when the contract
-            // declared an explicit methodology criteria(CriteriaBuilder)
-            // list). Mirrors the shape MEASURE / EXPLORE emit so a
-            // reader can compare an optimize iteration's per-criterion
-            // pass rates against the same contract's baseline and
-            // exploration cells without remapping fields. Omitted
-            // entirely for K=0 contracts so single-criterion shape
-            // is unchanged.
-            if (idx < iterationSummaries.size()) {
-                SampleSummary<?> iterSummary = iterationSummaries.get(idx);
-                if (!iterSummary.criterionSampleCounts().isEmpty()) {
-                    Map<String, Object> criteria = new LinkedHashMap<>();
-                    for (org.javai.punit.api.spec.CriterionSampleCounts c
-                            : iterSummary.criterionSampleCounts()) {
-                        Map<String, Object> row = new LinkedHashMap<>();
-                        row.put("observedPassRate", c.observedPassRate());
-                        row.put("pass", c.pass());
-                        row.put("fail", c.fail());
-                        row.put("inconclusive", c.inconclusive());
-                        criteria.put(c.criterionId(), row);
-                    }
-                    entry.put("criteria", criteria);
-                }
-            }
-            // Per-iteration latency block — passing-only percentiles
-            // + population indicator, scoped to this iteration's samples.
-            // Omitted when zero samples passed in the iteration.
-            // Per-iteration result projection: one sample[N]: block
-            // per trial, carrying input / postconditions / etc. The
-            // writer leaves anchor-comment injection to the
-            // top-level injectAnchorComments pass.
-            if (idx < iterationSummaries.size()) {
-                SampleSummary<?> iterSummary = iterationSummaries.get(idx);
+            SampleSummary<?> iterSummary = idx < iterationSummaries.size()
+                    ? iterationSummaries.get(idx) : null;
+            entry.put("execution", executionBlock(ir, iterSummary));
+            entry.put("statistics", statisticsBlock(ir, iterSummary));
+            if (iterSummary != null) {
+                entry.put("cost", costBlock(iterSummary));
                 LatencySection.blockFor(iterSummary)
                         .ifPresent(block -> entry.put("latency", block));
                 List<? extends Trial<?, ?>> trials = iterSummary.trials();
@@ -145,6 +125,57 @@ public final class OptimizeOutputWriter {
             out.add(entry);
         }
         return out;
+    }
+
+    private static Map<String, Object> executionBlock(
+            IterationResult<?> ir, SampleSummary<?> iterSummary) {
+        Map<String, Object> block = new LinkedHashMap<>();
+        block.put("samplesExecuted", ir.samplesExecuted());
+        if (iterSummary != null) {
+            block.put("terminationReason", iterSummary.terminationReason().name());
+        }
+        return block;
+    }
+
+    private static Map<String, Object> statisticsBlock(
+            IterationResult<?> ir, SampleSummary<?> iterSummary) {
+        Map<String, Object> block = new LinkedHashMap<>();
+        int total = ir.samplesExecuted();
+        double observed = total == 0 ? 0.0 : (double) ir.successes() / (double) total;
+        block.put("observed", observed);
+        block.put("successes", ir.successes());
+        block.put("failures", ir.failures());
+        Map<String, Object> failureDistribution = new LinkedHashMap<>();
+        if (iterSummary != null) {
+            for (Map.Entry<String, FailureCount> e
+                    : iterSummary.failuresByPostcondition().entrySet()) {
+                failureDistribution.put(e.getKey(), e.getValue().count());
+            }
+        }
+        block.put("failureDistribution", failureDistribution);
+        if (iterSummary != null && !iterSummary.criterionSampleCounts().isEmpty()) {
+            Map<String, Object> criteria = new LinkedHashMap<>();
+            for (CriterionSampleCounts c : iterSummary.criterionSampleCounts()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("observedPassRate", c.observedPassRate());
+                row.put("pass", c.pass());
+                row.put("fail", c.fail());
+                row.put("inconclusive", c.inconclusive());
+                criteria.put(c.criterionId(), row);
+            }
+            block.put("criteria", criteria);
+        }
+        return block;
+    }
+
+    private static Map<String, Object> costBlock(SampleSummary<?> summary) {
+        Map<String, Object> block = new LinkedHashMap<>();
+        Duration elapsed = summary.elapsed();
+        long totalMs = elapsed.toMillis();
+        block.put("totalTimeMs", totalMs);
+        int total = summary.total();
+        block.put("avgTimePerSampleMs", total == 0 ? 0L : totalMs / total);
+        return block;
     }
 
     private static Map<String, Object> convergenceBlock(

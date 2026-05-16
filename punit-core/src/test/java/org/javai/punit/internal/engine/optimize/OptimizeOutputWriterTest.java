@@ -84,7 +84,21 @@ class OptimizeOutputWriterTest {
         assertThat(iterations).isNotEmpty();
         Map<String, Object> first = iterations.get(0);
         assertThat(first).containsKeys("iteration", "factors", "score",
-                "successes", "failures", "samplesExecuted", "resultProjection");
+                "execution", "statistics", "cost", "resultProjection");
+
+        // Per-iteration block layout mirrors EXPLORE's per-cell shape:
+        // execution.samplesExecuted, statistics.{observed, successes,
+        // failures, failureDistribution}, cost.{totalTimeMs, avgTimePerSampleMs}.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> execution = (Map<String, Object>) first.get("execution");
+        assertThat(execution).containsKeys("samplesExecuted", "terminationReason");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> statistics = (Map<String, Object>) first.get("statistics");
+        assertThat(statistics).containsKeys("observed", "successes", "failures",
+                "failureDistribution");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cost = (Map<String, Object>) first.get("cost");
+        assertThat(cost).containsKeys("totalTimeMs", "avgTimePerSampleMs");
 
         // Each iteration's resultProjection must carry one sample[N] entry per trial.
         @SuppressWarnings("unchecked")
@@ -103,7 +117,11 @@ class OptimizeOutputWriterTest {
         // Diff anchor comments must appear before every sample[N]: line.
         // History size × samples-per-iteration = total anchor count.
         int totalSamples = iterations.stream()
-                .mapToInt(it -> ((Number) it.get("samplesExecuted")).intValue())
+                .mapToInt(it -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> ex = (Map<String, Object>) it.get("execution");
+                    return ((Number) ex.get("samplesExecuted")).intValue();
+                })
                 .sum();
         long anchorCount = yaml.lines()
                 .filter(line -> line.contains("anchor:"))
@@ -159,10 +177,12 @@ class OptimizeOutputWriterTest {
         List<Map<String, Object>> iterations = (List<Map<String, Object>>) parsed.get("iterations");
         assertThat(iterations).isNotEmpty();
         for (Map<String, Object> iter : iterations) {
-            assertThat(iter).as("iteration should carry criteria: block for K>1 contract")
+            @SuppressWarnings("unchecked")
+            Map<String, Object> stats = (Map<String, Object>) iter.get("statistics");
+            assertThat(stats).as("iteration statistics block should carry criteria: for K>1 contract")
                     .containsKey("criteria");
             @SuppressWarnings("unchecked")
-            Map<String, Object> criteria = (Map<String, Object>) iter.get("criteria");
+            Map<String, Object> criteria = (Map<String, Object>) stats.get("criteria");
             assertThat(criteria).containsOnlyKeys("always-passes", "starts-with-a");
             @SuppressWarnings("unchecked")
             Map<String, Object> alwaysPasses = (Map<String, Object>) criteria.get("always-passes");
