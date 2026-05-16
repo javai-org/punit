@@ -72,7 +72,7 @@ class PUnitPluginFunctionalTest {
 
             val result = runner("tasks", "--all").build()
 
-            assertTrue(result.output.contains("experiment - Runs experiments"))
+            assertTrue(result.output.contains("experiment - Runs @Experiment-tagged methods"))
             assertTrue(result.output.contains("exp - Shorthand for 'experiment' task"))
         }
     }

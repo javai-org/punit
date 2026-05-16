@@ -19,6 +19,7 @@ import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.EvaluationContext;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.TerminationReason;
 import org.javai.punit.api.spec.Verdict;
@@ -61,20 +62,25 @@ class PassRateTest {
 
     private static final String DEFAULT_IDENTITY = "sha256:test-default-identity";
 
-    private static <OT> EvaluationContext<OT, PassRateStatistics> ctx(
+    private static <OT> EvaluationContext<OT, PerCriterionPassRateStatistics> ctx(
             SampleSummary<OT> summary, Optional<PassRateStatistics> baseline) {
         return ctx(summary, baseline, DEFAULT_IDENTITY,
                 baseline.isPresent() ? Optional.of(DEFAULT_IDENTITY) : Optional.empty());
     }
 
-    private static <OT> EvaluationContext<OT, PassRateStatistics> ctx(
+    private static <OT> EvaluationContext<OT, PerCriterionPassRateStatistics> ctx(
             SampleSummary<OT> summary,
             Optional<PassRateStatistics> baseline,
             String testIdentity,
             Optional<String> baselineIdentity) {
-        return new EvaluationContext<OT, PassRateStatistics>() {
+        // Wrap the hand-constructed PassRateStatistics into a
+        // single-entry PerCriterionPassRateStatistics so the K-aware
+        // PassRate evaluator can read its lone criterion's basis.
+        Optional<PerCriterionPassRateStatistics> wrapped = baseline.map(
+                b -> PerCriterionPassRateStatistics.of("contract", b));
+        return new EvaluationContext<OT, PerCriterionPassRateStatistics>() {
             @Override public SampleSummary<OT> summary() { return summary; }
-            @Override public Optional<PassRateStatistics> baseline() { return baseline; }
+            @Override public Optional<PerCriterionPassRateStatistics> baseline() { return wrapped; }
             @Override public FactorBundle factors() { return FactorBundle.of(new Factors("x")); }
             @Override public String testInputsIdentity() { return testIdentity; }
             @Override public Optional<String> baselineInputsIdentity() { return baselineIdentity; }
@@ -437,10 +443,10 @@ class PassRateTest {
     // ── plumbing ─────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("criterion exposes PassRateStatistics.class as its statistics type")
-    void statisticsTypeIsPassRateStatistics() {
+    @DisplayName("criterion exposes PerCriterionPassRateStatistics.class as its statistics type")
+    void statisticsTypeIsPerCriterionPassRateStatistics() {
         PassRate<String> criterion = PassRate.empirical();
-        assertThat(criterion.statisticsType()).isEqualTo(PassRateStatistics.class);
+        assertThat(criterion.statisticsType()).isEqualTo(PerCriterionPassRateStatistics.class);
     }
 
     @Test

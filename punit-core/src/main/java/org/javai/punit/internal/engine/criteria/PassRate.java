@@ -7,13 +7,18 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Supplier;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.spec.Criterion;
 import org.javai.punit.api.spec.CriterionResult;
+import org.javai.punit.api.spec.CriterionSampleCounts;
 import org.javai.punit.api.spec.EmpiricalChecks;
 import org.javai.punit.api.spec.EvaluationContext;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.Verdict;
 import org.javai.punit.statistics.BinomialProportionEstimator;
@@ -57,7 +62,7 @@ import org.javai.punit.statistics.ThresholdDeriver;
  * dependencies. The {@link Criterion} interface itself stays in
  * {@code api package}; only this implementation moved.
  */
-public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
+public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateStatistics> {
 
     private static final String NAME = "bernoulli-pass-rate";
     private static final double DEFAULT_CONFIDENCE = 0.95;
@@ -170,8 +175,8 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
     }
 
     @Override
-    public Class<PassRateStatistics> statisticsType() {
-        return PassRateStatistics.class;
+    public Class<PerCriterionPassRateStatistics> statisticsType() {
+        return PerCriterionPassRateStatistics.class;
     }
 
     @Override
@@ -193,31 +198,64 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
     }
 
     @Override
-    public CriterionResult evaluate(EvaluationContext<OT, PassRateStatistics> ctx) {
+    public CriterionResult evaluate(EvaluationContext<OT, PerCriterionPassRateStatistics> ctx) {
         Objects.requireNonNull(ctx, "ctx");
         SampleSummary<OT> summary = ctx.summary();
         int total = summary.total();
         if (total == 0) {
             return inconclusive("zero samples taken", Map.of());
         }
-
-        double resolvedThreshold;
-        ThresholdOrigin resolvedOrigin;
-        Integer baselineSampleCount = null;
-        Double baselineRate = null;
-
-        if (mode == Mode.CONTRACTUAL) {
-            resolvedThreshold = threshold;
-            resolvedOrigin = origin;
-        } else {
-            PassRateStatistics stats = ctx.baseline().orElse(null);
-            if (stats == null) {
+        // Resolve the per-criterion baseline map up-front (empirical
+        // paths only). Identity / sample-size gates also fire once at
+        // the run level — identity is a property of the matched
+        // baseline file, not of any one criterion.
+        PerCriterionPassRateStatistics baselineMap = null;
+        List<CriterionSampleCounts> methodologyCriteria = summary.criterionSampleCounts();
+        // K=1 path uses run-level counts (summary.successes/failures),
+        // not the auto-derived methodology criterion's counts. The
+        // run-level numbers reflect framework-side concerns
+        // (expectedOutputs mismatches, value-matcher failures) that
+        // the contract-level postcondition counter does not see; the
+        // legacy K=1 behaviour read these run-level numbers, and
+        // K=1 tests are pinned against them. K>1 must use per-criterion
+        // counts so each methodology criterion is evaluated against
+        // its own pass/fail tally.
+        if (methodologyCriteria.size() == 1) {
+            CriterionSampleCounts auto = methodologyCriteria.get(0);
+            methodologyCriteria = List.of(
+                    new CriterionSampleCounts(
+                            auto.criterionId(),
+                            summary.successes(),
+                            summary.failures(),
+                            auto.inconclusive()));
+        }
+        if (methodologyCriteria.isEmpty()) {
+            // Run produced no methodology-criterion sample counts
+            // (apply-level-failure run, or a hand-built test fixture).
+            // Fall back to run-level pass / fail counts. The criterion
+            // id is borrowed from the baseline map's lone entry when
+            // available (so the lookup below finds it); otherwise the
+            // criterion's own name is used as a stable placeholder
+            // — there's no baseline entry to match in that case
+            // (contractual mode) so the placeholder is never queried.
+            String fallbackId = NAME;
+            if (mode != Mode.CONTRACTUAL) {
+                PerCriterionPassRateStatistics b = ctx.baseline().orElse(null);
+                if (b != null && b.byCriterion().size() == 1) {
+                    fallbackId = b.byCriterion().keySet().iterator().next();
+                }
+            }
+            methodologyCriteria = List.of(
+                    new CriterionSampleCounts(
+                            fallbackId, summary.successes(), summary.failures(), 0));
+        }
+        // Resolve the baseline map up-front (empirical mode only).
+        if (mode != Mode.CONTRACTUAL) {
+            baselineMap = ctx.baseline().orElse(null);
+            if (baselineMap == null || baselineMap.byCriterion().isEmpty()) {
                 return EmpiricalChecks.noBaseline(NAME, empiricalDetail());
             }
             Map<String, Object> empiricalDetail = Map.of("confidence", confidence);
-            // Inputs-identity rule precedes the sample-size rule: an identity
-            // mismatch is a more fundamental violation, so its diagnostic
-            // wins when both would fire.
             String baselineIdentity = ctx.baselineInputsIdentity().orElseThrow(() ->
                     new IllegalStateException(
                             "baseline statistics were resolved but baselineInputsIdentity is empty — "
@@ -227,52 +265,174 @@ public final class PassRate<OT> implements Criterion<OT, PassRateStatistics> {
             if (identityViolation.isPresent()) {
                 return identityViolation.get();
             }
-            Optional<CriterionResult> sizeViolation = EmpiricalChecks.sampleSizeConstraint(
-                    NAME, total, stats.sampleCount(), empiricalDetail);
-            if (sizeViolation.isPresent()) {
-                return sizeViolation.get();
+        }
+
+        // Evaluate each methodology criterion against its own basis
+        // (empirical: per-criterion Wilson threshold; contractual:
+        // shared external threshold). Compose per the FAIL-dominant
+        // rule (companion §1.4.6).
+        List<Verdict> perCriterionVerdicts = new ArrayList<>(methodologyCriteria.size());
+        Map<String, Double> thresholdsByCriterion = new LinkedHashMap<>();
+        Map<String, Double> observedByCriterion = new LinkedHashMap<>();
+        Map<String, PassRateStatistics> resolvedBaselineByCriterion = new LinkedHashMap<>();
+        List<String> perCriterionExplanations = new ArrayList<>();
+        ThresholdOrigin resolvedOrigin = mode == Mode.CONTRACTUAL
+                ? origin
+                : ThresholdOrigin.EMPIRICAL;
+
+        // K=1 short-circuit: when there's a single criterion and an
+        // empirical-check violation fires (sample-size constraint), the
+        // result is the violation's full CriterionResult — preserving
+        // the legacy detail keys (testSampleCount, baselineSampleCount)
+        // and explanation phrasing that downstream consumers depend on.
+        // Identity violations already returned above.
+        boolean isK1 = methodologyCriteria.size() == 1;
+
+        for (CriterionSampleCounts counts : methodologyCriteria) {
+            int criterionTotal = counts.pass() + counts.fail() + counts.inconclusive();
+            double observed = criterionTotal == 0
+                    ? 0.0
+                    : (double) counts.pass() / (double) criterionTotal;
+            observedByCriterion.put(counts.criterionId(), observed);
+
+            double criterionThreshold;
+            Double baselineRate = null;
+            Integer baselineSampleCount = null;
+            if (mode == Mode.CONTRACTUAL) {
+                criterionThreshold = threshold;
+            } else {
+                PassRateStatistics criterionBaseline =
+                        baselineMap.byCriterion().get(counts.criterionId());
+                if (criterionBaseline == null
+                        && isK1 && baselineMap.byCriterion().size() == 1) {
+                    // K=1 isomorphism: when there's exactly one
+                    // methodology criterion on both the run side and
+                    // the baseline side, treat them as the same
+                    // criterion even when their ids differ. Older
+                    // baselines were written with the legacy default
+                    // id "contract"; newer runs auto-derive an id
+                    // from the service contract class name.
+                    criterionBaseline = baselineMap.byCriterion().values().iterator().next();
+                }
+                if (criterionBaseline == null) {
+                    if (isK1) {
+                        return EmpiricalChecks.noBaseline(NAME, empiricalDetail());
+                    }
+                    perCriterionVerdicts.add(Verdict.INCONCLUSIVE);
+                    perCriterionExplanations.add(String.format(
+                            "%s: INCONCLUSIVE (no baseline entry for this criterion)",
+                            counts.criterionId()));
+                    thresholdsByCriterion.put(counts.criterionId(), Double.NaN);
+                    continue;
+                }
+                Optional<CriterionResult> sizeViolation =
+                        EmpiricalChecks.sampleSizeConstraint(
+                                NAME, criterionTotal, criterionBaseline.sampleCount(),
+                                Map.of("confidence", confidence));
+                if (sizeViolation.isPresent()) {
+                    if (isK1) {
+                        return sizeViolation.get();
+                    }
+                    perCriterionVerdicts.add(sizeViolation.get().verdict());
+                    perCriterionExplanations.add(
+                            counts.criterionId() + ": " + sizeViolation.get().explanation());
+                    thresholdsByCriterion.put(counts.criterionId(), Double.NaN);
+                    continue;
+                }
+                resolvedBaselineByCriterion.put(counts.criterionId(), criterionBaseline);
+                int baselineSuccesses = (int) Math.round(
+                        criterionBaseline.observedPassRate() * criterionBaseline.sampleCount());
+                DerivedThreshold derived = DERIVER.deriveSampleSizeFirst(
+                        criterionBaseline.sampleCount(), baselineSuccesses, criterionTotal, confidence);
+                criterionThreshold = derived.value();
+                baselineRate = criterionBaseline.observedPassRate();
+                baselineSampleCount = criterionBaseline.sampleCount();
             }
-            // Empirical: derive the threshold via the sample-size-first
-            // construction at the test sample size (statistical companion
-            // §3.4 / §4.3.2). The decision rule (§5.1) compares the raw
-            // observed pass rate against this derived threshold.
-            int baselineSuccesses = (int) Math.round(
-                    stats.observedPassRate() * stats.sampleCount());
-            DerivedThreshold derived = DERIVER.deriveSampleSizeFirst(
-                    stats.sampleCount(), baselineSuccesses, total, confidence);
-            resolvedThreshold = derived.value();
-            resolvedOrigin = ThresholdOrigin.EMPIRICAL;
-            baselineSampleCount = stats.sampleCount();
-            baselineRate = stats.observedPassRate();
+            thresholdsByCriterion.put(counts.criterionId(), criterionThreshold);
+
+            Verdict v;
+            if (criterionTotal == 0) {
+                v = Verdict.INCONCLUSIVE;
+            } else {
+                v = observed >= criterionThreshold ? Verdict.PASS : Verdict.FAIL;
+            }
+            perCriterionVerdicts.add(v);
+            if (mode == Mode.CONTRACTUAL) {
+                perCriterionExplanations.add(String.format(
+                        "%s: observed=%.4f vs threshold=%.4f over %d samples → %s",
+                        counts.criterionId(), observed, criterionThreshold, criterionTotal, v));
+            } else {
+                perCriterionExplanations.add(String.format(
+                        "%s: observed=%.4f vs threshold=%.4f "
+                                + "(Wilson-%.0f%% lower of baseline rate %.4f at n=%d) → %s",
+                        counts.criterionId(), observed, criterionThreshold,
+                        confidence * 100.0, baselineRate, criterionTotal, v));
+            }
         }
 
-        double observed = (double) summary.successes() / (double) total;
-        Verdict verdict = observed >= resolvedThreshold ? Verdict.PASS : Verdict.FAIL;
+        Verdict composite = Verdict.aggregate(perCriterionVerdicts);
 
+        // Build the result detail map. For K=1 the legacy flat shape
+        // (observed/threshold/successes/failures/total) is preserved
+        // so downstream renderers and tests that read it continue to
+        // work. For K>1 the same keys carry the lone criterion's
+        // values when applicable, and a perCriterion-keyed sub-map
+        // carries the K-row breakdown.
         Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("observed", observed);
-        detail.put("threshold", resolvedThreshold);
-        detail.put("origin", resolvedOrigin.name());
-        detail.put("successes", summary.successes());
-        detail.put("failures", summary.failures());
-        detail.put("total", total);
-        if (mode != Mode.CONTRACTUAL) {
-            detail.put("confidence", confidence);
-            detail.put("baselineSampleCount", baselineSampleCount);
-            detail.put("baselineRate", baselineRate);
+        if (methodologyCriteria.size() == 1) {
+            CriterionSampleCounts only = methodologyCriteria.get(0);
+            int onlyTotal = only.pass() + only.fail() + only.inconclusive();
+            double observed = observedByCriterion.get(only.criterionId());
+            double t = thresholdsByCriterion.get(only.criterionId());
+            detail.put("observed", observed);
+            detail.put("threshold", t);
+            detail.put("origin", resolvedOrigin.name());
+            detail.put("successes", only.pass());
+            detail.put("failures", only.fail());
+            detail.put("total", onlyTotal);
+            if (mode != Mode.CONTRACTUAL) {
+                PassRateStatistics b = resolvedBaselineByCriterion.get(only.criterionId());
+                detail.put("confidence", confidence);
+                detail.put("baselineSampleCount", b == null ? null : b.sampleCount());
+                detail.put("baselineRate", b == null ? null : b.observedPassRate());
+            }
+        } else {
+            detail.put("origin", resolvedOrigin.name());
+            detail.put("total", total);
+            detail.put("successes", summary.successes());
+            detail.put("failures", summary.failures());
+            if (mode != Mode.CONTRACTUAL) {
+                detail.put("confidence", confidence);
+            }
+            detail.put("thresholdsByCriterion", Map.copyOf(thresholdsByCriterion));
+            detail.put("observedByCriterion", Map.copyOf(observedByCriterion));
         }
 
-        String explanation = mode == Mode.CONTRACTUAL
-                ? String.format(
+        String explanation;
+        if (methodologyCriteria.size() == 1) {
+            CriterionSampleCounts only = methodologyCriteria.get(0);
+            int onlyTotal = only.pass() + only.fail() + only.inconclusive();
+            double observed = observedByCriterion.get(only.criterionId());
+            double t = thresholdsByCriterion.get(only.criterionId());
+            if (mode == Mode.CONTRACTUAL) {
+                explanation = String.format(
                         "observed=%.4f, threshold=%.4f (origin=%s) over %d samples",
-                        observed, resolvedThreshold, resolvedOrigin, total)
-                : String.format(
+                        observed, t, resolvedOrigin, onlyTotal);
+            } else {
+                PassRateStatistics b = resolvedBaselineByCriterion.get(only.criterionId());
+                explanation = String.format(
                         "observed=%.4f vs threshold=%.4f (Wilson-%.0f%% lower of "
                                 + "baseline rate %.4f at n_test=%d; origin=%s) over %d samples",
-                        observed, resolvedThreshold, confidence * 100.0,
-                        baselineRate, total, resolvedOrigin, total);
+                        observed, t, confidence * 100.0,
+                        b == null ? Double.NaN : b.observedPassRate(),
+                        onlyTotal, resolvedOrigin, onlyTotal);
+            }
+        } else {
+            explanation = "composite verdict over " + methodologyCriteria.size()
+                    + " criteria: " + String.join("; ", perCriterionExplanations);
+        }
 
-        return new CriterionResult(NAME, verdict, explanation, detail);
+        return new CriterionResult(NAME, composite, explanation, detail);
     }
 
     private CriterionResult inconclusive(String reason, Map<String, Object> detail) {
