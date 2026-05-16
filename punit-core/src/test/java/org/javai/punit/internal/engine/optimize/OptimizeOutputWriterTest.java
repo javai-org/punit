@@ -13,6 +13,8 @@ import org.javai.punit.api.ContractBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.internal.engine.Engine;
@@ -107,6 +109,69 @@ class OptimizeOutputWriterTest {
                 .filter(line -> line.contains("anchor:"))
                 .count();
         assertThat(anchorCount).isEqualTo((long) totalSamples);
+    }
+
+    @Test
+    @DisplayName("K>1 contract: each iteration carries a per-criterion criteria: block")
+    void perIterationCriteriaBlockForMultiCriterionContract() {
+        // Contract declaring two methodology criteria. The "always-passes"
+        // criterion holds across every sample; "starts-with-a" fails for
+        // inputs that don't start with 'a'. Three inputs ("a", "bb", "ccc")
+        // give the second criterion a deterministic 1/3 pass rate.
+        ServiceContract<LlmFactors, String, String> contract = new ServiceContract<>() {
+            @Override public String id() { return "two-criterion-contract"; }
+            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<String> b) {
+                b.add(Criteria.direct("always-passes",
+                        cb -> cb.ensure("passes", v -> Outcome.ok())));
+                b.add(Criteria.direct("starts-with-a",
+                        cb -> cb.ensure("first-char-a", v ->
+                                v.startsWith("a")
+                                        ? Outcome.ok()
+                                        : Outcome.fail("no-a", "input " + v))));
+            }
+            @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                return Outcome.ok(input);
+            }
+        };
+        Sampling<LlmFactors, String, String> sampling = Sampling
+                .<LlmFactors, String, String>builder()
+                .serviceContractFactory(f -> contract)
+                .inputs("a", "bb", "ccc")
+                .samples(3)
+                .build();
+        Experiment experiment = Experiment.optimizing(sampling)
+                .initialFactors(new LlmFactors("gpt-4o", 0.0))
+                .stepper((cur, hist) -> hist.size() < 1
+                        ? NextFactor.next(new LlmFactors("gpt-4o", cur.temperature() + 0.1))
+                        : NextFactor.stop())
+                .maximize(s -> 1.0 * s.successes() / Math.max(1, s.total()))
+                .maxIterations(2)
+                .experimentId("two-criterion-opt")
+                .build();
+        new Engine().run(experiment);
+
+        Map<String, String> sink = new LinkedHashMap<>();
+        OptimizeEmitter.emit(experiment, sink::put);
+        Map<String, Object> parsed = new Yaml().load(sink.values().iterator().next());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> iterations = (List<Map<String, Object>>) parsed.get("iterations");
+        assertThat(iterations).isNotEmpty();
+        for (Map<String, Object> iter : iterations) {
+            assertThat(iter).as("iteration should carry criteria: block for K>1 contract")
+                    .containsKey("criteria");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> criteria = (Map<String, Object>) iter.get("criteria");
+            assertThat(criteria).containsOnlyKeys("always-passes", "starts-with-a");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> alwaysPasses = (Map<String, Object>) criteria.get("always-passes");
+            assertThat(alwaysPasses).containsEntry("pass", 3).containsEntry("fail", 0);
+            assertThat((double) alwaysPasses.get("observedPassRate")).isEqualTo(1.0);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> startsWithA = (Map<String, Object>) criteria.get("starts-with-a");
+            assertThat(startsWithA).containsEntry("pass", 1).containsEntry("fail", 2);
+        }
     }
 
     @Test

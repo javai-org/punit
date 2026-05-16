@@ -104,6 +104,30 @@ public final class OptimizeOutputWriter {
             entry.put("successes", ir.successes());
             entry.put("failures", ir.failures());
             entry.put("samplesExecuted", ir.samplesExecuted());
+            // Per-criterion decomposition (only when the contract
+            // declared an explicit methodology criteria(CriteriaBuilder)
+            // list). Mirrors the shape MEASURE / EXPLORE emit so a
+            // reader can compare an optimize iteration's per-criterion
+            // pass rates against the same contract's baseline and
+            // exploration cells without remapping fields. Omitted
+            // entirely for K=0 contracts so single-criterion shape
+            // is unchanged.
+            if (idx < iterationSummaries.size()) {
+                SampleSummary<?> iterSummary = iterationSummaries.get(idx);
+                if (!iterSummary.criterionSampleCounts().isEmpty()) {
+                    Map<String, Object> criteria = new LinkedHashMap<>();
+                    for (org.javai.punit.api.spec.CriterionSampleCounts c
+                            : iterSummary.criterionSampleCounts()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("observedPassRate", c.observedPassRate());
+                        row.put("pass", c.pass());
+                        row.put("fail", c.fail());
+                        row.put("inconclusive", c.inconclusive());
+                        criteria.put(c.criterionId(), row);
+                    }
+                    entry.put("criteria", criteria);
+                }
+            }
             // Per-iteration latency block — passing-only percentiles
             // + population indicator, scoped to this iteration's samples.
             // Omitted when zero samples passed in the iteration.
