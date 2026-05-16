@@ -169,11 +169,13 @@ public final class BaselineResolver {
             return new BaselineLookup<>(
                     Optional.empty(), baselineProfile, notes, sourceFile);
         }
-        // Unwrap per-methodology-criterion pass-rate basis when the
-        // caller is a single-criterion empirical evaluator (PassRate).
-        // K=1: the lone entry is the evaluator's basis. K>1: fast-fail
-        // with a clear message — the K>1 empirical TEST path requires
-        // the evaluator-inference machinery that hasn't landed yet.
+        // Backward-compat unwrap: callers that still request
+        // PassRateStatistics directly (legacy tests, pinned-baseline
+        // paths) get the single entry for K=1 baselines. K>1
+        // baselines no longer throw — PassRate now declares
+        // PerCriterionPassRateStatistics as its baseline shape and
+        // does its own per-criterion iteration. The unwrap below is
+        // retained for callers that haven't migrated.
         if (entry instanceof PerCriterionPassRateStatistics perCriterion
                 && statisticsType == PassRateStatistics.class) {
             Map<String, PassRateStatistics> byCriterion = perCriterion.byCriterion();
@@ -181,21 +183,20 @@ public final class BaselineResolver {
                 return new BaselineLookup<>(
                         Optional.empty(), baselineProfile, notes, sourceFile);
             }
-            if (byCriterion.size() > 1) {
-                throw new IllegalStateException(
-                        "Baseline for service contract '" + serviceContractId
-                                + "' carries " + byCriterion.size()
-                                + " methodology criteria under '" + criterionName + "': "
-                                + byCriterion.keySet()
-                                + ". The empirical PassRate evaluator can only target one"
-                                + " criterion today; multi-criterion empirical evaluation"
-                                + " awaits the evaluator-inference machinery (deferred"
-                                + " from this stage). Until then, K>1 contracts can MEASURE"
-                                + " but cannot run an empirical TEST.");
+            if (byCriterion.size() == 1) {
+                PassRateStatistics only = byCriterion.values().iterator().next();
+                return new BaselineLookup<>(
+                        Optional.of(statisticsType.cast(only)), baselineProfile, notes, sourceFile);
             }
-            PassRateStatistics only = byCriterion.values().iterator().next();
+            // K>1 + legacy PassRateStatistics request — return empty
+            // with a note. Production callers now request
+            // PerCriterionPassRateStatistics and skip this branch.
+            List<String> notesWithNote = new ArrayList<>(notes);
+            notesWithNote.add("K>1 baseline (criteria=" + byCriterion.keySet()
+                    + ") cannot be unwrapped to a single PassRateStatistics — "
+                    + "callers should request PerCriterionPassRateStatistics");
             return new BaselineLookup<>(
-                    Optional.of(statisticsType.cast(only)), baselineProfile, notes, sourceFile);
+                    Optional.empty(), baselineProfile, notesWithNote, sourceFile);
         }
         if (!statisticsType.isInstance(entry)) {
             throw new IllegalStateException(

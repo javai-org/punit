@@ -15,6 +15,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.Configuration;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.Spec;
 import org.javai.punit.api.spec.TypedSpec;
 import org.javai.punit.internal.engine.covariate.CovariateResolver;
@@ -136,11 +137,11 @@ public final class PowerAnalysis {
 
         BaselineLookup lookup = experiment.dispatch(LOOKUP_DISPATCHER);
         BaselineResolver resolver = new BaselineResolver(baselineDir);
-        PassRateStatistics stats = resolver.resolve(
+        PerCriterionPassRateStatistics stats = resolver.resolve(
                 lookup.serviceContractId(),
                 lookup.factorsFingerprint(),
                 PASS_RATE_CRITERION,
-                PassRateStatistics.class,
+                PerCriterionPassRateStatistics.class,
                 lookup.profile(),
                 lookup.declarations())
                 .orElseThrow(() -> new IllegalStateException(
@@ -151,7 +152,21 @@ public final class PowerAnalysis {
                                 + ") under " + baselineDir
                                 + " — run the baseline measure before planning a test against it."));
 
-        double observedRate = stats.observedPassRate();
+        // K>1 worst-case: when the contract carries multiple
+        // methodology criteria, the sample-size dictating criterion
+        // is the one with the lowest baseline rate — its degradation
+        // is hardest to detect, so its sample-size requirement
+        // dominates. For K=1 this collapses to the lone criterion's
+        // rate, preserving legacy behaviour.
+        if (stats.byCriterion().isEmpty()) {
+            throw new IllegalStateException(
+                    "baseline carries no per-criterion pass-rate entries — "
+                            + "the baseline file is malformed");
+        }
+        double observedRate = stats.byCriterion().values().stream()
+                .mapToDouble(PassRateStatistics::observedPassRate)
+                .min()
+                .getAsDouble();
         // One-sided check: degradation testing only cares about the
         // lower side, so the alternative-hypothesis rate p1 = rate − mde
         // must be strictly positive. The upper side (rate + mde) is

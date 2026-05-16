@@ -20,6 +20,7 @@ import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.EvaluationContext;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.PercentileKey;
 import org.javai.punit.api.spec.PercentileLatency;
 import org.javai.punit.api.spec.SampleSummary;
@@ -105,7 +106,7 @@ class CriterionResultDetailTest {
     void baselineSampleCountKeyIsStable() {
         var passRate = PassRate.<Integer>empirical().evaluate(
                 ctx(summaryWithLatency(LatencyResult.empty()),
-                        Optional.of(new PassRateStatistics(0.9, 1234))));
+                        Optional.of(PerCriterionPassRateStatistics.of("contract", 0.9, 1234))));
         var latency = PercentileLatency.<Integer>empirical(PercentileKey.P95).evaluate(
                 ctx(summaryWithLatency(observed(10, 20, 30, 40, 2)),
                         Optional.of(new LatencyStatistics(observed(10, 20, 50, 60, 1234), 1234))));
@@ -132,7 +133,7 @@ class CriterionResultDetailTest {
     void bernoulliEmpiricalDetailKeys() {
         var result = PassRate.<Integer>empirical().evaluate(
                 ctx(summaryWithLatency(LatencyResult.empty()),
-                        Optional.of(new PassRateStatistics(0.9, 1234))));
+                        Optional.of(PerCriterionPassRateStatistics.of("contract", 0.9, 1234))));
 
         assertThat(result.detail()).containsKeys("confidence", "baselineSampleCount");
         assertThat(result.detail()).containsEntry("origin", "EMPIRICAL");

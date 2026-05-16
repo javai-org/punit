@@ -136,6 +136,25 @@ public final class ExploreOutputWriter {
             failureDistribution.put(entry.getKey(), entry.getValue().count());
         }
         block.put("failureDistribution", failureDistribution);
+        // Per-criterion decomposition (only when the run produced
+        // methodology-level criterion counts — empty for contracts
+        // that declared no explicit criteria(CriteriaBuilder) list).
+        // Mirrors the per-criterion shape that MEASURE writes into
+        // baselines so a reader can compare explore vs measure
+        // emissions of the same contract criterion-by-criterion.
+        if (!summary.criterionSampleCounts().isEmpty()) {
+            Map<String, Object> criteria = new LinkedHashMap<>();
+            for (org.javai.punit.api.spec.CriterionSampleCounts counts
+                    : summary.criterionSampleCounts()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("observedPassRate", counts.observedPassRate());
+                row.put("pass", counts.pass());
+                row.put("fail", counts.fail());
+                row.put("inconclusive", counts.inconclusive());
+                criteria.put(counts.criterionId(), row);
+            }
+            block.put("criteria", criteria);
+        }
         return block;
     }
 

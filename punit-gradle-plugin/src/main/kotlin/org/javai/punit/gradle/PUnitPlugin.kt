@@ -19,10 +19,20 @@ import java.net.URLClassLoader
  * Gradle plugin that configures PUnit probabilistic testing tasks.
  *
  * Applies to any project using PUnit:
- * - Configures the `test` task to exclude experiment-tagged tests
- * - Registers `experiment` and `exp` tasks for running experiments
+ * - Configures the `test` task to exclude experiment-tagged methods
+ *   so `./gradlew test` and CI never accidentally re-run an
+ *   expensive, side-effecting experiment (e.g. an LLM-calling MEASURE
+ *   that would clobber committed baseline spec files)
+ * - Registers `experiment` and `exp` tasks for the inverse run —
+ *   experiment-tagged methods only, with the cache/failure/output-dir
+ *   defaults experiments need (uncacheable, INCONCLUSIVE-tolerant,
+ *   spec/exploration/optimization output dirs wired through)
  * - Registers `createSentinel` task to build an executable sentinel JAR
  * - Forwards `punit.*` system properties and supports `-Prun=` filter syntax
+ *
+ * `test` and `experiment` share the same JUnit Platform engine — the
+ * split between them is about runtime contract (cost, idempotence,
+ * artefact production), not about distinct execution machinery.
  */
 class PUnitPlugin : Plugin<Project> {
 
@@ -68,7 +78,10 @@ class PUnitPlugin : Plugin<Project> {
             }
 
             registerExperimentTask(project, extension, "experiment",
-                "Runs experiments (mode determined from @Experiment annotation)")
+                "Runs @Experiment-tagged methods with experiment-appropriate " +
+                "defaults: uncacheable, INCONCLUSIVE-tolerant, and wired to " +
+                "the spec/exploration/optimization output dirs. Excluded from " +
+                "'test' so CI never accidentally re-runs them.")
             registerExperimentTask(project, extension, "exp",
                 "Shorthand for 'experiment' task")
 
