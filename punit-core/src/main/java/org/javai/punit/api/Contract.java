@@ -29,7 +29,7 @@ import org.javai.punit.api.criterion.DefaultCriterion;
  *       or {@link Outcome.Fail} for an expected business-level
  *       failure. Records cost via the supplied
  *       {@link TokenTracker}.</li>
- *   <li>{@link #postconditions(ContractBuilder) postconditions} —
+ *   <li>{@link #postconditions(PostconditionBuilder) postconditions} —
  *       declares the contract's clauses by populating the supplied
  *       builder with {@code ensure(...)} calls.</li>
  * </ul>
@@ -87,7 +87,7 @@ public interface Contract<I, O> {
 
     /**
      * Declare this contract's postcondition clauses by calling
-     * {@link ContractBuilder#ensure ensure} on the supplied builder.
+     * {@link PostconditionBuilder#ensure ensure} on the supplied builder.
      *
      * <p>The framework constructs a fresh builder, calls this method
      * to populate it, and reads the resulting clause list out via the
@@ -103,7 +103,7 @@ public interface Contract<I, O> {
      *
      * @param b the builder to populate
      */
-    default void postconditions(ContractBuilder<O> b) {
+    default void postconditions(PostconditionBuilder<O> b) {
         // No-op default. Override to declare contract-level
         // postconditions; leave defaulted when the contract uses
         // criteria(CriteriaBuilder) instead.
@@ -112,12 +112,12 @@ public interface Contract<I, O> {
     /**
      * Resolves the contract's clauses to an immutable list. The
      * framework hook; do not override. The default implementation
-     * builds a fresh {@link ContractBuilder}, calls
-     * {@link #postconditions(ContractBuilder)} to populate it, and
+     * builds a fresh {@link PostconditionBuilder}, calls
+     * {@link #postconditions(PostconditionBuilder)} to populate it, and
      * returns the built list.
      */
     default List<Postcondition<O>> postconditions() {
-        ContractBuilder<O> b = new ContractBuilder<>();
+        PostconditionBuilder<O> b = new PostconditionBuilder<>();
         postconditions(b);
         return b.build();
     }
@@ -130,13 +130,13 @@ public interface Contract<I, O> {
      *
      * <p>The default body is empty. A contract that does not
      * explicitly declare criteria yields a single-criterion list
-     * derived from its existing {@link #postconditions(ContractBuilder)}.
+     * derived from its existing {@link #postconditions(PostconditionBuilder)}.
      * Today's contracts therefore satisfy the criterion model
      * without code change: the contract <em>is</em> one criterion.
      *
      * <p>A contract may not override both this method (so that the
      * resulting list is non-empty) and
-     * {@link #postconditions(ContractBuilder)} (so that the resulting
+     * {@link #postconditions(PostconditionBuilder)} (so that the resulting
      * chain is non-empty) at the same time. The two overrides
      * estimate different quantities — one criterion's chain versus
      * the criteria list — and the framework rejects the ambiguity at
@@ -164,7 +164,7 @@ public interface Contract<I, O> {
      * @throws IllegalStateException if the contract declares both an
      *         explicit criteria list (non-empty {@code criteria(CriteriaBuilder)}
      *         override) and a non-empty postcondition chain
-     *         (non-empty {@code postconditions(ContractBuilder)}
+     *         (non-empty {@code postconditions(PostconditionBuilder)}
      *         override). The two are structurally ambiguous; the
      *         framework will not pick one for the author.
      */
@@ -178,7 +178,7 @@ public interface Contract<I, O> {
             throw new IllegalStateException(
                     "Contract " + getClass().getName()
                             + " declares both a non-empty postcondition chain"
-                            + " (via postconditions(ContractBuilder)) and an"
+                            + " (via postconditions(PostconditionBuilder)) and an"
                             + " explicit criteria list (via"
                             + " criteria(CriteriaBuilder)). The two overrides"
                             + " estimate different quantities; the framework"

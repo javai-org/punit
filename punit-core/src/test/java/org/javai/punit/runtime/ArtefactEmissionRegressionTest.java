@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -47,7 +47,7 @@ class ArtefactEmissionRegressionTest {
 
     private static class TrivialServiceContract implements ServiceContract<F, String, Integer> {
         @Override public String id() { return "regression-guard"; }
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }

@@ -28,20 +28,39 @@ final class TransformingCriterion<O, D> implements Criterion<O> {
     private final String id;
     private final Function<O, Outcome<D>> transform;
     private final List<Postcondition<D>> postconditions;
+    private final CriterionPosture posture;
 
     TransformingCriterion(
             String id,
             Function<O, Outcome<D>> transform,
             List<Postcondition<D>> postconditions) {
+        this(id, transform, postconditions, CriterionPosture.implicit());
+    }
+
+    TransformingCriterion(
+            String id,
+            Function<O, Outcome<D>> transform,
+            List<Postcondition<D>> postconditions,
+            CriterionPosture posture) {
         this.id = Objects.requireNonNull(id, "id");
         this.transform = Objects.requireNonNull(transform, "transform");
         this.postconditions = List.copyOf(
                 Objects.requireNonNull(postconditions, "postconditions"));
+        this.posture = Objects.requireNonNull(posture, "posture");
+    }
+
+    TransformingCriterion<O, D> withPosture(CriterionPosture replacement) {
+        return new TransformingCriterion<>(id, transform, postconditions, replacement);
     }
 
     @Override
     public String id() {
         return id;
+    }
+
+    @Override
+    public CriterionPosture posture() {
+        return posture;
     }
 
     @Override

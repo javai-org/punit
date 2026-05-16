@@ -9,7 +9,7 @@ import java.util.Optional;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.TokenTracker;
@@ -29,7 +29,7 @@ class SampleClassificationTest {
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
     };
 
     private static ServiceContractOutcome<String, Integer> outcomeOk(int value, Duration duration, long tokens) {
@@ -94,7 +94,7 @@ class SampleClassificationTest {
         void okExceedingMaxLatency() {
             ServiceContract<Factors, String, Integer> bounded = new ServiceContract<>() {
                 @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) { return Outcome.ok(0); }
-                @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+                @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
                 @Override public Optional<Duration> maxLatency() {
                     return Optional.of(Duration.ofMillis(100));
                 }
@@ -115,7 +115,7 @@ class SampleClassificationTest {
         void okAtMaxLatencyExact() {
             ServiceContract<Factors, String, Integer> bounded = new ServiceContract<>() {
                 @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) { return Outcome.ok(0); }
-                @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+                @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
                 @Override public Optional<Duration> maxLatency() {
                     return Optional.of(Duration.ofMillis(100));
                 }

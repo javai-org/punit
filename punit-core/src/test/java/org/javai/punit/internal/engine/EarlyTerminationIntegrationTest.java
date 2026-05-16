@@ -3,7 +3,7 @@ package org.javai.punit.internal.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
@@ -38,7 +38,7 @@ class EarlyTerminationIntegrationTest {
 
     /** Returns Outcome.ok every sample. */
     private static class AlwaysPass implements ServiceContract<Factors, Integer, Boolean> {
-        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
         }
@@ -46,7 +46,7 @@ class EarlyTerminationIntegrationTest {
 
     /** Returns Outcome.fail every sample — a clean failure-inevitable shape. */
     private static class AlwaysFail implements ServiceContract<Factors, Integer, Boolean> {
-        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure");
         }
@@ -61,7 +61,7 @@ class EarlyTerminationIntegrationTest {
         private final int failsFirst;
         private int seen = 0;
         FailsThenPasses(int failsFirst) { this.failsFirst = failsFirst; }
-        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return ++seen <= failsFirst
                     ? Outcome.fail("contract_violation", "scripted failure")

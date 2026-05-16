@@ -6,7 +6,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -33,7 +33,7 @@ public final class SoundnessFloorSubjects {
 
     private static ServiceContract<NoFactors, Integer, Boolean> countingAlwaysPasses() {
         return new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 INVOKE_COUNT.incrementAndGet();
                 return Outcome.ok(true);

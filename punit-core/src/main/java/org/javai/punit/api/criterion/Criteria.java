@@ -5,7 +5,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 
 /**
  * Factory entry points for declaring criteria. Two shapes:
@@ -58,7 +58,7 @@ public final class Criteria {
      *
      * @param id   the criterion's stable identifier; must be non-null
      *             and non-blank
-     * @param body a consumer that populates a {@link ContractBuilder}
+     * @param body a consumer that populates a {@link PostconditionBuilder}
      *             with the criterion's postcondition chain. The
      *             builder is fresh; the consumer's calls to
      *             {@code ensure(...)} populate it.
@@ -66,10 +66,10 @@ public final class Criteria {
      * @return a criterion ready to be added to a {@link CriteriaBuilder}
      */
     public static <O> Criterion<O> direct(
-            String id, Consumer<ContractBuilder<O>> body) {
+            String id, Consumer<PostconditionBuilder<O>> body) {
         validateId(id);
         Objects.requireNonNull(body, "body");
-        ContractBuilder<O> b = new ContractBuilder<>();
+        PostconditionBuilder<O> b = new PostconditionBuilder<>();
         body.accept(b);
         return new DirectCriterion<>(id, b.build());
     }
@@ -92,7 +92,7 @@ public final class Criteria {
      *                  contract's produced output and returns an
      *                  outcome over the derived type
      * @param body      a consumer that populates a
-     *                  {@link ContractBuilder} typed over the derived
+     *                  {@link PostconditionBuilder} typed over the derived
      *                  type. The builder is fresh; the consumer's
      *                  calls to {@code ensure(...)} populate it.
      * @param <O>       the contract's per-sample output value type
@@ -103,11 +103,11 @@ public final class Criteria {
     public static <O, D> Criterion<O> transforming(
             String id,
             Function<O, Outcome<D>> transform,
-            Consumer<ContractBuilder<D>> body) {
+            Consumer<PostconditionBuilder<D>> body) {
         validateId(id);
         Objects.requireNonNull(transform, "transform");
         Objects.requireNonNull(body, "body");
-        ContractBuilder<D> b = new ContractBuilder<>();
+        PostconditionBuilder<D> b = new PostconditionBuilder<>();
         body.accept(b);
         return new TransformingCriterion<>(id, transform, b.build());
     }

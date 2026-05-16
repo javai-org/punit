@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.api.TokenTracker;
@@ -26,7 +26,7 @@ class InconclusiveFoldsIntoFailTest {
         }
 
         @Override
-        public void postconditions(ContractBuilder<String> b) {
+        public void postconditions(PostconditionBuilder<String> b) {
             // Empty — the explicit criteria carry the postconditions.
         }
 

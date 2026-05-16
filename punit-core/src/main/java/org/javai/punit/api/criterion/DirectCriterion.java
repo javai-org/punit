@@ -23,16 +23,31 @@ final class DirectCriterion<O> implements Criterion<O> {
 
     private final String id;
     private final List<Postcondition<O>> postconditions;
+    private final CriterionPosture posture;
 
     DirectCriterion(String id, List<Postcondition<O>> postconditions) {
+        this(id, postconditions, CriterionPosture.implicit());
+    }
+
+    DirectCriterion(String id, List<Postcondition<O>> postconditions, CriterionPosture posture) {
         this.id = Objects.requireNonNull(id, "id");
         this.postconditions = List.copyOf(
                 Objects.requireNonNull(postconditions, "postconditions"));
+        this.posture = Objects.requireNonNull(posture, "posture");
+    }
+
+    DirectCriterion<O> withPosture(CriterionPosture replacement) {
+        return new DirectCriterion<>(id, postconditions, replacement);
     }
 
     @Override
     public String id() {
         return id;
+    }
+
+    @Override
+    public CriterionPosture posture() {
+        return posture;
     }
 
     @Override

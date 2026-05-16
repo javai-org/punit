@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -37,7 +37,7 @@ class ExploreOutputWriterTest {
 
     /** Always-passing service contract. Output type is the input length, for trivial sampling. */
     private static class LengthServiceContract implements ServiceContract<LlmFactors, String, Integer> {
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
@@ -232,7 +232,7 @@ class ExploreOutputWriterTest {
         private final String id;
         IdServiceContract(String id) { this.id = id; }
         @Override public String id() { return id; }
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }

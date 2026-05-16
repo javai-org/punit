@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -38,7 +38,7 @@ class OptimizeOutputWriterTest {
         private final String id;
         IdServiceContract(String id) { this.id = id; }
         @Override public String id() { return id; }
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
@@ -138,7 +138,7 @@ class OptimizeOutputWriterTest {
         // give the second criterion a deterministic 1/3 pass rate.
         ServiceContract<LlmFactors, String, String> contract = new ServiceContract<>() {
             @Override public String id() { return "two-criterion-contract"; }
-            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public void criteria(CriteriaBuilder<String> b) {
                 b.add(Criteria.direct("always-passes",
                         cb -> cb.ensure("passes", v -> Outcome.ok())));

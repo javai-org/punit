@@ -80,4 +80,21 @@ public interface Criterion<O> {
      * @return the criterion's per-sample evaluation record
      */
     CriterionSampleResult evaluate(O value);
+
+    /**
+     * The criterion's run-time commitment — what counts as acceptable,
+     * and optionally how confidently to evaluate it. Authored via the
+     * {@link CriteriaBuilder} convenience methods
+     * ({@code addCriterion(...).meeting(...)} et al.); read by the
+     * framework's evaluation path when it computes the per-criterion
+     * verdict from the run's sample counts.
+     *
+     * <p>The default is {@link CriterionPosture#implicit()} — used by
+     * criteria constructed without an explicit posture (hand-rolled
+     * {@link Criterion} implementations and the auto-derived K=1
+     * default).
+     */
+    default CriterionPosture posture() {
+        return CriterionPosture.implicit();
+    }
 }

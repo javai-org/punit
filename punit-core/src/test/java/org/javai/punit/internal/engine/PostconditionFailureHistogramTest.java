@@ -9,7 +9,7 @@ import org.javai.punit.api.spec.FactorsStepper;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -40,7 +40,7 @@ class PostconditionFailureHistogramTest {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
-        @Override public void postconditions(ContractBuilder<Integer> b) {
+        @Override public void postconditions(PostconditionBuilder<Integer> b) {
             b.ensure("alwaysFails", v ->
                     Outcome.fail("alwaysFails-mode", "input was " + v));
             b.ensure("evenFails", v -> v % 2 == 0
@@ -96,7 +96,7 @@ class PostconditionFailureHistogramTest {
     void emptyHistogramWhenNoClauses() {
         ServiceContract<Factors, Integer, Integer> noClauses = new ServiceContract<>() {
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
@@ -119,7 +119,7 @@ class PostconditionFailureHistogramTest {
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) {
                 return Outcome.fail("upstream-error", "always fails at apply");
             }
-            @Override public void postconditions(ContractBuilder<Integer> b) {
+            @Override public void postconditions(PostconditionBuilder<Integer> b) {
                 b.ensure("would-have-checked", v -> Outcome.ok());
             }
         };
@@ -212,7 +212,7 @@ class PostconditionFailureHistogramTest {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
-        @Override public void postconditions(ContractBuilder<Integer> b) {
+        @Override public void postconditions(PostconditionBuilder<Integer> b) {
             b.ensure("alwaysFails", v -> Outcome.fail("alwaysFails", "input " + v));
         }
     }

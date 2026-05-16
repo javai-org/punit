@@ -20,7 +20,7 @@ class SamplingTest {
         EchoServiceContract(Factors factors) {}
 
         @Override
-        public void postconditions(ContractBuilder<String> b) { /* none */ }
+        public void postconditions(PostconditionBuilder<String> b) { /* none */ }
 
         @Override
         public Outcome<String> invoke(String input, TokenTracker tracker) {

@@ -9,7 +9,7 @@ import java.util.Optional;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.LatencySpec;
@@ -44,7 +44,7 @@ class CriterionResultDetailTest {
         @Override public Outcome<Integer> invoke(Object input, TokenTracker tracker) {
             return Outcome.ok(0);
         }
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
     };
 
     private static ServiceContractOutcome<Object, Integer> stubOutcome(int value) {

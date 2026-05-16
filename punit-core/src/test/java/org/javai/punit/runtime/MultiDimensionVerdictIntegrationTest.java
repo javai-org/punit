@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
@@ -66,7 +66,7 @@ class MultiDimensionVerdictIntegrationTest {
             sleep(SLEEP_MS);
             return Outcome.ok(input.length());
         }
-        @Override public void postconditions(ContractBuilder<Integer> b) {
+        @Override public void postconditions(PostconditionBuilder<Integer> b) {
             b.ensure("non-null length", n -> Outcome.ok());
         }
     }
@@ -83,7 +83,7 @@ class MultiDimensionVerdictIntegrationTest {
             sleep(SLEEP_MS);
             return Outcome.ok(input.length());
         }
-        @Override public void postconditions(ContractBuilder<Integer> b) {
+        @Override public void postconditions(PostconditionBuilder<Integer> b) {
             b.ensure("length is even", n ->
                     n % 2 == 0 ? Outcome.ok() : Outcome.fail("odd-length", "n=" + n));
         }

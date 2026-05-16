@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -27,7 +27,7 @@ class BaselineEmitterTest {
 
     private static final ServiceContract<NoFactors, Integer, Boolean> ALWAYS_PASSES = new ServiceContract<>() {
         @Override public String id() { return "AlwaysPassesServiceContract"; }
-        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(true);
         }
@@ -82,7 +82,7 @@ class BaselineEmitterTest {
 
     private static final ServiceContract<NoFactors, Integer, String> EVENS_PASS = new ServiceContract<>() {
         @Override public String id() { return "EvensPassServiceContract"; }
-        @Override public void postconditions(ContractBuilder<String> b) {
+        @Override public void postconditions(PostconditionBuilder<String> b) {
             b.ensure("non-blank", s -> s.isBlank()
                     ? Outcome.fail("blank", "value was blank")
                     : Outcome.ok(null));

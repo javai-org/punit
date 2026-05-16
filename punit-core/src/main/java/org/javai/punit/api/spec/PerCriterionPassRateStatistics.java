@@ -15,7 +15,7 @@ import java.util.Objects;
  * <p>K=1 contracts produce a single-entry map keyed by the
  * methodology criterion's id (typically the auto-derived
  * {@code DefaultCriterion.id()} when the contract uses the legacy
- * {@code postconditions(ContractBuilder)} path). K&gt;1 contracts
+ * {@code postconditions(PostconditionBuilder)} path). K&gt;1 contracts
  * produce one entry per methodology criterion declared via
  * {@code Contract.criteria(CriteriaBuilder)}.
  *
@@ -60,7 +60,7 @@ public record PerCriterionPassRateStatistics(
      * K=1 convenience factory: wraps a single
      * {@link PassRateStatistics} under the supplied methodology
      * criterion id. The common case for tests and for the legacy
-     * {@code postconditions(ContractBuilder)} authoring path.
+     * {@code postconditions(PostconditionBuilder)} authoring path.
      */
     public static PerCriterionPassRateStatistics of(
             String criterionId, PassRateStatistics stats) {
