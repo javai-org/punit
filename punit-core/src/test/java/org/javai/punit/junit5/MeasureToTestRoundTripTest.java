@@ -15,6 +15,7 @@ import org.javai.punit.api.InputSupplier;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.internal.engine.baseline.BaselineRecord;
 import org.javai.punit.internal.engine.baseline.BaselineWriter;
 import org.javai.punit.internal.engine.baseline.FactorsFingerprint;
@@ -125,7 +126,7 @@ class MeasureToTestRoundTripTest {
                 Instant.parse("2026-04-28T12:00:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "bernoulli-pass-rate",
-                        new PassRateStatistics(passRate, sampleCount)));
+                        PerCriterionPassRateStatistics.of("contract", passRate, sampleCount)));
         new BaselineWriter().write(record, dir);
     }
 

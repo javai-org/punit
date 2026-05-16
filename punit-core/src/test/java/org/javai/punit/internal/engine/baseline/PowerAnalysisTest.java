@@ -23,6 +23,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -68,7 +69,7 @@ class PowerAnalysisTest {
                 "sha256:any", sampleCount, Instant.parse("2026-04-26T15:30:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "bernoulli-pass-rate",
-                        new PassRateStatistics(passRate, sampleCount)));
+                        PerCriterionPassRateStatistics.of("contract", passRate, sampleCount)));
         new BaselineWriter().write(record, dir);
         return dir;
     }
@@ -307,7 +308,7 @@ class PowerAnalysisTest {
                 "sha256:any", sampleCount, Instant.parse("2026-04-26T15:30:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "bernoulli-pass-rate",
-                        new PassRateStatistics(passRate, sampleCount)),
+                        PerCriterionPassRateStatistics.of("contract", passRate, sampleCount)),
                 CovariateProfile.of(profileValues));
         new BaselineWriter().write(record, dir);
     }

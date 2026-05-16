@@ -16,6 +16,8 @@ import org.javai.punit.api.covariate.Covariate;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineLookup;
 import org.javai.punit.api.spec.BaselineStatistics;
+import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 
 /**
@@ -166,6 +168,34 @@ public final class BaselineResolver {
         if (entry == null) {
             return new BaselineLookup<>(
                     Optional.empty(), baselineProfile, notes, sourceFile);
+        }
+        // Unwrap per-methodology-criterion pass-rate basis when the
+        // caller is a single-criterion empirical evaluator (PassRate).
+        // K=1: the lone entry is the evaluator's basis. K>1: fast-fail
+        // with a clear message — the K>1 empirical TEST path requires
+        // the evaluator-inference machinery that hasn't landed yet.
+        if (entry instanceof PerCriterionPassRateStatistics perCriterion
+                && statisticsType == PassRateStatistics.class) {
+            Map<String, PassRateStatistics> byCriterion = perCriterion.byCriterion();
+            if (byCriterion.isEmpty()) {
+                return new BaselineLookup<>(
+                        Optional.empty(), baselineProfile, notes, sourceFile);
+            }
+            if (byCriterion.size() > 1) {
+                throw new IllegalStateException(
+                        "Baseline for service contract '" + serviceContractId
+                                + "' carries " + byCriterion.size()
+                                + " methodology criteria under '" + criterionName + "': "
+                                + byCriterion.keySet()
+                                + ". The empirical PassRate evaluator can only target one"
+                                + " criterion today; multi-criterion empirical evaluation"
+                                + " awaits the evaluator-inference machinery (deferred"
+                                + " from this stage). Until then, K>1 contracts can MEASURE"
+                                + " but cannot run an empirical TEST.");
+            }
+            PassRateStatistics only = byCriterion.values().iterator().next();
+            return new BaselineLookup<>(
+                    Optional.of(statisticsType.cast(only)), baselineProfile, notes, sourceFile);
         }
         if (!statisticsType.isInstance(entry)) {
             throw new IllegalStateException(

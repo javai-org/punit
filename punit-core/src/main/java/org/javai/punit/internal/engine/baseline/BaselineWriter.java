@@ -33,6 +33,7 @@ import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
@@ -140,8 +141,8 @@ public final class BaselineWriter {
 
     private Map<String, Object> serialiseStatisticsEntry(
             String criterionName, BaselineStatistics statistics) {
-        if (statistics instanceof PassRateStatistics passRate) {
-            return serialisePassRate(passRate);
+        if (statistics instanceof PerCriterionPassRateStatistics perCriterion) {
+            return serialisePerCriterionPassRate(perCriterion);
         }
         if (statistics instanceof LatencyStatistics latency) {
             return serialiseLatency(latency);
@@ -152,11 +153,18 @@ public final class BaselineWriter {
                         + " — extend BaselineWriter and BaselineReader together to add support.");
     }
 
-    private Map<String, Object> serialisePassRate(PassRateStatistics stats) {
-        Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put(FIELD_OBSERVED_PASS_RATE, stats.observedPassRate());
-        entry.put(FIELD_SAMPLE_COUNT, stats.sampleCount());
-        return entry;
+    private Map<String, Object> serialisePerCriterionPassRate(
+            PerCriterionPassRateStatistics stats) {
+        Map<String, Object> criteriaBlock = new LinkedHashMap<>();
+        for (Map.Entry<String, PassRateStatistics> e : stats.byCriterion().entrySet()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put(FIELD_OBSERVED_PASS_RATE, e.getValue().observedPassRate());
+            entry.put(FIELD_SAMPLE_COUNT, e.getValue().sampleCount());
+            criteriaBlock.put(e.getKey(), entry);
+        }
+        Map<String, Object> outer = new LinkedHashMap<>();
+        outer.put(BaselineSchema.FIELD_CRITERIA, criteriaBlock);
+        return outer;
     }
 
     private Map<String, Object> serialiseLatency(LatencyStatistics stats) {

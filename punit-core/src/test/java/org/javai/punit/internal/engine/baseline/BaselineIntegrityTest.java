@@ -18,7 +18,7 @@ class BaselineIntegrityTest {
     @DisplayName("appendFingerprint adds a final contentFingerprint: line whose digest is "
             + "SHA-256 of the body that precedes it")
     void appendsFingerprintMatchingBodyDigest() {
-        String body = "schemaVersion: punit-baseline-2\nuseCaseId: X\n";
+        String body = "schemaVersion: punit-baseline-3\nuseCaseId: X\n";
         String fingerprinted = BaselineIntegrity.appendFingerprint(body);
 
         assertThat(fingerprinted)
@@ -34,19 +34,19 @@ class BaselineIntegrityTest {
     @DisplayName("appendFingerprint normalises a body without trailing newline so the "
             + "fingerprint line stays on its own line")
     void appendsTrailingNewlineWhenAbsent() {
-        String body = "schemaVersion: punit-baseline-2"; // no trailing newline
+        String body = "schemaVersion: punit-baseline-3"; // no trailing newline
         String fingerprinted = BaselineIntegrity.appendFingerprint(body);
 
         assertThat(fingerprinted.lines().toList())
                 .containsExactly(
-                        "schemaVersion: punit-baseline-2",
+                        "schemaVersion: punit-baseline-3",
                         "contentFingerprint: " + HashUtils.sha256(body + "\n"));
     }
 
     @Test
     @DisplayName("verify returns empty when stored digest matches recomputed body digest")
     void verifyOkOnMatchingDigest() {
-        String body = "schemaVersion: punit-baseline-2\n";
+        String body = "schemaVersion: punit-baseline-3\n";
         String yaml = BaselineIntegrity.appendFingerprint(body);
 
         Optional<String> warning = BaselineIntegrity.verify(yaml, FAKE_FILE);
@@ -59,7 +59,7 @@ class BaselineIntegrityTest {
             + "computed digests — when the body has been edited after the fingerprint "
             + "was appended")
     void verifyMismatchOnEditedBody() {
-        String body = "schemaVersion: punit-baseline-2\nminPassRate: 0.95\n";
+        String body = "schemaVersion: punit-baseline-3\nminPassRate: 0.95\n";
         String yaml = BaselineIntegrity.appendFingerprint(body);
         // Tamper: lower the threshold without re-fingerprinting.
         String tampered = yaml.replace("minPassRate: 0.95", "minPassRate: 0.50");
@@ -79,7 +79,7 @@ class BaselineIntegrityTest {
     @DisplayName("verify returns the softer missing warning when no contentFingerprint: "
             + "field is present (legacy baseline pre-dating the integrity feature)")
     void verifyMissingOnLegacyBaseline() {
-        String legacy = "schemaVersion: punit-baseline-2\nuseCaseId: X\n";
+        String legacy = "schemaVersion: punit-baseline-3\nuseCaseId: X\n";
 
         Optional<String> warning = BaselineIntegrity.verify(legacy, FAKE_FILE);
 

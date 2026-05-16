@@ -17,6 +17,7 @@ import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
@@ -85,7 +86,7 @@ class EmpiricalEndToEndIntegrationTest {
                 Instant.parse("2026-04-26T15:30:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "bernoulli-pass-rate",
-                        new PassRateStatistics(passRate, sampleCount)));
+                        PerCriterionPassRateStatistics.of("contract", passRate, sampleCount)));
         new BaselineWriter().write(record, baselineDir);
     }
 

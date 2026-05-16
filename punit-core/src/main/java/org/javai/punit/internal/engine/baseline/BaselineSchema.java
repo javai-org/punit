@@ -13,7 +13,22 @@ final class BaselineSchema {
     private BaselineSchema() { }
 
     /** The structural-version discriminator for the baseline YAML schema. */
-    static final String SCHEMA_VERSION_VALUE = "punit-baseline-2";
+    static final String SCHEMA_VERSION_VALUE = "punit-baseline-3";
+
+    /**
+     * Previous schema version retained as a literal so the reader can
+     * give a precise migration message when it encounters an
+     * out-of-date file.
+     */
+    static final String SCHEMA_VERSION_PREVIOUS = "punit-baseline-2";
+
+    /**
+     * The per-methodology-criterion nesting key under
+     * {@code statistics.bernoulli-pass-rate}. From punit-baseline-3
+     * onward, the bernoulli stats are always nested per methodology
+     * criterion (uniformly, including K=1).
+     */
+    static final String FIELD_CRITERIA = "criteria";
 
     static final String FIELD_SCHEMA_VERSION = "schemaVersion";
     static final String FIELD_USE_CASE_ID = "useCaseId";

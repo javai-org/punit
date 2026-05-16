@@ -12,6 +12,7 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.spec.BaselineLookup;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,7 +29,7 @@ class YamlBaselineProviderTest {
     void resolvesPresent(@TempDir Path dir) throws IOException {
         FactorBundle bundle = FactorBundle.of(new Factors("gpt-4o", 0.0));
         BaselineRecord record = baseline("ShoppingBasket", FactorsFingerprint.of(bundle),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.92, 1000)));
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.92, 1000)));
         writer.write(record, dir);
 
         var provider = new YamlBaselineProvider(dir);
@@ -46,7 +47,7 @@ class YamlBaselineProviderTest {
         FactorBundle measured = FactorBundle.of(new Factors("gpt-4o", 0.0));
         FactorBundle queried = FactorBundle.of(new Factors("gpt-4o", 0.7));
         BaselineRecord record = baseline("ShoppingBasket", FactorsFingerprint.of(measured),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.92, 1000)));
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.92, 1000)));
         writer.write(record, dir);
 
         var provider = new YamlBaselineProvider(dir);
@@ -77,7 +78,7 @@ class YamlBaselineProviderTest {
     void lookupCleanWhenFingerprintMatches(@TempDir Path dir) throws IOException {
         FactorBundle bundle = FactorBundle.of(new Factors("gpt-4o", 0.0));
         BaselineRecord record = baseline("ShoppingBasket", FactorsFingerprint.of(bundle),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.92, 1000)));
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.92, 1000)));
         writer.write(record, dir);
 
         var provider = new YamlBaselineProvider(dir);
@@ -96,7 +97,7 @@ class YamlBaselineProviderTest {
     void lookupSurfacesMismatchWarning(@TempDir Path dir) throws IOException {
         FactorBundle bundle = FactorBundle.of(new Factors("gpt-4o", 0.0));
         BaselineRecord record = baseline("ShoppingBasket", FactorsFingerprint.of(bundle),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.92, 1000)));
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.92, 1000)));
         Path file = writer.write(record, dir);
         // Tamper: lower observedPassRate without re-fingerprinting.
         String tampered = Files.readString(file).replace(
@@ -121,7 +122,7 @@ class YamlBaselineProviderTest {
     void lookupSurfacesMissingWarning(@TempDir Path dir) throws IOException {
         FactorBundle bundle = FactorBundle.of(new Factors("gpt-4o", 0.0));
         BaselineRecord record = baseline("ShoppingBasket", FactorsFingerprint.of(bundle),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.88, 500)));
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.88, 500)));
         Path file = writer.write(record, dir);
         // Strip the trailing fingerprint line — synthesises a pre-integrity baseline.
         String stripped = Files.readString(file)

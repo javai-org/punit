@@ -10,6 +10,7 @@ import java.util.Map;
 import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class BaselineRecordTest {
 
     private static final Map<String, BaselineStatistics> ONE_ENTRY =
-            Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000));
+            Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000));
 
     @Test
     @DisplayName("filename is {serviceContractId}.{methodName}-{factorsFingerprint}.yaml")
@@ -82,7 +83,7 @@ class BaselineRecordTest {
     @DisplayName("statistics map is defensively copied — caller mutations don't leak in")
     void defensiveCopy() {
         java.util.HashMap<String, BaselineStatistics> mutable = new java.util.HashMap<>();
-        mutable.put("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000));
+        mutable.put("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000));
 
         BaselineRecord record = new BaselineRecord(
                 "u", "m", "f", "sha256:x", 1, Instant.now(), mutable);

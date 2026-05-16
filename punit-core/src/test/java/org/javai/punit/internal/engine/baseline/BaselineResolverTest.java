@@ -14,6 +14,7 @@ import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -44,7 +45,7 @@ class BaselineResolverTest {
     @DisplayName("resolves a present PassRateStatistics entry")
     void resolvesPresentEntry(@TempDir Path dir) throws IOException {
         writeBaseline(dir, "ShoppingBasket", "a1b2c3d4", Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)));
 
         var resolver = new BaselineResolver(dir);
 
@@ -70,7 +71,7 @@ class BaselineResolverTest {
     @DisplayName("returns empty when no file matches the (serviceContractId, fingerprint) pair")
     void emptyForNonMatchingFile(@TempDir Path dir) throws IOException {
         writeBaseline(dir, "Other", "a1b2c3d4", Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.5, 100)));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.5, 100)));
 
         var resolver = new BaselineResolver(dir);
 
@@ -84,7 +85,7 @@ class BaselineResolverTest {
     @DisplayName("returns empty when the file matches but the criterion name does not")
     void emptyForUnknownCriterion(@TempDir Path dir) throws IOException {
         writeBaseline(dir, "ShoppingBasket", "a1b2c3d4", Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)));
 
         var resolver = new BaselineResolver(dir);
 
@@ -98,7 +99,7 @@ class BaselineResolverTest {
     @DisplayName("rejects mismatch between recorded statistics flavour and requested type")
     void rejectsStatisticsTypeMismatch(@TempDir Path dir) throws IOException {
         writeBaseline(dir, "ShoppingBasket", "a1b2c3d4", Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)));
 
         var resolver = new BaselineResolver(dir);
 
@@ -117,7 +118,7 @@ class BaselineResolverTest {
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:specific-identity", 1000,
                 Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)));
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)));
         writer.write(record, dir);
 
         var resolver = new BaselineResolver(dir);
@@ -145,7 +146,7 @@ class BaselineResolverTest {
                 1000, 1000);
         writeBaseline(dir, "ShoppingBasket", "a1b2c3d4",
                 new java.util.LinkedHashMap<>(Map.of(
-                        "bernoulli-pass-rate", new PassRateStatistics(0.94, 1000))),
+                        "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000))),
                 indicator);
 
         var resolver = new BaselineResolver(dir);
@@ -171,7 +172,7 @@ class BaselineResolverTest {
         BaselineRecord record = new BaselineRecord(
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", new PassRateStatistics(0.94, 1000)),
+                Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)),
                 CovariateProfile.of(profile));
         writer.write(record, dir);
 
@@ -189,7 +190,7 @@ class BaselineResolverTest {
         // if the resolver only checked startsWith — which it doesn't,
         // because the segment must be terminated by '-' or '.yaml'.
         writeBaseline(dir, "ShoppingBasket", "aabbccddee", Map.of(
-                "bernoulli-pass-rate", new PassRateStatistics(0.5, 100)));
+                "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.5, 100)));
 
         var resolver = new BaselineResolver(dir);
 
@@ -261,7 +262,8 @@ class BaselineResolverTest {
         BaselineRecord record = new BaselineRecord(
                 "ShoppingBasket", "measureBaseline", "a1b2c3d4",
                 "sha256:abc", 1000, Instant.parse("2026-04-26T15:30:00Z"),
-                Map.of("bernoulli-pass-rate", stats),
+                Map.of("bernoulli-pass-rate",
+                        PerCriterionPassRateStatistics.of("contract", stats)),
                 profile);
         writer.write(record, dir);
     }

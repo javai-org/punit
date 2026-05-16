@@ -1,6 +1,7 @@
 package org.javai.punit.internal.engine.baseline;
 
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.FIELD_COVARIATES;
+import static org.javai.punit.internal.engine.baseline.BaselineSchema.FIELD_CRITERIA;
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.FIELD_FACTORS_FINGERPRINT;
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.FIELD_GENERATED_AT;
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.FIELD_INPUTS_IDENTITY;
@@ -15,6 +16,7 @@ import static org.javai.punit.internal.engine.baseline.BaselineSchema.PERCENTILE
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.PERCENTILE_KEY_P90;
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.PERCENTILE_KEY_P95;
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.PERCENTILE_KEY_P99;
+import static org.javai.punit.internal.engine.baseline.BaselineSchema.SCHEMA_VERSION_PREVIOUS;
 import static org.javai.punit.internal.engine.baseline.BaselineSchema.SCHEMA_VERSION_VALUE;
 
 import java.io.IOException;
@@ -33,6 +35,7 @@ import org.javai.punit.api.covariate.CovariateProfile;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -98,6 +101,15 @@ public final class BaselineReader {
 
         String version = requireString(root, FIELD_SCHEMA_VERSION);
         if (!SCHEMA_VERSION_VALUE.equals(version)) {
+            if (SCHEMA_VERSION_PREVIOUS.equals(version)) {
+                throw new IllegalArgumentException(
+                        "Baseline file is at schema '" + SCHEMA_VERSION_PREVIOUS
+                                + "', which predates the per-methodology-criterion shape"
+                                + " introduced in '" + SCHEMA_VERSION_VALUE + "'."
+                                + " Re-run the MEASURE experiment to regenerate the baseline"
+                                + " in the current shape; the reader does not adapt across"
+                                + " this schema break.");
+            }
             throw new IllegalArgumentException(
                     "Unsupported schema version '" + version + "' (expected '"
                             + SCHEMA_VERSION_VALUE + "')");
@@ -205,10 +217,26 @@ public final class BaselineReader {
         }
         Map<String, Object> entry = asStringKeyedMap(mapRaw, "statistics." + criterionName);
 
-        if (entry.containsKey(FIELD_OBSERVED_PASS_RATE)) {
-            double observed = requireDouble(entry, FIELD_OBSERVED_PASS_RATE);
-            int sampleCount = requireInt(entry, FIELD_SAMPLE_COUNT);
-            return new PassRateStatistics(observed, sampleCount);
+        if (entry.containsKey(FIELD_CRITERIA)) {
+            Map<String, Object> criteriaMap = requireMap(entry, FIELD_CRITERIA);
+            Map<String, PassRateStatistics> byCriterion = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> c : criteriaMap.entrySet()) {
+                if (!(c.getValue() instanceof Map<?, ?> rowRaw)) {
+                    throw new IllegalArgumentException(
+                            "statistics." + criterionName + ".criteria." + c.getKey()
+                                    + " must be a mapping, got "
+                                    + (c.getValue() == null
+                                            ? "null"
+                                            : c.getValue().getClass().getSimpleName()));
+                }
+                Map<String, Object> row = asStringKeyedMap(rowRaw,
+                        "statistics." + criterionName + ".criteria." + c.getKey());
+                double observed = requireDouble(row, FIELD_OBSERVED_PASS_RATE);
+                int rowSampleCount = requireInt(row, FIELD_SAMPLE_COUNT);
+                byCriterion.put(c.getKey(),
+                        new PassRateStatistics(observed, rowSampleCount));
+            }
+            return new PerCriterionPassRateStatistics(byCriterion);
         }
         if (entry.containsKey(FIELD_PERCENTILES)) {
             Map<String, Object> percentiles = requireMap(entry, FIELD_PERCENTILES);
@@ -224,7 +252,7 @@ public final class BaselineReader {
         throw new IllegalArgumentException(
                 "Unrecognised statistics entry shape for criterion '" + criterionName
                         + "' — expected a known discriminator field ('"
-                        + FIELD_OBSERVED_PASS_RATE + "' or '" + FIELD_PERCENTILES + "')");
+                        + FIELD_CRITERIA + "' or '" + FIELD_PERCENTILES + "')");
     }
 
     @SuppressWarnings("unchecked")
