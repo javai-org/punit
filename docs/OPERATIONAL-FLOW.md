@@ -151,11 +151,11 @@ void thresholdFirst() {
 
 ### Choosing Your Approach
 
-| If Your Priority Is...               | Use...            | You're Saying...                                                       |
-|--------------------------------------|-------------------|------------------------------------------------------------------------|
+| If Your Priority Is...               | Use...            | You're Saying...                                                               |
+|--------------------------------------|-------------------|--------------------------------------------------------------------------------|
 | Controlling costs (CI time, API)     | Sample-Size-First | "We can afford N samples against the baseline. Verdict at default confidence." |
-| Minimizing risk (safety, compliance) | Confidence-First  | "We need to detect this regression at this power. How many samples?"   |
-| Honouring a contractual target       | Threshold-First   | "The SLA says 0.99. Pass iff observed beats it."                       |
+| Minimizing risk (safety, compliance) | Confidence-First  | "We need to detect this regression at this power. How many samples?"           |
+| Honouring a contractual target       | Threshold-First   | "The SLA says 0.99. Pass iff observed beats it."                               |
 
 > **Working example:** See [`ShoppingBasketThresholdApproachesTest`](https://github.com/javai-org/punitexamples/blob/main/src/test/java/org/javai/punit/examples/probabilistictests/ShoppingBasketThresholdApproachesTest.java) in punitexamples for a complete demonstration of all three approaches.
 
@@ -238,24 +238,57 @@ void measureBaseline() {
 
 ### Stage 3: Commit the Baseline
 
-The experiment writes a baseline file to `src/test/resources/punit/baselines/`:
+The experiment writes a baseline file to
+`src/test/resources/punit/baselines/`. The filename is
+`<useCaseId>.<methodName>-<factorsFingerprint>.yaml`, so a re-measure
+under a different factor configuration produces a sibling file rather
+than overwriting:
 
 ```yaml
-schemaVersion: punit-spec-2
-specId: usecase.json.generation
-serviceContractId: usecase.json.generation
-generatedAt: 2026-01-12T10:30:00Z
-
-empiricalBasis:
-  samples: 1000
-  successes: 935
-  generatedAt: 2026-01-12T10:30:00Z
-
-extendedStatistics:
-  confidenceInterval:
-    lower: 0.919
-    upper: 0.949
+schemaVersion: punit-baseline-3
+useCaseId: json-generation
+methodName: measureBaseline
+factorsFingerprint: a1b2c3d4
+inputsIdentity: sha256:7d3a8c1e9b2f
+sampleCount: 1000
+generatedAt: '2026-01-12T10:30:00Z'
+statistics:
+  bernoulli-pass-rate:
+    criteria:
+      output-valid-json:
+        observedPassRate: 0.935
+        sampleCount: 1000
+latency:
+  basis: passing-samples
+  contributingSamples: 935
+  totalSamples: 1000
+  p50Ms: 240
+  p90Ms: 480
+  p95Ms: 760
+  p99Ms: 1180
+contentFingerprint: 7d3a8c1e9b2f4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d
 ```
+
+A few things to notice:
+
+- **`statistics.bernoulli-pass-rate.criteria.<id>`** — pass-rate is
+  always recorded per methodology criterion, one entry per postcondition
+  clause the service contract declared (here, the single clause from
+  Stage 1 surfaces as `output-valid-json`). With multiple postconditions
+  every clause gets its own row; a probabilistic test that picks a
+  per-criterion threshold sees them via the same structure.
+- **`latency:` is a top-level block, not a criterion.** Percentiles are
+  emitted from passing samples only (`basis: passing-samples`); each
+  percentile is omitted if too few samples back it (the per-percentile
+  minima are documented in the latency section of the design notes).
+- **`contentFingerprint:` is the last line** — a SHA-256 over the body
+  that precedes it. The reader recomputes the digest on load; any
+  hand-edit raises an integrity warning on the next test run.
+- **`inputsIdentity`** pins the baseline to the exact input list it was
+  measured on; **`factorsFingerprint`** pins it to the factor
+  configuration. The runtime resolver uses both when selecting a
+  baseline at test time, so a baseline only applies to a test whose
+  inputs and factors hash the same way.
 
 **Review and commit:**
 
@@ -280,11 +313,18 @@ void jsonGenerationMeetsBaseline() {
 ```
 
 **What happens at runtime:**
-1. Load spec for `usecase.json.generation`
-2. Read empirical basis (93.5% from 1000 samples)
-3. Compute threshold for 100 samples at 95% confidence
+1. Resolve the baseline by `useCaseId`, `factorsFingerprint`, and
+   `inputsIdentity` (here: `json-generation.measureBaseline-a1b2c3d4.yaml`)
+2. Verify `contentFingerprint`; raise a warning on the verdict if the
+   body has been edited since the measure produced it
+3. Read the per-criterion observed pass rate (here: 0.935 over 1000 samples
+   for `output-valid-json`)
 4. Run 100 samples
-5. Report pass/fail with statistical context
+5. Apply the Wilson lower bound at the configured confidence (default 0.95)
+   to this run's observed rate; the test passes iff the lower bound clears
+   the baseline rate
+6. Report pass/fail with the statistical context (baseline rate, observed
+   rate, Wilson bound, intent)
 
 ---
 
