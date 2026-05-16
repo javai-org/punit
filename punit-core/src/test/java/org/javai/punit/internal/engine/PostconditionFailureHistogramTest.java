@@ -17,7 +17,6 @@ import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.ExperimentResult;
 import org.javai.punit.api.spec.FailureCount;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -154,8 +153,6 @@ class PostconditionFailureHistogramTest {
         ProbabilisticTest spec =
                 ProbabilisticTest
                         .testing(sampling, new Factors())
-                        .criterion(PassRate.<Integer>meeting(
-                                0.5, org.javai.punit.api.ThresholdOrigin.SLA))
                         // Opt out of statistical early termination —
                         // this test exercises the histogram pipeline
                         // across all four declared samples, not the

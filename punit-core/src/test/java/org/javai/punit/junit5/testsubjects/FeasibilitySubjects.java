@@ -9,7 +9,6 @@ import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.runtime.PUnit;
 
 /**
@@ -76,7 +75,6 @@ public final class FeasibilitySubjects {
             // Baseline rate 0.50; n=50 against rate 0.50 has min Wilson
             // lower bound at observed=1.0 ≈ 0.949 — well above 0.50 → feasible.
             PUnit.testing(empiricalSampling(50))
-                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -92,7 +90,6 @@ public final class FeasibilitySubjects {
             // lower bound at observed=1.0 ≈ 0.787 — below 0.95 → infeasible.
             // Default intent is VERIFICATION → throw IllegalStateException.
             PUnit.testing(empiricalSampling(10))
-                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -107,7 +104,6 @@ public final class FeasibilitySubjects {
         @ProbabilisticTest
         void shouldRunSilently() {
             PUnit.testing(empiricalSampling(10))
-                    .criterion(PassRate.<Boolean>empirical())
                     .intent(TestIntent.SMOKE)
                     .assertPasses();
         }
@@ -126,7 +122,6 @@ public final class FeasibilitySubjects {
         @ProbabilisticTest
         void shouldFailFast() {
             PUnit.testing(contractualSampling(50))
-                    .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .assertPasses();
         }
     }
@@ -141,7 +136,6 @@ public final class FeasibilitySubjects {
         @ProbabilisticTest
         void shouldRunSilently() {
             PUnit.testing(contractualSampling(50))
-                    .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .intent(TestIntent.SMOKE)
                     .assertPasses();
         }

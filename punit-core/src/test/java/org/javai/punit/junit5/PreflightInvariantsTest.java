@@ -134,46 +134,6 @@ class PreflightInvariantsTest {
                 .isGreaterThan(afterMeasure);
     }
 
-    @Test
-    @DisplayName("out-of-range threshold rejected at construction → IllegalArgumentException")
-    void parameterValidationRejectsOutOfRange() {
-        Events events = run(
-                PreflightInvariantSubjects.ParameterValidationTest.class);
-        events.assertStatistics(stats -> stats.started(1).failed(1));
-        events.failed()
-                .assertThatEvents()
-                .anySatisfy(event -> {
-                    Throwable t = event.getRequiredPayload(TestExecutionResult.class)
-                            .getThrowable().orElseThrow();
-                    assertThat(t).isInstanceOf(IllegalArgumentException.class);
-                    assertThat(t.getMessage()).contains("threshold").contains("[0, 1]");
-                });
-        assertThat(PreflightInvariantSubjects.INVOKE_COUNT.get())
-                .as("parameter rejection precedes any framework wiring — engine never runs")
-                .isZero();
-    }
-
-    @Test
-    @DisplayName("incoherent ThresholdOrigin.EMPIRICAL on contractual factory → rejected at construction")
-    void configurationCoherenceRejectsEmpiricalOriginOnContractualFactory() {
-        Events events = run(
-                PreflightInvariantSubjects.ConfigurationCoherenceTest.class);
-        events.assertStatistics(stats -> stats.started(1).failed(1));
-        events.failed()
-                .assertThatEvents()
-                .anySatisfy(event -> {
-                    Throwable t = event.getRequiredPayload(TestExecutionResult.class)
-                            .getThrowable().orElseThrow();
-                    assertThat(t).isInstanceOf(IllegalArgumentException.class);
-                    assertThat(t.getMessage())
-                            .contains("EMPIRICAL")
-                            .contains("empirical factories");
-                });
-        assertThat(PreflightInvariantSubjects.INVOKE_COUNT.get())
-                .as("coherence rejection precedes any framework wiring — engine never runs")
-                .isZero();
-    }
-
     private void writeBaselineAt(double rate, int sampleCount) throws IOException {
         BaselineRecord record = new BaselineRecord(
                 PreflightInvariantSubjects.USE_CASE_ID,

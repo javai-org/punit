@@ -77,28 +77,4 @@ class AutoInjectionFromPostureTest {
         assertThat(result.verdict()).isEqualTo(Verdict.FAIL);
     }
 
-    @Test
-    @DisplayName("explicit test-builder .criterion(...) suppresses auto-injection — no doubled criterion")
-    void explicitCriterionSuppressesAutoInjection() {
-        ServiceContract<Factors, Integer, Boolean> alwaysPasses = new ServiceContract<>() {
-            @Override public String id() { return "always-passes"; }
-            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker t) {
-                return Outcome.ok(true);
-            }
-            @Override public void criteria(CriteriaBuilder<Boolean> b) {
-                b.addCriterion("contract", pb -> { })
-                        .meeting(0.95, ThresholdOrigin.SLA);
-            }
-        };
-
-        ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(alwaysPasses), FACTORS)
-                .criterion(org.javai.punit.internal.engine.criteria.PassRate.<Boolean>meeting(
-                        0.95, ThresholdOrigin.SLA))
-                .build();
-
-        var result = (ProbabilisticTestResult) new Engine().run(spec);
-        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
-        assertThat(result.criterionResults()).hasSize(1);
-    }
 }

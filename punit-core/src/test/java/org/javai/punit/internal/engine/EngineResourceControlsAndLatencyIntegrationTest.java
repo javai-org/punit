@@ -15,7 +15,6 @@ import org.javai.punit.api.Pacing;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.api.spec.BudgetExhaustionPolicy;
 import org.javai.punit.api.spec.CriterionRole;
 import org.javai.punit.api.spec.EvaluatedCriterion;
@@ -414,7 +413,6 @@ class EngineResourceControlsAndLatencyIntegrationTest {
 
         ProbabilisticTest both = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .criterion(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(10L).build(),
                         ThresholdOrigin.SLA))
@@ -444,7 +442,6 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 .build();
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling, new Factors("m"))
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .reportOnly(PercentileLatency.<Boolean>meeting(
                         LatencySpec.builder().p50Millis(10L).build(),
                         ThresholdOrigin.SLA))
@@ -454,38 +451,11 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         assertThat(r.verdict()).isEqualTo(Verdict.PASS);
         assertThat(r.criterionResults()).hasSize(2);
         // Latency result is attached with REPORT_ONLY role
-        EvaluatedCriterion latency = r.criterionResults().get(1);
-        assertThat(latency.role()).isEqualTo(CriterionRole.REPORT_ONLY);
+        EvaluatedCriterion latency = r.criterionResults().stream()
+                .filter(c -> c.role() == CriterionRole.REPORT_ONLY)
+                .findFirst()
+                .orElseThrow();
         assertThat(latency.result().verdict()).isEqualTo(Verdict.FAIL);
-    }
-
-    @Test
-    @DisplayName("reportOnly functional: contract failures reported but excluded → latency criterion determines verdict")
-    void reportOnlyFunctionalExcludedFromComposition() {
-        ServiceContract<Factors, Integer, Boolean> fastButBroken = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
-            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
-                sleep(5);
-                return Outcome.fail("scripted", "functional fail intentional");
-            }
-        };
-        Sampling<Factors, Integer, Boolean> sampling = Sampling
-                .<Factors, Integer, Boolean>builder()
-                .serviceContractFactory(f -> fastButBroken)
-                .inputs(1)
-                .samples(5)
-                .build();
-        ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling, new Factors("m"))
-                .criterion(PercentileLatency.<Boolean>meeting(
-                        LatencySpec.builder().p50Millis(100L).build(),
-                        ThresholdOrigin.SLA))
-                .reportOnly(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
-                .build();
-
-        var r = (ProbabilisticTestResult) new Engine().run(spec);
-        // Functional is a total FAIL but report-only; latency PASSes (5ms ≤ 100ms).
-        assertThat(r.verdict()).isEqualTo(Verdict.PASS);
     }
 
     // ── helpers ─────────────────────────────────────────────────────

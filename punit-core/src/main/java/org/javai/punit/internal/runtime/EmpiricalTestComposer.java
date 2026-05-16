@@ -82,10 +82,12 @@ public final class EmpiricalTestComposer {
         typedBaseline.tokenBudget().ifPresent(samplingBuilder::tokenBudget);
         Sampling<FT, IT, OT> testSampling = samplingBuilder.build();
 
-        Criterion<OT, ?> typedCriterion = (Criterion<OT, ?>) criterion;
-        return ProbabilisticTest.testing(testSampling, factors)
-                .criterion(typedCriterion)
-                .intent(intent)
-                .build();
+        ProbabilisticTest.Builder<FT, IT, OT> builder =
+                ProbabilisticTest.testing(testSampling, factors).intent(intent);
+        if (criterion != null) {
+            Criterion<OT, ?> typedCriterion = (Criterion<OT, ?>) criterion;
+            builder.criterion(typedCriterion);
+        }
+        return builder.build();
     }
 }

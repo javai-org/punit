@@ -90,7 +90,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
         this.baselineSupplier = baselineSupplier;
     }
 
-    public static <OT> PassRate<OT> meeting(double threshold, ThresholdOrigin origin) {
+    static <OT> PassRate<OT> meeting(double threshold, ThresholdOrigin origin) {
         Objects.requireNonNull(origin, "origin");
         if (threshold < 0.0 || threshold > 1.0 || Double.isNaN(threshold)) {
             throw new IllegalArgumentException(
@@ -105,12 +105,12 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                 Mode.CONTRACTUAL, threshold, origin, DEFAULT_CONFIDENCE, null);
     }
 
-    public static <OT> PassRate<OT> empirical() {
+    static <OT> PassRate<OT> empirical() {
         return new PassRate<>(
                 Mode.EMPIRICAL_DEFAULT, Double.NaN, ThresholdOrigin.EMPIRICAL, DEFAULT_CONFIDENCE, null);
     }
 
-    public static <OT> PassRate<OT> empiricalFrom(Supplier<Experiment> baseline) {
+    static <OT> PassRate<OT> empiricalFrom(Supplier<Experiment> baseline) {
         Objects.requireNonNull(baseline, "baseline");
         return new PassRate<>(
                 Mode.EMPIRICAL_PINNED, Double.NaN, ThresholdOrigin.EMPIRICAL, DEFAULT_CONFIDENCE, baseline);
@@ -128,7 +128,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
      * a {@code .zeroTolerance(...)} posture or no posture at all (the
      * implicit zero-tolerance default).
      */
-    public static <OT> PassRate<OT> forZeroTolerance(ThresholdOrigin origin) {
+    static <OT> PassRate<OT> forZeroTolerance(ThresholdOrigin origin) {
         Objects.requireNonNull(origin, "origin");
         if (origin == ThresholdOrigin.EMPIRICAL) {
             throw new IllegalArgumentException(

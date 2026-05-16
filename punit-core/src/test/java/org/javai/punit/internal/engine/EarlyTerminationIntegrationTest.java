@@ -15,7 +15,6 @@ import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.TerminationReason;
 import org.javai.punit.api.spec.Verdict;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -24,8 +23,8 @@ import org.junit.jupiter.api.Test;
  * mechanism: failure-inevitable and success-guaranteed short-circuits
  * on a probabilistic test's sample loop.
  *
- * <p>The short-circuit fires on a contractual
- * {@link PassRate#meeting(double, ThresholdOrigin)} criterion only.
+ * <p>The short-circuit fires on a contractual pass-rate criterion
+ * with a {@code .meeting(rate, origin)} posture only.
  * Specs that have no up-front threshold — measure / explore / optimize
  * runs, empirical-mode probabilistic tests, and probabilistic tests
  * whose author called {@code disableEarlyTermination()} — run every
@@ -112,7 +111,6 @@ class EarlyTerminationIntegrationTest {
     void failureInevitableTerminatesEarly() {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(f -> new AlwaysFail(), 100), new Factors())
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -134,7 +132,6 @@ class EarlyTerminationIntegrationTest {
         // run completes. Verdict is PASS (17 successes / 20 = 85%).
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(f -> new FailsThenPasses(3), 20), new Factors())
-                .criterion(PassRate.<Boolean>meeting(0.80, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -156,7 +153,6 @@ class EarlyTerminationIntegrationTest {
         // sample 50 → fire.
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(f -> new AlwaysPass(), 100), new Factors())
-                .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -176,7 +172,6 @@ class EarlyTerminationIntegrationTest {
         // sample 25 where the floor is met and the short-circuit fires.
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(f -> new AlwaysPassLowThreshold(), 100), new Factors())
-                .criterion(PassRate.<Boolean>meeting(0.20, ThresholdOrigin.SLA))
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -215,7 +210,6 @@ class EarlyTerminationIntegrationTest {
         // from earlyTermination() and the run is not short-circuited.
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(f -> new AlwaysPassEmpirical(), 30), new Factors())
-                .criterion(PassRate.<Boolean>empirical())
                 .build();
 
         var result = (ProbabilisticTestResult) new Engine().run(spec);
@@ -230,7 +224,6 @@ class EarlyTerminationIntegrationTest {
     void disableEarlyTerminationDefeatsFailureInevitable() {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(f -> new AlwaysFail(), 20), new Factors())
-                .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.SLA))
                 .disableEarlyTermination()
                 .build();
 
@@ -247,7 +240,6 @@ class EarlyTerminationIntegrationTest {
     void disableEarlyTerminationDefeatsSuccessGuaranteed() {
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(f -> new AlwaysPass(), 100), new Factors())
-                .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                 .disableEarlyTermination()
                 .build();
 

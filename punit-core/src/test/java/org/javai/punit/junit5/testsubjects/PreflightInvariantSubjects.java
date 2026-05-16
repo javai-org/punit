@@ -10,7 +10,6 @@ import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.internal.engine.criteria.PassRate;
 import org.javai.punit.internal.engine.baseline.PowerAnalysis;
 import org.javai.punit.runtime.PUnit;
 
@@ -88,7 +87,6 @@ public final class PreflightInvariantSubjects {
             // n=50 against 0.9999 at 95% confidence: Wilson upper-of-perfect
             // ≈ 0.949, well below 0.9999 → infeasible.
             PUnit.testing(contractualHighSampling(50))
-                    .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .assertPasses();
         }
     }
@@ -105,7 +103,6 @@ public final class PreflightInvariantSubjects {
             // n=10 against baseline 0.95 at default 95% confidence:
             // Wilson upper-of-perfect ≈ 0.787 < 0.95 → infeasible.
             PUnit.testing(empiricalSampling(10))
-                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -134,7 +131,6 @@ public final class PreflightInvariantSubjects {
             // (n, baseline-rate, default-confidence) tuple is feasible.
             int n = PowerAnalysis.sampleSize(this::baseline, 0.05, 0.80);
             PUnit.testing(empiricalSampling(n))
-                    .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
     }
@@ -161,31 +157,4 @@ public final class PreflightInvariantSubjects {
      * frame: the {@code @ProbabilisticTest} method itself throws on
      * invocation.
      */
-    public static final class ParameterValidationTest {
-        @ProbabilisticTest
-        void rejectsOutOfRangeThreshold() {
-            // PassRate.meeting validates threshold ∈ [0, 1] at
-            // construction; -0.1 throws before .assertPasses() is ever
-            // called.
-            PUnit.testing(contractualHighSampling(50))
-                    .criterion(PassRate.<Boolean>meeting(-0.1, ThresholdOrigin.SLA))
-                    .assertPasses();
-        }
-    }
-
-    /**
-     * Configuration coherence. The framework rejects incoherent
-     * combinations at the criterion factory: passing
-     * {@code ThresholdOrigin.EMPIRICAL} to {@link PassRate#meeting}
-     * is a category error (EMPIRICAL is reserved for the empirical
-     * factory), and the criterion throws on construction.
-     */
-    public static final class ConfigurationCoherenceTest {
-        @ProbabilisticTest
-        void rejectsEmpiricalOriginOnContractualFactory() {
-            PUnit.testing(contractualHighSampling(50))
-                    .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.EMPIRICAL))
-                    .assertPasses();
-        }
-    }
 }
