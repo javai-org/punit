@@ -354,4 +354,95 @@ class PowerAnalysisTest {
 
         assertThat(n).isPositive();
     }
+
+    // ── Single-argument overload: reads MDE / power from the contract's
+    //    confidence-first criteria. ─────────────────────────────────────
+
+    private static Supplier<Experiment> confidenceFirstBaseline(
+            double mde, double power) {
+        return () -> {
+            ServiceContract<Factors, String, String> contract = new ServiceContract<>() {
+                @Override public String id() { return USE_CASE_ID; }
+                @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                    return Outcome.ok(input);
+                }
+                @Override public void criteria(
+                        org.javai.punit.api.criterion.CriteriaBuilder<String> b) {
+                    b.addCriterion("the-criterion",
+                                    pb -> pb.ensure("always",
+                                            v -> Outcome.ok()))
+                            .empirical()
+                            .detectingMde(mde)
+                            .atPower(power);
+                }
+            };
+            Sampling<Factors, String, String> sampling = Sampling
+                    .<Factors, String, String>builder()
+                    .serviceContractFactory(f -> contract)
+                    .inputs("a")
+                    .samples(100)
+                    .build();
+            return Experiment.measuring(sampling, FACTORS).build();
+        };
+    }
+
+    @Test
+    @DisplayName("single-arg overload reads MDE / power from the contract's confidence-first criterion")
+    void singleArgReadsFromContractCriterion(@TempDir Path dir) throws IOException {
+        writeBaselineWithRate(dir, 0.90, 1000);
+
+        int viaContract = PowerAnalysis.sampleSize(dir, confidenceFirstBaseline(0.05, 0.80));
+        int viaExplicit = PowerAnalysis.sampleSize(dir, baseline(), 0.05, 0.80);
+
+        assertThat(viaContract).isEqualTo(viaExplicit);
+    }
+
+    @Test
+    @DisplayName("single-arg overload returns the max sample count across confidence-first criteria")
+    void singleArgReturnsMaxAcrossCriteria(@TempDir Path dir) throws IOException {
+        writeBaselineWithRate(dir, 0.90, 1000);
+        Supplier<Experiment> twoCriteria = () -> {
+            ServiceContract<Factors, String, String> contract = new ServiceContract<>() {
+                @Override public String id() { return USE_CASE_ID; }
+                @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
+                    return Outcome.ok(input);
+                }
+                @Override public void criteria(
+                        org.javai.punit.api.criterion.CriteriaBuilder<String> b) {
+                    // Looser: MDE 0.10 / power 0.50  → smaller N
+                    b.addCriterion("loose",
+                                    pb -> pb.ensure("always", v -> Outcome.ok()))
+                            .empirical().detectingMde(0.10).atPower(0.50);
+                    // Tighter: MDE 0.02 / power 0.95 → larger N
+                    b.addCriterion("tight",
+                                    pb -> pb.ensure("always", v -> Outcome.ok()))
+                            .empirical().detectingMde(0.02).atPower(0.95);
+                }
+            };
+            Sampling<Factors, String, String> sampling = Sampling
+                    .<Factors, String, String>builder()
+                    .serviceContractFactory(f -> contract)
+                    .inputs("a")
+                    .samples(100)
+                    .build();
+            return Experiment.measuring(sampling, FACTORS).build();
+        };
+
+        int viaContract = PowerAnalysis.sampleSize(dir, twoCriteria);
+        int viaTight = PowerAnalysis.sampleSize(dir, baseline(), 0.02, 0.95);
+
+        assertThat(viaContract).isEqualTo(viaTight);
+    }
+
+    @Test
+    @DisplayName("single-arg overload throws when no criterion declares MDE + power")
+    void singleArgThrowsWhenNoConfidenceFirstCriterion(@TempDir Path dir) throws IOException {
+        writeBaselineWithRate(dir, 0.90, 1000);
+
+        // The base `baseline()` uses ECHO — a no-criteria contract.
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> PowerAnalysis.sampleSize(dir, baseline()))
+                .withMessageContaining("confidence-first")
+                .withMessageContaining(".detectingMde");
+    }
 }

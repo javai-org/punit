@@ -84,6 +84,74 @@ public final class PowerAnalysis {
     }
 
     /**
+     * Single-argument overload that reads minimum detectable effect
+     * and statistical power from the contract's *confidence-first*
+     * criteria — those declared as
+     * {@code .empirical().detectingMde(m).atPower(p)}. Returns the
+     * maximum sample count any such criterion demands; the contract's
+     * own commitment dictates the run's sample size without the
+     * author re-stating MDE / power at the call site.
+     *
+     * <p>Resolves the baseline directory via
+     * {@link BaselineResolver#defaultDir()} like the no-args
+     * overload pair.
+     *
+     * @param baseline a supplier yielding the {@code MEASURE}
+     *                 experiment whose baseline is the comparison
+     *                 reference
+     * @return the maximum required sample count across the contract's
+     *         confidence-first criteria; ceiling-rounded
+     * @throws IllegalStateException if the contract declares no
+     *         confidence-first criterion (no MDE / power on any
+     *         criterion's posture) — there is nothing for the
+     *         single-arg call to size against
+     */
+    public static int sampleSize(Supplier<Experiment> baseline) {
+        return sampleSize(BaselineResolver.defaultDir(), baseline);
+    }
+
+    /**
+     * Single-argument-plus-baseline-dir variant of
+     * {@link #sampleSize(Supplier)}. See that method for the contract-
+     * driven semantics.
+     */
+    public static int sampleSize(Path baselineDir, Supplier<Experiment> baseline) {
+        Objects.requireNonNull(baselineDir, "baselineDir");
+        Objects.requireNonNull(baseline, "baseline");
+        Experiment experiment = Objects.requireNonNull(
+                baseline.get(), "baseline supplier returned null");
+        if (experiment.kind() != Experiment.Kind.MEASURE) {
+            throw new IllegalArgumentException(
+                    "PowerAnalysis.sampleSize requires a MEASURE-flavour Experiment "
+                            + "(one that produces a baseline); got " + experiment.kind()
+                            + ". Pass a method reference to an @PUnitExperiment method "
+                            + "whose body returns Experiment.measuring(...).build().");
+        }
+        BaselineLookup lookup = experiment.dispatch(LOOKUP_DISPATCHER);
+        java.util.List<org.javai.punit.api.criterion.Criterion<?>> confidenceFirst = lookup.contractCriteria().stream()
+                .filter(c -> c.posture().isConfidenceFirst())
+                .toList();
+        if (confidenceFirst.isEmpty()) {
+            throw new IllegalStateException(
+                    "PowerAnalysis.sampleSize(baseline) requires the contract to declare "
+                            + "at least one confidence-first criterion "
+                            + "(.empirical().detectingMde(m).atPower(p)); none found. "
+                            + "Either add MDE+power to a criterion or call the three-argument "
+                            + "overload with explicit values.");
+        }
+        int maxRequired = 0;
+        for (org.javai.punit.api.criterion.Criterion<?> c : confidenceFirst) {
+            org.javai.punit.api.criterion.CriterionPosture p = c.posture();
+            int n = sampleSize(baselineDir, baseline,
+                    p.mde().getAsDouble(), p.power().getAsDouble());
+            if (n > maxRequired) {
+                maxRequired = n;
+            }
+        }
+        return maxRequired;
+    }
+
+    /**
      * Computes the sample size required to detect a difference of at
      * least {@code mde} from the baseline's recorded pass rate at the
      * given statistical power, using the default confidence
@@ -213,7 +281,8 @@ public final class PowerAnalysis {
             String serviceContractId,
             String factorsFingerprint,
             CovariateProfile profile,
-            List<Covariate> declarations) { }
+            List<Covariate> declarations,
+            List<org.javai.punit.api.criterion.Criterion<?>> contractCriteria) { }
 
     /**
      * Dispatcher that captures the {@code <FT>} type parameter from the
@@ -242,7 +311,9 @@ public final class PowerAnalysis {
                             ? CovariateProfile.empty()
                             : CovariateResolver.defaults().resolve(
                                     declarations, serviceContract.customCovariateResolvers());
-                    return new BaselineLookup(serviceContractId, fingerprint, profile, declarations);
+                    List<org.javai.punit.api.criterion.Criterion<?>> contractCriteria =
+                            new java.util.ArrayList<>(serviceContract.criteria());
+                    return new BaselineLookup(serviceContractId, fingerprint, profile, declarations, contractCriteria);
                 }
             };
 
