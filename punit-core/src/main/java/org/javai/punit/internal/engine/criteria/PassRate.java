@@ -69,7 +69,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
     private static final double DEFAULT_CONFIDENCE = 0.95;
     private static final ThresholdDeriver DERIVER = new ThresholdDeriver();
 
-    private enum Mode { CONTRACTUAL, EMPIRICAL_DEFAULT, EMPIRICAL_PINNED }
+    private enum Mode { CONTRACTUAL, EMPIRICAL_DEFAULT, EMPIRICAL_PINNED, ZERO_TOLERANCE }
 
     private final Mode mode;
     private final double threshold;
@@ -117,6 +117,28 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
     }
 
     /**
+     * Zero-tolerance pass-rate criterion: any sample failure fails the
+     * criterion. Carries no statistical threshold; its
+     * {@link #contractualTarget()} and {@link #earlyTerminationPassRate()}
+     * return empty so the framework does not try to underwrite or
+     * short-circuit a non-statistical commitment.
+     *
+     * <p>Used by {@link #fromPosture(org.javai.punit.api.criterion.CriterionPosture)}
+     * to auto-inject an evaluator for contracts whose criteria declared
+     * a {@code .zeroTolerance(...)} posture or no posture at all (the
+     * implicit zero-tolerance default).
+     */
+    public static <OT> PassRate<OT> forZeroTolerance(ThresholdOrigin origin) {
+        Objects.requireNonNull(origin, "origin");
+        if (origin == ThresholdOrigin.EMPIRICAL) {
+            throw new IllegalArgumentException(
+                    "forZeroTolerance(EMPIRICAL) is contradictory — zero-tolerance is a binary commitment");
+        }
+        return new PassRate<>(
+                Mode.ZERO_TOLERANCE, 1.0, origin, DEFAULT_CONFIDENCE, null);
+    }
+
+    /**
      * Derive a pass-rate spec-criterion from a contract criterion's
      * posture. Used by the test-spec builder when no
      * {@code .criterion(...)} was registered: the contract's
@@ -129,9 +151,10 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
      * </ul>
      *
      * <p>{@code ZERO_TOLERANCE} and {@code IMPLICIT_ZERO_TOLERANCE}
-     * postures are not pass-rate criteria and return {@code empty()} —
-     * the caller is responsible for wiring the SMOKE-classifying
-     * evaluator for those.
+     * postures map to a {@link #forZeroTolerance(ThresholdOrigin)}
+     * pass-rate that fails on any sample failure. The implicit
+     * default uses {@link ThresholdOrigin#POLICY} as its origin per
+     * methodology.
      */
     public static <OT> Optional<PassRate<OT>> fromPosture(
             org.javai.punit.api.criterion.CriterionPosture posture) {
@@ -153,7 +176,11 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                         ? base.atConfidence(posture.confidenceFloor().getAsDouble())
                         : base);
             }
-            case ZERO_TOLERANCE, IMPLICIT_ZERO_TOLERANCE -> Optional.empty();
+            case ZERO_TOLERANCE -> Optional.of(PassRate.<OT>forZeroTolerance(
+                    posture.origin().orElseThrow(() -> new IllegalStateException(
+                            "ZERO_TOLERANCE posture without origin"))));
+            case IMPLICIT_ZERO_TOLERANCE -> Optional.of(
+                    PassRate.<OT>forZeroTolerance(ThresholdOrigin.POLICY));
         };
     }
 
@@ -223,7 +250,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
 
     @Override
     public boolean isEmpirical() {
-        return mode != Mode.CONTRACTUAL;
+        return mode == Mode.EMPIRICAL_DEFAULT || mode == Mode.EMPIRICAL_PINNED;
     }
 
     @Override
@@ -233,7 +260,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
 
     @Override
     public Map<String, Object> empiricalDetail() {
-        if (mode == Mode.CONTRACTUAL) {
+        if (mode == Mode.CONTRACTUAL || mode == Mode.ZERO_TOLERANCE) {
             return Map.of();
         }
         return Map.of("confidence", confidence);
@@ -281,7 +308,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
             // — there's no baseline entry to match in that case
             // (contractual mode) so the placeholder is never queried.
             String fallbackId = NAME;
-            if (mode != Mode.CONTRACTUAL) {
+            if (isEmpirical()) {
                 PerCriterionPassRateStatistics b = ctx.baseline().orElse(null);
                 if (b != null && b.byCriterion().size() == 1) {
                     fallbackId = b.byCriterion().keySet().iterator().next();
@@ -292,7 +319,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                             fallbackId, summary.successes(), summary.failures(), 0));
         }
         // Resolve the baseline map up-front (empirical mode only).
-        if (mode != Mode.CONTRACTUAL) {
+        if (isEmpirical()) {
             baselineMap = ctx.baseline().orElse(null);
             if (baselineMap == null || baselineMap.byCriterion().isEmpty()) {
                 return EmpiricalChecks.noBaseline(NAME, empiricalDetail());
@@ -318,9 +345,9 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
         Map<String, Double> observedByCriterion = new LinkedHashMap<>();
         Map<String, PassRateStatistics> resolvedBaselineByCriterion = new LinkedHashMap<>();
         List<String> perCriterionExplanations = new ArrayList<>();
-        ThresholdOrigin resolvedOrigin = mode == Mode.CONTRACTUAL
-                ? origin
-                : ThresholdOrigin.EMPIRICAL;
+        ThresholdOrigin resolvedOrigin = isEmpirical()
+                ? ThresholdOrigin.EMPIRICAL
+                : origin;
 
         // K=1 short-circuit: when there's a single criterion and an
         // empirical-check violation fires (sample-size constraint), the
@@ -376,8 +403,19 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                         counts.criterionId(), observed, pThreshold, pOrigin, criterionTotal, pv));
                 continue;
             }
-            if (posture.kind() == CriterionPosture.Kind.ZERO_TOLERANCE) {
+            // Zero-tolerance fires when the contract committed explicitly
+            // (posture == ZERO_TOLERANCE) or when the criterion was
+            // auto-injected for an implicit-zero-tolerance posture (mode
+            // == ZERO_TOLERANCE). A bare default IMPLICIT_ZERO_TOLERANCE
+            // posture without a matching auto-injected PassRate is not
+            // enough — that combination arises in hand-built test fixtures
+            // that use PassRate.meeting/empirical and expect their own
+            // mode to drive evaluation.
+            if (posture.kind() == CriterionPosture.Kind.ZERO_TOLERANCE
+                    || mode == Mode.ZERO_TOLERANCE) {
                 // Binary semantics: any failed sample fails the criterion.
+                // Implicit zero-tolerance defaults origin to POLICY.
+                ThresholdOrigin ztOrigin = posture.origin().orElse(ThresholdOrigin.POLICY);
                 thresholdsByCriterion.put(counts.criterionId(), 1.0);
                 Verdict pv;
                 if (criterionTotal == 0) {
@@ -391,7 +429,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                 perCriterionExplanations.add(String.format(
                         "%s: zero-tolerance (origin=%s); failures=%d, inconclusive=%d over %d samples → %s",
                         counts.criterionId(),
-                        posture.origin().orElseThrow(),
+                        ztOrigin,
                         counts.fail(), counts.inconclusive(), criterionTotal, pv));
                 continue;
             }
@@ -491,7 +529,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
             detail.put("successes", only.pass());
             detail.put("failures", only.fail());
             detail.put("total", onlyTotal);
-            if (mode != Mode.CONTRACTUAL) {
+            if (isEmpirical()) {
                 PassRateStatistics b = resolvedBaselineByCriterion.get(only.criterionId());
                 detail.put("confidence", confidence);
                 detail.put("baselineSampleCount", b == null ? null : b.sampleCount());
@@ -502,7 +540,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
             detail.put("total", total);
             detail.put("successes", summary.successes());
             detail.put("failures", summary.failures());
-            if (mode != Mode.CONTRACTUAL) {
+            if (isEmpirical()) {
                 detail.put("confidence", confidence);
             }
             detail.put("thresholdsByCriterion", Map.copyOf(thresholdsByCriterion));
@@ -515,11 +553,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
             int onlyTotal = only.pass() + only.fail() + only.inconclusive();
             double observed = observedByCriterion.get(only.criterionId());
             double t = thresholdsByCriterion.get(only.criterionId());
-            if (mode == Mode.CONTRACTUAL) {
-                explanation = String.format(
-                        "observed=%.4f, threshold=%.4f (origin=%s) over %d samples",
-                        observed, t, resolvedOrigin, onlyTotal);
-            } else {
+            if (isEmpirical()) {
                 PassRateStatistics b = resolvedBaselineByCriterion.get(only.criterionId());
                 explanation = String.format(
                         "observed=%.4f vs threshold=%.4f (Wilson-%.0f%% lower of "
@@ -527,6 +561,12 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                         observed, t, confidence * 100.0,
                         b == null ? Double.NaN : b.observedPassRate(),
                         onlyTotal, resolvedOrigin, onlyTotal);
+            } else {
+                explanation = perCriterionExplanations.isEmpty()
+                        ? String.format(
+                                "observed=%.4f, threshold=%.4f (origin=%s) over %d samples",
+                                observed, t, resolvedOrigin, onlyTotal)
+                        : perCriterionExplanations.get(0);
             }
         } else {
             explanation = "composite verdict over " + methodologyCriteria.size()
