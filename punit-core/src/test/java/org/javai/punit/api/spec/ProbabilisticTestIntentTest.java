@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.TestIntent;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -18,7 +18,7 @@ class ProbabilisticTestIntentTest {
     record Factors(String label) {}
 
     private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
-        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }

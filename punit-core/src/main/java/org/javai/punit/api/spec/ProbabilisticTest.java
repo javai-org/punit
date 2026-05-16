@@ -177,7 +177,18 @@ public final class ProbabilisticTest implements Spec {
                     ? summary
                     : SampleSummary.from(List.of(), Duration.ZERO);
             FactorBundle factorBundle = FactorBundle.of(factors);
-            String serviceContractId = sampling.serviceContractFactory().apply(factors).id();
+            org.javai.punit.api.ServiceContract<FT, IT, OT> contract =
+                    sampling.serviceContractFactory().apply(factors);
+            String serviceContractId = contract.id();
+            // Per-methodology-criterion postures, keyed by criterion id —
+            // threaded through the EvaluationContext so PassRate (and
+            // future K-aware evaluators) can read each criterion's
+            // commitment without re-resolving the contract.
+            java.util.Map<String, org.javai.punit.api.criterion.CriterionPosture> criterionPostures =
+                    new java.util.LinkedHashMap<>();
+            for (org.javai.punit.api.criterion.Criterion<OT> c : contract.criteria()) {
+                criterionPostures.put(c.id(), c.posture());
+            }
             String testInputsIdentity = sampling.inputsIdentity();
             // Looked up once and reused across criteria — the identity is a
             // property of the baseline file, not of any individual criterion.
@@ -209,7 +220,7 @@ public final class ProbabilisticTest implements Spec {
                 BaselineLookupCapture capture = new BaselineLookupCapture();
                 CriterionResult result = evaluate(
                         entry.criterion(), s, factorBundle, serviceContractId,
-                        testInputsIdentity, baselineInputsIdentity,
+                        testInputsIdentity, baselineInputsIdentity, criterionPostures,
                         provider, warnings, capture);
                 evaluated.add(new EvaluatedCriterion(result, entry.role()));
                 if (baselineProfile.isEmpty() && !capture.profile.isEmpty()) {
@@ -357,6 +368,7 @@ public final class ProbabilisticTest implements Spec {
                 String serviceContractId,
                 String testInputsIdentity,
                 Optional<String> baselineInputsIdentity,
+                java.util.Map<String, org.javai.punit.api.criterion.CriterionPosture> criterionPostures,
                 BaselineProvider provider,
                 java.util.Set<String> warnings,
                 BaselineLookupCapture capture) {
@@ -381,6 +393,10 @@ public final class ProbabilisticTest implements Spec {
                 @Override public String testInputsIdentity() { return testInputsIdentity; }
                 @Override public Optional<String> baselineInputsIdentity() {
                     return baselineInputsIdentity;
+                }
+                @Override
+                public java.util.Map<String, org.javai.punit.api.criterion.CriterionPosture> criterionPostures() {
+                    return criterionPostures;
                 }
             };
             return (CriterionResult) raw.evaluate(ctx);

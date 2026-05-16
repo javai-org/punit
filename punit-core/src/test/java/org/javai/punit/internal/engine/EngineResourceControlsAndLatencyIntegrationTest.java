@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.Sampling;
@@ -49,7 +49,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
             this.scriptMillis = scriptMillis;
         }
 
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             long millis = scriptMillis[index % scriptMillis.length];
             index++;
@@ -68,7 +68,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
             this.tokens = tokens;
         }
 
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             sleep(sleepMillis);
             tracker.recordTokens(tokens);
@@ -110,7 +110,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         // per outcome would be accounted post-sample; the *projection*
         // is static, so this scenario uses tokenCharge to model it.
         ServiceContract<Factors, Integer, Integer> zeroOutcomeTokens = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
@@ -139,7 +139,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("static token charge is accounted for each sample")
     void staticChargeAccountedEachSample() {
         ServiceContract<Factors, Integer, Integer> zeroCost = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
@@ -190,7 +190,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void maxRpsInsertsDelay() {
         // 10 RPS → 100ms min delay between samples.
         ServiceContract<Factors, Integer, Integer> pacingUc = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
@@ -219,7 +219,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void mostRestrictiveWinsComposition() {
         // maxRps implies 100ms; min explicit 250ms should dominate.
         ServiceContract<Factors, Integer, Integer> pacingUc = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
@@ -253,7 +253,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void failSampleCatchesAndCounts() {
         AtomicInteger n = new AtomicInteger();
         ServiceContract<Factors, Integer, Integer> flaky = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 int i = n.incrementAndGet();
                 if (i % 2 == 0) {
@@ -283,7 +283,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("ABORT_TEST (default) rethrows a thrown defect")
     void abortTestRethrows() {
         ServiceContract<Factors, Integer, Integer> defective = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 throw new IllegalStateException("never mind the exception policy, this is a defect");
             }
@@ -307,7 +307,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("maxExampleFailures caps retained detail but not failure counts")
     void maxExampleFailuresCaps() {
         ServiceContract<Factors, Integer, Integer> failing = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.fail("scripted", "boom");
             }
@@ -363,7 +363,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void percentileLatencyBreachProducesFail() {
         // 50ms sleeps, assert p50 ≤ 10ms.
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
                 return Outcome.ok(Boolean.TRUE);
@@ -396,7 +396,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("mixed criteria: functional PASS + latency FAIL composes to FAIL when both REQUIRED")
     void mixedCriteriaBothRequiredComposesToFail() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
                 return Outcome.ok(Boolean.TRUE);
@@ -425,7 +425,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("reportOnly latency: functional PASS + latency FAIL(report-only) composes to PASS")
     void reportOnlyLatencyExcludedFromComposition() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
                 return Outcome.ok(Boolean.TRUE);
@@ -458,7 +458,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("reportOnly functional: contract failures reported but excluded → latency criterion determines verdict")
     void reportOnlyFunctionalExcludedFromComposition() {
         ServiceContract<Factors, Integer, Boolean> fastButBroken = new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(5);
                 return Outcome.fail("scripted", "functional fail intentional");

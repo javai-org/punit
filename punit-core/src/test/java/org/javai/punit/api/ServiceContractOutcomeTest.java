@@ -22,7 +22,7 @@ class ServiceContractOutcomeTest {
         }
 
         @Override
-        public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
     };
 
     @Test

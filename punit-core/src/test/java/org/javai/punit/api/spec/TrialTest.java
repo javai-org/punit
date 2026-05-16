@@ -9,7 +9,7 @@ import java.util.Optional;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContractOutcome;
@@ -27,7 +27,7 @@ class TrialTest {
         }
 
         @Override
-        public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
     };
 
     private static ServiceContractOutcome<String, Integer> ok(int value) {

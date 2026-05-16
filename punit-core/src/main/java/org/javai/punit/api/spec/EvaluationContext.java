@@ -1,8 +1,10 @@
 package org.javai.punit.api.spec;
 
+import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.criterion.CriterionPosture;
 
 /**
  * The typed view a {@link Criterion} receives at evaluate time.
@@ -47,4 +49,22 @@ public interface EvaluationContext<OT, S extends BaselineStatistics> {
      * empty by construction).
      */
     Optional<String> baselineInputsIdentity();
+
+    /**
+     * The contract's per-methodology-criterion postures, keyed by
+     * criterion id. The framework derives this map from the
+     * contract's {@code criteria(CriteriaBuilder)} declarations
+     * (with {@link CriterionPosture#implicit()} for any criterion
+     * that did not declare a posture explicitly).
+     *
+     * <p>Empty when no methodology criteria were declared (the
+     * apply-level-failure path or a hand-built test fixture).
+     *
+     * <p>Default implementation returns an empty map for back-compat
+     * with test fixtures that hand-build their context. Production
+     * code paths in the framework always populate it.
+     */
+    default Map<String, CriterionPosture> criterionPostures() {
+        return Map.of();
+    }
 }

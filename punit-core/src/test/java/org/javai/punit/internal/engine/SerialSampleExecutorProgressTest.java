@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ServiceContractOutcome;
@@ -52,7 +52,7 @@ class SerialSampleExecutorProgressTest {
     /** Service contract whose outcome alternates pass/fail by input parity. */
     private static final class AlternatingServiceContract implements ServiceContract<Void, Integer, String> {
         @Override public String id() { return "Alternating"; }
-        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
             return input % 2 == 0
                     ? Outcome.ok("even-" + input)
@@ -98,7 +98,7 @@ class SerialSampleExecutorProgressTest {
     void defectAlsoAdvancesCounter() {
         ServiceContract<Void, Integer, String> alwaysThrows = new ServiceContract<>() {
             @Override public String id() { return "AlwaysThrows"; }
-            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
                 throw new RuntimeException("synthetic defect");
             }
@@ -116,7 +116,7 @@ class SerialSampleExecutorProgressTest {
     void eachEmissionFlushedImmediately() {
         ServiceContract<Void, Integer, String> counterPeek = new ServiceContract<>() {
             @Override public String id() { return "CounterPeek"; }
-            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
                 // Sample-internal observable: line count visible inside this
                 // sample's invoke. emitProgress is called *after*

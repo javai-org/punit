@@ -10,7 +10,7 @@ import java.util.Optional;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.TokenTracker;
@@ -35,7 +35,7 @@ class PassRateTest {
         @Override public Outcome<String> invoke(Object input, TokenTracker tracker) {
             return Outcome.ok("ok");
         }
-        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
     };
 
     private static SampleSummary<String> summary(int successes, int failures) {

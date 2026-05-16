@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.Map;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -38,7 +38,7 @@ class EmpiricalEndToEndIntegrationTest {
     private static final String USE_CASE_ID = "always-passes-use-case";
 
     static class AlwaysPassesServiceContract implements ServiceContract<Factors, Integer, Boolean> {
-        @Override public void postconditions(ContractBuilder<Boolean> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(true);
         }

@@ -7,7 +7,7 @@ import java.util.List;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Postcondition;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.TokenTracker;
@@ -33,7 +33,7 @@ class CriterionShimTest {
         }
 
         @Override
-        public void postconditions(ContractBuilder<String> b) {
+        public void postconditions(PostconditionBuilder<String> b) {
             b.ensure("non-empty", v ->
                     v == null || v.isEmpty()
                             ? Outcome.fail("empty", "value was empty")
@@ -54,7 +54,7 @@ class CriterionShimTest {
         }
 
         @Override
-        public void postconditions(ContractBuilder<String> b) {
+        public void postconditions(PostconditionBuilder<String> b) {
             // Empty: the explicit criteria carry the postconditions.
         }
 
@@ -77,7 +77,7 @@ class CriterionShimTest {
         }
 
         @Override
-        public void postconditions(ContractBuilder<String> b) {
+        public void postconditions(PostconditionBuilder<String> b) {
             b.ensure("non-empty", v ->
                     v.isEmpty() ? Outcome.fail("empty", "") : Outcome.ok());
         }
@@ -166,7 +166,7 @@ class CriterionShimTest {
         var contract = new BothOverriddenContract();
         assertThatThrownBy(contract::criteria)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("postconditions(ContractBuilder)")
+                .hasMessageContaining("postconditions(PostconditionBuilder)")
                 .hasMessageContaining("criteria(CriteriaBuilder)")
                 .hasMessageContaining(BothOverriddenContract.class.getName());
     }

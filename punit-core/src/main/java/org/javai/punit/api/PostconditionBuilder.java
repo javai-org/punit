@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * Authoring surface for a postcondition chain. Authors never
  * construct one directly — the framework supplies a fresh builder to
- * the author's {@code postconditions(ContractBuilder<O>)} method (or
+ * the author's {@code postconditions(PostconditionBuilder<O>)} method (or
  * to the body of a
  * {@link org.javai.punit.api.criterion.Criteria#direct(String,
  * java.util.function.Consumer) Criteria.direct} /
@@ -20,7 +20,7 @@ import java.util.List;
  *
  * <pre>{@code
  * @Override
- * public void postconditions(ContractBuilder<BasketTranslation> b) {
+ * public void postconditions(PostconditionBuilder<BasketTranslation> b) {
  *     b.ensure("Has actions", t ->
  *             t.actions().isEmpty()
  *                     ? Outcome.fail("empty-actions", "actions list was empty")
@@ -32,7 +32,7 @@ import java.util.List;
  * @param <O> the value type the postcondition chain evaluates
  *            against
  */
-public final class ContractBuilder<O> {
+public final class PostconditionBuilder<O> {
 
     private final List<Postcondition<O>> clauses = new ArrayList<>();
 
@@ -49,7 +49,7 @@ public final class ContractBuilder<O> {
      * @throws NullPointerException     if any argument is null
      * @throws IllegalArgumentException if {@code description} is blank
      */
-    public ContractBuilder<O> ensure(String description, PostconditionCheck<O> check) {
+    public PostconditionBuilder<O> ensure(String description, PostconditionCheck<O> check) {
         clauses.add(new Postcondition.Leaf<>(description, check));
         return this;
     }

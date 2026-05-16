@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
@@ -37,7 +37,7 @@ class PowerAnalysisTest {
     private static final String USE_CASE_ID = "echo-use-case";
 
     private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
-        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
@@ -266,7 +266,7 @@ class PowerAnalysisTest {
      */
     private static ServiceContract<Factors, String, String> covariateServiceContract(String resolvedRegion) {
         return new ServiceContract<>() {
-            @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+            @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }

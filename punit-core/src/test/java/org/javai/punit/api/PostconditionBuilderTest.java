@@ -10,8 +10,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ContractBuilder — accumulates clauses fluently")
-class ContractBuilderTest {
+@DisplayName("PostconditionBuilder — accumulates clauses fluently")
+class PostconditionBuilderTest {
 
     @Nested
     @DisplayName("ensure")
@@ -20,7 +20,7 @@ class ContractBuilderTest {
         @Test
         @DisplayName("a single ensure call yields one Leaf clause")
         void singleEnsureYieldsOneLeaf() {
-            ContractBuilder<String> b = new ContractBuilder<>();
+            PostconditionBuilder<String> b = new PostconditionBuilder<>();
 
             b.ensure("non-empty", s -> s.isEmpty()
                     ? Outcome.fail("empty", "was empty")
@@ -36,7 +36,7 @@ class ContractBuilderTest {
         @Test
         @DisplayName("multiple ensures chain in order")
         void multipleEnsuresChain() {
-            List<Postcondition<Integer>> clauses = new ContractBuilder<Integer>()
+            List<Postcondition<Integer>> clauses = new PostconditionBuilder<Integer>()
                     .ensure("positive", v -> v > 0 ? Outcome.ok() : Outcome.fail("non-positive", ""))
                     .ensure("even",     v -> v % 2 == 0 ? Outcome.ok() : Outcome.fail("odd", ""))
                     .ensure("small",    v -> v < 100 ? Outcome.ok() : Outcome.fail("too-big", ""))
@@ -49,7 +49,7 @@ class ContractBuilderTest {
         @Test
         @DisplayName("blank description rejected at clause construction")
         void blankDescriptionRejected() {
-            ContractBuilder<Object> b = new ContractBuilder<>();
+            PostconditionBuilder<Object> b = new PostconditionBuilder<>();
 
             assertThatThrownBy(() -> b.ensure("", v -> Outcome.ok()))
                     .isInstanceOf(IllegalArgumentException.class);
@@ -58,7 +58,7 @@ class ContractBuilderTest {
         @Test
         @DisplayName("the empty builder builds an empty clause list")
         void emptyBuilder() {
-            assertThat(new ContractBuilder<String>().build()).isEmpty();
+            assertThat(new PostconditionBuilder<String>().build()).isEmpty();
         }
     }
 
@@ -69,7 +69,7 @@ class ContractBuilderTest {
         @Test
         @DisplayName("the returned list is immutable")
         void buildReturnsImmutable() {
-            List<Postcondition<String>> clauses = new ContractBuilder<String>()
+            List<Postcondition<String>> clauses = new PostconditionBuilder<String>()
                     .ensure("a", s -> Outcome.ok())
                     .build();
 

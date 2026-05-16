@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.ContractBuilder;
+import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
@@ -55,7 +55,7 @@ class LatencyEverywhereIntegrationTest {
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
-        @Override public void postconditions(ContractBuilder<Integer> b) {
+        @Override public void postconditions(PostconditionBuilder<Integer> b) {
             b.ensure("length is even", n ->
                     n % 2 == 0 ? Outcome.ok() : Outcome.fail("odd-length", "length=" + n));
         }
@@ -214,7 +214,7 @@ class LatencyEverywhereIntegrationTest {
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
             }
-            @Override public void postconditions(ContractBuilder<Integer> b) {
+            @Override public void postconditions(PostconditionBuilder<Integer> b) {
                 b.ensure("never satisfies", n -> Outcome.fail("nope", "always fails"));
             }
         };

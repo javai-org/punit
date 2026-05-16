@@ -10,28 +10,28 @@ import org.junit.jupiter.api.Test;
 class ServiceContractTest {
 
     private static class SimpleServiceContract implements ServiceContract<Object, String, Integer> {
-        @Override public void postconditions(ContractBuilder<Integer> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
     }
 
     private static class ShoppingBasketServiceContract implements ServiceContract<Object, String, String> {
-        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
     }
 
     private static class HTTPClientServiceContract implements ServiceContract<Object, String, String> {
-        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
     }
 
     private static class PaymentGateway implements ServiceContract<Object, String, String> {
-        @Override public void postconditions(ContractBuilder<String> b) { /* none */ }
+        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }

@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.criterion.CriterionPosture;
 import org.javai.punit.api.spec.Criterion;
 import org.javai.punit.api.spec.CriterionResult;
 import org.javai.punit.api.spec.CriterionSampleCounts;
@@ -294,6 +295,65 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                     ? 0.0
                     : (double) counts.pass() / (double) criterionTotal;
             observedByCriterion.put(counts.criterionId(), observed);
+
+            // Resolve the criterion's posture (commitment) — read from
+            // the contract's per-criterion declaration. STATISTICAL_CONTRACTUAL
+            // and ZERO_TOLERANCE shortcut the legacy threshold-on-PassRate
+            // path; STATISTICAL_EMPIRICAL and IMPLICIT_ZERO_TOLERANCE
+            // delegate to the existing logic so step 1 preserves
+            // legacy behaviour for un-postured criteria.
+            CriterionPosture posture = ctx.criterionPostures().getOrDefault(
+                    counts.criterionId(), CriterionPosture.implicit());
+
+            // Confidence-floor ratchet: contract criterion's
+            // .atConfidence(c_criterion) cannot be loosened by the test.
+            if (posture.confidenceFloor().isPresent()
+                    && confidence < posture.confidenceFloor().getAsDouble()) {
+                throw new IllegalStateException(String.format(
+                        "criterion '%s' declares a confidence floor of %.4f but the test runs at %.4f — "
+                                + "the contract's floor cannot be loosened by the test (raise the test's "
+                                + "confidence to %.4f or remove the floor on the criterion)",
+                        counts.criterionId(),
+                        posture.confidenceFloor().getAsDouble(),
+                        confidence,
+                        posture.confidenceFloor().getAsDouble()));
+            }
+
+            // Posture-driven shortcut: STATISTICAL_CONTRACTUAL and
+            // ZERO_TOLERANCE skip the legacy mode handling and use the
+            // criterion's own commitment directly.
+            if (posture.kind() == CriterionPosture.Kind.STATISTICAL_CONTRACTUAL) {
+                double pThreshold = posture.threshold().getAsDouble();
+                ThresholdOrigin pOrigin = posture.origin().orElseThrow();
+                thresholdsByCriterion.put(counts.criterionId(), pThreshold);
+                Verdict pv = criterionTotal == 0
+                        ? Verdict.INCONCLUSIVE
+                        : (observed >= pThreshold ? Verdict.PASS : Verdict.FAIL);
+                perCriterionVerdicts.add(pv);
+                perCriterionExplanations.add(String.format(
+                        "%s: observed=%.4f vs threshold=%.4f (origin=%s) over %d samples → %s",
+                        counts.criterionId(), observed, pThreshold, pOrigin, criterionTotal, pv));
+                continue;
+            }
+            if (posture.kind() == CriterionPosture.Kind.ZERO_TOLERANCE) {
+                // Binary semantics: any failed sample fails the criterion.
+                thresholdsByCriterion.put(counts.criterionId(), 1.0);
+                Verdict pv;
+                if (criterionTotal == 0) {
+                    pv = Verdict.INCONCLUSIVE;
+                } else if (counts.fail() == 0 && counts.inconclusive() == 0) {
+                    pv = Verdict.PASS;
+                } else {
+                    pv = Verdict.FAIL;
+                }
+                perCriterionVerdicts.add(pv);
+                perCriterionExplanations.add(String.format(
+                        "%s: zero-tolerance (origin=%s); failures=%d, inconclusive=%d over %d samples → %s",
+                        counts.criterionId(),
+                        posture.origin().orElseThrow(),
+                        counts.fail(), counts.inconclusive(), criterionTotal, pv));
+                continue;
+            }
 
             double criterionThreshold;
             Double baselineRate = null;
