@@ -139,8 +139,21 @@ public final class CriteriaBuilder<O> {
      * {@link org.javai.punit.api.Contract#criteria(CriteriaBuilder)}
      * method has populated the builder. Authors do not call this
      * directly.
+     *
+     * <p>Validates each criterion's posture before returning. A
+     * criterion that declared {@code .detectingMde(...)} without
+     * {@code .atPower(...)} (or vice versa) is rejected here with a
+     * diagnostic naming the criterion id and the rule.
      */
     public List<Criterion<O>> build() {
+        for (Criterion<O> c : criteria) {
+            try {
+                c.posture().validate();
+            } catch (IllegalStateException e) {
+                throw new IllegalStateException(
+                        "criterion '" + c.id() + "': " + e.getMessage(), e);
+            }
+        }
         return List.copyOf(criteria);
     }
 
