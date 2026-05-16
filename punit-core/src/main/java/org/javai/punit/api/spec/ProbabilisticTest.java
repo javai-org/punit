@@ -537,11 +537,36 @@ public final class ProbabilisticTest implements Spec {
             if (!expected.isEmpty() && matcher == null) {
                 matcher = ValueMatcher.equality();
             }
+            if (registered.isEmpty()) {
+                autoInjectFromContract(sampling, factors, registered);
+            }
             return new ProbabilisticTest(new Internal<>(this));
         }
     }
 
     private record Registered<OT>(Criterion<OT, ?> criterion, CriterionRole role) {}
+
+    /**
+     * Populate {@code registered} from the contract's criteria postures
+     * when the test builder declared no explicit
+     * {@code .criterion(...)} call. The contract's acceptance posture
+     * is the source of truth; the test builder's call is the
+     * deprecated override that PR #3 retires.
+     *
+     * <p>Derivation is delegated to the {@link SpecCriterionDeriver}
+     * SPI — the implementation in {@code internal.engine.criteria}
+     * maps postures to {@code PassRate} variants. The SPI indirection
+     * is what keeps {@code api.spec} free of {@code internal} imports.
+     */
+    private static <FT, IT, OT> void autoInjectFromContract(
+            Sampling<FT, IT, OT> sampling, FT factors, List<Registered<OT>> registered) {
+        ServiceContract<FT, IT, OT> probe = sampling.serviceContractFactory().apply(factors);
+        SpecCriterionDeriver deriver = SpecCriterionDeriver.lookup();
+        for (org.javai.punit.api.criterion.Criterion<OT> c : probe.criteria()) {
+            deriver.<OT>derive(c.posture()).ifPresent(
+                    sc -> registered.add(new Registered<>(sc, CriterionRole.REQUIRED)));
+        }
+    }
 
     // ── Inline-sampling builder ─────────────────────────────────────
 
