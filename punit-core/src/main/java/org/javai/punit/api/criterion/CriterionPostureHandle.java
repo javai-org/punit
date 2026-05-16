@@ -111,4 +111,17 @@ public final class CriterionPostureHandle<O> {
         builder.setPostureAt(criterionIndex, current.withPower(power));
         return this;
     }
+
+    /**
+     * Attach a human-readable contract reference to this criterion —
+     * the document and clause that justify the commitment
+     * (e.g. {@code "Payment Provider SLA v2.3, §4.1"}). Surfaced in the
+     * verdict path so compliance reports cite the authority alongside
+     * the verdict. Composes with every posture kind.
+     */
+    public CriterionPostureHandle<O> contractRef(String ref) {
+        CriterionPosture current = builder.postureAt(criterionIndex);
+        builder.setPostureAt(criterionIndex, current.withContractRef(ref));
+        return this;
+    }
 }

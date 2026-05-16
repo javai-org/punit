@@ -62,7 +62,8 @@ public final class CriterionPosture {
                     Optional.empty(),
                     OptionalDouble.empty(),
                     OptionalDouble.empty(),
-                    OptionalDouble.empty());
+                    OptionalDouble.empty(),
+                    Optional.empty());
 
     private final Kind kind;
     private final OptionalDouble threshold;
@@ -70,6 +71,7 @@ public final class CriterionPosture {
     private final OptionalDouble confidenceFloor;
     private final OptionalDouble mde;
     private final OptionalDouble power;
+    private final Optional<String> contractRef;
 
     private CriterionPosture(
             Kind kind,
@@ -77,13 +79,15 @@ public final class CriterionPosture {
             Optional<ThresholdOrigin> origin,
             OptionalDouble confidenceFloor,
             OptionalDouble mde,
-            OptionalDouble power) {
+            OptionalDouble power,
+            Optional<String> contractRef) {
         this.kind = kind;
         this.threshold = threshold;
         this.origin = origin;
         this.confidenceFloor = confidenceFloor;
         this.mde = mde;
         this.power = power;
+        this.contractRef = contractRef;
     }
 
     /** The implicit-zero-tolerance posture — the default for any criterion that declared no posture method. */
@@ -107,7 +111,8 @@ public final class CriterionPosture {
                 Optional.of(origin),
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
-                OptionalDouble.empty());
+                OptionalDouble.empty(),
+                Optional.empty());
     }
 
     /** Statistical, empirical: {@code .empirical()}. */
@@ -117,7 +122,8 @@ public final class CriterionPosture {
                 Optional.of(ThresholdOrigin.EMPIRICAL),
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
-                OptionalDouble.empty());
+                OptionalDouble.empty(),
+                Optional.empty());
     }
 
     /** Explicit zero-tolerance: {@code .zeroTolerance(origin)}. */
@@ -132,7 +138,8 @@ public final class CriterionPosture {
                 Optional.of(origin),
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
-                OptionalDouble.empty());
+                OptionalDouble.empty(),
+                Optional.empty());
     }
 
     /**
@@ -149,7 +156,7 @@ public final class CriterionPosture {
                     ".atConfidence(c) requires c in (0, 1), got " + confidence);
         }
         return new CriterionPosture(kind, threshold, origin,
-                OptionalDouble.of(confidence), mde, power);
+                OptionalDouble.of(confidence), mde, power, contractRef);
     }
 
     /**
@@ -166,7 +173,7 @@ public final class CriterionPosture {
                     ".detectingMde(m) requires m in (0, 1), got " + mdeValue);
         }
         return new CriterionPosture(kind, threshold, origin,
-                confidenceFloor, OptionalDouble.of(mdeValue), power);
+                confidenceFloor, OptionalDouble.of(mdeValue), power, contractRef);
     }
 
     /**
@@ -182,7 +189,27 @@ public final class CriterionPosture {
                     ".atPower(p) requires p in (0, 1), got " + powerValue);
         }
         return new CriterionPosture(kind, threshold, origin,
-                confidenceFloor, mde, OptionalDouble.of(powerValue));
+                confidenceFloor, mde, OptionalDouble.of(powerValue), contractRef);
+    }
+
+    /**
+     * Returns a copy of this posture with the given contract reference —
+     * a human-readable pointer to the document and clause that justify
+     * the commitment (e.g. {@code "Payment Provider SLA v2.3, §4.1"}).
+     * Surfaced in the verdict path so compliance reports cite the
+     * authority alongside the verdict.
+     *
+     * <p>Composes with every posture kind, including implicit
+     * zero-tolerance; the ref is informational, not part of the
+     * commitment's math.
+     */
+    public CriterionPosture withContractRef(String ref) {
+        Objects.requireNonNull(ref, "contractRef");
+        if (ref.isBlank()) {
+            throw new IllegalArgumentException(".contractRef requires a non-blank string");
+        }
+        return new CriterionPosture(kind, threshold, origin,
+                confidenceFloor, mde, power, Optional.of(ref));
     }
 
     private void rejectRigourAdjunct(String methodName) {
@@ -245,6 +272,16 @@ public final class CriterionPosture {
     /** Statistical power when declared via {@code .atPower(...)}, empty otherwise. */
     public OptionalDouble power() {
         return power;
+    }
+
+    /**
+     * Author-supplied audit pointer to the contract clause that
+     * justifies this criterion's commitment — for example
+     * {@code "Payment Provider SLA v2.3, §4.1"}. Empty when not
+     * declared.
+     */
+    public Optional<String> contractRef() {
+        return contractRef;
     }
 
     /** Whether this posture asks for a statistical evaluation. */

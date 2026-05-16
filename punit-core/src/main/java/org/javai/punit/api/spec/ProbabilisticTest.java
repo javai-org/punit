@@ -259,13 +259,25 @@ public final class ProbabilisticTest implements Spec {
                     ? evaluated
                     : substituteFunctionalVerdict(evaluated, perCriterionEvaluation.compositeVerdict());
             Verdict authoritative = Verdict.compose(compositeAdjusted);
+            // contractRef now lives on the criterion's posture. Surface
+            // the first non-empty ref at the result level (the legacy
+            // top-level field) — multi-criterion contracts whose
+            // criteria cite different clauses are still uncommon enough
+            // that "first wins" is a safe default. The per-criterion
+            // refs travel alongside on each EvaluatedCriterion's result
+            // detail map.
+            Optional<String> contractRefFromContract = criterionPostures.values().stream()
+                    .map(org.javai.punit.api.criterion.CriterionPosture::contractRef)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .findFirst();
             return new ProbabilisticTestResult(
                     authoritative, factorBundle, evaluated, intent,
                     List.copyOf(warnings),
                     CovariateAlignment.compute(
                             CovariateProfile.empty(),
                             baselineProfile),
-                    Optional.empty(),
+                    contractRefFromContract,
                     s.failuresByPostcondition(),
                     engineSummary,
                     perCriterionEvaluation);
