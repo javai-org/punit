@@ -74,14 +74,41 @@ public final class CriterionPostureHandle<O> {
 
     /**
      * Set a per-criterion confidence floor that the run cannot
-     * loosen. Must be called after a statistical posture method
-     * ({@code .meeting} or {@code .empirical}); throws
-     * {@link IllegalStateException} on a zero-tolerance posture
-     * (explicit or implicit).
+     * loosen. Must be called after {@code .empirical()}; throws
+     * {@link IllegalStateException} on a zero-tolerance or
+     * threshold-first ({@code .meeting}) posture.
      */
     public CriterionPostureHandle<O> atConfidence(double confidence) {
         CriterionPosture current = builder.postureAt(criterionIndex);
         builder.setPostureAt(criterionIndex, current.withConfidenceFloor(confidence));
+        return this;
+    }
+
+    /**
+     * Declare the minimum detectable effect — the smallest regression
+     * (in percentage points off the baseline rate) this criterion
+     * commits to detecting. Composes only with {@code .empirical()};
+     * must be paired with {@link #atPower(double)}.
+     *
+     * <p>Selects the Confidence-First approach: at evaluate time, the
+     * framework derives the run's sample count via
+     * {@code PowerAnalysis.sampleSize(baseline)}, reading MDE and
+     * power from this criterion's posture.
+     */
+    public CriterionPostureHandle<O> detectingMde(double mde) {
+        CriterionPosture current = builder.postureAt(criterionIndex);
+        builder.setPostureAt(criterionIndex, current.withMde(mde));
+        return this;
+    }
+
+    /**
+     * Declare the statistical power — probability of detecting a true
+     * regression of size MDE. Composes only with {@code .empirical()};
+     * must be paired with {@link #detectingMde(double)}.
+     */
+    public CriterionPostureHandle<O> atPower(double power) {
+        CriterionPosture current = builder.postureAt(criterionIndex);
+        builder.setPostureAt(criterionIndex, current.withPower(power));
         return this;
     }
 }
