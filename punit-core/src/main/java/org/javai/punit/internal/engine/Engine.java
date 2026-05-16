@@ -96,7 +96,27 @@ public final class Engine {
         while (it.hasNext()) {
             Configuration<FT, IT, OT> cfg = it.next();
             ServiceContract<FT, IT, OT> uc = spec.serviceContractFactory().apply(cfg.factors());
-            SampleSummary<OT> summary = runConfig(spec, uc, cfg, 0);
+            // Silent uplift: when the contract carries a
+            // confidence-first criterion, the framework computes its
+            // PowerAnalysis-required sample count from the baseline
+            // and uplifts the configuration's declared count to the
+            // maximum. The author's .samples(N) is a floor; the
+            // contract's commitment is the source of truth.
+            org.javai.punit.internal.engine.baseline.SampleSizeResolver.Resolution resolution =
+                    org.javai.punit.internal.engine.baseline.SampleSizeResolver.resolve(
+                            uc,
+                            org.javai.punit.api.FactorBundle.of(cfg.factors()),
+                            baselineProvider,
+                            cfg.samples());
+            if (resolution.wasUplifted()) {
+                System.out.println(String.format(
+                        "[PUNIT-UPLIFT] criterion '%s' demands %d samples (PowerAnalysis); "
+                                + "uplifting declared count of %d.",
+                        resolution.drivenBy().get(),
+                        resolution.effective(),
+                        resolution.declared()));
+            }
+            SampleSummary<OT> summary = runConfig(spec, uc, cfg, 0, resolution.effective());
             spec.consume(cfg, summary);
         }
         return spec.conclude(baselineProvider);
@@ -106,7 +126,8 @@ public final class Engine {
             TypedSpec<FT, IT, OT> spec,
             ServiceContract<FT, IT, OT> serviceContract,
             Configuration<FT, IT, OT> cfg,
-            int cycleStart) {
+            int cycleStart,
+            int effectiveSamples) {
 
         BudgetTracker tracker = new BudgetTracker(
                 spec.timeBudget(), spec.tokenBudget(), spec.tokenCharge());
@@ -118,7 +139,7 @@ public final class Engine {
                 spec.maxExampleFailures(),
                 tracker,
                 spec.earlyTermination(),
-                cfg.samples());
+                effectiveSamples);
 
         long t0 = System.nanoTime();
         executor.runSamples(
@@ -126,7 +147,7 @@ public final class Engine {
                 cfg.inputs(),
                 cfg.expected(),
                 spec.matcher(),
-                cfg.samples(),
+                effectiveSamples,
                 cycleStart,
                 agg,
                 tracker::shouldStopBeforeNextSample);
