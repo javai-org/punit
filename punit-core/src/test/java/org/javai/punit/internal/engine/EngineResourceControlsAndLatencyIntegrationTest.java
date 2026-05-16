@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.Sampling;
@@ -396,7 +397,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("mixed criteria: functional PASS + latency FAIL composes to FAIL when both REQUIRED")
     void mixedCriteriaBothRequiredComposesToFail() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
                 return Outcome.ok(Boolean.TRUE);
@@ -425,7 +428,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("reportOnly latency: functional PASS + latency FAIL(report-only) composes to PASS")
     void reportOnlyLatencyExcludedFromComposition() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
                 return Outcome.ok(Boolean.TRUE);

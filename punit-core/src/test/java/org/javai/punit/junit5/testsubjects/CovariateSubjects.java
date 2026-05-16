@@ -8,7 +8,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -41,7 +41,9 @@ public final class CovariateSubjects {
      */
     private static ServiceContract<NoFactors, Integer, Boolean> covariateServiceContract() {
         return new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).empirical();
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);
             }

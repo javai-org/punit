@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -34,9 +34,11 @@ public final class PreflightInvariantSubjects {
 
     private PreflightInvariantSubjects() { }
 
-    private static ServiceContract<NoFactors, Integer, Boolean> countingAlwaysPasses() {
+    private static ServiceContract<NoFactors, Integer, Boolean> countingEmpirical() {
         return new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).empirical();
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 INVOKE_COUNT.incrementAndGet();
                 return Outcome.ok(true);
@@ -45,9 +47,30 @@ public final class PreflightInvariantSubjects {
         };
     }
 
-    private static Sampling<NoFactors, Integer, Boolean> sampling(int samples) {
+    private static ServiceContract<NoFactors, Integer, Boolean> countingContractualHighThreshold() {
+        return new ServiceContract<>() {
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.9999, ThresholdOrigin.SLA);
+            }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                INVOKE_COUNT.incrementAndGet();
+                return Outcome.ok(true);
+            }
+            @Override public String id() { return USE_CASE_ID; }
+        };
+    }
+
+    private static Sampling<NoFactors, Integer, Boolean> empiricalSampling(int samples) {
         return Sampling.<NoFactors, Integer, Boolean>builder()
-                .serviceContractFactory(f -> countingAlwaysPasses())
+                .serviceContractFactory(f -> countingEmpirical())
+                .inputs(1, 2, 3)
+                .samples(samples)
+                .build();
+    }
+
+    private static Sampling<NoFactors, Integer, Boolean> contractualHighSampling(int samples) {
+        return Sampling.<NoFactors, Integer, Boolean>builder()
+                .serviceContractFactory(f -> countingContractualHighThreshold())
                 .inputs(1, 2, 3)
                 .samples(samples)
                 .build();
@@ -64,7 +87,7 @@ public final class PreflightInvariantSubjects {
         void undersizedAgainstNormativeThreshold() {
             // n=50 against 0.9999 at 95% confidence: Wilson upper-of-perfect
             // ≈ 0.949, well below 0.9999 → infeasible.
-            PUnit.testing(sampling(50))
+            PUnit.testing(contractualHighSampling(50))
                     .criterion(PassRate.<Boolean>meeting(0.9999, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -81,7 +104,7 @@ public final class PreflightInvariantSubjects {
         void undersizedAgainstHighBaselineRate() {
             // n=10 against baseline 0.95 at default 95% confidence:
             // Wilson upper-of-perfect ≈ 0.787 < 0.95 → infeasible.
-            PUnit.testing(sampling(10))
+            PUnit.testing(empiricalSampling(10))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -99,7 +122,7 @@ public final class PreflightInvariantSubjects {
         public static final String EXPERIMENT_ID = "power-analysis-baseline";
 
         private org.javai.punit.api.spec.Experiment baseline() {
-            return PUnit.measuring(sampling(200))
+            return PUnit.measuring(empiricalSampling(200))
                     .experimentId(EXPERIMENT_ID)
                     .build();
         }
@@ -110,7 +133,7 @@ public final class PreflightInvariantSubjects {
             // the test then runs with that n. By construction the
             // (n, baseline-rate, default-confidence) tuple is feasible.
             int n = PowerAnalysis.sampleSize(this::baseline, 0.05, 0.80);
-            PUnit.testing(sampling(n))
+            PUnit.testing(empiricalSampling(n))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -124,7 +147,7 @@ public final class PreflightInvariantSubjects {
     public static final class PowerAnalysisBaselineMeasure {
         @org.javai.punit.api.Experiment
         void seedBaseline() {
-            PUnit.measuring(sampling(200))
+            PUnit.measuring(empiricalSampling(200))
                     .experimentId(PowerAnalysisDerivedFeasibleTest.EXPERIMENT_ID)
                     .run();
         }
@@ -144,7 +167,7 @@ public final class PreflightInvariantSubjects {
             // PassRate.meeting validates threshold ∈ [0, 1] at
             // construction; -0.1 throws before .assertPasses() is ever
             // called.
-            PUnit.testing(sampling(50))
+            PUnit.testing(contractualHighSampling(50))
                     .criterion(PassRate.<Boolean>meeting(-0.1, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -160,7 +183,7 @@ public final class PreflightInvariantSubjects {
     public static final class ConfigurationCoherenceTest {
         @ProbabilisticTest
         void rejectsEmpiricalOriginOnContractualFactory() {
-            PUnit.testing(sampling(50))
+            PUnit.testing(contractualHighSampling(50))
                     .criterion(PassRate.<Boolean>meeting(0.95, ThresholdOrigin.EMPIRICAL))
                     .assertPasses();
         }

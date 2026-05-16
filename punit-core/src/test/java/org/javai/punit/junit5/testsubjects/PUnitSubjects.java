@@ -4,7 +4,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -34,9 +34,11 @@ public final class PUnitSubjects {
      */
     public record GridPoint(String label) { }
 
-    private static <F> ServiceContract<F, Integer, Boolean> alwaysPasses() {
+    private static <F> ServiceContract<F, Integer, Boolean> alwaysPassesContractual() {
         return new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.5, ThresholdOrigin.SLA);
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);
             }
@@ -46,9 +48,23 @@ public final class PUnitSubjects {
         };
     }
 
+    private static <F> ServiceContract<F, Integer, Boolean> alwaysPassesEmpirical() {
+        return new ServiceContract<>() {
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).empirical();
+            }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(true);
+            }
+            @Override public String id() { return "always-passes-subject"; }
+        };
+    }
+
     private static <F> ServiceContract<F, Integer, Boolean> alwaysFails() {
         return new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.5, ThresholdOrigin.SLA);
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.fail("nope", "always fails");
             }
@@ -71,7 +87,7 @@ public final class PUnitSubjects {
     public static final class PassingContractualTest {
         @ProbabilisticTest
         void passes() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPassesContractual(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .assertPasses();
         }
@@ -81,7 +97,7 @@ public final class PUnitSubjects {
     public static final class TransparentStatsTest {
         @ProbabilisticTest
         void passesWithTransparentStats() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPassesContractual(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .transparentStats()
                     .assertPasses();
@@ -97,7 +113,7 @@ public final class PUnitSubjects {
     public static final class ContractRefPassingTest {
         @ProbabilisticTest
         void passesWithContractRef() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPassesContractual(), 20))
                     .criterion(PassRate.<Boolean>meeting(0.5, ThresholdOrigin.SLA))
                     .contractRef("Acme API SLA v3.2 §2.1")
                     .transparentStats()
@@ -139,7 +155,7 @@ public final class PUnitSubjects {
     public static final class InconclusiveEmpiricalTest {
         @ProbabilisticTest
         void inconclusive() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 20))
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPassesEmpirical(), 20))
                     .criterion(PassRate.<Boolean>empirical())
                     .assertPasses();
         }
@@ -151,7 +167,7 @@ public final class PUnitSubjects {
     public static final class PassingMeasureExperiment {
         @Experiment
         void measure() {
-            PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100)).run();
+            PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPassesContractual(), 100)).run();
         }
     }
 
@@ -159,7 +175,7 @@ public final class PUnitSubjects {
     public static final class PassingExploreExperiment {
         @Experiment
         void explore() {
-            PUnit.exploring(sampling(PUnitSubjects.<GridPoint>alwaysPasses(), 5))
+            PUnit.exploring(sampling(PUnitSubjects.<GridPoint>alwaysPassesContractual(), 5))
                     .grid(new GridPoint("alt-1"), new GridPoint("alt-2"))
                     .run();
         }
@@ -176,7 +192,7 @@ public final class PUnitSubjects {
      */
     public static final class EmpiricalSupplierTest {
         private org.javai.punit.api.spec.Experiment baseline() {
-            return PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPasses(), 100)).build();
+            return PUnit.measuring(sampling(PUnitSubjects.<NoFactors>alwaysPassesEmpirical(), 100)).build();
         }
 
         @ProbabilisticTest
@@ -198,7 +214,7 @@ public final class PUnitSubjects {
      */
     public static final class EmpiricalSupplierBadKindTest {
         private org.javai.punit.api.spec.Experiment exploreBaseline() {
-            return PUnit.exploring(sampling(PUnitSubjects.<GridPoint>alwaysPasses(), 5))
+            return PUnit.exploring(sampling(PUnitSubjects.<GridPoint>alwaysPassesContractual(), 5))
                     .grid(new GridPoint("alt"))
                     .build();
         }

@@ -3,7 +3,7 @@ package org.javai.punit.internal.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
@@ -36,9 +36,31 @@ class EarlyTerminationIntegrationTest {
 
     record Factors() {}
 
-    /** Returns Outcome.ok every sample. */
+    /** Returns Outcome.ok every sample. Contract posture: meeting(0.5, SLA). */
     private static class AlwaysPass implements ServiceContract<Factors, Integer, Boolean> {
-        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+        @Override public void criteria(CriteriaBuilder<Boolean> b) {
+            b.addCriterion("contract", pb -> { /* none */ }).meeting(0.5, ThresholdOrigin.SLA);
+        }
+        @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.ok(Boolean.TRUE);
+        }
+    }
+
+    /** Always-pass variant whose contract posture is meeting(0.20, SLA). */
+    private static class AlwaysPassLowThreshold implements ServiceContract<Factors, Integer, Boolean> {
+        @Override public void criteria(CriteriaBuilder<Boolean> b) {
+            b.addCriterion("contract", pb -> { /* none */ }).meeting(0.20, ThresholdOrigin.SLA);
+        }
+        @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+            return Outcome.ok(Boolean.TRUE);
+        }
+    }
+
+    /** Always-pass variant whose contract posture is empirical. */
+    private static class AlwaysPassEmpirical implements ServiceContract<Factors, Integer, Boolean> {
+        @Override public void criteria(CriteriaBuilder<Boolean> b) {
+            b.addCriterion("contract", pb -> { /* none */ }).empirical();
+        }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
         }
@@ -46,7 +68,9 @@ class EarlyTerminationIntegrationTest {
 
     /** Returns Outcome.fail every sample — a clean failure-inevitable shape. */
     private static class AlwaysFail implements ServiceContract<Factors, Integer, Boolean> {
-        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+        @Override public void criteria(CriteriaBuilder<Boolean> b) {
+            b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+        }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure");
         }
@@ -61,7 +85,9 @@ class EarlyTerminationIntegrationTest {
         private final int failsFirst;
         private int seen = 0;
         FailsThenPasses(int failsFirst) { this.failsFirst = failsFirst; }
-        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+        @Override public void criteria(CriteriaBuilder<Boolean> b) {
+            b.addCriterion("contract", pb -> { /* none */ }).meeting(0.80, ThresholdOrigin.SLA);
+        }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return ++seen <= failsFirst
                     ? Outcome.fail("contract_violation", "scripted failure")
@@ -149,7 +175,7 @@ class EarlyTerminationIntegrationTest {
         // required at sample 20 but total < floor; the run continues to
         // sample 25 where the floor is met and the short-circuit fires.
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(f -> new AlwaysPass(), 100), new Factors())
+                .testing(sampling(f -> new AlwaysPassLowThreshold(), 100), new Factors())
                 .criterion(PassRate.<Boolean>meeting(0.20, ThresholdOrigin.SLA))
                 .build();
 
@@ -188,7 +214,7 @@ class EarlyTerminationIntegrationTest {
         // available to the engine; the spec returns Optional.empty()
         // from earlyTermination() and the run is not short-circuited.
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(f -> new AlwaysPass(), 30), new Factors())
+                .testing(sampling(f -> new AlwaysPassEmpirical(), 30), new Factors())
                 .criterion(PassRate.<Boolean>empirical())
                 .build();
 
