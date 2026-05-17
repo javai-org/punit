@@ -312,7 +312,7 @@ public final class PowerAnalysis {
                             : CovariateResolver.defaults().resolve(
                                     declarations, serviceContract.customCovariateResolvers());
                     List<org.javai.punit.api.criterion.Criterion<?>> contractCriteria =
-                            new java.util.ArrayList<>(serviceContract.criteria());
+                            new java.util.ArrayList<>(serviceContract.effectiveCriteria());
                     return new BaselineLookup(serviceContractId, fingerprint, profile, declarations, contractCriteria);
                 }
             };

@@ -186,7 +186,7 @@ public final class ProbabilisticTest implements Spec {
             // commitment without re-resolving the contract.
             java.util.Map<String, org.javai.punit.api.criterion.CriterionPosture> criterionPostures =
                     new java.util.LinkedHashMap<>();
-            for (org.javai.punit.api.criterion.Criterion<OT> c : contract.criteria()) {
+            for (org.javai.punit.api.criterion.Criterion<OT> c : contract.effectiveCriteria()) {
                 criterionPostures.put(c.id(), c.posture());
             }
             String testInputsIdentity = sampling.inputsIdentity();
@@ -575,7 +575,7 @@ public final class ProbabilisticTest implements Spec {
             Sampling<FT, IT, OT> sampling, FT factors, List<Registered<OT>> registered) {
         ServiceContract<FT, IT, OT> probe = sampling.serviceContractFactory().apply(factors);
         SpecCriterionDeriver deriver = SpecCriterionDeriver.lookup();
-        for (org.javai.punit.api.criterion.Criterion<OT> c : probe.criteria()) {
+        for (org.javai.punit.api.criterion.Criterion<OT> c : probe.effectiveCriteria()) {
             deriver.<OT>derive(c.posture()).ifPresent(sc -> {
                 if (!alreadyRegistered(registered, sc.getClass())) {
                     registered.add(new Registered<>(sc, CriterionRole.REQUIRED));

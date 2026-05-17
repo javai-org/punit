@@ -60,7 +60,7 @@ class CriterionShimTest {
 
         @Override
         public void criteria(CriteriaBuilder<String> b) {
-            b.add(Criteria.direct("well-formed",
+            b.add(Criterion.direct("well-formed",
                     cb -> cb.ensure("non-empty", v ->
                             v.isEmpty()
                                     ? Outcome.fail("empty", "")
@@ -84,7 +84,7 @@ class CriterionShimTest {
 
         @Override
         public void criteria(CriteriaBuilder<String> b) {
-            b.add(Criteria.direct("other",
+            b.add(Criterion.direct("other",
                     cb -> cb.ensure("starts-with-h", v ->
                             v.startsWith("h")
                                     ? Outcome.ok()
@@ -106,7 +106,7 @@ class CriterionShimTest {
             legacy.addAll(p.evaluateAll(value));
         }
 
-        Criterion<String> sole = contract.criteria().get(0);
+        Criterion<String> sole = contract.effectiveCriteria().get(0);
         CriterionSampleResult result = sole.evaluate(value);
 
         assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.PASS);
@@ -124,7 +124,7 @@ class CriterionShimTest {
     void singleCriterionDefaultClassifiesFailWhenAnyPostconditionFails() {
         var contract = new SingleStreamContract();
         // "world" passes "non-empty" but fails "starts with greeting".
-        CriterionSampleResult result = contract.criteria().get(0).evaluate("world");
+        CriterionSampleResult result = contract.effectiveCriteria().get(0).evaluate("world");
 
         assertThat(result.outcome()).isEqualTo(CriterionSampleOutcome.FAIL);
         assertThat(result.postconditionResults()).hasSize(2);
@@ -135,8 +135,8 @@ class CriterionShimTest {
     @Test
     void singleCriterionIdIsStableAcrossCalls() {
         var contract = new SingleStreamContract();
-        String first = contract.criteria().get(0).id();
-        String second = contract.criteria().get(0).id();
+        String first = contract.effectiveCriteria().get(0).id();
+        String second = contract.effectiveCriteria().get(0).id();
         assertThat(first).isEqualTo(second);
         assertThat(first).isNotBlank();
         assertThat(first).matches("[a-z0-9-]+");
@@ -145,7 +145,7 @@ class CriterionShimTest {
     @Test
     void defaultCriterionIdDerivedFromContractClass() {
         var contract = new SingleStreamContract();
-        String id = contract.criteria().get(0).id();
+        String id = contract.effectiveCriteria().get(0).id();
         // SingleStreamContract → single-stream-contract.
         assertThat(id).isEqualTo("single-stream-contract");
     }
@@ -153,7 +153,7 @@ class CriterionShimTest {
     @Test
     void explicitCriteriaListIsReturnedAsIs() {
         var contract = new ExplicitCriteriaContract();
-        List<Criterion<String>> criteria = contract.criteria();
+        List<Criterion<String>> criteria = contract.effectiveCriteria();
 
         assertThat(criteria).hasSize(1);
         assertThat(criteria.get(0).id()).isEqualTo("well-formed");
@@ -164,7 +164,7 @@ class CriterionShimTest {
     @Test
     void bothOverriddenThrowsAtCriteriaAccess() {
         var contract = new BothOverriddenContract();
-        assertThatThrownBy(contract::criteria)
+        assertThatThrownBy(contract::effectiveCriteria)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("postconditions(PostconditionBuilder)")
                 .hasMessageContaining("criteria(CriteriaBuilder)")

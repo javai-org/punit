@@ -1,5 +1,12 @@
 package org.javai.punit.api.criterion;
 
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import org.javai.outcome.Outcome;
+import org.javai.punit.api.PostconditionBuilder;
+
 /**
  * A named, contract-level partition of the functional dimension. A
  * criterion is a unit that judges a single sample's produced value
@@ -96,5 +103,46 @@ public interface Criterion<O> {
      */
     default CriterionPosture posture() {
         return CriterionPosture.implicit();
+    }
+
+    /**
+     * Construct a criterion whose postcondition chain evaluates
+     * directly against the contract's output. No transform.
+     *
+     * <p>Framework-internal entry point: the value-returning
+     * authoring surface (see {@code Posture.meeting/.empirical/.zeroTolerance}
+     * and {@code Composite.compose}) is the path authors use.
+     */
+    static <O> Criterion<O> direct(
+            String id, Consumer<PostconditionBuilder<O>> body) {
+        validateId(id);
+        Objects.requireNonNull(body, "body");
+        PostconditionBuilder<O> b = new PostconditionBuilder<>();
+        body.accept(b);
+        return new DirectCriterion<>(id, b.build());
+    }
+
+    /**
+     * Construct a criterion that first transforms the contract's
+     * output {@code O} to a derived form {@code D}, then evaluates
+     * its postcondition chain against the derived value.
+     */
+    static <O, D> Criterion<O> transforming(
+            String id,
+            Function<O, Outcome<D>> transform,
+            Consumer<PostconditionBuilder<D>> body) {
+        validateId(id);
+        Objects.requireNonNull(transform, "transform");
+        Objects.requireNonNull(body, "body");
+        PostconditionBuilder<D> b = new PostconditionBuilder<>();
+        body.accept(b);
+        return new TransformingCriterion<>(id, transform, b.build());
+    }
+
+    private static void validateId(String id) {
+        Objects.requireNonNull(id, "id");
+        if (id.isBlank()) {
+            throw new IllegalArgumentException("id must not be blank");
+        }
     }
 }
