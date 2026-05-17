@@ -535,6 +535,9 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                 detail.put("baselineSampleCount", b == null ? null : b.sampleCount());
                 detail.put("baselineRate", b == null ? null : b.observedPassRate());
             }
+            CriterionPosture onlyPosture = ctx.criterionPostures().getOrDefault(
+                    only.criterionId(), CriterionPosture.implicit());
+            onlyPosture.contractRef().ifPresent(ref -> detail.put("contractRef", ref));
         } else {
             detail.put("origin", resolvedOrigin.name());
             detail.put("total", total);

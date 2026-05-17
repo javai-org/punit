@@ -71,6 +71,36 @@ public final class PUnitSubjects {
         };
     }
 
+    private static final String CONTRACT_REF_FIXTURE = "Acme API SLA v3.2 §2.1";
+
+    private static <F> ServiceContract<F, Integer, Boolean> alwaysPassesWithContractRef() {
+        return new ServiceContract<>() {
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ })
+                        .meeting(0.5, ThresholdOrigin.SLA)
+                        .contractRef(CONTRACT_REF_FIXTURE);
+            }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.ok(true);
+            }
+            @Override public String id() { return "always-passes-subject"; }
+        };
+    }
+
+    private static <F> ServiceContract<F, Integer, Boolean> alwaysFailsWithContractRef() {
+        return new ServiceContract<>() {
+            @Override public void criteria(CriteriaBuilder<Boolean> b) {
+                b.addCriterion("contract", pb -> { /* none */ })
+                        .meeting(0.5, ThresholdOrigin.SLA)
+                        .contractRef(CONTRACT_REF_FIXTURE);
+            }
+            @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
+                return Outcome.fail("nope", "always fails");
+            }
+            @Override public String id() { return "always-fails-subject"; }
+        };
+    }
+
     private static <F> Sampling<F, Integer, Boolean> sampling(
             ServiceContract<F, Integer, Boolean> serviceContract, int samples) {
         return Sampling.<F, Integer, Boolean>builder()
@@ -110,8 +140,7 @@ public final class PUnitSubjects {
     public static final class ContractRefPassingTest {
         @ProbabilisticTest
         void passesWithContractRef() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPassesContractual(), 20))
-                    .contractRef("Acme API SLA v3.2 §2.1")
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysPassesWithContractRef(), 20))
                     .transparentStats()
                     .assertPasses();
         }
@@ -126,8 +155,7 @@ public final class PUnitSubjects {
     public static final class ContractRefFailingTest {
         @ProbabilisticTest
         void failsWithContractRef() {
-            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFails(), 20))
-                    .contractRef("Acme API SLA v3.2 §2.1")
+            PUnit.testing(sampling(PUnitSubjects.<NoFactors>alwaysFailsWithContractRef(), 20))
                     .assertPasses();
         }
     }

@@ -588,7 +588,6 @@ public final class PUnit {
         private final List<Criterion<OT, ?>> requiredCriteria = new ArrayList<>();
         private TestIntent intent = TestIntent.VERIFICATION;
         private Boolean transparentStatsOverride;
-        private String contractRef;
 
         TestBuilder(ProbabilisticTest.Builder<FT, IT, OT> delegate,
                     Sampling<FT, IT, OT> sampling, FT factors) {
@@ -666,20 +665,6 @@ public final class PUnit {
             return this;
         }
 
-        /**
-         * Records a human-readable pointer to the external document
-         * the test's threshold derives from — an SLA paragraph, an
-         * SLO contract, an internal policy reference. The value is
-         * opaque to the framework; it surfaces in the verdict text
-         * and the verdict XML as audit-grade traceability.
-         *
-         * <p>Example: {@code .contractRef("Acme API SLA v3.2 §2.1")}.
-         */
-        public TestBuilder<FT, IT, OT> contractRef(String contractRef) {
-            this.contractRef = contractRef;
-            return this;
-        }
-
         public ProbabilisticTest build() {
             return delegate.build();
         }
@@ -735,9 +720,8 @@ public final class PUnit {
             // structured CovariateAlignment flows downstream — to the
             // verbose renderer here, and to HTML / XML / JSON sinks.
             ProbabilisticTestResult stamped = typed.withCovariates(
-                            CovariateAlignment.compute(
-                                    observed, typed.covariates().baseline()))
-                    .withContractRef(contractRef);
+                    CovariateAlignment.compute(
+                            observed, typed.covariates().baseline()));
             maybeRenderTransparentStats(stamped);
             emitVerdict(stamped, serviceContractId);
             translate(stamped, serviceContractId);
@@ -806,16 +790,21 @@ public final class PUnit {
             if (noBaselineResults.isEmpty()) {
                 return Optional.empty();
             }
-            return Optional.of(synthesiseNoBaselineResult(noBaselineResults, notes, observed));
+            return Optional.of(synthesiseNoBaselineResult(
+                    noBaselineResults, notes, observed, serviceContract));
         }
 
         private ProbabilisticTestResult synthesiseNoBaselineResult(
                 List<EvaluatedCriterion> noBaselineResults,
                 List<String> warnings,
-                CovariateProfile observed) {
-            Optional<String> contractRefOpt = (contractRef == null || contractRef.isBlank())
-                    ? Optional.empty()
-                    : Optional.of(contractRef);
+                CovariateProfile observed,
+                ServiceContract<FT, IT, OT> serviceContract) {
+            Optional<String> contractRefOpt = serviceContract.criteria().stream()
+                    .map(org.javai.punit.api.criterion.Criterion::posture)
+                    .map(org.javai.punit.api.criterion.CriterionPosture::contractRef)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .findFirst();
             return new ProbabilisticTestResult(
                     Verdict.compose(noBaselineResults),
                     FactorBundle.of(factors),
@@ -854,7 +843,6 @@ public final class PUnit {
         private Criterion<?, ?> criterion;
         private TestIntent intent = TestIntent.VERIFICATION;
         private Boolean transparentStatsOverride;
-        private String contractRef;
 
         EmpiricalTestBuilder(Supplier<Experiment> baselineSupplier) {
             this.baselineSupplier = baselineSupplier;
@@ -897,12 +885,6 @@ public final class PUnit {
             return this;
         }
 
-        /** See {@link TestBuilder#contractRef(String)}. */
-        public EmpiricalTestBuilder contractRef(String contractRef) {
-            this.contractRef = contractRef;
-            return this;
-        }
-
         public ProbabilisticTest build() {
             if (samples == null) {
                 throw new IllegalStateException(
@@ -941,9 +923,8 @@ public final class PUnit {
             }
             warnings.forEach(System.err::println);
             ProbabilisticTestResult stamped = typed.withCovariates(
-                            CovariateAlignment.compute(
-                                    ctx.profile, typed.covariates().baseline()))
-                    .withContractRef(contractRef);
+                    CovariateAlignment.compute(
+                            ctx.profile, typed.covariates().baseline()));
             maybeRenderTransparentStats(ctx, stamped);
             emitVerdict(stamped, ctx.serviceContractId);
             translate(stamped, ctx.serviceContractId);
@@ -963,10 +944,12 @@ public final class PUnit {
             final List<Covariate> declarations;
             final BaselineProvider provider;
             final FactorBundle resultFactors;
+            final Optional<String> contractRef;
 
             SpecContext(String serviceContractId, FactorBundle bundle, int samples,
                     CovariateProfile profile, List<Covariate> declarations,
-                    BaselineProvider provider, FactorBundle resultFactors) {
+                    BaselineProvider provider, FactorBundle resultFactors,
+                    Optional<String> contractRef) {
                 this.serviceContractId = serviceContractId;
                 this.bundle = bundle;
                 this.samples = samples;
@@ -974,6 +957,7 @@ public final class PUnit {
                 this.declarations = declarations;
                 this.provider = provider;
                 this.resultFactors = resultFactors;
+                this.contractRef = contractRef;
             }
         }
 
@@ -993,9 +977,15 @@ public final class PUnit {
                                     .resolve(declarations, serviceContract.customCovariateResolvers());
                     BaselineProvider provider = ProfileBoundBaselineProvider.bind(
                             raw, profile, declarations);
+                    Optional<String> contractRef = serviceContract.criteria().stream()
+                            .map(org.javai.punit.api.criterion.Criterion::posture)
+                            .map(org.javai.punit.api.criterion.CriterionPosture::contractRef)
+                            .filter(Optional::isPresent)
+                            .map(Optional::get)
+                            .findFirst();
                     return new SpecContext(
                             serviceContract.id(), bundle, cfg.samples(),
-                            profile, declarations, provider, bundle);
+                            profile, declarations, provider, bundle, contractRef);
                 }
             });
         }
@@ -1029,9 +1019,7 @@ public final class PUnit {
                 SpecContext ctx,
                 List<EvaluatedCriterion> noBaselineResults,
                 List<String> warnings) {
-            Optional<String> contractRefOpt = (contractRef == null || contractRef.isBlank())
-                    ? Optional.empty()
-                    : Optional.of(contractRef);
+            Optional<String> contractRefOpt = ctx.contractRef;
             return new ProbabilisticTestResult(
                     Verdict.compose(noBaselineResults),
                     ctx.resultFactors,
