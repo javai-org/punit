@@ -6,7 +6,6 @@ import static org.javai.punit.api.criterion.Composite.compose;
 import static org.javai.punit.api.criterion.Composite.composeOf;
 import static org.javai.punit.api.criterion.Composite.entry;
 
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.javai.outcome.Outcome;
@@ -63,17 +62,99 @@ class CriteriaAsDataTest {
     }
 
     @Test
-    @DisplayName(".where(name, Function<O, Outcome<?>>) — author-supplied message preserved verbatim")
-    void whereRichFunctionPreservesMessage() {
-        Function<String, Outcome<?>> parseable = v -> Outcome.fail("notJson", "v=" + v);
+    @DisplayName(".satisfies(name, Function<O, Outcome<?>>) — author-supplied message preserved verbatim")
+    void satisfiesRichFunctionPreservesMessage() {
         CriterionDecl<String> decl = Posture.<String>meeting(0.85, ThresholdOrigin.SLA)
-                .where("parseable", parseable);
+                .satisfies("parseable", v -> Outcome.fail("notJson", "v=" + v));
 
         Outcome<?> result = decl.postconditions().get(0).check().check("garbage");
         assertThat(result).isInstanceOf(Outcome.Fail.class);
         Outcome.Fail<?> fail = (Outcome.Fail<?>) result;
         assertThat(fail.failure().id().name()).isEqualTo("notJson");
         assertThat(fail.failure().message()).isEqualTo("v=garbage");
+    }
+
+    @Test
+    @DisplayName(".satisfies takes a bare lambda — no overload ambiguity, no type-witness needed")
+    void satisfiesDisambiguatedWithoutHelp() {
+        // The key Finding #1 regression-guard: a slide-friendly lambda
+        // with a generic Outcome.fail in its body must compile without
+        // a cast or a typed local.
+        CriterionDecl<String> decl = Posture.<String>meeting(0.85, ThresholdOrigin.SLA)
+                .satisfies("transaction succeeds", r -> r.startsWith("OK")
+                        ? Outcome.ok()
+                        : Outcome.fail("transaction-failed", "got=" + r));
+
+        Outcome<?> okResult = decl.postconditions().get(0).check().check("OK-123");
+        assertThat(okResult).isInstanceOf(Outcome.Ok.class);
+        Outcome<?> failResult = decl.postconditions().get(0).check().check("ERR-500");
+        assertThat(failResult).isInstanceOf(Outcome.Fail.class);
+    }
+
+    @Test
+    @DisplayName(".transforming(parse).where/.satisfies — postconditions evaluate against derived value")
+    void transformingChainEvaluatesAgainstDerived() {
+        TransformingDecl<String, Integer> decl = Posture.<String>empirical()
+                .transforming(s -> {
+                    try {
+                        return Outcome.ok(Integer.parseInt(s));
+                    } catch (NumberFormatException e) {
+                        return Outcome.fail("not-a-number", "s=" + s);
+                    }
+                })
+                .where("positive", n -> n > 0)
+                .satisfies("even", n -> n % 2 == 0
+                        ? Outcome.ok()
+                        : Outcome.fail("odd", "n=" + n));
+
+        assertThat(decl.postconditions()).hasSize(2);
+
+        Criterion<String> rt = decl.toRuntime("parsed-number");
+        assertThat(rt.id()).isEqualTo("parsed-number");
+        assertThat(rt.posture().kind()).isEqualTo(CriterionPosture.Kind.STATISTICAL_EMPIRICAL);
+
+        // Successful transform → postcondition chain runs
+        assertThat(rt.evaluate("4").outcome()).isEqualTo(CriterionSampleOutcome.PASS);
+        // Transform ok, postcondition fails → FAIL
+        assertThat(rt.evaluate("3").outcome()).isEqualTo(CriterionSampleOutcome.FAIL);
+        // Transform fails → INCONCLUSIVE (chain skipped)
+        CriterionSampleResult parseFail = rt.evaluate("xyz");
+        assertThat(parseFail.outcome()).isEqualTo(CriterionSampleOutcome.INCONCLUSIVE);
+        assertThat(parseFail.reason()).isPresent();
+        assertThat(parseFail.reason().get().failure().id().name()).isEqualTo("not-a-number");
+    }
+
+    @Test
+    @DisplayName(".transforming(...) rejects pre-transform postconditions on the same decl")
+    void transformingRejectsPreTransformPostconditions() {
+        org.assertj.core.api.Assertions.assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> Posture.<String>empirical()
+                        .where("non-empty", s -> !s.isEmpty())
+                        .transforming(s -> Outcome.ok(Integer.parseInt(s))))
+                .withMessageContaining(".transforming");
+    }
+
+    @Test
+    @DisplayName("compose mixes direct and transforming criteria under one composite")
+    void composeMixesDirectAndTransforming() {
+        Criteria<String> c = compose(
+                "response-not-empty", Posture.<String>empirical()
+                        .where("non-blank", s -> !s.isBlank()),
+                "parses", Posture.<String>empirical()
+                        .transforming(s -> {
+                            try {
+                                return Outcome.ok(Integer.parseInt(s));
+                            } catch (NumberFormatException e) {
+                                return Outcome.fail("not-a-number", "s=" + s);
+                            }
+                        })
+                        .where("positive", n -> n > 0));
+
+        assertThat(c.asList()).hasSize(2);
+        assertThat(c.asList().get(0).id()).isEqualTo("response-not-empty");
+        assertThat(c.asList().get(1).id()).isEqualTo("parses");
+        assertThat(c.asList().get(1).evaluate("nope").outcome())
+                .isEqualTo(CriterionSampleOutcome.INCONCLUSIVE);
     }
 
     @Test

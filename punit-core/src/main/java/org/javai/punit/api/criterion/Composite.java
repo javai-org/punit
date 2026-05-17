@@ -39,7 +39,7 @@ public final class Composite {
      * One named entry in a {@link CompositeCriteria}: a criterion id
      * and the declaration that produces its verdict.
      */
-    public record Entry<O>(String id, CriterionDecl<O> decl) {
+    public record Entry<O>(String id, Decl<O> decl) {
         public Entry {
             Objects.requireNonNull(id, "id");
             if (id.isBlank()) {
@@ -51,19 +51,19 @@ public final class Composite {
     }
 
     /** Construct an {@link Entry} — the open-ended escape for {@link #composeOf}. */
-    public static <O> Entry<O> entry(String id, CriterionDecl<O> decl) {
+    public static <O> Entry<O> entry(String id, Decl<O> decl) {
         return new Entry<>(id, decl);
     }
 
     /** Compose a single named criterion (K=1 with an explicit id). */
-    public static <O> CompositeCriteria<O> compose(String id1, CriterionDecl<O> d1) {
+    public static <O> CompositeCriteria<O> compose(String id1, Decl<O> d1) {
         return new CompositeCriteria<>(List.of(new Entry<>(id1, d1)));
     }
 
     /** Compose two named criteria. */
     public static <O> CompositeCriteria<O> compose(
-            String id1, CriterionDecl<O> d1,
-            String id2, CriterionDecl<O> d2) {
+            String id1, Decl<O> d1,
+            String id2, Decl<O> d2) {
         return new CompositeCriteria<>(List.of(
                 new Entry<>(id1, d1),
                 new Entry<>(id2, d2)));
@@ -71,9 +71,9 @@ public final class Composite {
 
     /** Compose three named criteria. */
     public static <O> CompositeCriteria<O> compose(
-            String id1, CriterionDecl<O> d1,
-            String id2, CriterionDecl<O> d2,
-            String id3, CriterionDecl<O> d3) {
+            String id1, Decl<O> d1,
+            String id2, Decl<O> d2,
+            String id3, Decl<O> d3) {
         return new CompositeCriteria<>(List.of(
                 new Entry<>(id1, d1),
                 new Entry<>(id2, d2),
@@ -82,10 +82,10 @@ public final class Composite {
 
     /** Compose four named criteria. */
     public static <O> CompositeCriteria<O> compose(
-            String id1, CriterionDecl<O> d1,
-            String id2, CriterionDecl<O> d2,
-            String id3, CriterionDecl<O> d3,
-            String id4, CriterionDecl<O> d4) {
+            String id1, Decl<O> d1,
+            String id2, Decl<O> d2,
+            String id3, Decl<O> d3,
+            String id4, Decl<O> d4) {
         return new CompositeCriteria<>(List.of(
                 new Entry<>(id1, d1),
                 new Entry<>(id2, d2),
@@ -95,11 +95,11 @@ public final class Composite {
 
     /** Compose five named criteria. */
     public static <O> CompositeCriteria<O> compose(
-            String id1, CriterionDecl<O> d1,
-            String id2, CriterionDecl<O> d2,
-            String id3, CriterionDecl<O> d3,
-            String id4, CriterionDecl<O> d4,
-            String id5, CriterionDecl<O> d5) {
+            String id1, Decl<O> d1,
+            String id2, Decl<O> d2,
+            String id3, Decl<O> d3,
+            String id4, Decl<O> d4,
+            String id5, Decl<O> d5) {
         return new CompositeCriteria<>(List.of(
                 new Entry<>(id1, d1),
                 new Entry<>(id2, d2),
@@ -110,12 +110,12 @@ public final class Composite {
 
     /** Compose six named criteria. */
     public static <O> CompositeCriteria<O> compose(
-            String id1, CriterionDecl<O> d1,
-            String id2, CriterionDecl<O> d2,
-            String id3, CriterionDecl<O> d3,
-            String id4, CriterionDecl<O> d4,
-            String id5, CriterionDecl<O> d5,
-            String id6, CriterionDecl<O> d6) {
+            String id1, Decl<O> d1,
+            String id2, Decl<O> d2,
+            String id3, Decl<O> d3,
+            String id4, Decl<O> d4,
+            String id5, Decl<O> d5,
+            String id6, Decl<O> d6) {
         return new CompositeCriteria<>(List.of(
                 new Entry<>(id1, d1),
                 new Entry<>(id2, d2),
