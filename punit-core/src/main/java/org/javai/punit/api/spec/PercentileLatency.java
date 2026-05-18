@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.PercentileKey;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 
 /**
@@ -176,6 +177,7 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
         Map<PercentileKey, Duration> thresholds;
         Map<PercentileKey, Integer> thresholdRanks = new EnumMap<>(PercentileKey.class);
         Map<PercentileKey, Long> baselinePercentileMs = new EnumMap<>(PercentileKey.class);
+        EnumSet<PercentileKey> saturated = EnumSet.noneOf(PercentileKey.class);
         ThresholdOrigin resolvedOrigin;
         Integer baselineSampleCount = null;
 
@@ -206,7 +208,7 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
                 return sizeViolation.get();
             }
             thresholds = thresholdsFromBaseline(
-                    stats, thresholdRanks, baselinePercentileMs);
+                    stats, thresholdRanks, baselinePercentileMs, saturated);
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;
             baselineSampleCount = stats.sampleCount();
         }
@@ -221,6 +223,30 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
             if (threshold != null && obs.compareTo(threshold) > 0) {
                 breachedKeys.add(key);
             }
+        }
+
+        // Saturation routing (companion §12.4.2 / §12.5.2.1): under
+        // VERIFICATION the methodology requires INCONCLUSIVE — no
+        // finite-sample distribution-free upper bound is available at
+        // the configured confidence. Under SMOKE, the advisory
+        // t_{(n)} is reported and PASS/FAIL proceeds on it.
+        boolean anySaturated = !saturated.isEmpty();
+        if (anySaturated && ctx.intent() == TestIntent.VERIFICATION) {
+            Map<String, Object> satDetail = new LinkedHashMap<>();
+            satDetail.put("assertedPercentiles", assertedCsv());
+            satDetail.put("origin", resolvedOrigin.name());
+            satDetail.put("confidence", confidence);
+            satDetail.put("baselineSampleCount", baselineSampleCount);
+            for (PercentileKey key : saturated) {
+                satDetail.put("saturated." + key.detailKey(), true);
+            }
+            String reason = String.format(
+                    "no finite-sample upper bound available at confidence=%s for percentile(s) %s "
+                            + "with baseline n=%d; verdict INCONCLUSIVE per Statistical Companion §12.5.2.1",
+                    confidence, saturated.stream().map(PercentileKey::detailKey)
+                            .collect(Collectors.joining(",")),
+                    baselineSampleCount == null ? 0 : baselineSampleCount);
+            return new CriterionResult(NAME, Verdict.INCONCLUSIVE, reason, satDetail);
         }
 
         Verdict verdict = breachedKeys.isEmpty() ? Verdict.PASS : Verdict.FAIL;
@@ -249,6 +275,9 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
         if (mode != Mode.CONTRACTUAL) {
             detail.put("baselineSampleCount", baselineSampleCount);
             detail.put("confidence", confidence);
+            for (PercentileKey key : saturated) {
+                detail.put("saturated." + key.detailKey(), true);
+            }
         }
 
         String explanation = breachedKeys.isEmpty()
@@ -317,7 +346,8 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
     private Map<PercentileKey, Duration> thresholdsFromBaseline(
             LatencyStatistics stats,
             Map<PercentileKey, Integer> thresholdRanks,
-            Map<PercentileKey, Long> baselinePercentileMs) {
+            Map<PercentileKey, Long> baselinePercentileMs,
+            EnumSet<PercentileKey> saturatedPercentiles) {
         long[] sortedMs = stats.sortedLatenciesMs();
         double[] sortedDouble = new double[sortedMs.length];
         for (int i = 0; i < sortedMs.length; i++) {
@@ -331,6 +361,9 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
             map.put(key, Duration.ofMillis((long) derived.threshold()));
             thresholdRanks.put(key, derived.rank());
             baselinePercentileMs.put(key, (long) derived.baselinePercentile());
+            if (derived.saturated()) {
+                saturatedPercentiles.add(key);
+            }
         }
         return map;
     }

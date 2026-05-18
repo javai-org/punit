@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.criterion.CriterionPosture;
 
 /**
@@ -66,5 +67,15 @@ public interface EvaluationContext<OT, S extends BaselineStatistics> {
      */
     default Map<String, CriterionPosture> criterionPostures() {
         return Map.of();
+    }
+
+    /**
+     * The test's declared {@link TestIntent}. Defaults to
+     * {@link TestIntent#VERIFICATION} for back-compat with hand-built
+     * test fixtures; production code paths propagate the spec's
+     * configured intent.
+     */
+    default TestIntent intent() {
+        return TestIntent.VERIFICATION;
     }
 }
