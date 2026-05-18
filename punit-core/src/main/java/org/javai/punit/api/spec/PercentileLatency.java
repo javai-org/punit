@@ -109,6 +109,15 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
         return Optional.ofNullable(baselineSupplier);
     }
 
+    /**
+     * The percentiles this criterion asserts against. Read by the
+     * preflight feasibility check to compare against the planned
+     * sample count.
+     */
+    public EnumSet<PercentileKey> assertedPercentiles() {
+        return EnumSet.copyOf(assertedPercentiles);
+    }
+
     @Override
     public String name() {
         return NAME;
