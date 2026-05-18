@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.ServiceContractOutcome;
+import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
 import org.junit.jupiter.api.Test;
 
@@ -26,24 +26,19 @@ class InconclusiveFoldsIntoFailTest {
         }
 
         @Override
-        public void postconditions(PostconditionBuilder<String> b) {
-            // Empty — the explicit criteria carry the postconditions.
-        }
-
-        @Override
-        public void criteria(CriteriaBuilder<String> b) {
-            b.add(Criterion.transforming(
-                    "parsed-positive",
-                    s -> {
-                        try {
-                            return Outcome.ok(Integer.parseInt(s));
-                        } catch (NumberFormatException e) {
-                            return Outcome.fail("parse-error", "not a number: " + s);
-                        }
-                    },
-                    cb -> cb.ensure("positive", (Integer n) -> n > 0
-                            ? Outcome.ok()
-                            : Outcome.fail("non-positive", "n=" + n))));
+        public Criteria<String> criteria() {
+            return Composite.compose("parsed-positive",
+                    Posture.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                            .transforming(s -> {
+                                try {
+                                    return Outcome.ok(Integer.parseInt(s));
+                                } catch (NumberFormatException e) {
+                                    return Outcome.fail("parse-error", "not a number: " + s);
+                                }
+                            })
+                            .satisfies("positive", (Integer n) -> n > 0
+                                    ? Outcome.ok()
+                                    : Outcome.fail("non-positive", "n=" + n)));
         }
     }
 

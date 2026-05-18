@@ -12,7 +12,8 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
@@ -37,8 +38,8 @@ class EmpiricalEndToEndIntegrationTest {
     private static final String USE_CASE_ID = "always-passes-use-case";
 
     static class AlwaysPassesServiceContract implements ServiceContract<Factors, Integer, Boolean> {
-        @Override public void criteria(CriteriaBuilder<Boolean> b) {
-            b.addCriterion("contract", pb -> { /* none */ }).empirical();
+        @Override public Criteria<Boolean> criteria() {
+            return Posture.empirical();
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(true);

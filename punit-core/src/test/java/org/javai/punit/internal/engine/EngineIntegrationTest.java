@@ -14,7 +14,8 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.ValueMatcher;
 import org.javai.punit.api.spec.TerminationReason;
 import org.javai.punit.api.PostconditionBuilder;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -265,8 +266,8 @@ class EngineIntegrationTest {
     @DisplayName("ProbabilisticTest: custom matcher drives the verdict's pass-rate criterion")
     void testPathInstanceConformanceUsesCustomMatcher() {
         ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+            @Override public Criteria<String> criteria() {
+                return Posture.meeting(0.95, ThresholdOrigin.SLA);
             }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -302,8 +303,8 @@ class EngineIntegrationTest {
     @DisplayName("ProbabilisticTest: expectedOutputs without explicit matcher defaults to equality")
     void testPathDefaultsToEqualityMatcher() {
         ServiceContract<LlmFactors, String, String> upperCase = new ServiceContract<>() {
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.4, ThresholdOrigin.SLA);
+            @Override public Criteria<String> criteria() {
+                return Posture.meeting(0.4, ThresholdOrigin.SLA);
             }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.toUpperCase());
@@ -333,8 +334,8 @@ class EngineIntegrationTest {
     @DisplayName("ProbabilisticTest: matcher configured on Sampling.Builder.matching(...) drives the verdict")
     void testPathPropagatesMatcherFromSampling() {
         ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+            @Override public Criteria<String> criteria() {
+                return Posture.meeting(0.95, ThresholdOrigin.SLA);
             }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -398,8 +399,8 @@ class EngineIntegrationTest {
     @DisplayName("ProbabilisticTest: spec-builder matcher overrides the matcher carried on Sampling")
     void testPathSpecBuilderMatcherOverridesSampling() {
         ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+            @Override public Criteria<String> criteria() {
+                return Posture.meeting(0.95, ThresholdOrigin.SLA);
             }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -469,8 +470,8 @@ class EngineIntegrationTest {
     @DisplayName("ProbabilisticTest: spec-builder expectedOutputs overrides the expected list carried on Sampling")
     void testPathSpecBuilderExpectedOverridesSampling() {
         ServiceContract<LlmFactors, String, String> returnSameCase = new ServiceContract<>() {
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+            @Override public Criteria<String> criteria() {
+                return Posture.meeting(0.95, ThresholdOrigin.SLA);
             }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
@@ -865,8 +866,8 @@ class EngineIntegrationTest {
     // ── Test doubles ────────────────────────────────────────────────
 
     private static class AlwaysPassesServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
-        @Override public void criteria(CriteriaBuilder<Boolean> b) {
-            b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+        @Override public Criteria<Boolean> criteria() {
+            return Posture.meeting(0.95, ThresholdOrigin.SLA);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -875,8 +876,8 @@ class EngineIntegrationTest {
 
     /** Empirical-posture sibling of {@link AlwaysPassesServiceContract} for the empirical-path test. */
     private static class AlwaysPassesEmpiricalServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
-        @Override public void criteria(CriteriaBuilder<Boolean> b) {
-            b.addCriterion("contract", pb -> { /* none */ }).empirical();
+        @Override public Criteria<Boolean> criteria() {
+            return Posture.empirical();
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -885,8 +886,8 @@ class EngineIntegrationTest {
 
     /** Returns business-level Fail outcomes — the "contract didn't hold" signal. */
     private static class AlwaysReturnsFailServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
-        @Override public void criteria(CriteriaBuilder<Boolean> b) {
-            b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLO);
+        @Override public Criteria<Boolean> criteria() {
+            return Posture.meeting(0.95, ThresholdOrigin.SLO);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure for input " + input);

@@ -8,7 +8,8 @@ import java.util.Map;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.PostconditionBuilder;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
@@ -55,11 +56,10 @@ class LatencyEverywhereIntegrationTest {
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
-        @Override public void criteria(CriteriaBuilder<Integer> b) {
-            b.addCriterion("contract", pb ->
-                    pb.ensure("length is even", n ->
-                            n % 2 == 0 ? Outcome.ok() : Outcome.fail("odd-length", "length=" + n)))
-                    .meeting(0.5, ThresholdOrigin.SLA);
+        @Override public Criteria<Integer> criteria() {
+            return Posture.<Integer>meeting(0.5, ThresholdOrigin.SLA)
+                    .satisfies("length is even", n ->
+                            n % 2 == 0 ? Outcome.ok() : Outcome.fail("odd-length", "length=" + n));
         }
     }
 

@@ -13,7 +13,9 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Composite;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
@@ -46,11 +48,12 @@ class SampleSizeResolverTest {
             @Override public Outcome<String> invoke(String input, TokenTracker t) {
                 return Outcome.ok(input);
             }
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("the-criterion", pb -> pb.ensure("always", v -> Outcome.ok()))
-                        .empirical()
-                        .detectingMde(mde)
-                        .atPower(power);
+            @Override public Criteria<String> criteria() {
+                return Composite.compose("the-criterion",
+                        Posture.<String>empirical()
+                                .detectingMde(mde)
+                                .atPower(power)
+                                .satisfies("always", v -> Outcome.ok()));
             }
         };
     }
@@ -61,9 +64,10 @@ class SampleSizeResolverTest {
             @Override public Outcome<String> invoke(String input, TokenTracker t) {
                 return Outcome.ok(input);
             }
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("threshold-criterion", pb -> pb.ensure("always", v -> Outcome.ok()))
-                        .meeting(0.90, ThresholdOrigin.SLA);
+            @Override public Criteria<String> criteria() {
+                return Composite.compose("threshold-criterion",
+                        Posture.<String>meeting(0.90, ThresholdOrigin.SLA)
+                                .satisfies("always", v -> Outcome.ok()));
             }
         };
     }
@@ -159,11 +163,14 @@ class SampleSizeResolverTest {
             @Override public Outcome<String> invoke(String input, TokenTracker t) {
                 return Outcome.ok(input);
             }
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("loose", pb -> pb.ensure("always", v -> Outcome.ok()))
-                        .empirical().detectingMde(0.10).atPower(0.50);
-                b.addCriterion("tight", pb -> pb.ensure("always", v -> Outcome.ok()))
-                        .empirical().detectingMde(0.02).atPower(0.95);
+            @Override public Criteria<String> criteria() {
+                return Composite.compose(
+                        "loose", Posture.<String>empirical()
+                                .detectingMde(0.10).atPower(0.50)
+                                .satisfies("always", v -> Outcome.ok()),
+                        "tight", Posture.<String>empirical()
+                                .detectingMde(0.02).atPower(0.95)
+                                .satisfies("always", v -> Outcome.ok()));
             }
         };
 
