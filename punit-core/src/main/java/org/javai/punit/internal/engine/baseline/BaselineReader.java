@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -138,6 +139,7 @@ public final class BaselineReader {
         if (latencyIndicator.hasData()) {
             entries.put("percentile-latency", new LatencyStatistics(
                     latencyIndicator.passingPercentiles(),
+                    latencyIndicator.sortedPassingLatenciesMs(),
                     latencyIndicator.contributingSamples()));
         }
 
@@ -176,7 +178,46 @@ public final class BaselineReader {
                 ? Duration.ofMillis(requireInt(block, "p99Ms"))
                 : Duration.ZERO;
         LatencyResult result = new LatencyResult(p50, p90, p95, p99, contributing);
-        return new LatencyIndicator(result, contributing, total);
+        long[] sorted = parseSortedLatencies(block, contributing);
+        return new LatencyIndicator(result, sorted, contributing, total);
+    }
+
+    /**
+     * Parse the {@code sortedPassingLatenciesMs:} list under the
+     * {@code latency:} block. Legacy baselines that predate the
+     * binomial-bound treatment ({@code DIR-LATENCY-EMPIRICAL-WIRE-DERIVER-punit})
+     * may not carry this list; in that case we fall back to a
+     * synthetic vector derived from the percentile point estimates,
+     * which lets the deriver run but produces a coarser bound than
+     * the full-vector form. A warning is the caller's responsibility
+     * (saturation/feasibility surfaces in {@code DIR-LATENCY-SATURATION-AND-EXISTENCE-GATE-punit}).
+     */
+    private long[] parseSortedLatencies(Map<String, Object> block, int contributing) {
+        if (!block.containsKey("sortedPassingLatenciesMs")) {
+            return new long[contributing]; // synthetic-zero fallback; deriver will produce conservative bound
+        }
+        Object raw = block.get("sortedPassingLatenciesMs");
+        if (!(raw instanceof List<?> list)) {
+            throw new IllegalArgumentException(
+                    "latency.sortedPassingLatenciesMs must be a list, got "
+                            + (raw == null ? "null" : raw.getClass().getSimpleName()));
+        }
+        if (list.size() != contributing) {
+            throw new IllegalArgumentException(
+                    "latency.sortedPassingLatenciesMs length (" + list.size()
+                            + ") must equal contributingSamples (" + contributing + ")");
+        }
+        long[] arr = new long[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            Object v = list.get(i);
+            if (!(v instanceof Number n)) {
+                throw new IllegalArgumentException(
+                        "latency.sortedPassingLatenciesMs[" + i + "] must be a number, got "
+                                + (v == null ? "null" : v.getClass().getSimpleName()));
+            }
+            arr[i] = n.longValue();
+        }
+        return arr;
     }
 
     private CovariateProfile parseCovariates(Map<String, Object> root) {
@@ -247,7 +288,7 @@ public final class BaselineReader {
                     parseDuration(percentiles, PERCENTILE_KEY_P95),
                     parseDuration(percentiles, PERCENTILE_KEY_P99),
                     sampleCount);
-            return new LatencyStatistics(result, sampleCount);
+            return new LatencyStatistics(result, new long[sampleCount], sampleCount);
         }
         throw new IllegalArgumentException(
                 "Unrecognised statistics entry shape for criterion '" + criterionName

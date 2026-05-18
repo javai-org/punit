@@ -153,9 +153,10 @@ public final class BaselineEmitter {
         // reader synthesises this map entry from that block at load
         // time.
         LatencyResult passingForCriterion = summary.passingLatencyResult();
+        long[] sortedPassingMs = sortedPassingLatenciesMs(summary);
         if (passingForCriterion.sampleCount() > 0) {
             stats.put("percentile-latency",
-                    new LatencyStatistics(passingForCriterion, summary.successes()));
+                    new LatencyStatistics(passingForCriterion, sortedPassingMs, summary.successes()));
         }
 
         // The resolved covariate profile is part of the baseline's
@@ -175,7 +176,7 @@ public final class BaselineEmitter {
         LatencyResult passing = summary.passingLatencyResult();
         LatencyIndicator latencyIndicator = passing.sampleCount() == 0
                 ? LatencyIndicator.empty()
-                : new LatencyIndicator(passing, summary.successes(), total);
+                : new LatencyIndicator(passing, sortedPassingMs, summary.successes(), total);
 
         return new BaselineRecord(
                 serviceContractId,
@@ -211,4 +212,18 @@ public final class BaselineEmitter {
         return new PerCriterionPassRateStatistics(byCriterion);
     }
 
+    /**
+     * Pull passing-sample latencies from the trial stream, in
+     * milliseconds, sorted ascending. Underpins the
+     * {@link LatencyStatistics#sortedLatenciesMs()} field consumed by
+     * {@code LatencyThresholdDeriver} per Statistical Companion §12.4.2.
+     */
+    private static long[] sortedPassingLatenciesMs(SampleSummary<?> summary) {
+        long[] arr = summary.trials().stream()
+                .filter(t -> t.outcome().value() instanceof org.javai.outcome.Outcome.Ok)
+                .mapToLong(t -> t.duration().toMillis())
+                .toArray();
+        java.util.Arrays.sort(arr);
+        return arr;
+    }
 }

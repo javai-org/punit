@@ -82,7 +82,7 @@ class BaselineWriterTest {
                 Duration.ofMillis(800),
                 Duration.ofMillis(1200),
                 1000);
-        LatencyIndicator indicator = new LatencyIndicator(percentiles, 1000, 1000);
+        LatencyIndicator indicator = new LatencyIndicator(percentiles, new long[1000], 1000, 1000);
 
         String yaml = writer.toYaml(recordWithLatency(
                 Map.of("bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000)),
@@ -114,7 +114,7 @@ class BaselineWriterTest {
         LatencyIndicator indicator = new LatencyIndicator(
                 new LatencyResult(Duration.ofMillis(250), Duration.ofMillis(500),
                         Duration.ofMillis(800), Duration.ofMillis(1200), 1000),
-                1000, 1000);
+                new long[1000], 1000, 1000);
 
         String yaml = writer.toYaml(recordWithLatency(entries, indicator));
         Map<String, Object> root = new Yaml().load(yaml);

@@ -74,7 +74,7 @@ class BaselineReaderTest {
                 Duration.ofMillis(800),
                 Duration.ofMillis(1200),
                 1000);
-        LatencyIndicator indicator = new LatencyIndicator(percentiles, 1000, 1000);
+        LatencyIndicator indicator = new LatencyIndicator(percentiles, new long[1000], 1000, 1000);
 
         // Pass-rate is mandatory (statisticsByCriterionName must be
         // non-empty per BaselineRecord's invariant); latency rides on
@@ -109,7 +109,7 @@ class BaselineReaderTest {
         LatencyIndicator indicator = new LatencyIndicator(
                 new LatencyResult(Duration.ofMillis(250), Duration.ofMillis(500),
                         Duration.ofMillis(800), Duration.ofMillis(1200), 1000),
-                1000, 1000);
+                new long[1000], 1000, 1000);
 
         BaselineRecord parsed = roundTrip(entries, indicator);
 

@@ -39,7 +39,10 @@ public final class PostureBasedSpecCriterionDeriver implements SpecCriterionDeri
             PercentileKey first = arr[0];
             PercentileKey[] rest = new PercentileKey[arr.length - 1];
             System.arraycopy(arr, 1, rest, 0, rest.length);
-            return PercentileLatency.<O>empirical(first, rest);
+            double confidence = posture.confidenceFloor().isPresent()
+                    ? posture.confidenceFloor().getAsDouble()
+                    : org.javai.punit.statistics.StatisticalDefaults.DEFAULT_CONFIDENCE;
+            return PercentileLatency.<O>empirical(confidence, first, rest);
         }
         // LATENCY_CONTRACTUAL
         LatencySpec spec = posture.latencySpec().orElseThrow(() -> new IllegalStateException(

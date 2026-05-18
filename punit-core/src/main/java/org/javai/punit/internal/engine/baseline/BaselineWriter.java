@@ -132,6 +132,7 @@ public final class BaselineWriter {
         if (latency.hasData()) {
             org.javai.punit.internal.engine.emit.LatencySection.blockFor(
                     latency.passingPercentiles(),
+                    latency.sortedPassingLatenciesMs(),
                     latency.contributingSamples(),
                     latency.totalSamples())
                 .ifPresent(block -> root.put("latency", block));

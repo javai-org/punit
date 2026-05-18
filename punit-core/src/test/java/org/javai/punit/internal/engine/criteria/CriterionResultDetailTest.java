@@ -109,7 +109,7 @@ class CriterionResultDetailTest {
                         Optional.of(PerCriterionPassRateStatistics.of("contract", 0.9, 1234))));
         var latency = PercentileLatency.<Integer>empirical(PercentileKey.P95).evaluate(
                 ctx(summaryWithLatency(observed(10, 20, 30, 40, 2)),
-                        Optional.of(new LatencyStatistics(observed(10, 20, 50, 60, 1234), 1234))));
+                        Optional.of(LatencyStatistics.fromPercentiles(observed(10, 20, 50, 60, 1234), 1234))));
 
         assertThat(passRate.detail()).containsEntry("baselineSampleCount", 1234);
         assertThat(latency.detail()).containsEntry("baselineSampleCount", 1234);

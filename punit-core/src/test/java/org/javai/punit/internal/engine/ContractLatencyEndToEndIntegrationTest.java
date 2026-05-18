@@ -193,7 +193,9 @@ class ContractLatencyEndToEndIntegrationTest {
             Path baselineDir, Duration pX, int sampleCount) throws IOException {
         String fingerprint = FactorsFingerprint.of(FactorBundle.of(FACTORS));
         LatencyResult percentiles = new LatencyResult(pX, pX, pX, pX, sampleCount);
-        LatencyIndicator indicator = new LatencyIndicator(percentiles, sampleCount, sampleCount);
+        long[] sorted = new long[sampleCount];
+        java.util.Arrays.fill(sorted, pX.toMillis());
+        LatencyIndicator indicator = new LatencyIndicator(percentiles, sorted, sampleCount, sampleCount);
         BaselineRecord record = new BaselineRecord(
                 USE_CASE_ID, "latencyBaseline", fingerprint,
                 sampling(Criteria.empty(), LatencyCriterion.empirical(PercentileKey.P95), 1)
@@ -202,7 +204,7 @@ class ContractLatencyEndToEndIntegrationTest {
                 Instant.parse("2026-05-18T12:00:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "percentile-latency",
-                        new LatencyStatistics(percentiles, sampleCount)),
+                        LatencyStatistics.fromPercentiles(percentiles, sampleCount)),
                 org.javai.punit.api.covariate.CovariateProfile.empty(),
                 indicator);
         new BaselineWriter().write(record, baselineDir);

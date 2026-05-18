@@ -20,21 +20,25 @@ public enum PercentileKey {
         @Override public OptionalLong ceilingMillis(LatencySpec spec) { return spec.p50Millis(); }
         @Override public Duration observed(LatencyResult result) { return result.p50(); }
         @Override public String detailKey() { return "p50"; }
+        @Override public double value() { return 0.50; }
     },
     P90 {
         @Override public OptionalLong ceilingMillis(LatencySpec spec) { return spec.p90Millis(); }
         @Override public Duration observed(LatencyResult result) { return result.p90(); }
         @Override public String detailKey() { return "p90"; }
+        @Override public double value() { return 0.90; }
     },
     P95 {
         @Override public OptionalLong ceilingMillis(LatencySpec spec) { return spec.p95Millis(); }
         @Override public Duration observed(LatencyResult result) { return result.p95(); }
         @Override public String detailKey() { return "p95"; }
+        @Override public double value() { return 0.95; }
     },
     P99 {
         @Override public OptionalLong ceilingMillis(LatencySpec spec) { return spec.p99Millis(); }
         @Override public Duration observed(LatencyResult result) { return result.p99(); }
         @Override public String detailKey() { return "p99"; }
+        @Override public double value() { return 0.99; }
     };
 
     /** The asserted ceiling from a LatencySpec, when that percentile is asserted. */
@@ -45,4 +49,7 @@ public enum PercentileKey {
 
     /** The stable short-form key used in evaluation-detail map keys. */
     public abstract String detailKey();
+
+    /** The percentile as a number in (0, 1) — e.g. 0.95 for P95. */
+    public abstract double value();
 }
