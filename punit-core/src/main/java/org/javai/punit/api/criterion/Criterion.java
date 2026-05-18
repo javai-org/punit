@@ -111,7 +111,7 @@ public interface Criterion<O> {
      *
      * <p>Framework-internal entry point: the value-returning
      * authoring surface (see {@code Acceptance.meeting/.empirical/.zeroTolerance}
-     * and {@code Composite.compose}) is the path authors use.
+     * and {@code Criteria.of}) is the path authors use.
      */
     static <O> Criterion<O> direct(
             String id, Consumer<PostconditionBuilder<O>> body) {

@@ -3,6 +3,7 @@ package org.javai.punit.api.criterion;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -48,7 +49,8 @@ import org.javai.punit.api.PostconditionCheck;
  * For the K=1 default-id case the author returns the decl directly
  * from {@code Contract.criteria()}; the framework lowers it to a
  * one-entry runtime criteria list with the criterion id
- * {@value Composite#DEFAULT_CRITERION_ID}.
+ * {@value Criteria#DEFAULT_CRITERION_ID} when no explicit
+ * {@code .name(...)} has been supplied.
  *
  * @param <O> the contract's per-sample output value type
  */
@@ -56,10 +58,46 @@ public final class CriterionDecl<O> implements Decl<O> {
 
     private final CriterionPosture posture;
     private final List<NamedPostcondition<O>> postconditions;
+    private final Optional<String> name;
 
     CriterionDecl(CriterionPosture posture, List<NamedPostcondition<O>> postconditions) {
+        this(posture, postconditions, Optional.empty());
+    }
+
+    CriterionDecl(CriterionPosture posture, List<NamedPostcondition<O>> postconditions,
+            Optional<String> name) {
         this.posture = Objects.requireNonNull(posture, "posture");
         this.postconditions = List.copyOf(postconditions);
+        this.name = Objects.requireNonNull(name, "name");
+    }
+
+    @Override
+    public Optional<String> name() {
+        return name;
+    }
+
+    /**
+     * Set the criterion's name — used by baseline storage,
+     * diagnostics, and (under {@code DIR-CRITERIA-OVERRIDE-punit})
+     * test-side override targeting. The name is optional for K=1
+     * contracts (defaults to {@link Criteria#DEFAULT_CRITERION_ID})
+     * and required for K>1 contracts.
+     *
+     * @throws IllegalStateException if {@code .name(...)} has already
+     *         been called on this decl
+     * @throws IllegalArgumentException if {@code name} is blank
+     */
+    public CriterionDecl<O> name(String name) {
+        Objects.requireNonNull(name, "name");
+        if (name.isBlank()) {
+            throw new IllegalArgumentException(".name(...) requires a non-blank name");
+        }
+        if (this.name.isPresent()) {
+            throw new IllegalStateException(
+                    ".name(...) already supplied as '" + this.name.get()
+                            + "'; cannot reassign to '" + name + "'");
+        }
+        return new CriterionDecl<>(posture, postconditions, Optional.of(name));
     }
 
     /** The criterion's posture — the verdict-producing commitment. */
@@ -124,7 +162,7 @@ public final class CriterionDecl<O> implements Decl<O> {
      * alongside the verdict.
      */
     public CriterionDecl<O> contractRef(String ref) {
-        return new CriterionDecl<>(posture.withContractRef(ref), postconditions);
+        return new CriterionDecl<>(posture.withContractRef(ref), postconditions, name);
     }
 
     /**
@@ -134,7 +172,7 @@ public final class CriterionDecl<O> implements Decl<O> {
      * zero-tolerance commitment.
      */
     public CriterionDecl<O> atConfidence(double confidence) {
-        return new CriterionDecl<>(posture.withConfidenceFloor(confidence), postconditions);
+        return new CriterionDecl<>(posture.withConfidenceFloor(confidence), postconditions, name);
     }
 
     /**
@@ -144,7 +182,7 @@ public final class CriterionDecl<O> implements Decl<O> {
      * must be paired with {@link #atPower(double)}.
      */
     public CriterionDecl<O> detectingMde(double mde) {
-        return new CriterionDecl<>(posture.withMde(mde), postconditions);
+        return new CriterionDecl<>(posture.withMde(mde), postconditions, name);
     }
 
     /**
@@ -153,7 +191,7 @@ public final class CriterionDecl<O> implements Decl<O> {
      * must be paired with {@link #detectingMde(double)}.
      */
     public CriterionDecl<O> atPower(double power) {
-        return new CriterionDecl<>(posture.withPower(power), postconditions);
+        return new CriterionDecl<>(posture.withPower(power), postconditions, name);
     }
 
     /**
@@ -196,14 +234,14 @@ public final class CriterionDecl<O> implements Decl<O> {
                             + " against the contract's output or against the"
                             + " transformed value, not both. Either drop the"
                             + " pre-transform postconditions, or split into two"
-                            + " criteria via Composite.compose(...).");
+                            + " criteria via Criteria.of(...).");
         }
-        return new TransformingDecl<>(posture, transform, List.of());
+        return new TransformingDecl<>(posture, transform, List.of(), name);
     }
 
     @Override
     public List<Criterion<O>> asList() {
-        return List.of(toRuntime(Composite.DEFAULT_CRITERION_ID));
+        return List.of(toRuntime(name.orElse(Criteria.DEFAULT_CRITERION_ID)));
     }
 
     @Override
@@ -224,10 +262,10 @@ public final class CriterionDecl<O> implements Decl<O> {
         }
     }
 
-    private CriterionDecl<O> appendPostcondition(String name, PostconditionCheck<O> check) {
+    private CriterionDecl<O> appendPostcondition(String postconditionName, PostconditionCheck<O> check) {
         List<NamedPostcondition<O>> next = new ArrayList<>(postconditions.size() + 1);
         next.addAll(postconditions);
-        next.add(new NamedPostcondition<>(name, check));
-        return new CriterionDecl<>(posture, next);
+        next.add(new NamedPostcondition<>(postconditionName, check));
+        return new CriterionDecl<>(posture, next, name);
     }
 }

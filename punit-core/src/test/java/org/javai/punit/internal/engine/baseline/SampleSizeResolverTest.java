@@ -13,7 +13,6 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.criterion.Composite;
 import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.spec.BaselineStatistics;
@@ -49,11 +48,11 @@ class SampleSizeResolverTest {
                 return Outcome.ok(input);
             }
             @Override public Criteria<String> criteria() {
-                return Composite.compose("the-criterion",
-                        Acceptance.<String>empirical()
-                                .detectingMde(mde)
-                                .atPower(power)
-                                .satisfies("always", v -> Outcome.ok()));
+                return Acceptance.<String>empirical()
+                        .name("the-criterion")
+                        .detectingMde(mde)
+                        .atPower(power)
+                        .satisfies("always", v -> Outcome.ok());
             }
         };
     }
@@ -65,9 +64,9 @@ class SampleSizeResolverTest {
                 return Outcome.ok(input);
             }
             @Override public Criteria<String> criteria() {
-                return Composite.compose("threshold-criterion",
-                        Acceptance.<String>meeting(0.90, ThresholdOrigin.SLA)
-                                .satisfies("always", v -> Outcome.ok()));
+                return Acceptance.<String>meeting(0.90, ThresholdOrigin.SLA)
+                        .name("threshold-criterion")
+                        .satisfies("always", v -> Outcome.ok());
             }
         };
     }
@@ -164,11 +163,13 @@ class SampleSizeResolverTest {
                 return Outcome.ok(input);
             }
             @Override public Criteria<String> criteria() {
-                return Composite.compose(
-                        "loose", Acceptance.<String>empirical()
+                return Criteria.of(
+                        Acceptance.<String>empirical()
+                                .name("loose")
                                 .detectingMde(0.10).atPower(0.50)
                                 .satisfies("always", v -> Outcome.ok()),
-                        "tight", Acceptance.<String>empirical()
+                        Acceptance.<String>empirical()
+                                .name("tight")
                                 .detectingMde(0.02).atPower(0.95)
                                 .satisfies("always", v -> Outcome.ok()));
             }
