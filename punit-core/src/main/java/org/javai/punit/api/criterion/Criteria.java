@@ -35,7 +35,7 @@ import java.util.List;
  * @param <O> the contract's per-sample output value type
  */
 public sealed interface Criteria<O>
-        permits CriterionDecl, CompositeCriteria, EmptyCriteria {
+        permits Decl, CompositeCriteria, EmptyCriteria {
 
     /**
      * Lower this declaration to the runtime {@link Criterion} list

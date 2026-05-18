@@ -52,7 +52,7 @@ import org.javai.punit.api.PostconditionCheck;
  *
  * @param <O> the contract's per-sample output value type
  */
-public final class CriterionDecl<O> implements Criteria<O> {
+public final class CriterionDecl<O> implements Decl<O> {
 
     private final CriterionPosture posture;
     private final List<NamedPostcondition<O>> postconditions;
@@ -77,9 +77,8 @@ public final class CriterionDecl<O> implements Criteria<O> {
      * for pass; the framework synthesises the failure message when
      * it returns {@code false}.
      *
-     * <p>Java's lambda inference picks this overload when the lambda
-     * body is a boolean expression; for richer failure messages use
-     * {@link #where(String, Function)}.
+     * <p>For richer failure messages — author-supplied symbolic name
+     * and message — use {@link #satisfies(String, Function)}.
      */
     public CriterionDecl<O> where(String name, Predicate<O> predicate) {
         Objects.requireNonNull(name, "name");
@@ -97,12 +96,14 @@ public final class CriterionDecl<O> implements Criteria<O> {
     /**
      * Add a named postcondition that returns its own {@link Outcome}.
      * Use this overload when the failure message benefits from
-     * diagnostic detail (offending input, parse error, etc.).
+     * diagnostic detail (offending input, parse error, etc.) —
+     * {@code Outcome.fail("symbolic-name", "message")} flows through to
+     * the verdict's failure histogram unchanged.
      */
-    public CriterionDecl<O> where(String name, Function<O, Outcome<?>> check) {
+    public CriterionDecl<O> satisfies(String name, Function<O, Outcome<?>> check) {
         Objects.requireNonNull(name, "name");
         if (name.isBlank()) {
-            throw new IllegalArgumentException(".where(name, ...) requires a non-blank name");
+            throw new IllegalArgumentException(".satisfies(name, ...) requires a non-blank name");
         }
         Objects.requireNonNull(check, "check");
         PostconditionCheck<O> adapted = v -> {
@@ -155,18 +156,58 @@ public final class CriterionDecl<O> implements Criteria<O> {
         return new CriterionDecl<>(posture.withPower(power), postconditions);
     }
 
+    /**
+     * Chain a transform — parse, project, derive — that produces a
+     * value of a different type {@code T} the criterion's
+     * postconditions will check. Returns a {@link TransformingDecl}
+     * whose {@code .where(...)} and {@code .satisfies(...)} operate
+     * on {@code T}, not on the contract's output {@code O}.
+     *
+     * <p>Transform semantics:
+     * <ul>
+     *   <li>Transform returns {@link Outcome.Ok Ok(t)} — the
+     *       postcondition chain runs against {@code t}; criterion
+     *       sample is PASS / FAIL based on the chain.</li>
+     *   <li>Transform returns {@link Outcome.Fail Fail(...)} or throws
+     *       — criterion sample is
+     *       {@link CriterionSampleOutcome#INCONCLUSIVE INCONCLUSIVE};
+     *       the postcondition chain is skipped. The failure's
+     *       symbolic name and message flow through to the per-sample
+     *       record for diagnostics.</li>
+     * </ul>
+     *
+     * <p>Posture stays attached to the outer (this) decl; postconditions
+     * already attached here are <em>not</em> carried forward to the
+     * returned {@code TransformingDecl} — postconditions must be
+     * stated either pre-transform (on this decl, via
+     * {@code .where} / {@code .satisfies}) or post-transform
+     * (on the returned decl), not both. Mixing pre- and
+     * post-transform postconditions is a misuse and is rejected.
+     *
+     * @param <T> the derived value type the postcondition chain
+     *            evaluates against on successful transform
+     */
+    public <T> TransformingDecl<O, T> transforming(Function<O, Outcome<T>> transform) {
+        Objects.requireNonNull(transform, "transform");
+        if (!postconditions.isEmpty()) {
+            throw new IllegalStateException(
+                    ".transforming(...) cannot follow .where/.satisfies on the same"
+                            + " criterion decl: postconditions are evaluated either"
+                            + " against the contract's output or against the"
+                            + " transformed value, not both. Either drop the"
+                            + " pre-transform postconditions, or split into two"
+                            + " criteria via Composite.compose(...).");
+        }
+        return new TransformingDecl<>(posture, transform, List.of());
+    }
+
     @Override
     public List<Criterion<O>> asList() {
         return List.of(toRuntime(Composite.DEFAULT_CRITERION_ID));
     }
 
-    /**
-     * Lower this decl to a runtime {@link Criterion} with the given
-     * id. Called by {@link CompositeCriteria} when assembling the
-     * multi-criterion list and by {@link #asList()} for the K=1
-     * default-id case.
-     */
-    Criterion<O> toRuntime(String id) {
+    @Override
+    public Criterion<O> toRuntime(String id) {
         Criterion<O> base = Criterion.direct(id, this::populatePostconditions);
         if (base instanceof DirectCriterion<O> direct) {
             return direct.withPosture(posture);
