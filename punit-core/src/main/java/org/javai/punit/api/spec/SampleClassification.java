@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ServiceContractOutcome;
@@ -35,10 +34,9 @@ import org.javai.outcome.Outcome;
  *       carries the failure name and message, plus the duration and
  *       tokens.
  *   <li>**Apply-level success**: postcondition results are present
- *       (possibly empty when the contract has no clauses), the
- *       optional match result reflects an instance-conformance
- *       check if matching was configured, and the optional duration
- *       violation reflects the per-sample max-latency bound.
+ *       (possibly empty when the contract has no clauses), and the
+ *       optional duration violation reflects the per-sample
+ *       max-latency bound.
  * </ul>
  *
  * @param applyFailureName    when the apply call itself failed,
@@ -51,8 +49,6 @@ import org.javai.outcome.Outcome;
  * @param durationViolation   present when the sample exceeded the
  *                            service contract's {@link
  *                            ServiceContract#maxLatency() declared max}
- * @param match               the instance-conformance match result,
- *                            if matching was configured for this run
  * @param duration            the wall-clock time the sample took
  * @param tokens              the cost the sample consumed
  */
@@ -61,7 +57,6 @@ public record SampleClassification(
         Optional<String> applyFailureMessage,
         List<PostconditionResult> postconditionResults,
         Optional<DurationViolation> durationViolation,
-        Optional<MatchResult> match,
         Duration duration,
         long tokens) {
 
@@ -70,7 +65,6 @@ public record SampleClassification(
         Objects.requireNonNull(applyFailureMessage, "applyFailureMessage");
         Objects.requireNonNull(postconditionResults, "postconditionResults");
         Objects.requireNonNull(durationViolation, "durationViolation");
-        Objects.requireNonNull(match, "match");
         Objects.requireNonNull(duration, "duration");
         if (tokens < 0) {
             throw new IllegalArgumentException("tokens must be non-negative, got " + tokens);
@@ -88,7 +82,7 @@ public record SampleClassification(
 
     /**
      * Build a classification for an apply-level failure — postcondition
-     * results, match, and duration-violation are all empty.
+     * results and duration-violation are both empty.
      */
     public static SampleClassification failedAtApply(
             String name, String message, Duration duration, long tokens) {
@@ -99,21 +93,18 @@ public record SampleClassification(
                 Optional.of(message),
                 List.of(),
                 Optional.empty(),
-                Optional.empty(),
                 duration,
                 tokens);
     }
 
     /**
      * Build a classification for a successful apply call — the
-     * postcondition results, optional match, optional duration
-     * violation, duration, and tokens together describe what was
-     * observed.
+     * postcondition results, optional duration violation, duration,
+     * and tokens together describe what was observed.
      */
     public static SampleClassification from(
             List<PostconditionResult> postconditionResults,
             Optional<DurationViolation> durationViolation,
-            Optional<MatchResult> match,
             Duration duration,
             long tokens) {
         return new SampleClassification(
@@ -121,15 +112,14 @@ public record SampleClassification(
                 Optional.empty(),
                 postconditionResults,
                 durationViolation,
-                match,
                 duration,
                 tokens);
     }
 
     /**
      * Classify one sample. Reads the outcome's pre-evaluated
-     * postcondition results and match; reads the service contract's
-     * max-latency bound to detect a duration violation.
+     * postcondition results; reads the service contract's max-latency
+     * bound to detect a duration violation.
      */
     public static <I, O> SampleClassification classify(
             ServiceContract<?, I, O> serviceContract, ServiceContractOutcome<I, O> outcome) {
@@ -146,7 +136,6 @@ public record SampleClassification(
         return from(
                 outcome.postconditionResults(),
                 violation,
-                outcome.match(),
                 outcome.duration(),
                 outcome.tokens());
     }

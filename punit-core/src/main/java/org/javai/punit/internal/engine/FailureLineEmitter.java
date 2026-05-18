@@ -54,9 +54,9 @@ final class FailureLineEmitter {
     /**
      * Emit one line per failed contract evaluation observed in
      * {@code classification}. Apply-level failures (including
-     * synthesised defects), match mismatches, and per-clause
-     * postcondition failures are all routed through the same line
-     * shape; the {@code kind} token discriminates them.
+     * synthesised defects) and per-clause postcondition failures are
+     * all routed through the same line shape; the {@code kind} token
+     * discriminates them.
      */
     static void emit(int sampleIndex, SampleClassification classification) {
         if (classification.applyFailed()) {
@@ -66,11 +66,6 @@ final class FailureLineEmitter {
             emitLine(sampleIndex, kind, name, message);
             return;
         }
-        classification.match()
-                .filter(m -> !m.matches())
-                .ifPresent(m -> emitLine(sampleIndex, "match",
-                        m.description(),
-                        m.diff().orElse("")));
         for (PostconditionResult result : classification.postconditionResults()) {
             if (!result.failed()) {
                 continue;

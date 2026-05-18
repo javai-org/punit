@@ -7,7 +7,6 @@ import java.util.OptionalLong;
 import java.util.function.Function;
 
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.api.ValueMatcher;
 
 /**
  * Engine-facing strategy contract carrying the typed methods the
@@ -31,10 +30,6 @@ public interface TypedSpec<FT, IT, OT> {
     Iterator<Configuration<FT, IT, OT>> configurations();
 
     Function<FT, ServiceContract<FT, IT, OT>> serviceContractFactory();
-
-    default Optional<ValueMatcher<OT>> matcher() {
-        return Optional.empty();
-    }
 
     void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary);
 

@@ -282,9 +282,6 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
         List<CriterionSampleCounts> methodologyCriteria = summary.criterionSampleCounts();
         // K=1 path uses run-level counts (summary.successes/failures),
         // not the auto-derived methodology criterion's counts. The
-        // run-level numbers reflect framework-side concerns
-        // (expectedOutputs mismatches, value-matcher failures) that
-        // the contract-level postcondition counter does not see; the
         // legacy K=1 behaviour read these run-level numbers, and
         // K=1 tests are pinned against them. K>1 must use per-criterion
         // counts so each methodology criterion is evaluated against

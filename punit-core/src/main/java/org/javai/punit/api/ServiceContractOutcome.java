@@ -3,7 +3,6 @@ package org.javai.punit.api;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.criterion.CriterionSampleResult;
@@ -20,9 +19,8 @@ import org.javai.punit.api.criterion.CriterionSampleResult;
  * <p>Authors do not construct {@code ServiceContractOutcome} directly. They
  * implement {@link Contract#invoke(Object, TokenTracker) invoke}
  * returning {@link Outcome.Ok} or {@link Outcome.Fail}; the framework's
- * {@code apply} default wraps that with timing, cost diff, postcondition
- * evaluation, and (for matching forms) the comparison step, then
- * assembles this record.
+ * {@code apply} default wraps that with timing, cost diff, and
+ * postcondition evaluation, then assembles this record.
  *
  * <h2>What it carries</h2>
  *
@@ -39,9 +37,6 @@ import org.javai.punit.api.criterion.CriterionSampleResult;
  *       evaluating the contract against the produced value. Empty
  *       when {@code result} is {@link Outcome.Fail} (no value to
  *       evaluate).</li>
- *   <li>{@link #match} — the optional instance-conformance match
- *       result, present when the test/experiment configured an
- *       expected value via {@link Sampling.Builder#matching}.</li>
  *   <li>{@link #tokens} — the per-sample cost recorded via
  *       {@link TokenTracker} during {@code invoke}.</li>
  *   <li>{@link #duration} — wall-clock time taken by
@@ -56,7 +51,6 @@ public record ServiceContractOutcome<I, O>(
         Outcome<O> result,
         Contract<I, O> contract,
         List<PostconditionResult> postconditionResults,
-        Optional<MatchResult> match,
         long tokens,
         Duration duration,
         List<CriterionSampleResult> criterionSampleResults) {
@@ -65,7 +59,6 @@ public record ServiceContractOutcome<I, O>(
         Objects.requireNonNull(result, "result");
         Objects.requireNonNull(contract, "contract");
         Objects.requireNonNull(postconditionResults, "postconditionResults");
-        Objects.requireNonNull(match, "match");
         Objects.requireNonNull(duration, "duration");
         Objects.requireNonNull(criterionSampleResults, "criterionSampleResults");
         if (tokens < 0) {
@@ -79,31 +72,28 @@ public record ServiceContractOutcome<I, O>(
     }
 
     /**
-     * Backward-compatible 6-arg constructor that defaults
+     * Backward-compatible 5-arg constructor that defaults
      * {@link #criterionSampleResults()} to an empty list. Test fixtures
      * and call sites that don't carry per-criterion sample detail
      * construct via this overload; the framework's contract-apply path
-     * constructs via the canonical 7-arg form.
+     * constructs via the canonical 6-arg form.
      */
     public ServiceContractOutcome(
             Outcome<O> result,
             Contract<I, O> contract,
             List<PostconditionResult> postconditionResults,
-            Optional<MatchResult> match,
             long tokens,
             Duration duration) {
-        this(result, contract, postconditionResults, match, tokens, duration, List.of());
+        this(result, contract, postconditionResults, tokens, duration, List.of());
     }
 
     /**
-     * Derives the overall sample {@link Outcome} from the result, the
-     * match, and the postcondition results. Precedence:
+     * Derives the overall sample {@link Outcome} from the result and the
+     * postcondition results. Precedence:
      *
      * <ol>
      *   <li>If {@link #result} is an {@link Outcome.Fail}, returns it
      *       — apply-level failure short-circuits everything.</li>
-     *   <li>Else if {@link #match} is present and reports a mismatch,
-     *       returns {@code Outcome.fail("instance_conformance", …)}.</li>
      *   <li>Else if any entry in {@link #postconditionResults} failed,
      *       returns {@code Outcome.fail(description, reason)} carrying
      *       the first failure.</li>
@@ -112,17 +102,11 @@ public record ServiceContractOutcome<I, O>(
      * </ol>
      *
      * <p>This is a derivation, not a stored field — the data lives on
-     * {@link #result}, {@link #match}, and {@link #postconditionResults}.
+     * {@link #result} and {@link #postconditionResults}.
      */
     public Outcome<O> value() {
         if (result instanceof Outcome.Fail<O> f) {
             return f;
-        }
-        if (match.isPresent() && !match.get().matches()) {
-            MatchResult m = match.get();
-            return Outcome.fail(
-                    "instance_conformance",
-                    m.diff().orElse(m.description()));
         }
         for (PostconditionResult r : postconditionResults) {
             if (r.failed()) {
@@ -130,6 +114,6 @@ public record ServiceContractOutcome<I, O>(
                         r.failureReason().orElse("postcondition failed"));
             }
         }
-        return result;   // an Outcome.Ok
+        return result;
     }
 }

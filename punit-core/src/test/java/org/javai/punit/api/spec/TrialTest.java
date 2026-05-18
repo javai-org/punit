@@ -33,7 +33,7 @@ class TrialTest {
     private static ServiceContractOutcome<String, Integer> ok(int value) {
         return new ServiceContractOutcome<>(
                 Outcome.ok(value), CONTRACT,
-                List.of(), Optional.empty(),
+                List.of(),
                 0L, Duration.ZERO);
     }
 

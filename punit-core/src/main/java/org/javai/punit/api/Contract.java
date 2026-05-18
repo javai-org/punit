@@ -3,11 +3,8 @@ package org.javai.punit.api;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
 
 import org.javai.outcome.Outcome;
-import org.javai.outcome.Outcome.Fail;
 import org.javai.outcome.Outcome.Ok;
 import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.criterion.Criterion;
@@ -34,12 +31,10 @@ import org.javai.punit.api.criterion.DefaultCriterion;
  *       builder with {@code ensure(...)} calls.</li>
  * </ul>
  *
- * <p>The three {@code apply} forms are concrete defaults the
- * framework dispatches to per sample. Authors do not override them.
- * Each one wraps {@code invoke} with timing, cost diff, postcondition
- * evaluation, and (for the matching forms) the comparison of the
- * produced value against an expected value via a
- * {@link ValueMatcher}.
+ * <p>The {@code apply} method is a concrete default the framework
+ * dispatches to per sample. Authors do not override it. It wraps
+ * {@code invoke} with timing, cost diff, and postcondition
+ * evaluation.
  *
  * @param <I> the per-sample input type
  * @param <O> the per-sample output value type
@@ -178,43 +173,14 @@ public interface Contract<I, O> {
     }
 
     /**
-     * Run one sample without an expected value or a matcher.
-     * Postconditions are evaluated against the produced value; no
-     * match step.
+     * Run one sample. Postconditions are evaluated against the produced
+     * value on apply-level success; skipped on apply-level failure.
      *
-     * <p>Concrete default; the framework dispatches to this form when
-     * the test/experiment hasn't configured matching.
+     * <p>Concrete default; the framework dispatches to this form per
+     * sample. Authors implement {@link #invoke}; they do not override
+     * this method.
      */
     default ServiceContractOutcome<I, O> apply(I input, TokenTracker tracker) {
-        return runSample(input, tracker, Optional.empty());
-    }
-
-    /**
-     * Run one sample with an expected value, using the equality
-     * matcher ({@link ValueMatcher#equality()}) to compare produced
-     * vs expected. Concrete default; the framework dispatches to this
-     * form when the test/experiment configured an expected list but
-     * no custom matcher.
-     */
-    default ServiceContractOutcome<I, O> apply(I input, O expected, TokenTracker tracker) {
-        return apply(input, expected, ValueMatcher.equality(), tracker);
-    }
-
-    /**
-     * Run one sample with an expected value and a custom matcher.
-     * Concrete default; the framework dispatches to this form when
-     * the test/experiment configured matching with a custom matcher.
-     */
-    default ServiceContractOutcome<I, O> apply(I input, O expected, ValueMatcher<O> matcher, TokenTracker tracker) {
-        return runSample(input, tracker,
-                Optional.of(value -> matcher.match(expected, value)));
-    }
-
-    private ServiceContractOutcome<I, O> runSample(
-            I input,
-            TokenTracker tracker,
-            Optional<Function<O, MatchResult>> matchStep) {
-
         long startTokens = tracker.totalTokens();
         long start = System.nanoTime();
         Outcome<O> result = invoke(input, tracker);
@@ -225,15 +191,10 @@ public interface Contract<I, O> {
                 ? evaluateClauses(ok.value())
                 : ClauseEvaluation.empty();   // postcondition evaluation skipped on apply-level failure
 
-        Optional<MatchResult> match = result instanceof Ok<O> ok2
-                ? matchStep.map(step -> step.apply(ok2.value()))
-                : Optional.empty();
-
         return new ServiceContractOutcome<>(
                 result,
                 this,
                 clauseEvaluation.postconditionResults(),
-                match,
                 sampleTokens,
                 duration,
                 clauseEvaluation.criterionSampleResults());

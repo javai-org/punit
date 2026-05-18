@@ -24,7 +24,6 @@ module org.javai.punit.core {
     exports org.javai.punit.api.criterion;
     exports org.javai.punit.api.spec;
     exports org.javai.punit.api.covariate;
-    exports org.javai.punit.api.match;
     exports org.javai.punit.runtime;
     exports org.javai.punit.verdict;
     exports org.javai.punit.statistics;

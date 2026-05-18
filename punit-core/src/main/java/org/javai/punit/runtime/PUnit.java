@@ -22,7 +22,6 @@ import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.api.ValueMatcher;
 import org.javai.punit.api.spec.BaselineLookup;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.BaselineStatistics;
@@ -455,22 +454,6 @@ public final class PUnit {
             return this;
         }
 
-        public MeasureBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
-            delegate.expectedOutputs(outputs);
-            return this;
-        }
-
-        @SafeVarargs
-        public final MeasureBuilder<FT, IT, OT> expectedOutputs(OT... outputs) {
-            delegate.expectedOutputs(outputs);
-            return this;
-        }
-
-        public MeasureBuilder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
-            delegate.matcher(matcher);
-            return this;
-        }
-
         public MeasureBuilder<FT, IT, OT> expiresInDays(int days) {
             delegate.expiresInDays(days);
             return this;
@@ -612,25 +595,6 @@ public final class PUnit {
         public TestBuilder<FT, IT, OT> intent(TestIntent intent) {
             this.intent = Objects.requireNonNull(intent, "intent");
             delegate.intent(intent);
-            return this;
-        }
-
-        /** See {@link ProbabilisticTest.Builder#expectedOutputs(List)}. */
-        public TestBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
-            delegate.expectedOutputs(outputs);
-            return this;
-        }
-
-        /** See {@link ProbabilisticTest.Builder#expectedOutputs(Object[])}. */
-        @SafeVarargs
-        public final TestBuilder<FT, IT, OT> expectedOutputs(OT... outputs) {
-            delegate.expectedOutputs(outputs);
-            return this;
-        }
-
-        /** See {@link ProbabilisticTest.Builder#matcher(ValueMatcher)}. */
-        public TestBuilder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
-            delegate.matcher(matcher);
             return this;
         }
 

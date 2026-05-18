@@ -292,10 +292,10 @@ class PackageStructureArchitectureTest {
         @Test
         @DisplayName("api root depends only on the JDK and other api code")
         void apiRootIsStdlibOnly() {
-            // The api root carries the abstraction layer (ValueMatcher,
-            // MatchResult, Expectation, …). Concrete implementations and
+            // The api root carries the abstraction layer (Contract,
+            // ServiceContract, Sampling, …). Concrete implementations and
             // their third-party dependencies belong in api subpackages
-            // (api.spec, api.covariate, api.match, …). Allowed companions
+            // (api.spec, api.covariate, api.criterion, …). Allowed companions
             // for the root: the org.javai.outcome library (a sibling
             // abstraction the api leans on by design) and
             // org.junit.jupiter.api (meta-annotation targets only, already
@@ -311,7 +311,7 @@ class PackageStructureArchitectureTest {
                             "org.junit.jupiter.api..")
                     .because("the api root carries the abstraction layer; concrete "
                             + "implementations and their third-party dependencies live "
-                            + "in api subpackages (api.spec, api.covariate, api.match, …)");
+                            + "in api subpackages (api.spec, api.covariate, api.criterion, …)");
 
             freeze(rule).check(classes);
         }

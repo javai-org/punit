@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.Contract;
 import org.javai.punit.api.PostconditionBuilder;
-import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -35,16 +33,16 @@ class SampleClassificationTest {
     private static ServiceContractOutcome<String, Integer> outcomeOk(int value, Duration duration, long tokens) {
         return new ServiceContractOutcome<>(
                 Outcome.ok(value), USE_CASE,
-                List.of(), Optional.empty(),
+                List.of(),
                 tokens, duration);
     }
 
     private static ServiceContractOutcome<String, Integer> outcomeOkWith(
-            List<PostconditionResult> results, Optional<MatchResult> match,
+            List<PostconditionResult> results,
             Duration duration, long tokens) {
         return new ServiceContractOutcome<>(
                 Outcome.ok(0), USE_CASE,
-                results, match,
+                results,
                 tokens, duration);
     }
 
@@ -52,7 +50,7 @@ class SampleClassificationTest {
             String name, String message, Duration duration, long tokens) {
         return new ServiceContractOutcome<>(
                 Outcome.fail(name, message), USE_CASE,
-                List.of(), Optional.empty(),
+                List.of(),
                 tokens, duration);
     }
 
@@ -71,7 +69,6 @@ class SampleClassificationTest {
             assertThat(c.applyFailureName()).contains("llm-error");
             assertThat(c.applyFailureMessage()).contains("boom");
             assertThat(c.postconditionResults()).isEmpty();
-            assertThat(c.match()).isEmpty();
             assertThat(c.durationViolation()).isEmpty();
             assertThat(c.duration()).isEqualTo(Duration.ofMillis(50));
         }
@@ -100,7 +97,7 @@ class SampleClassificationTest {
                 }
             };
             var outcome = new ServiceContractOutcome<>(
-                    Outcome.ok(0), bounded, List.<PostconditionResult>of(), Optional.<MatchResult>empty(),
+                    Outcome.ok(0), bounded, List.<PostconditionResult>of(),
                     0L, Duration.ofMillis(250));
 
             SampleClassification c = SampleClassification.classify(bounded, outcome);
@@ -121,7 +118,7 @@ class SampleClassificationTest {
                 }
             };
             var outcome = new ServiceContractOutcome<>(
-                    Outcome.ok(0), bounded, List.<PostconditionResult>of(), Optional.<MatchResult>empty(),
+                    Outcome.ok(0), bounded, List.<PostconditionResult>of(),
                     0L, Duration.ofMillis(100));
 
             SampleClassification c = SampleClassification.classify(bounded, outcome);
@@ -135,23 +132,12 @@ class SampleClassificationTest {
             var results = List.of(
                     PostconditionResult.passed("first"),
                     PostconditionResult.failed("second", "tripped"));
-            var outcome = outcomeOkWith(results, Optional.empty(), Duration.ofMillis(20), 5L);
+            var outcome = outcomeOkWith(results, Duration.ofMillis(20), 5L);
 
             SampleClassification c = SampleClassification.classify(USE_CASE, outcome);
 
             assertThat(c.postconditionResults()).hasSize(2);
             assertThat(c.postconditionResults().get(1).failed()).isTrue();
-        }
-
-        @Test
-        @DisplayName("match status is forwarded from the outcome")
-        void matchForwarded() {
-            var match = MatchResult.fail("equals", 1, 2, "1 != 2");
-            var outcome = outcomeOkWith(List.of(), Optional.of(match), Duration.ofMillis(1), 0L);
-
-            SampleClassification c = SampleClassification.classify(USE_CASE, outcome);
-
-            assertThat(c.match()).contains(match);
         }
     }
 
@@ -182,7 +168,7 @@ class SampleClassificationTest {
             mutable.add(PostconditionResult.passed("a"));
 
             SampleClassification c = SampleClassification.from(
-                    mutable, Optional.empty(), Optional.empty(),
+                    mutable, Optional.empty(),
                     Duration.ZERO, 0L);
 
             mutable.add(PostconditionResult.failed("b", "intruder"));

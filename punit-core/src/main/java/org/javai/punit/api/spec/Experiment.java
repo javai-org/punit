@@ -19,7 +19,6 @@ import java.util.function.Function;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.api.ValueMatcher;
 import org.javai.punit.api.spec.FactorsStepper.IterationResult;
 
 /**
@@ -283,8 +282,6 @@ public final class Experiment implements Spec {
     private static final class MeasureInternal<FT, IT, OT> extends Internal<FT, IT, OT> {
 
         private final FT factors;
-        private final List<OT> expectedOutputs;
-        private final Optional<ValueMatcher<OT>> matcher;
         private final Optional<Integer> expiresInDays;
 
         private Optional<SampleSummary<OT>> lastSummary = Optional.empty();
@@ -292,16 +289,12 @@ public final class Experiment implements Spec {
         private MeasureInternal(MeasureBuilder<FT, IT, OT> b) {
             super(b.sampling, b.experimentId != null ? b.experimentId : defaultId("measure"));
             this.factors = b.factors;
-            this.expectedOutputs = b.expected;
-            this.matcher = Optional.ofNullable(b.matcher);
             this.expiresInDays = Optional.ofNullable(b.expiresInDays);
         }
 
-        @Override public Optional<ValueMatcher<OT>> matcher() { return matcher; }
-
         @Override public Iterator<Configuration<FT, IT, OT>> configurations() {
-            return List.of(new Configuration<>(
-                    factors, sampling.inputs(), expectedOutputs, sampling.samples())).iterator();
+            return List.of(new Configuration<FT, IT, OT>(
+                    factors, sampling.inputs(), sampling.samples())).iterator();
         }
 
         @Override public void consume(Configuration<FT, IT, OT> config, SampleSummary<OT> summary) {
@@ -322,53 +315,16 @@ public final class Experiment implements Spec {
 
         private final Sampling<FT, IT, OT> sampling;
         private final FT factors;
-        private List<OT> expected = List.of();
-        private ValueMatcher<OT> matcher;
         private String experimentId;
         private Integer expiresInDays;
 
         private MeasureBuilder(Sampling<FT, IT, OT> sampling, FT factors) {
             this.sampling = sampling;
             this.factors = factors;
-            this.expected = sampling.expected();
-            this.matcher = sampling.matcher().orElse(null);
         }
 
         public MeasureBuilder<FT, IT, OT> experimentId(String id) {
             this.experimentId = Objects.requireNonNull(id, "experimentId");
-            return this;
-        }
-
-        /**
-         * Expected outputs, parallel to {@code sampling.inputs()}.
-         * Enables instance-conformance checking when supplied. A
-         * length mismatch is rejected at the call site with
-         * {@link IllegalArgumentException}; the {@link #build()} guard
-         * is preserved as defence-in-depth.
-         */
-        public MeasureBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
-            Objects.requireNonNull(outputs, "outputs");
-            if (!outputs.isEmpty() && outputs.size() != sampling.inputs().size()) {
-                throw new IllegalArgumentException(
-                        "expectedOutputs (" + outputs.size() + ") and sampling.inputs() ("
-                                + sampling.inputs().size() + ") must be the same length");
-            }
-            this.expected = List.copyOf(outputs);
-            return this;
-        }
-
-        @SafeVarargs
-        public final MeasureBuilder<FT, IT, OT> expectedOutputs(OT... outputs) {
-            return expectedOutputs(List.of(outputs));
-        }
-
-        /**
-         * Instance-conformance matcher, invoked per sample when
-         * {@code expectedOutputs} is supplied. Defaults to
-         * {@link ValueMatcher#equality()}.
-         */
-        public MeasureBuilder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
-            this.matcher = Objects.requireNonNull(matcher, "matcher");
             return this;
         }
 
@@ -382,14 +338,6 @@ public final class Experiment implements Spec {
         }
 
         public Experiment build() {
-            if (!expected.isEmpty() && expected.size() != sampling.inputs().size()) {
-                throw new IllegalStateException(
-                        "expectedOutputs (" + expected.size() + ") and sampling.inputs() ("
-                                + sampling.inputs().size() + ") must be the same length");
-            }
-            if (!expected.isEmpty() && matcher == null) {
-                matcher = ValueMatcher.equality();
-            }
             return new Experiment(Kind.MEASURE, new MeasureInternal<>(this));
         }
     }
@@ -820,8 +768,6 @@ public final class Experiment implements Spec {
 
         private final InlineSamplingState<FT, IT, OT> sampling;
         private final FT factors;
-        private List<OT> expected = List.of();
-        private ValueMatcher<OT> matcher;
         private String experimentId;
         private Integer expiresInDays;
 
@@ -835,11 +781,6 @@ public final class Experiment implements Spec {
             Objects.requireNonNull(inputs, "inputs");
             if (inputs.isEmpty()) {
                 throw new IllegalArgumentException("inputs must be non-empty");
-            }
-            if (!expected.isEmpty() && expected.size() != inputs.size()) {
-                throw new IllegalArgumentException(
-                        "expectedOutputs (" + expected.size() + ") and sampling.inputs() ("
-                                + inputs.size() + ") must be the same length");
             }
             sampling.inputs = List.copyOf(inputs);
             return this;
@@ -895,35 +836,6 @@ public final class Experiment implements Spec {
             return this;
         }
 
-        /**
-         * Expected outputs, parallel to {@code inputs()}. Length is
-         * checked at the call site when {@code inputs} has already been
-         * set on this inline builder; otherwise the check defers to a
-         * subsequent {@code inputs(...)} call (symmetric guard) or to
-         * {@link #build()} (defence-in-depth).
-         */
-        public InlineMeasureBuilder<FT, IT, OT> expectedOutputs(List<OT> outputs) {
-            Objects.requireNonNull(outputs, "outputs");
-            if (!outputs.isEmpty() && sampling.inputs != null
-                    && outputs.size() != sampling.inputs.size()) {
-                throw new IllegalArgumentException(
-                        "expectedOutputs (" + outputs.size() + ") and sampling.inputs() ("
-                                + sampling.inputs.size() + ") must be the same length");
-            }
-            this.expected = List.copyOf(outputs);
-            return this;
-        }
-
-        @SafeVarargs
-        public final InlineMeasureBuilder<FT, IT, OT> expectedOutputs(OT... outputs) {
-            return expectedOutputs(List.of(outputs));
-        }
-
-        public InlineMeasureBuilder<FT, IT, OT> matcher(ValueMatcher<OT> matcher) {
-            this.matcher = Objects.requireNonNull(matcher, "matcher");
-            return this;
-        }
-
         public InlineMeasureBuilder<FT, IT, OT> expiresInDays(int days) {
             if (days < 0) {
                 throw new IllegalArgumentException("expiresInDays must be non-negative, got " + days);
@@ -937,12 +849,6 @@ public final class Experiment implements Spec {
                     sampling.toSampling(), factors);
             if (experimentId != null) {
                 delegate.experimentId(experimentId);
-            }
-            if (!expected.isEmpty()) {
-                delegate.expectedOutputs(expected);
-            }
-            if (matcher != null) {
-                delegate.matcher(matcher);
             }
             if (expiresInDays != null) {
                 delegate.expiresInDays(expiresInDays);
