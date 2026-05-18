@@ -92,9 +92,9 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
 
     static <OT> PassRate<OT> meeting(double threshold, ThresholdOrigin origin) {
         Objects.requireNonNull(origin, "origin");
-        if (threshold < 0.0 || threshold > 1.0 || Double.isNaN(threshold)) {
+        if (threshold < 0.0 || threshold >= 1.0 || Double.isNaN(threshold)) {
             throw new IllegalArgumentException(
-                    "threshold must be in [0, 1], got " + threshold);
+                    "threshold must be in [0, 1), got " + threshold);
         }
         if (origin == ThresholdOrigin.EMPIRICAL) {
             throw new IllegalArgumentException(
