@@ -1,9 +1,12 @@
 package org.javai.punit.api.criterion;
 
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
+import org.javai.punit.api.LatencySpec;
+import org.javai.punit.api.PercentileKey;
 import org.javai.punit.api.ThresholdOrigin;
 
 /**
@@ -45,7 +48,7 @@ import org.javai.punit.api.ThresholdOrigin;
  */
 public final class CriterionPosture {
 
-    /** The four posture kinds. */
+    /** Posture kinds. */
     public enum Kind {
         /** {@code .meeting(rate, origin)} — explicit numeric target. */
         STATISTICAL_CONTRACTUAL,
@@ -54,7 +57,20 @@ public final class CriterionPosture {
         /** {@code .zeroTolerance(origin)} — explicit binary commitment. */
         ZERO_TOLERANCE,
         /** No posture method called — implicit zero-tolerance (step 3 default). */
-        IMPLICIT_ZERO_TOLERANCE
+        IMPLICIT_ZERO_TOLERANCE,
+        /**
+         * Latency, empirical: per-percentile thresholds derived from the
+         * resolved baseline at evaluate time. Authored via
+         * {@code Acceptance.<O>empirical(P95, P99...)}.
+         */
+        LATENCY_EMPIRICAL,
+        /**
+         * Latency, contractual: per-percentile ceilings declared on the
+         * contract via {@code Acceptance.<O>meeting(SLA).ceiling(P95,
+         * ofMillis(500))}. The threshold is the declared duration; the
+         * origin is the supplied non-empirical origin.
+         */
+        LATENCY_CONTRACTUAL
     }
 
     private static final CriterionPosture IMPLICIT =
@@ -64,6 +80,8 @@ public final class CriterionPosture {
                     OptionalDouble.empty(),
                     OptionalDouble.empty(),
                     OptionalDouble.empty(),
+                    Optional.empty(),
+                    Optional.empty(),
                     Optional.empty());
 
     private final Kind kind;
@@ -73,6 +91,8 @@ public final class CriterionPosture {
     private final OptionalDouble mde;
     private final OptionalDouble power;
     private final Optional<String> contractRef;
+    private final Optional<EnumSet<PercentileKey>> assertedPercentiles;
+    private final Optional<LatencySpec> latencySpec;
 
     private CriterionPosture(
             Kind kind,
@@ -81,7 +101,9 @@ public final class CriterionPosture {
             OptionalDouble confidenceFloor,
             OptionalDouble mde,
             OptionalDouble power,
-            Optional<String> contractRef) {
+            Optional<String> contractRef,
+            Optional<EnumSet<PercentileKey>> assertedPercentiles,
+            Optional<LatencySpec> latencySpec) {
         this.kind = kind;
         this.threshold = threshold;
         this.origin = origin;
@@ -89,6 +111,8 @@ public final class CriterionPosture {
         this.mde = mde;
         this.power = power;
         this.contractRef = contractRef;
+        this.assertedPercentiles = assertedPercentiles;
+        this.latencySpec = latencySpec;
     }
 
     /** The implicit-zero-tolerance posture — the default for any criterion that declared no posture method. */
@@ -113,6 +137,8 @@ public final class CriterionPosture {
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
+                Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
     }
 
@@ -124,6 +150,8 @@ public final class CriterionPosture {
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
+                Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
     }
 
@@ -140,7 +168,66 @@ public final class CriterionPosture {
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
                 OptionalDouble.empty(),
+                Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
+    }
+
+    /**
+     * Latency, empirical: {@code Acceptance.<O>empirical(P95, P99...)}.
+     * Per-percentile thresholds are derived from the resolved baseline
+     * at evaluate time.
+     */
+    public static CriterionPosture latencyEmpirical(EnumSet<PercentileKey> asserted) {
+        Objects.requireNonNull(asserted, "asserted");
+        if (asserted.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "latencyEmpirical requires at least one PercentileKey");
+        }
+        return new CriterionPosture(Kind.LATENCY_EMPIRICAL,
+                OptionalDouble.empty(),
+                Optional.of(ThresholdOrigin.EMPIRICAL),
+                OptionalDouble.empty(),
+                OptionalDouble.empty(),
+                OptionalDouble.empty(),
+                Optional.empty(),
+                Optional.of(EnumSet.copyOf(asserted)),
+                Optional.empty());
+    }
+
+    /**
+     * Latency, contractual: {@code Acceptance.<O>meeting(origin).ceiling(...)}.
+     * Per-percentile ceilings are declared on the contract; the origin
+     * is the supplied non-empirical origin.
+     */
+    public static CriterionPosture latencyContractual(LatencySpec spec, ThresholdOrigin origin) {
+        Objects.requireNonNull(spec, "spec");
+        Objects.requireNonNull(origin, "origin");
+        if (!spec.hasAnyThreshold()) {
+            throw new IllegalArgumentException(
+                    "latencyContractual requires at least one ceiling — "
+                            + "chain .ceiling(percentile, duration) on the decl");
+        }
+        if (origin == ThresholdOrigin.EMPIRICAL) {
+            throw new IllegalArgumentException(
+                    "latencyContractual(spec, EMPIRICAL) is contradictory — "
+                            + "call Acceptance.<O>empirical(P95, ...) instead");
+        }
+        EnumSet<PercentileKey> asserted = EnumSet.noneOf(PercentileKey.class);
+        for (PercentileKey k : PercentileKey.values()) {
+            if (k.ceilingMillis(spec).isPresent()) {
+                asserted.add(k);
+            }
+        }
+        return new CriterionPosture(Kind.LATENCY_CONTRACTUAL,
+                OptionalDouble.empty(),
+                Optional.of(origin),
+                OptionalDouble.empty(),
+                OptionalDouble.empty(),
+                OptionalDouble.empty(),
+                Optional.empty(),
+                Optional.of(asserted),
+                Optional.of(spec));
     }
 
     /**
@@ -157,7 +244,8 @@ public final class CriterionPosture {
                     ".atConfidence(c) requires c in (0, 1), got " + confidence);
         }
         return new CriterionPosture(kind, threshold, origin,
-                OptionalDouble.of(confidence), mde, power, contractRef);
+                OptionalDouble.of(confidence), mde, power, contractRef,
+                assertedPercentiles, latencySpec);
     }
 
     /**
@@ -174,7 +262,8 @@ public final class CriterionPosture {
                     ".detectingMde(m) requires m in (0, 1), got " + mdeValue);
         }
         return new CriterionPosture(kind, threshold, origin,
-                confidenceFloor, OptionalDouble.of(mdeValue), power, contractRef);
+                confidenceFloor, OptionalDouble.of(mdeValue), power, contractRef,
+                assertedPercentiles, latencySpec);
     }
 
     /**
@@ -190,7 +279,8 @@ public final class CriterionPosture {
                     ".atPower(p) requires p in (0, 1), got " + powerValue);
         }
         return new CriterionPosture(kind, threshold, origin,
-                confidenceFloor, mde, OptionalDouble.of(powerValue), contractRef);
+                confidenceFloor, mde, OptionalDouble.of(powerValue), contractRef,
+                assertedPercentiles, latencySpec);
     }
 
     /**
@@ -210,7 +300,8 @@ public final class CriterionPosture {
             throw new IllegalArgumentException(".contractRef requires a non-blank string");
         }
         return new CriterionPosture(kind, threshold, origin,
-                confidenceFloor, mde, power, Optional.of(ref));
+                confidenceFloor, mde, power, Optional.of(ref),
+                assertedPercentiles, latencySpec);
     }
 
     private void rejectRigourAdjunct(String methodName) {
@@ -222,6 +313,8 @@ public final class CriterionPosture {
                     "." + methodName + "(...) cannot compose with .meeting(...) — "
                             + "threshold-first is deterministic and accepts no rigour adjuncts; "
                             + "switch to .empirical() if you want a statistical comparison");
+            case LATENCY_EMPIRICAL, LATENCY_CONTRACTUAL -> throw new IllegalStateException(
+                    "." + methodName + "(...) does not apply to latency postures");
             case STATISTICAL_EMPIRICAL -> { /* ok */ }
         }
     }
@@ -285,9 +378,31 @@ public final class CriterionPosture {
         return contractRef;
     }
 
-    /** Whether this posture asks for a statistical evaluation. */
+    /**
+     * Percentiles this latency posture asserts against. Present only
+     * for {@link Kind#LATENCY_EMPIRICAL} / {@link Kind#LATENCY_CONTRACTUAL};
+     * empty otherwise.
+     */
+    public Optional<EnumSet<PercentileKey>> assertedPercentiles() {
+        return assertedPercentiles.map(EnumSet::copyOf);
+    }
+
+    /**
+     * The contractual {@link LatencySpec} with per-percentile ceilings.
+     * Present only for {@link Kind#LATENCY_CONTRACTUAL}; empty otherwise.
+     */
+    public Optional<LatencySpec> latencySpec() {
+        return latencySpec;
+    }
+
+    /** Whether this posture asks for a pass-rate statistical evaluation. */
     public boolean isStatistical() {
         return kind == Kind.STATISTICAL_CONTRACTUAL || kind == Kind.STATISTICAL_EMPIRICAL;
+    }
+
+    /** Whether this posture asks for a latency evaluation. */
+    public boolean isLatency() {
+        return kind == Kind.LATENCY_EMPIRICAL || kind == Kind.LATENCY_CONTRACTUAL;
     }
 
     /** Whether this posture asks for a binary evaluation (zero-tolerance, explicit or implicit). */

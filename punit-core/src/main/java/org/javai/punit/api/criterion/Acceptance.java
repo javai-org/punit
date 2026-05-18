@@ -2,6 +2,7 @@ package org.javai.punit.api.criterion;
 
 import java.util.List;
 
+import org.javai.punit.api.PercentileKey;
 import org.javai.punit.api.ThresholdOrigin;
 
 /**
@@ -27,6 +28,19 @@ import org.javai.punit.api.ThresholdOrigin;
  * <pre>{@code
  * import static org.javai.punit.api.criterion.Acceptance.*;
  * }</pre>
+ *
+ * <p>Functional vs latency factories share two names (
+ * {@code empirical}, {@code meeting}); the compiler picks the right
+ * overload from argument shape:
+ *
+ * <table>
+ *   <caption>Acceptance factory overloads</caption>
+ *   <tr><th>Call</th><th>Returns</th><th>Meaning</th></tr>
+ *   <tr><td>{@code empirical()}</td><td>{@link CriterionDecl}</td><td>functional empirical</td></tr>
+ *   <tr><td>{@code empirical(PercentileKey, PercentileKey...)}</td><td>{@link LatencyDecl}</td><td>empirical latency</td></tr>
+ *   <tr><td>{@code meeting(double, ThresholdOrigin)}</td><td>{@link CriterionDecl}</td><td>contractual pass-rate</td></tr>
+ *   <tr><td>{@code meeting(ThresholdOrigin)}</td><td>{@link LatencyDecl}</td><td>contractual latency (chain {@code .ceiling(...)})</td></tr>
+ * </table>
  */
 public final class Acceptance {
 
@@ -56,5 +70,45 @@ public final class Acceptance {
      */
     public static <O> CriterionDecl<O> zeroTolerance(ThresholdOrigin origin) {
         return new CriterionDecl<>(CriterionPosture.zeroTolerance(origin), List.of());
+    }
+
+    /**
+     * Latency, empirical: per-percentile thresholds are derived from
+     * the resolved baseline at evaluate time. Recommended over the
+     * contractual shape when environments (CI, staging, prod) have
+     * different latency envelopes — per-covariate baselines capture
+     * each envelope without an explicit override.
+     *
+     * <pre>{@code
+     * Acceptance.<Receipt>empirical(P95, P99)
+     *         .name("latency-has-not-degraded");
+     * }</pre>
+     */
+    public static <O> LatencyDecl<O> empirical(PercentileKey first, PercentileKey... rest) {
+        return LatencyDecl.empirical(first, rest);
+    }
+
+    /**
+     * Latency, contractual: per-percentile ceilings are declared on the
+     * decl via {@link LatencyDecl#ceiling}. The threshold is the
+     * supplied duration; the origin is the supplied non-empirical
+     * origin.
+     *
+     * <pre>{@code
+     * Acceptance.<Receipt>meeting(SLA)
+     *         .ceiling(P95, Duration.ofMillis(500))
+     *         .name("latency-p95")
+     *         .contractRef("Payment Provider SLA v2.3 §4.2");
+     * }</pre>
+     *
+     * <p>Best paired with the test-side override mechanism (see
+     * {@code DIR-CRITERIA-OVERRIDE-punit}) so a single fixed-SLA
+     * contract can run across environments with different operating
+     * envelopes. Until override lands, prefer
+     * {@link #empirical(PercentileKey, PercentileKey...) the empirical
+     * shape} for environment-dependent services.
+     */
+    public static <O> LatencyDecl<O> meeting(ThresholdOrigin origin) {
+        return LatencyDecl.contractual(origin);
     }
 }

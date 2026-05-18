@@ -13,9 +13,10 @@ import java.util.OptionalLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.LatencySpec;
+import org.javai.punit.api.PercentileKey;
+import org.javai.punit.api.ThresholdOrigin;
 
 /**
  * A percentile-latency criterion. Reads {@link LatencyStatistics} from
@@ -33,6 +34,16 @@ import org.javai.punit.api.LatencySpec;
  *   <li>{@link #empiricalFrom(Supplier, PercentileKey, PercentileKey...)}
  *       — pinned baseline.</li>
  * </ul>
+ *
+ * <p>The conventional authoring path is the contract-side surface:
+ * {@code Acceptance.<O>empirical(P95, P99)} (empirical) or
+ * {@code Acceptance.<O>meeting(SLA).ceiling(P95, ofMillis(500))}
+ * (contractual). The framework's auto-injection then routes the
+ * contract's posture through {@code SpecCriterionDeriver} to a
+ * {@code PercentileLatency} instance — authors do not call these
+ * factories directly. Use them at the test site only when overlaying
+ * (or, post-{@code DIR-CRITERIA-OVERRIDE-punit}, replacing) the
+ * contract-declared latency criterion.
  */
 public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatistics> {
 
@@ -96,6 +107,15 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
     /** The baseline supplier when pinned; empty otherwise. */
     public Optional<Supplier<Experiment>> baselineSupplier() {
         return Optional.ofNullable(baselineSupplier);
+    }
+
+    /**
+     * The percentiles this criterion asserts against. Read by the
+     * preflight feasibility check to compare against the planned
+     * sample count.
+     */
+    public EnumSet<PercentileKey> assertedPercentiles() {
+        return EnumSet.copyOf(assertedPercentiles);
     }
 
     @Override

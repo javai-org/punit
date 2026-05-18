@@ -1,16 +1,18 @@
-package org.javai.punit.api.spec;
+package org.javai.punit.api;
 
 import java.time.Duration;
 import java.util.OptionalLong;
 
-import org.javai.punit.api.LatencyResult;
-import org.javai.punit.api.LatencySpec;
-
 /**
- * The percentiles the {@link PercentileLatency} criterion can assert
- * against. Each value knows how to project a {@link LatencySpec}'s
- * per-percentile ceiling and a {@link LatencyResult}'s observed
- * percentile.
+ * The percentiles a latency criterion can assert against. Each value
+ * knows how to project a {@link LatencySpec}'s per-percentile ceiling
+ * and a {@link LatencyResult}'s observed percentile.
+ *
+ * <p>Lives at the {@code api} root because both the contract-side
+ * authoring surface ({@code api.criterion.LatencyDecl}) and the
+ * spec-side evaluator ({@code api.spec.PercentileLatency}) reference
+ * it; keeping it here avoids a dependency cycle between the two
+ * packages.
  */
 public enum PercentileKey {
 
@@ -41,6 +43,6 @@ public enum PercentileKey {
     /** The observed duration from a LatencyResult at this percentile. */
     public abstract Duration observed(LatencyResult result);
 
-    /** The stable short-form key used in {@link CriterionResult#detail()} map keys. */
+    /** The stable short-form key used in evaluation-detail map keys. */
     public abstract String detailKey();
 }

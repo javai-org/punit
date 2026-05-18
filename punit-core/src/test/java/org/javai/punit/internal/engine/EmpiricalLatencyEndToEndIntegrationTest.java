@@ -19,7 +19,7 @@ import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.LatencyStatistics;
-import org.javai.punit.api.spec.PercentileKey;
+import org.javai.punit.api.PercentileKey;
 import org.javai.punit.api.spec.PercentileLatency;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;

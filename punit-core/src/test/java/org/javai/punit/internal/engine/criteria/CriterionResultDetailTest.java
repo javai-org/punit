@@ -21,7 +21,7 @@ import org.javai.punit.api.spec.EvaluationContext;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
 import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
-import org.javai.punit.api.spec.PercentileKey;
+import org.javai.punit.api.PercentileKey;
 import org.javai.punit.api.spec.PercentileLatency;
 import org.javai.punit.api.spec.SampleSummary;
 import org.javai.punit.api.spec.TerminationReason;

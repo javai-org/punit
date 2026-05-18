@@ -1,14 +1,17 @@
 package org.javai.punit.internal.engine.criteria;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
-import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.FactorBundle;
+import org.javai.punit.api.PercentileKey;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.Criterion;
 import org.javai.punit.api.spec.PassRateStatistics;
+import org.javai.punit.api.spec.PercentileLatency;
 import org.javai.punit.internal.reporting.InfeasibilityMessageRenderer;
 import org.javai.punit.statistics.StatisticalDefaults;
 import org.javai.punit.statistics.VerificationFeasibilityEvaluator;
@@ -44,8 +47,13 @@ import org.javai.punit.statistics.VerificationFeasibilityEvaluator.FeasibilityRe
  * in need of statistical underwriting than an empirical one: n=50
  * with a 99.99% target at 95% confidence is infeasible regardless of
  * whether the 99.99% came from a measurement or a contract.
- * Non-{@code PassRate} criteria (e.g. {@code PercentileLatency}) are
- * skipped pending their own feasibility model.
+ *
+ * <p>{@link PercentileLatency} criteria get a parallel check that
+ * compares the planned sample count against the order-statistic floor
+ * {@code ⌈1/(1-p)⌉} for each asserted percentile. Below the floor the
+ * empirical percentile collapses toward the max sample and the
+ * assertion stops saying what the author meant. The check emits a
+ * warning (not an abort); SMOKE intent silences it.
  *
  * <p>Empirical criteria require a resolvable baseline at check time.
  * When no baseline file matches, feasibility is silently deferred —
@@ -77,6 +85,9 @@ public final class Feasibility {
             FactorBundle factors,
             TestIntent intent,
             BaselineProvider provider) {
+        if (criterion instanceof PercentileLatency<?> latency) {
+            return checkLatencySampleSize(samples, latency, intent);
+        }
         if (!(criterion instanceof PassRate<?> bernoulli)) {
             return List.of();
         }
@@ -128,5 +139,58 @@ public final class Feasibility {
         // SMOKE intent: the developer has declared "I know this is
         // undersized; treat it as a sentinel." Silent — no warning.
         return List.of();
+    }
+
+    /**
+     * Warn when the planned sample count is below the order-statistic
+     * floor for any asserted percentile. The floor is ⌈1/(1-p)⌉:
+     * P95 needs ≥ 20, P99 needs ≥ 100. Below the floor the empirical
+     * percentile collapses toward the max sample and a population-level
+     * claim about the percentile is unsupported.
+     *
+     * <p>SMOKE intent is silent — symmetric with the pass-rate
+     * feasibility gate; the developer has declared "I know this is
+     * undersized."
+     */
+    private static List<String> checkLatencySampleSize(
+            int samples, PercentileLatency<?> latency, TestIntent intent) {
+        if (intent == TestIntent.SMOKE) {
+            return List.of();
+        }
+        List<String> warnings = new ArrayList<>();
+        for (PercentileKey key : latency.assertedPercentiles()) {
+            int floor = minimumSampleSizeFor(key);
+            if (samples < floor) {
+                warnings.add(String.format(
+                        "Latency criterion '%s' asserts %s but the run is"
+                                + " configured for %d samples; %s needs at"
+                                + " least %d for a meaningful population-level"
+                                + " estimate. The percentile will reflect the"
+                                + " max sample rather than a tail probability.",
+                        latency.name(), key.name(), samples, key.name(), floor));
+            }
+        }
+        return warnings;
+    }
+
+    /**
+     * The minimum sample count for which an order-statistic estimate
+     * of {@code key} has a meaningful population interpretation —
+     * specifically {@code ⌈1 / (1 - p)⌉}.
+     *
+     * <ul>
+     *   <li>P50 → 1 (any non-empty sample)</li>
+     *   <li>P90 → 10</li>
+     *   <li>P95 → 20</li>
+     *   <li>P99 → 100</li>
+     * </ul>
+     */
+    static int minimumSampleSizeFor(PercentileKey key) {
+        return switch (key) {
+            case P50 -> 1;
+            case P90 -> 10;
+            case P95 -> 20;
+            case P99 -> 100;
+        };
     }
 }

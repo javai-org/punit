@@ -160,6 +160,27 @@ public interface Contract<I, O> {
      * the bundle. Both rules are enforced by
      * {@link Criteria#of(Decl[])}.
      *
+     * <h4>Latency criteria</h4>
+     *
+     * <p>A latency commitment travels through the same authoring
+     * surface as a functional criterion:
+     *
+     * <pre>{@code
+     * @Override public Criteria<Receipt> criteria() {
+     *     return of(
+     *         meeting(0.9999, SLA)
+     *             .name("payment-completes")
+     *             .satisfies("Authorisation returned APPROVED", ...),
+     *         empirical(P95, P99)
+     *             .name("latency-has-not-degraded"));
+     * }
+     * }</pre>
+     *
+     * <p>At most one latency criterion per contract — the engine
+     * captures one duration per sample, so multiple latency
+     * declarations would be redundant or contradictory.
+     * {@link #effectiveCriteria()} enforces the 0..1 cardinality.
+     *
      * <p>The default returns {@link Criteria#empty()}: no explicit
      * declaration. The framework then synthesises a single criterion
      * from the contract's {@link #postconditions()} chain.
@@ -195,7 +216,25 @@ public interface Contract<I, O> {
                                 + " criterion via .where(name, predicate), or"
                                 + " remove the postconditions override.");
             }
-            return declared.asList();
+            List<Criterion<O>> resolved = declared.asList();
+            List<String> latencyIds = new ArrayList<>();
+            for (Criterion<O> c : resolved) {
+                if (c.posture().isLatency()) {
+                    latencyIds.add(c.id());
+                }
+            }
+            if (latencyIds.size() > 1) {
+                throw new IllegalStateException(
+                        "Contract " + getClass().getName()
+                                + " declares " + latencyIds.size() + " latency criteria"
+                                + " (" + String.join(", ", latencyIds) + ");"
+                                + " at most one is permitted because the engine"
+                                + " captures one duration per sample."
+                                + " Combine the percentiles on a single"
+                                + " Acceptance.<O>empirical(...) or"
+                                + " Acceptance.<O>meeting(origin).ceiling(...) decl.");
+            }
+            return resolved;
         }
         return List.of(new DefaultCriterion<>(this));
     }
