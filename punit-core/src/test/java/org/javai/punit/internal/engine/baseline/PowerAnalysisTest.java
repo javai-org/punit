@@ -366,14 +366,11 @@ class PowerAnalysisTest {
                 @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                     return Outcome.ok(input);
                 }
-                @Override public void criteria(
-                        org.javai.punit.api.criterion.CriteriaBuilder<String> b) {
-                    b.addCriterion("the-criterion",
-                                    pb -> pb.ensure("always",
-                                            v -> Outcome.ok()))
-                            .empirical()
-                            .detectingMde(mde)
-                            .atPower(power);
+                @Override public org.javai.punit.api.criterion.Criteria<String> criteria() {
+                    return org.javai.punit.api.criterion.Composite.compose("the-criterion",
+                            org.javai.punit.api.criterion.Posture.<String>empirical()
+                                    .detectingMde(mde).atPower(power)
+                                    .satisfies("always", v -> Outcome.ok()));
                 }
             };
             Sampling<Factors, String, String> sampling = Sampling
@@ -407,16 +404,16 @@ class PowerAnalysisTest {
                 @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                     return Outcome.ok(input);
                 }
-                @Override public void criteria(
-                        org.javai.punit.api.criterion.CriteriaBuilder<String> b) {
-                    // Looser: MDE 0.10 / power 0.50  → smaller N
-                    b.addCriterion("loose",
-                                    pb -> pb.ensure("always", v -> Outcome.ok()))
-                            .empirical().detectingMde(0.10).atPower(0.50);
-                    // Tighter: MDE 0.02 / power 0.95 → larger N
-                    b.addCriterion("tight",
-                                    pb -> pb.ensure("always", v -> Outcome.ok()))
-                            .empirical().detectingMde(0.02).atPower(0.95);
+                @Override public org.javai.punit.api.criterion.Criteria<String> criteria() {
+                    return org.javai.punit.api.criterion.Composite.compose(
+                            // Looser: MDE 0.10 / power 0.50  → smaller N
+                            "loose", org.javai.punit.api.criterion.Posture.<String>empirical()
+                                    .detectingMde(0.10).atPower(0.50)
+                                    .satisfies("always", v -> Outcome.ok()),
+                            // Tighter: MDE 0.02 / power 0.95 → larger N
+                            "tight", org.javai.punit.api.criterion.Posture.<String>empirical()
+                                    .detectingMde(0.02).atPower(0.95)
+                                    .satisfies("always", v -> Outcome.ok()));
                 }
             };
             Sampling<Factors, String, String> sampling = Sampling

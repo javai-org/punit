@@ -9,10 +9,11 @@ import org.javai.punit.api.ThresholdOrigin;
 /**
  * The methodology criterion's run-time *commitment*: what counts as
  * acceptable, optionally how confidently to evaluate it. Authored on
- * the criterion via the {@link CriteriaBuilder} convenience methods
- * (see {@code CriteriaBuilder.addCriterion(...).meeting(...)} and
- * variants); consumed by the framework's evaluation path when it
- * computes a per-criterion verdict from the run's sample counts.
+ * the criterion via the {@link Posture} factories
+ * ({@code meeting(rate, origin)}, {@code empirical()},
+ * {@code zeroTolerance(origin)}); consumed by the framework's
+ * evaluation path when it computes a per-criterion verdict from the
+ * run's sample counts.
  *
  * <p>Three kinds map to the three posture methods on the criterion-
  * declaration handle, plus an implicit kind for criteria that

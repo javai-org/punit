@@ -53,7 +53,7 @@ public interface EvaluationContext<OT, S extends BaselineStatistics> {
     /**
      * The contract's per-methodology-criterion postures, keyed by
      * criterion id. The framework derives this map from the
-     * contract's {@code criteria(CriteriaBuilder)} declarations
+     * contract's {@code criteria()} declarations
      * (with {@link CriterionPosture#implicit()} for any criterion
      * that did not declare a posture explicitly).
      *

@@ -64,7 +64,7 @@ public sealed interface Criteria<O>
      * framework's lowering treats this as "no explicit criteria;
      * fall back to the postcondition-derived K=1 default with
      * implicit zero-tolerance" — same as the empty
-     * {@link CriteriaBuilder} case today.
+     * value-form case today.
      */
     static <O> Criteria<O> empty() {
         return EmptyCriteria.instance();

@@ -22,7 +22,7 @@ import org.javai.punit.api.Contract;
  * constructor. It is the framework's K=1 shim, not an extension
  * point. Authors wanting the multi-criterion authoring surface use
  * the {@link Criteria} factory and supply their criteria via
- * {@link Contract#criteria(CriteriaBuilder)}; they do not extend or
+ * {@link Contract#criteria()}; they do not extend or
  * instantiate {@code DefaultCriterion}.
  *
  * @param <O> the contract's per-sample output value type

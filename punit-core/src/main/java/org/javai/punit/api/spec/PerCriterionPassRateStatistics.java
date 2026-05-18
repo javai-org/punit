@@ -17,7 +17,7 @@ import java.util.Objects;
  * {@code DefaultCriterion.id()} when the contract uses the legacy
  * {@code postconditions(PostconditionBuilder)} path). K&gt;1 contracts
  * produce one entry per methodology criterion declared via
- * {@code Contract.criteria(CriteriaBuilder)}.
+ * {@code Contract.criteria()}.
  *
  * <p>The framework's {@code BaselineProvider} unwraps this structure
  * for callers that request {@link PassRateStatistics} directly: a

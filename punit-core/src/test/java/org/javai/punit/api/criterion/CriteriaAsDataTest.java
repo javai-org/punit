@@ -236,25 +236,4 @@ class CriteriaAsDataTest {
         assertThat(c.effectiveCriteria().get(0).posture().contractRef()).contains("doc-v1");
     }
 
-    @Test
-    @DisplayName("Contract that declares both value-form and builder-form is rejected at effectiveCriteria()")
-    void coexistenceRejected() {
-        Contract<Object, String> c = new Contract<>() {
-            @Override public Outcome<String> invoke(Object input,
-                    org.javai.punit.api.TokenTracker t) {
-                return Outcome.ok("ok");
-            }
-            @Override public Criteria<String> criteria() {
-                return Posture.<String>meeting(0.85, ThresholdOrigin.SLA);
-            }
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.addCriterion("other", pb -> { });
-            }
-        };
-
-        assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(c::effectiveCriteria)
-                .withMessageContaining("value-form")
-                .withMessageContaining("builder-form");
-    }
 }
