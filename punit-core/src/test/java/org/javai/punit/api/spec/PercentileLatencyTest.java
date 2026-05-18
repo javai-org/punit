@@ -14,6 +14,7 @@ import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.LatencySpec;
+import org.javai.punit.api.PercentileKey;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContractOutcome;
 import org.junit.jupiter.api.DisplayName;

@@ -7,11 +7,12 @@ import java.util.Optional;
  * be lowered to one runtime {@link Criterion} given an id.
  *
  * <p>The sealed supertype shared by {@link CriterionDecl} (direct,
- * postconditions over the contract's output type {@code O}) and
+ * postconditions over the contract's output type {@code O}),
  * {@link TransformingDecl} (postconditions over a derived type
- * {@code T} after a transform). It is the parameter type accepted by
- * {@link Criteria#of(Decl[]) Criteria.of(...)} so a multi-criterion
- * bundle may mix direct and transforming criteria.
+ * {@code T} after a transform), and {@link LatencyDecl} (per-percentile
+ * latency commitment, empirical or contractual). It is the parameter
+ * type accepted by {@link Criteria#of(Decl[]) Criteria.of(...)} so a
+ * multi-criterion bundle may mix functional and latency criteria.
  *
  * <p>Authors rarely reference this type by name — call-site idiom is
  * {@code Criteria.of(meeting(0.99, SLA).name("a"),
@@ -21,7 +22,7 @@ import java.util.Optional;
  * @param <O> the contract's per-sample output value type
  */
 public sealed interface Decl<O> extends Criteria<O>
-        permits CriterionDecl, TransformingDecl {
+        permits CriterionDecl, TransformingDecl, LatencyDecl {
 
     /**
      * The criterion's name as declared via {@code .name(String)}, or

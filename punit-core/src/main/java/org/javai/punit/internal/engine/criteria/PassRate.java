@@ -181,6 +181,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                             "ZERO_TOLERANCE posture without origin"))));
             case IMPLICIT_ZERO_TOLERANCE -> Optional.of(
                     PassRate.<OT>forZeroTolerance(ThresholdOrigin.POLICY));
+            case LATENCY_EMPIRICAL, LATENCY_CONTRACTUAL -> Optional.empty();
         };
     }
 
