@@ -32,7 +32,7 @@ class InconclusiveFoldsIntoFailTest {
 
         @Override
         public void criteria(CriteriaBuilder<String> b) {
-            b.add(Criteria.transforming(
+            b.add(Criterion.transforming(
                     "parsed-positive",
                     s -> {
                         try {

@@ -681,7 +681,7 @@ public final class PUnit {
             if (requiredCriteria.isEmpty()) {
                 org.javai.punit.api.spec.SpecCriterionDeriver deriver =
                         org.javai.punit.api.spec.SpecCriterionDeriver.lookup();
-                for (org.javai.punit.api.criterion.Criterion<OT> c : serviceContract.criteria()) {
+                for (org.javai.punit.api.criterion.Criterion<OT> c : serviceContract.effectiveCriteria()) {
                     deriver.<OT>derive(c.posture()).ifPresent(requiredCriteria::add);
                 }
             }
@@ -799,7 +799,7 @@ public final class PUnit {
                 List<String> warnings,
                 CovariateProfile observed,
                 ServiceContract<FT, IT, OT> serviceContract) {
-            Optional<String> contractRefOpt = serviceContract.criteria().stream()
+            Optional<String> contractRefOpt = serviceContract.effectiveCriteria().stream()
                     .map(org.javai.punit.api.criterion.Criterion::posture)
                     .map(org.javai.punit.api.criterion.CriterionPosture::contractRef)
                     .filter(Optional::isPresent)
@@ -977,7 +977,7 @@ public final class PUnit {
                                     .resolve(declarations, serviceContract.customCovariateResolvers());
                     BaselineProvider provider = ProfileBoundBaselineProvider.bind(
                             raw, profile, declarations);
-                    Optional<String> contractRef = serviceContract.criteria().stream()
+                    Optional<String> contractRef = serviceContract.effectiveCriteria().stream()
                             .map(org.javai.punit.api.criterion.Criterion::posture)
                             .map(org.javai.punit.api.criterion.CriterionPosture::contractRef)
                             .filter(Optional::isPresent)

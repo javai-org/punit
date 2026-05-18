@@ -21,14 +21,14 @@ import org.javai.punit.api.PostconditionBuilder;
  * <ul>
  *   <li>{@link #addCriterion(String, Consumer) addCriterion(id, body)}
  *       — convenience absorbing the
- *       {@link Criteria#direct(String, Consumer) Criteria.direct}
+ *       {@link Criterion#direct(String, Consumer) Criterion.direct}
  *       factory call. Returns a {@link CriterionPostureHandle} on
  *       which {@code .meeting / .empirical / .zeroTolerance /
  *       .atConfidence} declares the criterion's commitment.</li>
  *   <li>{@link #addTransformingCriterion(String, Function, Consumer)
  *       addTransformingCriterion(id, transform, body)} — same shape
  *       for the transform-then-evaluate kind. Absorbs
- *       {@link Criteria#transforming(String, Function, Consumer)}.</li>
+ *       {@link Criterion#transforming(String, Function, Consumer)}.</li>
  *   <li>{@link #add(Criterion) add(criterion)} — primitive entry
  *       point for the rare hand-rolled {@link Criterion}. Returns
  *       the same posture handle, so the posture chain works
@@ -58,7 +58,7 @@ public final class CriteriaBuilder<O> {
      */
     public CriterionPostureHandle<O> addCriterion(
             String id, Consumer<PostconditionBuilder<O>> body) {
-        Criterion<O> criterion = Criteria.direct(id, body);
+        Criterion<O> criterion = Criterion.direct(id, body);
         return commit(criterion);
     }
 
@@ -72,7 +72,7 @@ public final class CriteriaBuilder<O> {
             String id,
             Function<O, Outcome<D>> transform,
             Consumer<PostconditionBuilder<D>> body) {
-        Criterion<O> criterion = Criteria.transforming(id, transform, body);
+        Criterion<O> criterion = Criterion.transforming(id, transform, body);
         return commit(criterion);
     }
 
@@ -80,7 +80,7 @@ public final class CriteriaBuilder<O> {
      * Add a hand-rolled {@link Criterion}. Returns a posture handle
      * for declaring the criterion's commitment.
      *
-     * <p>The {@code Criteria} factory entry points cover the
+     * <p>The {@code Criterion} factory entry points cover the
      * methodology's two shapes (direct, transforming) and structurally
      * enforce the one-transform-per-criterion cap. Prefer them. This
      * primitive is retained for the rare custom case.

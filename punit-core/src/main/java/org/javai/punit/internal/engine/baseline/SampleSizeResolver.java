@@ -73,7 +73,7 @@ public final class SampleSizeResolver {
             BaselineProvider baselineProvider,
             int declaredSamples) {
 
-        List<? extends Criterion<OT>> criteria = contract.criteria();
+        List<? extends Criterion<OT>> criteria = contract.effectiveCriteria();
         List<? extends Criterion<OT>> confidenceFirst = criteria.stream()
                 .filter(c -> c.posture().isConfidenceFirst())
                 .toList();
