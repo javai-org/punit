@@ -163,19 +163,23 @@ class PercentileLatencyTest {
     @DisplayName("empirical() with baseline produces PASS / FAIL per observed vs baseline")
     void empiricalWithBaseline() {
         PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95, PercentileKey.P99);
-        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 2000), 2000);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(observed(100, 200, 500, 1000, 2000), 2000);
 
         CriterionResult pass = criterion.evaluate(
                 ctx(summary(observed(80, 180, 480, 950, 1000), 1000, 0), Optional.of(baseline)));
         CriterionResult fail = criterion.evaluate(
-                ctx(summary(observed(80, 180, 550, 1100, 1000), 1000, 0), Optional.of(baseline)));
+                ctx(summary(observed(80, 180, 1500, 3000, 1000), 1000, 0), Optional.of(baseline)));
 
         assertThat(pass.verdict()).isEqualTo(Verdict.PASS);
         assertThat(fail.verdict()).isEqualTo(Verdict.FAIL);
         assertThat(pass.detail()).containsEntry("origin", "EMPIRICAL");
         assertThat(pass.detail()).containsEntry("baselineSampleCount", 2000);
-        assertThat(fail.detail()).containsEntry("breach.p95", 550L);
-        assertThat(fail.detail()).containsEntry("breach.p99", 1100L);
+        // Threshold derived via the binomial order-statistic bound
+        // sits above the baseline point estimate, so the FAIL test
+        // needs observed values clearly above the upper bound, not
+        // merely above the baseline percentile.
+        assertThat(fail.detail()).containsEntry("breach.p95", 1500L);
+        assertThat(fail.detail()).containsEntry("breach.p99", 3000L);
     }
 
     // ── sample-size constraint (test_N ≤ baseline_N) ───────────────
@@ -184,7 +188,7 @@ class PercentileLatencyTest {
     @DisplayName("empirical() with test sample count > baseline returns INCONCLUSIVE")
     void empiricalRejectsTestLargerThanBaseline() {
         PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
-        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 2000), 100);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(observed(100, 200, 500, 1000, 2000), 100);
 
         // 1000 test samples > 100 baseline samples
         CriterionResult result = criterion.evaluate(
@@ -203,7 +207,7 @@ class PercentileLatencyTest {
     @DisplayName("empirical() with test sample count ≤ baseline proceeds to verdict")
     void empiricalAcceptsSmallerOrEqualTestSampleCount() {
         PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
-        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 2000), 1000);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(observed(100, 200, 500, 1000, 2000), 1000);
 
         CriterionResult equal = criterion.evaluate(
                 ctx(summary(observed(80, 180, 480, 950, 1000), 1000, 0), Optional.of(baseline)));
@@ -220,7 +224,7 @@ class PercentileLatencyTest {
     @DisplayName("empirical() with mismatched test/baseline inputs identity returns INCONCLUSIVE")
     void empiricalRejectsIdentityMismatch() {
         PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
-        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 1000), 1000);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(observed(100, 200, 500, 1000, 1000), 1000);
 
         CriterionResult result = criterion.evaluate(ctx(
                 summary(observed(80, 180, 480, 950, 200), 200, 0), Optional.of(baseline),
@@ -238,7 +242,7 @@ class PercentileLatencyTest {
     @DisplayName("empirical() with matching test/baseline identity proceeds to verdict")
     void empiricalAcceptsMatchingIdentity() {
         PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P95);
-        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 1000), 1000);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(observed(100, 200, 500, 1000, 1000), 1000);
 
         CriterionResult result = criterion.evaluate(ctx(
                 summary(observed(80, 180, 480, 950, 200), 200, 0), Optional.of(baseline),
@@ -265,7 +269,7 @@ class PercentileLatencyTest {
     void empiricalDeduplicates() {
         PercentileLatency<String> criterion = PercentileLatency.empirical(
                 PercentileKey.P95, PercentileKey.P95, PercentileKey.P99);
-        LatencyStatistics baseline = new LatencyStatistics(observed(100, 200, 500, 1000, 2000), 2000);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(observed(100, 200, 500, 1000, 2000), 2000);
 
         CriterionResult result = criterion.evaluate(
                 ctx(summary(observed(80, 180, 480, 950, 1000), 1000, 0), Optional.of(baseline)));
@@ -320,7 +324,7 @@ class PercentileLatencyTest {
         assertThat(c1.evaluate(ctx(summary(LatencyResult.empty(), 0, 0), Optional.empty())).verdict())
                 .isEqualTo(Verdict.INCONCLUSIVE);
         assertThat(c2.evaluate(ctx(summary(LatencyResult.empty(), 0, 0),
-                Optional.of(new LatencyStatistics(observed(100, 200, 500, 1000, 2000), 2000)))).verdict())
+                Optional.of(LatencyStatistics.fromPercentiles(observed(100, 200, 500, 1000, 2000), 2000)))).verdict())
                 .isEqualTo(Verdict.INCONCLUSIVE);
     }
 

@@ -174,9 +174,13 @@ public final class CriterionPosture {
     }
 
     /**
-     * Latency, empirical: {@code Acceptance.<O>empirical(P95, P99...)}.
+     * Latency, empirical: {@code LatencyCriterion.empirical(P95, P99...)}.
      * Per-percentile thresholds are derived from the resolved baseline
-     * at evaluate time.
+     * at evaluate time via Statistical Companion §12.4.2's exact
+     * binomial order-statistic upper confidence bound. The
+     * {@link #confidenceFloor()} carries the operative confidence
+     * level (defaults to {@code StatisticalDefaults.DEFAULT_CONFIDENCE}
+     * when not set explicitly).
      */
     public static CriterionPosture latencyEmpirical(EnumSet<PercentileKey> asserted) {
         Objects.requireNonNull(asserted, "asserted");
@@ -313,8 +317,16 @@ public final class CriterionPosture {
                     "." + methodName + "(...) cannot compose with .meeting(...) — "
                             + "threshold-first is deterministic and accepts no rigour adjuncts; "
                             + "switch to .empirical() if you want a statistical comparison");
-            case LATENCY_EMPIRICAL, LATENCY_CONTRACTUAL -> throw new IllegalStateException(
-                    "." + methodName + "(...) does not apply to latency postures");
+            case LATENCY_CONTRACTUAL -> throw new IllegalStateException(
+                    "." + methodName + "(...) does not apply to contractual latency — "
+                            + "the ceiling is the threshold; nothing to estimate");
+            case LATENCY_EMPIRICAL -> {
+                if (!methodName.equals("atConfidence")) {
+                    throw new IllegalStateException(
+                            "." + methodName + "(...) does not apply to empirical latency; "
+                                    + "only .atConfidence(...) is supported");
+                }
+            }
             case STATISTICAL_EMPIRICAL -> { /* ok */ }
         }
     }

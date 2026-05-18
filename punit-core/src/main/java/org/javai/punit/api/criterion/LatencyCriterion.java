@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.PercentileKey;
@@ -59,25 +60,29 @@ public final class LatencyCriterion {
 
     private static final LatencyCriterion NONE = new LatencyCriterion(
             Mode.NONE, EnumSet.noneOf(PercentileKey.class),
-            LatencySpec.disabled(), ThresholdOrigin.EMPIRICAL, Optional.empty());
+            LatencySpec.disabled(), ThresholdOrigin.EMPIRICAL, Optional.empty(),
+            OptionalDouble.empty());
 
     private final Mode mode;
     private final EnumSet<PercentileKey> assertedPercentiles;
     private final LatencySpec spec;
     private final ThresholdOrigin origin;
     private final Optional<String> contractRef;
+    private final OptionalDouble confidenceFloor;
 
     private LatencyCriterion(
             Mode mode,
             EnumSet<PercentileKey> assertedPercentiles,
             LatencySpec spec,
             ThresholdOrigin origin,
-            Optional<String> contractRef) {
+            Optional<String> contractRef,
+            OptionalDouble confidenceFloor) {
         this.mode = mode;
         this.assertedPercentiles = EnumSet.copyOf(assertedPercentiles);
         this.spec = spec;
         this.origin = origin;
         this.contractRef = contractRef;
+        this.confidenceFloor = confidenceFloor;
     }
 
     /** The empty sentinel — returned by the default {@code Contract.latency()}. */
@@ -100,7 +105,8 @@ public final class LatencyCriterion {
             set.add(k);
         }
         return new LatencyCriterion(Mode.EMPIRICAL, set, LatencySpec.disabled(),
-                ThresholdOrigin.EMPIRICAL, Optional.empty());
+                ThresholdOrigin.EMPIRICAL, Optional.empty(),
+                OptionalDouble.empty());
     }
 
     /**
@@ -130,7 +136,7 @@ public final class LatencyCriterion {
             applyCeiling(b, c);
         }
         return new LatencyCriterion(Mode.CONTRACTUAL, asserted, b.build(),
-                origin, Optional.empty());
+                origin, Optional.empty(), OptionalDouble.empty());
     }
 
     /**
@@ -153,7 +159,35 @@ public final class LatencyCriterion {
                     ".contractRef cannot be set on LatencyCriterion.none()");
         }
         return new LatencyCriterion(mode, assertedPercentiles, spec, origin,
-                Optional.of(ref));
+                Optional.of(ref), confidenceFloor);
+    }
+
+    /**
+     * Set the per-criterion confidence floor for the binomial
+     * order-statistic upper bound (Statistical Companion §12.4.2).
+     * Composes only with {@link Mode#EMPIRICAL}; rejected on
+     * contractual latency (the ceiling is the threshold; nothing to
+     * estimate).
+     *
+     * <p>Defaults to {@code StatisticalDefaults.DEFAULT_CONFIDENCE}
+     * (0.95) when not set explicitly.
+     *
+     * @throws IllegalStateException on contractual or empty decls
+     * @throws IllegalArgumentException when {@code confidence} is
+     *         outside {@code (0, 1)}
+     */
+    public LatencyCriterion atConfidence(double confidence) {
+        if (mode != Mode.EMPIRICAL) {
+            throw new IllegalStateException(
+                    ".atConfidence(...) composes only with empirical latency; "
+                            + "the contractual ceiling is the threshold");
+        }
+        if (Double.isNaN(confidence) || confidence <= 0.0 || confidence >= 1.0) {
+            throw new IllegalArgumentException(
+                    ".atConfidence(c) requires c in (0, 1), got " + confidence);
+        }
+        return new LatencyCriterion(mode, assertedPercentiles, spec, origin,
+                contractRef, OptionalDouble.of(confidence));
     }
 
     /** True for a meaningful latency criterion; false for {@link #none()}. */
@@ -177,6 +211,9 @@ public final class LatencyCriterion {
         CriterionPosture posture = mode == Mode.EMPIRICAL
                 ? CriterionPosture.latencyEmpirical(assertedPercentiles)
                 : CriterionPosture.latencyContractual(spec, origin);
+        if (confidenceFloor.isPresent()) {
+            posture = posture.withConfidenceFloor(confidenceFloor.getAsDouble());
+        }
         if (contractRef.isPresent()) {
             posture = posture.withContractRef(contractRef.get());
         }

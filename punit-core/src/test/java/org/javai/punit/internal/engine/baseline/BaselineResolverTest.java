@@ -143,7 +143,7 @@ class BaselineResolverTest {
                         java.time.Duration.ofMillis(200),
                         java.time.Duration.ofMillis(400),
                         1000),
-                1000, 1000);
+                new long[1000], 1000, 1000);
         writeBaseline(dir, "ShoppingBasket", "a1b2c3d4",
                 new java.util.LinkedHashMap<>(Map.of(
                         "bernoulli-pass-rate", PerCriterionPassRateStatistics.of("contract", 0.94, 1000))),

@@ -39,7 +39,7 @@ class BaselineStatisticsTest {
     @Test
     @DisplayName("LatencyStatistics accepts valid values")
     void latencyAcceptsValidValues() {
-        LatencyStatistics s = new LatencyStatistics(LatencyResult.empty(), 500);
+        LatencyStatistics s = LatencyStatistics.fromPercentiles(LatencyResult.empty(), 500);
         assertThat(s.percentiles()).isEqualTo(LatencyResult.empty());
         assertThat(s.sampleCount()).isEqualTo(500);
     }
@@ -48,7 +48,7 @@ class BaselineStatisticsTest {
     @DisplayName("LatencyStatistics rejects null percentiles")
     void latencyRejectsNullPercentiles() {
         assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> new LatencyStatistics(null, 100));
+                .isThrownBy(() -> LatencyStatistics.fromPercentiles(null, 100));
     }
 
     @Test
@@ -62,7 +62,7 @@ class BaselineStatisticsTest {
     @DisplayName("All three concrete kinds implement BaselineStatistics")
     void allImplementMarker() {
         assertThat(new PassRateStatistics(0.5, 100)).isInstanceOf(BaselineStatistics.class);
-        assertThat(new LatencyStatistics(LatencyResult.empty(), 100)).isInstanceOf(BaselineStatistics.class);
+        assertThat(LatencyStatistics.fromPercentiles(LatencyResult.empty(), 100)).isInstanceOf(BaselineStatistics.class);
         assertThat(NoStatistics.INSTANCE).isInstanceOf(BaselineStatistics.class);
     }
 

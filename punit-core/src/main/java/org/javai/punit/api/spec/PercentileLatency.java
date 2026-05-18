@@ -56,18 +56,21 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
     private final ThresholdOrigin origin;
     private final EnumSet<PercentileKey> assertedPercentiles;
     private final Supplier<Experiment> baselineSupplier;
+    private final double confidence;
 
     private PercentileLatency(
             Mode mode,
             LatencySpec declaredSpec,
             ThresholdOrigin origin,
             EnumSet<PercentileKey> assertedPercentiles,
-            Supplier<Experiment> baselineSupplier) {
+            Supplier<Experiment> baselineSupplier,
+            double confidence) {
         this.mode = mode;
         this.declaredSpec = declaredSpec;
         this.origin = origin;
         this.assertedPercentiles = assertedPercentiles;
         this.baselineSupplier = baselineSupplier;
+        this.confidence = confidence;
     }
 
     public static <OT> PercentileLatency<OT> meeting(LatencySpec spec, ThresholdOrigin origin) {
@@ -85,13 +88,21 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
         }
         return new PercentileLatency<>(
                 Mode.CONTRACTUAL, spec, origin,
-                assertedFromSpec(spec), null);
+                assertedFromSpec(spec), null,
+                org.javai.punit.statistics.StatisticalDefaults.DEFAULT_CONFIDENCE);
     }
 
     public static <OT> PercentileLatency<OT> empirical(PercentileKey first, PercentileKey... rest) {
+        return empirical(
+                org.javai.punit.statistics.StatisticalDefaults.DEFAULT_CONFIDENCE, first, rest);
+    }
+
+    public static <OT> PercentileLatency<OT> empirical(
+            double confidence, PercentileKey first, PercentileKey... rest) {
+        validateConfidence(confidence);
         EnumSet<PercentileKey> asserted = toEnumSet(first, rest);
         return new PercentileLatency<>(
-                Mode.EMPIRICAL_DEFAULT, null, ThresholdOrigin.EMPIRICAL, asserted, null);
+                Mode.EMPIRICAL_DEFAULT, null, ThresholdOrigin.EMPIRICAL, asserted, null, confidence);
     }
 
     public static <OT> PercentileLatency<OT> empiricalFrom(
@@ -101,7 +112,20 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
         Objects.requireNonNull(baseline, "baseline");
         EnumSet<PercentileKey> asserted = toEnumSet(first, rest);
         return new PercentileLatency<>(
-                Mode.EMPIRICAL_PINNED, null, ThresholdOrigin.EMPIRICAL, asserted, baseline);
+                Mode.EMPIRICAL_PINNED, null, ThresholdOrigin.EMPIRICAL, asserted, baseline,
+                org.javai.punit.statistics.StatisticalDefaults.DEFAULT_CONFIDENCE);
+    }
+
+    private static void validateConfidence(double c) {
+        if (Double.isNaN(c) || c <= 0.0 || c >= 1.0) {
+            throw new IllegalArgumentException(
+                    "confidence must be in (0, 1), got " + c);
+        }
+    }
+
+    /** The configured confidence level for the empirical upper-bound construction. */
+    public double confidence() {
+        return confidence;
     }
 
     /** The baseline supplier when pinned; empty otherwise. */
@@ -150,6 +174,8 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
         }
 
         Map<PercentileKey, Duration> thresholds;
+        Map<PercentileKey, Integer> thresholdRanks = new EnumMap<>(PercentileKey.class);
+        Map<PercentileKey, Long> baselinePercentileMs = new EnumMap<>(PercentileKey.class);
         ThresholdOrigin resolvedOrigin;
         Integer baselineSampleCount = null;
 
@@ -179,7 +205,8 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
             if (sizeViolation.isPresent()) {
                 return sizeViolation.get();
             }
-            thresholds = thresholdsFromBaseline(stats.percentiles());
+            thresholds = thresholdsFromBaseline(
+                    stats, thresholdRanks, baselinePercentileMs);
             resolvedOrigin = ThresholdOrigin.EMPIRICAL;
             baselineSampleCount = stats.sampleCount();
         }
@@ -207,12 +234,21 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
             if (t != null) {
                 detail.put("threshold." + key.detailKey(), t.toMillis());
             }
+            Integer rank = thresholdRanks.get(key);
+            if (rank != null) {
+                detail.put("threshold." + key.detailKey() + ".rank", rank);
+            }
+            Long basePct = baselinePercentileMs.get(key);
+            if (basePct != null) {
+                detail.put("threshold." + key.detailKey() + ".baselinePercentile", basePct);
+            }
         }
         for (PercentileKey key : breachedKeys) {
             detail.put("breach." + key.detailKey(), observedByKey.get(key).toMillis());
         }
         if (mode != Mode.CONTRACTUAL) {
             detail.put("baselineSampleCount", baselineSampleCount);
+            detail.put("confidence", confidence);
         }
 
         String explanation = breachedKeys.isEmpty()
@@ -269,10 +305,32 @@ public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatist
         return map;
     }
 
-    private Map<PercentileKey, Duration> thresholdsFromBaseline(LatencyResult percentiles) {
+    /**
+     * Per asserted percentile, derive the exact distribution-free
+     * upper confidence bound on the baseline quantile via Statistical
+     * Companion §12.4.2's binomial order-statistic construction. The
+     * detail-map sidecars ({@code thresholdRanks},
+     * {@code baselinePercentileMs}) are populated as a side-effect so
+     * the result surfaces the derivation metadata alongside the
+     * threshold.
+     */
+    private Map<PercentileKey, Duration> thresholdsFromBaseline(
+            LatencyStatistics stats,
+            Map<PercentileKey, Integer> thresholdRanks,
+            Map<PercentileKey, Long> baselinePercentileMs) {
+        long[] sortedMs = stats.sortedLatenciesMs();
+        double[] sortedDouble = new double[sortedMs.length];
+        for (int i = 0; i < sortedMs.length; i++) {
+            sortedDouble[i] = sortedMs[i];
+        }
         Map<PercentileKey, Duration> map = new EnumMap<>(PercentileKey.class);
         for (PercentileKey key : assertedPercentiles) {
-            map.put(key, key.observed(percentiles));
+            org.javai.punit.statistics.LatencyThresholdDeriver.Threshold derived =
+                    org.javai.punit.statistics.LatencyThresholdDeriver.derive(
+                            sortedDouble, key.value(), confidence);
+            map.put(key, Duration.ofMillis((long) derived.threshold()));
+            thresholdRanks.put(key, derived.rank());
+            baselinePercentileMs.put(key, (long) derived.baselinePercentile());
         }
         return map;
     }

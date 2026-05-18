@@ -230,14 +230,16 @@ class EmpiricalLatencyEndToEndIntegrationTest {
             Path baselineDir, Duration pX, int sampleCount) throws IOException {
         String fingerprint = FactorsFingerprint.of(FactorBundle.of(FACTORS));
         LatencyResult percentiles = new LatencyResult(pX, pX, pX, pX, sampleCount);
-        LatencyIndicator indicator = new LatencyIndicator(percentiles, sampleCount, sampleCount);
+        long[] sorted = new long[sampleCount];
+        java.util.Arrays.fill(sorted, pX.toMillis());
+        LatencyIndicator indicator = new LatencyIndicator(percentiles, sorted, sampleCount, sampleCount);
         BaselineRecord record = new BaselineRecord(
                 USE_CASE_ID, "latencyBaseline", fingerprint,
                 sampling(1).inputsIdentity(), sampleCount,
                 Instant.parse("2026-04-26T15:30:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "percentile-latency",
-                        new LatencyStatistics(percentiles, sampleCount)),
+                        LatencyStatistics.fromPercentiles(percentiles, sampleCount)),
                 org.javai.punit.api.covariate.CovariateProfile.empty(),
                 indicator);
         new BaselineWriter().write(record, baselineDir);

@@ -88,8 +88,27 @@ public final class LatencySection {
      * passed.
      */
     public static Optional<Map<String, Object>> blockFor(SampleSummary<?> summary) {
-        return blockFor(summary.passingLatencyResult(),
+        long[] sorted = summary.trials().stream()
+                .filter(t -> t.outcome().value() instanceof org.javai.outcome.Outcome.Ok)
+                .mapToLong(t -> t.duration().toMillis())
+                .sorted()
+                .toArray();
+        return blockFor(summary.passingLatencyResult(), sorted,
                 summary.successes(), summary.total());
+    }
+
+    /** Overload taking pre-sorted passing latencies. */
+    public static Optional<Map<String, Object>> blockFor(
+            LatencyResult passingPercentiles, long[] sortedPassingLatenciesMs,
+            int contributingSamples, int totalSamples) {
+        Optional<Map<String, Object>> built =
+                blockFor(passingPercentiles, contributingSamples, totalSamples);
+        built.ifPresent(block -> {
+            java.util.List<Long> asList = new java.util.ArrayList<>(sortedPassingLatenciesMs.length);
+            for (long v : sortedPassingLatenciesMs) asList.add(v);
+            block.put("sortedPassingLatenciesMs", asList);
+        });
+        return built;
     }
 
     /**
