@@ -37,7 +37,7 @@ public final class PUnitSubjects {
     private static <F> ServiceContract<F, Integer, Boolean> alwaysPassesContractual() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(0.5, ThresholdOrigin.SLA);
+                return Acceptance.meeting(ThresholdOrigin.SLA, 0.5);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);
@@ -63,7 +63,7 @@ public final class PUnitSubjects {
     private static <F> ServiceContract<F, Integer, Boolean> alwaysFails() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(0.5, ThresholdOrigin.SLA);
+                return Acceptance.meeting(ThresholdOrigin.SLA, 0.5);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.fail("nope", "always fails");
@@ -77,7 +77,7 @@ public final class PUnitSubjects {
     private static <F> ServiceContract<F, Integer, Boolean> alwaysPassesWithContractRef() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.<Boolean>meeting(0.5, ThresholdOrigin.SLA)
+                return Acceptance.<Boolean>meeting(ThresholdOrigin.SLA, 0.5)
                         .contractRef(CONTRACT_REF_FIXTURE);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
@@ -90,7 +90,7 @@ public final class PUnitSubjects {
     private static <F> ServiceContract<F, Integer, Boolean> alwaysFailsWithContractRef() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.<Boolean>meeting(0.5, ThresholdOrigin.SLA)
+                return Acceptance.<Boolean>meeting(ThresholdOrigin.SLA, 0.5)
                         .contractRef(CONTRACT_REF_FIXTURE);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {

@@ -18,7 +18,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("K=1 bare decl IS a Criteria, lowers to one-entry list with default id 'default'")
     void bareDeclIsCriteria() {
-        Criteria<String> c = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA);
+        Criteria<String> c = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85);
 
         assertThat(c.asList()).hasSize(1);
         assertThat(c.asList().get(0).id()).isEqualTo(Criteria.DEFAULT_CRITERION_ID);
@@ -30,7 +30,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("K=1 bare decl with .name(...) — explicit id replaces the default")
     void bareDeclWithExplicitName() {
-        Criteria<String> c = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
+        Criteria<String> c = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
                 .name("custom-id");
 
         assertThat(c.asList()).hasSize(1);
@@ -55,7 +55,7 @@ class CriteriaAsDataTest {
     void wherePredicateSynthesisesFailure() {
         Predicate<String> isEmpty = String::isEmpty;
         Predicate<String> startsWithA = s -> s.startsWith("a");
-        CriterionDecl<String> decl = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
+        CriterionDecl<String> decl = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
                 .where("non-empty", isEmpty)
                 .where("starts-with-a", startsWithA);
 
@@ -72,7 +72,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName(".satisfies(name, Function<O, Outcome<?>>) — author-supplied message preserved verbatim")
     void satisfiesRichFunctionPreservesMessage() {
-        CriterionDecl<String> decl = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
+        CriterionDecl<String> decl = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
                 .satisfies("parseable", v -> Outcome.fail("notJson", "v=" + v));
 
         Outcome<?> result = decl.postconditions().get(0).check().check("garbage");
@@ -88,7 +88,7 @@ class CriteriaAsDataTest {
         // The key Finding #1 regression-guard: a slide-friendly lambda
         // with a generic Outcome.fail in its body must compile without
         // a cast or a typed local.
-        CriterionDecl<String> decl = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
+        CriterionDecl<String> decl = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
                 .satisfies("transaction succeeds", r -> r.startsWith("OK")
                         ? Outcome.ok()
                         : Outcome.fail("transaction-failed", "got=" + r));
@@ -171,8 +171,8 @@ class CriteriaAsDataTest {
     @DisplayName("Criteria.of(...) — K>1 composite, declaration order preserved")
     void ofMany() {
         Criteria<String> c = of(
-                Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA).name("a"),
-                Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA).name("b"),
+                Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.99).name("a"),
+                Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.95).name("b"),
                 Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY).name("c"));
 
         assertThat(c.asList()).hasSize(3);
@@ -184,7 +184,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("Criteria.of(oneDecl) — K=1 pass-through preserves the decl's name")
     void ofSinglePassThroughExplicitName() {
-        Criteria<String> c = of(Acceptance.<String>meeting(0.9999, ThresholdOrigin.SLA)
+        Criteria<String> c = of(Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.9999)
                 .name("payment-success"));
 
         assertThat(c.asList()).hasSize(1);
@@ -196,8 +196,8 @@ class CriteriaAsDataTest {
     void duplicateNamesRejected() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> of(
-                        Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA).name("a"),
-                        Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA).name("a")))
+                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.99).name("a"),
+                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.95).name("a")))
                 .withMessageContaining("duplicate");
     }
 
@@ -206,8 +206,8 @@ class CriteriaAsDataTest {
     void unnamedInKPlusOneRejected() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> of(
-                        Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA).name("a"),
-                        Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA)))
+                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.99).name("a"),
+                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.95)))
                 .withMessageContaining("name");
     }
 
@@ -244,7 +244,7 @@ class CriteriaAsDataTest {
                 return Outcome.ok("ok");
             }
             @Override public Criteria<String> criteria() {
-                return Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
+                return Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
                         .contractRef("doc-v1");
             }
         };

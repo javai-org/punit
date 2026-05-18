@@ -40,7 +40,7 @@ class AutoInjectionFromPostureTest {
                 return Outcome.ok(true);
             }
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(0.95, ThresholdOrigin.SLA);
+                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
             }
         };
 
@@ -64,7 +64,7 @@ class AutoInjectionFromPostureTest {
                 return Outcome.fail("nope", "never passes");
             }
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(0.95, ThresholdOrigin.SLA);
+                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
             }
         };
 

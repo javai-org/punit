@@ -90,7 +90,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
         this.baselineSupplier = baselineSupplier;
     }
 
-    static <OT> PassRate<OT> meeting(double threshold, ThresholdOrigin origin) {
+    static <OT> PassRate<OT> meeting(ThresholdOrigin origin, double threshold) {
         Objects.requireNonNull(origin, "origin");
         if (threshold < 0.0 || threshold >= 1.0 || Double.isNaN(threshold)) {
             throw new IllegalArgumentException(
@@ -165,7 +165,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                         "STATISTICAL_CONTRACTUAL posture without threshold"));
                 ThresholdOrigin origin = posture.origin().orElseThrow(() -> new IllegalStateException(
                         "STATISTICAL_CONTRACTUAL posture without origin"));
-                PassRate<OT> base = PassRate.meeting(threshold, origin);
+                PassRate<OT> base = PassRate.meeting(origin, threshold);
                 yield Optional.of(posture.confidenceFloor().isPresent()
                         ? base.atConfidence(posture.confidenceFloor().getAsDouble())
                         : base);

@@ -57,7 +57,7 @@ class LatencyEverywhereIntegrationTest {
             return Outcome.ok(input.length());
         }
         @Override public Criteria<Integer> criteria() {
-            return Acceptance.<Integer>meeting(0.5, ThresholdOrigin.SLA)
+            return Acceptance.<Integer>meeting(ThresholdOrigin.SLA, 0.5)
                     .satisfies("length is even", n ->
                             n % 2 == 0 ? Outcome.ok() : Outcome.fail("odd-length", "length=" + n));
         }

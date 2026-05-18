@@ -64,7 +64,7 @@ class SampleSizeResolverTest {
                 return Outcome.ok(input);
             }
             @Override public Criteria<String> criteria() {
-                return Acceptance.<String>meeting(0.90, ThresholdOrigin.SLA)
+                return Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.90)
                         .name("threshold-criterion")
                         .satisfies("always", v -> Outcome.ok());
             }

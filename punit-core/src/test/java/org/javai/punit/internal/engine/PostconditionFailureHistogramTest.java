@@ -42,7 +42,7 @@ class PostconditionFailureHistogramTest {
             return Outcome.ok(input);
         }
         @Override public Criteria<Integer> criteria() {
-            return Acceptance.<Integer>meeting(0.5, org.javai.punit.api.ThresholdOrigin.SLA)
+            return Acceptance.<Integer>meeting(org.javai.punit.api.ThresholdOrigin.SLA, 0.5)
                     .satisfies("alwaysFails", v ->
                             Outcome.fail("alwaysFails-mode", "input was " + v))
                     .satisfies("evenFails", v -> v % 2 == 0

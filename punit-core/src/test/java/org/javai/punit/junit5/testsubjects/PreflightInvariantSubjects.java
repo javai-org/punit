@@ -50,7 +50,7 @@ public final class PreflightInvariantSubjects {
     private static ServiceContract<NoFactors, Integer, Boolean> countingContractualHighThreshold() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(0.9999, ThresholdOrigin.SLA);
+                return Acceptance.meeting(ThresholdOrigin.SLA, 0.9999);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 INVOKE_COUNT.incrementAndGet();
