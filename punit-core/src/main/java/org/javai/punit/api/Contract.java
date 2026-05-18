@@ -128,7 +128,7 @@ public interface Contract<I, O> {
      * verdict-producing strategy. The intended idiom:
      *
      * <pre>{@code
-     * import static org.javai.punit.api.criterion.Posture.*;
+     * import static org.javai.punit.api.criterion.Acceptance.*;
      * import static org.javai.punit.api.criterion.Composite.*;
      *
      * @Override public Criteria<Receipt> criteria() {

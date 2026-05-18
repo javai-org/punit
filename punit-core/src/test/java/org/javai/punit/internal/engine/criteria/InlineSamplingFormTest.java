@@ -7,7 +7,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Posture;
+import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
@@ -23,7 +23,7 @@ class InlineSamplingFormTest {
 
     private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
         @Override public Criteria<String> criteria() {
-            return Posture.meeting(0.95, ThresholdOrigin.SLA);
+            return Acceptance.meeting(0.95, ThresholdOrigin.SLA);
         }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);

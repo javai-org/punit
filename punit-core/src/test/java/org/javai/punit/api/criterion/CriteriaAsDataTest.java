@@ -20,7 +20,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("K=1 bare decl IS a Criteria, lowers to one-entry list with default id 'contract'")
     void bareDeclIsCriteria() {
-        Criteria<String> c = Posture.<String>meeting(0.85, ThresholdOrigin.SLA);
+        Criteria<String> c = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA);
 
         assertThat(c.asList()).hasSize(1);
         assertThat(c.asList().get(0).id()).isEqualTo("contract");
@@ -32,7 +32,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("posture chain is value-preserving: .meeting().contractRef().atConfidence() composes via posture")
     void postureChainPreservesValues() {
-        CriterionDecl<String> decl = Posture.<String>empirical()
+        CriterionDecl<String> decl = Acceptance.<String>empirical()
                 .atConfidence(0.99)
                 .contractRef("doc-v1");
 
@@ -47,7 +47,7 @@ class CriteriaAsDataTest {
     void wherePredicateSynthesisesFailure() {
         Predicate<String> isEmpty = String::isEmpty;
         Predicate<String> startsWithA = s -> s.startsWith("a");
-        CriterionDecl<String> decl = Posture.<String>meeting(0.85, ThresholdOrigin.SLA)
+        CriterionDecl<String> decl = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
                 .where("non-empty", isEmpty)
                 .where("starts-with-a", startsWithA);
 
@@ -64,7 +64,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName(".satisfies(name, Function<O, Outcome<?>>) — author-supplied message preserved verbatim")
     void satisfiesRichFunctionPreservesMessage() {
-        CriterionDecl<String> decl = Posture.<String>meeting(0.85, ThresholdOrigin.SLA)
+        CriterionDecl<String> decl = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
                 .satisfies("parseable", v -> Outcome.fail("notJson", "v=" + v));
 
         Outcome<?> result = decl.postconditions().get(0).check().check("garbage");
@@ -80,7 +80,7 @@ class CriteriaAsDataTest {
         // The key Finding #1 regression-guard: a slide-friendly lambda
         // with a generic Outcome.fail in its body must compile without
         // a cast or a typed local.
-        CriterionDecl<String> decl = Posture.<String>meeting(0.85, ThresholdOrigin.SLA)
+        CriterionDecl<String> decl = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
                 .satisfies("transaction succeeds", r -> r.startsWith("OK")
                         ? Outcome.ok()
                         : Outcome.fail("transaction-failed", "got=" + r));
@@ -94,7 +94,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName(".transforming(parse).where/.satisfies — postconditions evaluate against derived value")
     void transformingChainEvaluatesAgainstDerived() {
-        TransformingDecl<String, Integer> decl = Posture.<String>empirical()
+        TransformingDecl<String, Integer> decl = Acceptance.<String>empirical()
                 .transforming(s -> {
                     try {
                         return Outcome.ok(Integer.parseInt(s));
@@ -128,7 +128,7 @@ class CriteriaAsDataTest {
     @DisplayName(".transforming(...) rejects pre-transform postconditions on the same decl")
     void transformingRejectsPreTransformPostconditions() {
         org.assertj.core.api.Assertions.assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(() -> Posture.<String>empirical()
+                .isThrownBy(() -> Acceptance.<String>empirical()
                         .where("non-empty", s -> !s.isEmpty())
                         .transforming(s -> Outcome.ok(Integer.parseInt(s))))
                 .withMessageContaining(".transforming");
@@ -138,9 +138,9 @@ class CriteriaAsDataTest {
     @DisplayName("compose mixes direct and transforming criteria under one composite")
     void composeMixesDirectAndTransforming() {
         Criteria<String> c = compose(
-                "response-not-empty", Posture.<String>empirical()
+                "response-not-empty", Acceptance.<String>empirical()
                         .where("non-blank", s -> !s.isBlank()),
-                "parses", Posture.<String>empirical()
+                "parses", Acceptance.<String>empirical()
                         .transforming(s -> {
                             try {
                                 return Outcome.ok(Integer.parseInt(s));
@@ -161,7 +161,7 @@ class CriteriaAsDataTest {
     @DisplayName("compose(id, decl) — K=1 with explicit id")
     void composeOneExplicitId() {
         Criteria<String> c = compose("payment-success",
-                Posture.<String>meeting(0.9999, ThresholdOrigin.SLA));
+                Acceptance.<String>meeting(0.9999, ThresholdOrigin.SLA));
 
         assertThat(c.asList()).hasSize(1);
         assertThat(c.asList().get(0).id()).isEqualTo("payment-success");
@@ -171,9 +171,9 @@ class CriteriaAsDataTest {
     @DisplayName("compose(...) — K>1 composite, declaration order preserved")
     void composeMany() {
         Criteria<String> c = compose(
-                "a", Posture.<String>meeting(0.99, ThresholdOrigin.SLA),
-                "b", Posture.<String>meeting(0.95, ThresholdOrigin.SLA),
-                "c", Posture.<String>zeroTolerance(ThresholdOrigin.POLICY));
+                "a", Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA),
+                "b", Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA),
+                "c", Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY));
 
         assertThat(c.asList()).hasSize(3);
         assertThat(c.asList().get(0).id()).isEqualTo("a");
@@ -185,8 +185,8 @@ class CriteriaAsDataTest {
     @DisplayName("composeOf(entry, entry, ...) — escape hatch for arbitrary K")
     void composeOfEntries() {
         Criteria<String> c = composeOf(
-                entry("a", Posture.<String>meeting(0.99, ThresholdOrigin.SLA)),
-                entry("b", Posture.<String>meeting(0.95, ThresholdOrigin.SLA)));
+                entry("a", Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA)),
+                entry("b", Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA)));
 
         assertThat(c.asList()).hasSize(2);
         assertThat(c.asList().get(0).id()).isEqualTo("a");
@@ -198,8 +198,8 @@ class CriteriaAsDataTest {
     void duplicateIdsRejected() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> compose(
-                        "a", Posture.<String>meeting(0.99, ThresholdOrigin.SLA),
-                        "a", Posture.<String>meeting(0.95, ThresholdOrigin.SLA)))
+                        "a", Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA),
+                        "a", Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA)))
                 .withMessageContaining("duplicate");
     }
 
@@ -226,7 +226,7 @@ class CriteriaAsDataTest {
                 return Outcome.ok("ok");
             }
             @Override public Criteria<String> criteria() {
-                return Posture.<String>meeting(0.85, ThresholdOrigin.SLA)
+                return Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
                         .contractRef("doc-v1");
             }
         };

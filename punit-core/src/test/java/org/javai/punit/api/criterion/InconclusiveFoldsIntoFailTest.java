@@ -28,7 +28,7 @@ class InconclusiveFoldsIntoFailTest {
         @Override
         public Criteria<String> criteria() {
             return Composite.compose("parsed-positive",
-                    Posture.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                    Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
                             .transforming(s -> {
                                 try {
                                     return Outcome.ok(Integer.parseInt(s));

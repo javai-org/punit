@@ -13,7 +13,7 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Posture;
+import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.spec.BaselineProvider;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PassRateStatistics;
@@ -39,7 +39,7 @@ class EmpiricalEndToEndIntegrationTest {
 
     static class AlwaysPassesServiceContract implements ServiceContract<Factors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Posture.empirical();
+            return Acceptance.empirical();
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(true);

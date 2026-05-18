@@ -387,7 +387,7 @@ public final class PassRate<OT> implements Criterion<OT, PerCriterionPassRateSta
                         posture.confidenceFloor().getAsDouble()));
             }
 
-            // Posture-driven shortcut: STATISTICAL_CONTRACTUAL and
+            // Acceptance-driven shortcut: STATISTICAL_CONTRACTUAL and
             // ZERO_TOLERANCE skip the legacy mode handling and use the
             // criterion's own commitment directly.
             if (posture.kind() == CriterionPosture.Kind.STATISTICAL_CONTRACTUAL) {

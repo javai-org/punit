@@ -9,7 +9,7 @@ import org.javai.punit.api.ThresholdOrigin;
 /**
  * The methodology criterion's run-time *commitment*: what counts as
  * acceptable, optionally how confidently to evaluate it. Authored on
- * the criterion via the {@link Posture} factories
+ * the criterion via the {@link Acceptance} factories
  * ({@code meeting(rate, origin)}, {@code empirical()},
  * {@code zeroTolerance(origin)}); consumed by the framework's
  * evaluation path when it computes a per-criterion verdict from the
