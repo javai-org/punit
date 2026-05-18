@@ -91,10 +91,10 @@ public interface Criterion<O> {
     /**
      * The criterion's run-time commitment — what counts as acceptable,
      * and optionally how confidently to evaluate it. Authored via the
-     * {@link CriteriaBuilder} convenience methods
-     * ({@code addCriterion(...).meeting(...)} et al.); read by the
-     * framework's evaluation path when it computes the per-criterion
-     * verdict from the run's sample counts.
+     * {@link Posture} factories ({@code meeting(...)}, {@code empirical()},
+     * {@code zeroTolerance(...)}); read by the framework's evaluation
+     * path when it computes the per-criterion verdict from the run's
+     * sample counts.
      *
      * <p>The default is {@link CriterionPosture#implicit()} — used by
      * criteria constructed without an explicit posture (hand-rolled

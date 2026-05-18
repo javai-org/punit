@@ -138,7 +138,7 @@ public final class ExploreOutputWriter {
         block.put("failureDistribution", failureDistribution);
         // Per-criterion decomposition (only when the run produced
         // methodology-level criterion counts — empty for contracts
-        // that declared no explicit criteria(CriteriaBuilder) list).
+        // that declared no explicit criteria() value).
         // Mirrors the per-criterion shape that MEASURE writes into
         // baselines so a reader can compare explore vs measure
         // emissions of the same contract criterion-by-criterion.

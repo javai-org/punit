@@ -10,7 +10,6 @@ import org.javai.outcome.Outcome;
 import org.javai.outcome.Outcome.Fail;
 import org.javai.outcome.Outcome.Ok;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.CriteriaBuilder;
 import org.javai.punit.api.criterion.Criterion;
 import org.javai.punit.api.criterion.CriterionSampleResult;
 import org.javai.punit.api.criterion.DefaultCriterion;
@@ -96,10 +95,10 @@ public interface Contract<I, O> {
      *
      * <p>The default body is empty — appropriate for contracts that
      * partition their acceptance into multiple criteria via
-     * {@link #criteria(CriteriaBuilder)} (the clauses live on the
-     * individual criteria rather than at the contract level), and
-     * also for smoke-test scaffolding or throwaway fixtures that
-     * genuinely have no acceptance criteria. Contracts that declare
+     * {@link #criteria()} (the clauses live on the individual
+     * criteria rather than at the contract level), and also for
+     * smoke-test scaffolding or throwaway fixtures that genuinely
+     * have no acceptance criteria. Contracts that declare
      * postconditions at the contract level override this method.
      *
      * @param b the builder to populate
@@ -107,7 +106,7 @@ public interface Contract<I, O> {
     default void postconditions(PostconditionBuilder<O> b) {
         // No-op default. Override to declare contract-level
         // postconditions; leave defaulted when the contract uses
-        // criteria(CriteriaBuilder) instead.
+        // criteria() instead.
     }
 
     /**
@@ -121,37 +120,6 @@ public interface Contract<I, O> {
         PostconditionBuilder<O> b = new PostconditionBuilder<>();
         postconditions(b);
         return b.build();
-    }
-
-    /**
-     * Declare this contract's criteria — the partition of the
-     * functional dimension into named statistical streams — by
-     * calling {@link CriteriaBuilder#add(Criterion) add} on the
-     * supplied builder.
-     *
-     * <p>The default body is empty. A contract that does not
-     * explicitly declare criteria yields a single-criterion list
-     * derived from its existing {@link #postconditions(PostconditionBuilder)}.
-     * Today's contracts therefore satisfy the criterion model
-     * without code change: the contract <em>is</em> one criterion.
-     *
-     * <p>A contract may not override both this method (so that the
-     * resulting list is non-empty) and
-     * {@link #postconditions(PostconditionBuilder)} (so that the resulting
-     * chain is non-empty) at the same time. The two overrides
-     * estimate different quantities — one criterion's chain versus
-     * the criteria list — and the framework rejects the ambiguity at
-     * the first {@link #criteria()} access. Move the postconditions
-     * onto the criteria, or remove the explicit
-     * {@code criteria(CriteriaBuilder)} override and let the
-     * single-criterion default apply.
-     *
-     * @param b the builder to populate
-     */
-    default void criteria(CriteriaBuilder<O> b) {
-        // Default: no explicit criteria. The default
-        // effectiveCriteria() accessor synthesises a single criterion
-        // from the contract's existing postconditions.
     }
 
     /**
@@ -169,11 +137,9 @@ public interface Contract<I, O> {
      * }
      * }</pre>
      *
-     * <p>The default returns {@link Criteria#empty()}: no value-form
-     * declaration. Contracts that declare via the legacy builder
-     * form ({@link #criteria(CriteriaBuilder)}) leave this default in
-     * place. Contracts that declare both forms are rejected at first
-     * {@link #effectiveCriteria()} access.
+     * <p>The default returns {@link Criteria#empty()}: no explicit
+     * declaration. The framework then synthesises a single criterion
+     * from the contract's {@link #postconditions()} chain.
      */
     default Criteria<O> criteria() {
         return Criteria.empty();
@@ -183,39 +149,19 @@ public interface Contract<I, O> {
      * Resolves the contract's criteria to an immutable runtime
      * list. The framework hook; do not override.
      *
-     * <p>Consults the two authoring surfaces in order:
-     * <ol>
-     *   <li>the value-form {@link #criteria()} — if non-empty, its
-     *       {@link Criteria#asList() asList()} is the result;</li>
-     *   <li>the builder-form {@link #criteria(CriteriaBuilder)} —
-     *       if non-empty, the built list is the result;</li>
-     *   <li>otherwise the K=1 default derived from
-     *       {@link #postconditions()}.</li>
-     * </ol>
+     * <p>If {@link #criteria()} returns a non-empty {@link Criteria},
+     * its {@link Criteria#asList() asList()} is the result. Otherwise
+     * the K=1 default derived from {@link #postconditions()} is
+     * returned.
      *
-     * @throws IllegalStateException if the contract declares both an
-     *         explicit criteria list (non-empty
-     *         {@code criteria(CriteriaBuilder)} override) and a
+     * @throws IllegalStateException if the contract declares both a
      *         non-empty postcondition chain (non-empty
-     *         {@code postconditions(PostconditionBuilder)} override),
-     *         or if it declares both the value-form and the
-     *         builder-form simultaneously.
+     *         {@code postconditions(PostconditionBuilder)} override)
+     *         and an explicit non-empty {@code criteria()} value.
      */
     default List<Criterion<O>> effectiveCriteria() {
         Criteria<O> declared = criteria();
-        CriteriaBuilder<O> b = new CriteriaBuilder<>();
-        criteria(b);
-        boolean valueFormDeclared = !declared.isEmpty();
-        boolean builderFormDeclared = !b.isEmpty();
-        if (valueFormDeclared && builderFormDeclared) {
-            throw new IllegalStateException(
-                    "Contract " + getClass().getName()
-                            + " declares criteria via both the value-form"
-                            + " (Criteria<O> criteria() override) and the"
-                            + " builder-form (criteria(CriteriaBuilder<O> b)"
-                            + " override). Pick one.");
-        }
-        if (valueFormDeclared) {
+        if (!declared.isEmpty()) {
             if (!postconditions().isEmpty()) {
                 throw new IllegalStateException(
                         "Contract " + getClass().getName()
@@ -227,22 +173,6 @@ public interface Contract<I, O> {
                                 + " remove the postconditions override.");
             }
             return declared.asList();
-        }
-        if (builderFormDeclared) {
-            if (!postconditions().isEmpty()) {
-                throw new IllegalStateException(
-                        "Contract " + getClass().getName()
-                                + " declares both a non-empty postcondition chain"
-                                + " (via postconditions(PostconditionBuilder)) and an"
-                                + " explicit criteria list (via"
-                                + " criteria(CriteriaBuilder)). The two overrides"
-                                + " estimate different quantities; the framework"
-                                + " will not pick one. Move the postconditions"
-                                + " onto a criterion, or remove the explicit"
-                                + " criteria override and rely on the"
-                                + " single-criterion default.");
-            }
-            return b.build();
         }
         return List.of(new DefaultCriterion<>(this));
     }
