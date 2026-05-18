@@ -13,8 +13,10 @@ import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
-import org.javai.punit.api.criterion.Criterion;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.ThresholdOrigin;
+import org.javai.punit.api.criterion.Composite;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.internal.engine.Engine;
@@ -139,14 +141,15 @@ class OptimizeOutputWriterTest {
         ServiceContract<LlmFactors, String, String> contract = new ServiceContract<>() {
             @Override public String id() { return "two-criterion-contract"; }
             @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
-            @Override public void criteria(CriteriaBuilder<String> b) {
-                b.add(Criterion.direct("always-passes",
-                        cb -> cb.ensure("passes", v -> Outcome.ok())));
-                b.add(Criterion.direct("starts-with-a",
-                        cb -> cb.ensure("first-char-a", v ->
-                                v.startsWith("a")
-                                        ? Outcome.ok()
-                                        : Outcome.fail("no-a", "input " + v))));
+            @Override public Criteria<String> criteria() {
+                return Composite.compose(
+                        "always-passes", Posture.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                                .satisfies("passes", v -> Outcome.ok()),
+                        "starts-with-a", Posture.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                                .satisfies("first-char-a", v ->
+                                        v.startsWith("a")
+                                                ? Outcome.ok()
+                                                : Outcome.fail("no-a", "input " + v)));
             }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);

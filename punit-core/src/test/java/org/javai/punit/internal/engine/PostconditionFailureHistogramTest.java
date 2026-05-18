@@ -10,7 +10,8 @@ import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.PostconditionBuilder;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -40,14 +41,13 @@ class PostconditionFailureHistogramTest {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
-        @Override public void criteria(CriteriaBuilder<Integer> b) {
-            b.addCriterion("contract", pb -> {
-                pb.ensure("alwaysFails", v ->
-                        Outcome.fail("alwaysFails-mode", "input was " + v));
-                pb.ensure("evenFails", v -> v % 2 == 0
-                        ? Outcome.fail("even-mode", "input " + v + " is even")
-                        : Outcome.ok());
-            }).meeting(0.5, org.javai.punit.api.ThresholdOrigin.SLA);
+        @Override public Criteria<Integer> criteria() {
+            return Posture.<Integer>meeting(0.5, org.javai.punit.api.ThresholdOrigin.SLA)
+                    .satisfies("alwaysFails", v ->
+                            Outcome.fail("alwaysFails-mode", "input was " + v))
+                    .satisfies("evenFails", v -> v % 2 == 0
+                            ? Outcome.fail("even-mode", "input " + v + " is even")
+                            : Outcome.ok());
         }
     }
 

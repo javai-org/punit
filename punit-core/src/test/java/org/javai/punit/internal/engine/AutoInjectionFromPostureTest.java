@@ -7,7 +7,8 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
@@ -38,9 +39,8 @@ class AutoInjectionFromPostureTest {
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker t) {
                 return Outcome.ok(true);
             }
-            @Override public void criteria(CriteriaBuilder<Boolean> b) {
-                b.addCriterion("contract", pb -> { })
-                        .meeting(0.95, ThresholdOrigin.SLA);
+            @Override public Criteria<Boolean> criteria() {
+                return Posture.meeting(0.95, ThresholdOrigin.SLA);
             }
         };
 
@@ -63,9 +63,8 @@ class AutoInjectionFromPostureTest {
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker t) {
                 return Outcome.fail("nope", "never passes");
             }
-            @Override public void criteria(CriteriaBuilder<Boolean> b) {
-                b.addCriterion("contract", pb -> { })
-                        .meeting(0.95, ThresholdOrigin.SLA);
+            @Override public Criteria<Boolean> criteria() {
+                return Posture.meeting(0.95, ThresholdOrigin.SLA);
             }
         };
 

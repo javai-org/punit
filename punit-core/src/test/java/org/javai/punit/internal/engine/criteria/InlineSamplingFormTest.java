@@ -6,7 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.criterion.CriteriaBuilder;
+import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.Posture;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
@@ -21,8 +22,8 @@ class InlineSamplingFormTest {
     record Factors(String label) {}
 
     private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
-        @Override public void criteria(CriteriaBuilder<String> b) {
-            b.addCriterion("contract", pb -> { /* none */ }).meeting(0.95, ThresholdOrigin.SLA);
+        @Override public Criteria<String> criteria() {
+            return Posture.meeting(0.95, ThresholdOrigin.SLA);
         }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
