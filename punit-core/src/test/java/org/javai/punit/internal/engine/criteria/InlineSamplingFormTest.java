@@ -23,7 +23,7 @@ class InlineSamplingFormTest {
 
     private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
         @Override public Criteria<String> criteria() {
-            return Acceptance.meeting(0.95, ThresholdOrigin.SLA);
+            return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
         }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
@@ -96,7 +96,7 @@ class InlineSamplingFormTest {
         ProbabilisticTest spec = ProbabilisticTest.testing((Factors f) -> ECHO, new Factors("m"))
                 .inputs("a", "b")
                 .samples(20)
-                .criterion(PassRate.<String>meeting(0.95, ThresholdOrigin.SLA))
+                .criterion(PassRate.<String>meeting(ThresholdOrigin.SLA, 0.95))
                 .build();
 
         assertThat(spec.samples()).isEqualTo(20);
@@ -124,7 +124,7 @@ class InlineSamplingFormTest {
         var builder = ProbabilisticTest.testing((Factors f) -> ECHO, new Factors("m"))
                 .inputs("a", "b")
                 .samples(20)
-                .criterion(PassRate.<String>meeting(0.5, ThresholdOrigin.SLA))
+                .criterion(PassRate.<String>meeting(ThresholdOrigin.SLA, 0.5))
                 .reportOnly(PassRate.<String>empirical());
 
         assertThatExceptionOfType(IllegalStateException.class)

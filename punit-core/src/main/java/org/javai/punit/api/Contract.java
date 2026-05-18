@@ -8,9 +8,10 @@ import org.javai.outcome.Outcome;
 import org.javai.outcome.Outcome.Ok;
 import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.criterion.Criterion;
-import org.javai.punit.api.criterion.Decl;
 import org.javai.punit.api.criterion.CriterionSampleResult;
+import org.javai.punit.api.criterion.Decl;
 import org.javai.punit.api.criterion.DefaultCriterion;
+import org.javai.punit.api.criterion.LatencyCriterion;
 
 /**
  * The operational layer of a service contract: how to invoke the service for
@@ -160,33 +161,57 @@ public interface Contract<I, O> {
      * the bundle. Both rules are enforced by
      * {@link Criteria#of(Decl[])}.
      *
-     * <h4>Latency criteria</h4>
-     *
-     * <p>A latency commitment travels through the same authoring
-     * surface as a functional criterion:
-     *
-     * <pre>{@code
-     * @Override public Criteria<Receipt> criteria() {
-     *     return of(
-     *         meeting(0.9999, SLA)
-     *             .name("payment-completes")
-     *             .satisfies("Authorisation returned APPROVED", ...),
-     *         empirical(P95, P99)
-     *             .name("latency-has-not-degraded"));
-     * }
-     * }</pre>
-     *
-     * <p>At most one latency criterion per contract — the engine
-     * captures one duration per sample, so multiple latency
-     * declarations would be redundant or contradictory.
-     * {@link #effectiveCriteria()} enforces the 0..1 cardinality.
-     *
      * <p>The default returns {@link Criteria#empty()}: no explicit
      * declaration. The framework then synthesises a single criterion
      * from the contract's {@link #postconditions()} chain.
+     *
+     * <p>Latency commitments live on the sibling {@link #latency()}
+     * method, not on this bundle — the structural 0..1 cardinality
+     * of latency is captured by that sibling's singular return type
+     * rather than by a runtime check inside this bundle.
      */
     default Criteria<O> criteria() {
         return Criteria.empty();
+    }
+
+    /**
+     * The contract's per-percentile latency commitment, when one is
+     * declared. Singular: at most one latency criterion per contract.
+     *
+     * <p>Two authoring shapes via {@link LatencyCriterion}'s static
+     * factories:
+     *
+     * <pre>{@code
+     * import static org.javai.punit.api.PercentileKey.P95;
+     * import static org.javai.punit.api.PercentileKey.P99;
+     * import static org.javai.punit.api.ThresholdOrigin.SLA;
+     * import static org.javai.punit.api.criterion.LatencyCriterion.ceiling;
+     * import static java.time.Duration.ofMillis;
+     *
+     * // empirical — thresholds derived from the resolved baseline
+     * @Override public LatencyCriterion latency() {
+     *     return LatencyCriterion.empirical(P95);
+     * }
+     *
+     * // contractual — fixed per-percentile ceilings
+     * @Override public LatencyCriterion latency() {
+     *     return LatencyCriterion.meeting(SLA,
+     *             ceiling(P95, ofMillis(500)),
+     *             ceiling(P99, ofMillis(1500)))
+     *         .contractRef("Acme Payment SLA v3.2 §4.2");
+     * }
+     * }</pre>
+     *
+     * <p>The framework merges the present latency criterion into
+     * {@link #effectiveCriteria()} under the fixed id
+     * {@link LatencyCriterion#ID}. No name is authored at the call
+     * site — the singular cardinality makes the id a constant.
+     *
+     * <p>The default returns {@link LatencyCriterion#none()}: no
+     * latency commitment is asserted.
+     */
+    default LatencyCriterion latency() {
+        return LatencyCriterion.none();
     }
 
     /**
@@ -205,6 +230,7 @@ public interface Contract<I, O> {
      */
     default List<Criterion<O>> effectiveCriteria() {
         Criteria<O> declared = criteria();
+        List<Criterion<O>> functional;
         if (!declared.isEmpty()) {
             if (!postconditions().isEmpty()) {
                 throw new IllegalStateException(
@@ -216,27 +242,18 @@ public interface Contract<I, O> {
                                 + " criterion via .where(name, predicate), or"
                                 + " remove the postconditions override.");
             }
-            List<Criterion<O>> resolved = declared.asList();
-            List<String> latencyIds = new ArrayList<>();
-            for (Criterion<O> c : resolved) {
-                if (c.posture().isLatency()) {
-                    latencyIds.add(c.id());
-                }
-            }
-            if (latencyIds.size() > 1) {
-                throw new IllegalStateException(
-                        "Contract " + getClass().getName()
-                                + " declares " + latencyIds.size() + " latency criteria"
-                                + " (" + String.join(", ", latencyIds) + ");"
-                                + " at most one is permitted because the engine"
-                                + " captures one duration per sample."
-                                + " Combine the percentiles on a single"
-                                + " Acceptance.<O>empirical(...) or"
-                                + " Acceptance.<O>meeting(origin).ceiling(...) decl.");
-            }
-            return resolved;
+            functional = declared.asList();
+        } else {
+            functional = List.of(new DefaultCriterion<>(this));
         }
-        return List.of(new DefaultCriterion<>(this));
+        LatencyCriterion latency = latency();
+        if (!latency.isPresent()) {
+            return functional;
+        }
+        List<Criterion<O>> merged = new ArrayList<>(functional.size() + 1);
+        merged.addAll(functional);
+        merged.add(latency.<O>toRuntime());
+        return List.copyOf(merged);
     }
 
     /**

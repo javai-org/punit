@@ -437,7 +437,7 @@ class EngineIntegrationTest {
 
     private static class AlwaysPassesServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(0.95, ThresholdOrigin.SLA);
+            return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -457,7 +457,7 @@ class EngineIntegrationTest {
     /** Returns business-level Fail outcomes — the "contract didn't hold" signal. */
     private static class AlwaysReturnsFailServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(0.95, ThresholdOrigin.SLO);
+            return Acceptance.meeting(ThresholdOrigin.SLO, 0.95);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure for input " + input);

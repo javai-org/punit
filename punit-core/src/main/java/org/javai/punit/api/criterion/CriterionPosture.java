@@ -120,16 +120,16 @@ public final class CriterionPosture {
         return IMPLICIT;
     }
 
-    /** Statistical, contractual: {@code .meeting(rate, origin)}. */
-    public static CriterionPosture meeting(double rate, ThresholdOrigin origin) {
+    /** Statistical, contractual: {@code Acceptance.meeting(origin, rate)}. */
+    public static CriterionPosture meeting(ThresholdOrigin origin, double rate) {
         Objects.requireNonNull(origin, "origin");
         if (Double.isNaN(rate) || rate < 0.0 || rate >= 1.0) {
             throw new IllegalArgumentException(
-                    "meeting(rate, origin): rate must be in [0, 1), got " + rate);
+                    "meeting(origin, rate): rate must be in [0, 1), got " + rate);
         }
         if (origin == ThresholdOrigin.EMPIRICAL) {
             throw new IllegalArgumentException(
-                    "meeting(rate, EMPIRICAL) is contradictory — call .empirical() instead");
+                    "meeting(EMPIRICAL, rate) is contradictory — call .empirical() instead");
         }
         return new CriterionPosture(Kind.STATISTICAL_CONTRACTUAL,
                 OptionalDouble.of(rate),

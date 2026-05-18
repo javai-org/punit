@@ -1,7 +1,6 @@
 package org.javai.punit.internal.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -19,6 +18,7 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.criterion.Criteria;
+import org.javai.punit.api.criterion.LatencyCriterion;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.LatencyStatistics;
 import org.javai.punit.api.spec.ProbabilisticTest;
@@ -34,20 +34,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * End-to-end pin for the contract-side latency authoring surface. The
- * contract declares its latency commitment via
- * {@code Acceptance.<O>empirical(P95)} or
- * {@code Acceptance.<O>meeting(SLA).ceiling(P95, ...)}; the paired
+ * End-to-end pin for the contract-side latency authoring surface.
+ * The contract declares its latency commitment via the sibling
+ * {@link org.javai.punit.api.Contract#latency()} method; the paired
  * probabilistic test invokes the contract with no explicit
  * {@code .criterion(...)}, and the framework auto-injects the
  * latency criterion alongside any functional criteria.
- *
- * <p>This pin complements the test-site path covered by
- * {@code EmpiricalLatencyEndToEndIntegrationTest}: the deriver,
- * writer, reader, and evaluator chain is the same — only the
- * authoring surface differs.
  */
-@DisplayName("Contract-side latency end-to-end — Acceptance.<O>empirical(...) on the contract")
+@DisplayName("Contract-side latency end-to-end — Contract.latency() sibling method")
 class ContractLatencyEndToEndIntegrationTest {
 
     record Factors(String model) { }
@@ -55,35 +49,42 @@ class ContractLatencyEndToEndIntegrationTest {
     private static final Factors FACTORS = new Factors("model-a");
     private static final String USE_CASE_ID = "contract-latency-pin";
 
-    /** Contract declares its latency commitment on the criteria value. */
+    /** Contract declares functional + latency on separate sibling methods. */
     static class LatencyOnContract implements ServiceContract<Factors, Integer, Integer> {
         private final Criteria<Integer> criteria;
-        LatencyOnContract(Criteria<Integer> criteria) { this.criteria = criteria; }
+        private final LatencyCriterion latency;
+        LatencyOnContract(Criteria<Integer> criteria, LatencyCriterion latency) {
+            this.criteria = criteria;
+            this.latency = latency;
+        }
         @Override public String id() { return USE_CASE_ID; }
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
         @Override public Criteria<Integer> criteria() { return criteria; }
+        @Override public LatencyCriterion latency() { return latency; }
     }
 
-    private static Sampling<Factors, Integer, Integer> sampling(Criteria<Integer> criteria, int samples) {
+    private static Sampling<Factors, Integer, Integer> sampling(
+            Criteria<Integer> criteria, LatencyCriterion latency, int samples) {
         return Sampling.<Factors, Integer, Integer>builder()
-                .serviceContractFactory(f -> new LatencyOnContract(criteria))
+                .serviceContractFactory(f -> new LatencyOnContract(criteria, latency))
                 .inputs(1, 2, 3, 4, 5)
                 .samples(samples)
                 .build();
     }
 
     @Test
-    @DisplayName("Acceptance.empirical(P95) on contract → auto-injected latency criterion resolves baseline and PASSes")
+    @DisplayName("Contract.latency() empirical → auto-injected latency criterion resolves baseline and PASSes")
     void empiricalLatencyOnContractAutoInjects(@TempDir Path baselineDir) throws IOException {
         // Baseline asserts p95 = 1 minute — far above any plausible
         // microbench latency, so observed p95 will be below it.
         writeLatencyBaseline(baselineDir, Duration.ofMinutes(1), 1000);
 
-        Criteria<Integer> criteria = Acceptance.<Integer>empirical(PercentileKey.P95);
+        Criteria<Integer> criteria = Criteria.empty();
+        LatencyCriterion latency = LatencyCriterion.empirical(PercentileKey.P95);
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(criteria, 20), FACTORS)
+                .testing(sampling(criteria, latency, 20), FACTORS)
                 .build();   // no .criterion(...) — auto-injection from contract
 
         ProbabilisticTestResult result = (ProbabilisticTestResult)
@@ -103,14 +104,14 @@ class ContractLatencyEndToEndIntegrationTest {
     }
 
     @Test
-    @DisplayName("Acceptance.meeting(SLA).ceiling(P95, 500ms) on contract → contractual latency PASSes when observed is below ceiling")
+    @DisplayName("Contract.latency() contractual ceiling → contractual latency PASSes when observed below ceiling")
     void contractualLatencyOnContract(@TempDir Path baselineDir) throws IOException {
-        // Pass-rate baseline is absent; the latency criterion is
-        // contractual so it does not need a baseline.
-        Criteria<Integer> criteria = Acceptance.<Integer>meeting(ThresholdOrigin.SLA)
-                .ceiling(PercentileKey.P95, Duration.ofMillis(500));
+        Criteria<Integer> criteria = Criteria.empty();
+        LatencyCriterion latency = LatencyCriterion.meeting(
+                ThresholdOrigin.SLA,
+                LatencyCriterion.ceiling(PercentileKey.P95, Duration.ofMillis(500)));
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(criteria, 20), FACTORS)
+                .testing(sampling(criteria, latency, 20), FACTORS)
                 .build();
 
         ProbabilisticTestResult result = (ProbabilisticTestResult)
@@ -128,53 +129,64 @@ class ContractLatencyEndToEndIntegrationTest {
     }
 
     @Test
-    @DisplayName("two latency declarations on a contract → effectiveCriteria() throws")
-    void twoLatencyCriteriaRejected() {
-        var contract = new ServiceContract<Factors, Integer, Integer>() {
-            @Override public String id() { return USE_CASE_ID; }
-            @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
-            @Override public Criteria<Integer> criteria() {
-                return Criteria.of(
-                        Acceptance.<Integer>empirical(PercentileKey.P95).name("latency-a"),
-                        Acceptance.<Integer>empirical(PercentileKey.P99).name("latency-b"));
-            }
-        };
-
-        assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(contract::effectiveCriteria)
-                .withMessageContaining("at most one")
-                .withMessageContaining("latency-a")
-                .withMessageContaining("latency-b");
-    }
-
-    @Test
-    @DisplayName("functional + latency on one contract → both criteria resolved, neither shadows the other")
+    @DisplayName("functional criteria() + latency() on one contract → both criteria auto-injected")
     void functionalAndLatencyCombine(@TempDir Path baselineDir) throws IOException {
         writeLatencyBaseline(baselineDir, Duration.ofMinutes(1), 1000);
 
-        Criteria<Integer> criteria = Criteria.of(
-                Acceptance.<Integer>meeting(0.99, ThresholdOrigin.SLA).name("non-negative")
-                        .satisfies("value-not-negative",
-                                v -> v >= 0 ? Outcome.ok() : Outcome.fail("neg", "v=" + v)),
-                Acceptance.<Integer>empirical(PercentileKey.P95).name("latency-stable"));
+        Criteria<Integer> criteria = Acceptance.<Integer>meeting(ThresholdOrigin.SLA, 0.99)
+                .satisfies("value-not-negative",
+                        v -> v >= 0 ? Outcome.ok() : Outcome.fail("neg", "v=" + v));
+        LatencyCriterion latency = LatencyCriterion.empirical(PercentileKey.P95);
 
         ProbabilisticTest spec = ProbabilisticTest
-                .testing(sampling(criteria, 20), FACTORS)
+                .testing(sampling(criteria, latency, 20), FACTORS)
                 .build();
 
         ProbabilisticTestResult result = (ProbabilisticTestResult)
                 new Engine(new YamlBaselineProvider(baselineDir)).run(spec);
 
-        // Latency criterion auto-injected and resolved.
         assertThat(result.criterionResults().stream()
                 .anyMatch(ec -> "percentile-latency".equals(ec.result().criterionName())))
                 .as("auto-injection must inject the latency criterion")
                 .isTrue();
-        // Functional pass-rate criterion auto-injected and resolved.
         assertThat(result.criterionResults().stream()
                 .anyMatch(ec -> "bernoulli-pass-rate".equals(ec.result().criterionName())))
                 .as("auto-injection must inject the pass-rate criterion alongside latency")
                 .isTrue();
+    }
+
+    @Test
+    @DisplayName("Contract.latency() default (none) → no latency criterion in effectiveCriteria")
+    void defaultLatencyIsNone() {
+        var contract = new ServiceContract<Factors, Integer, Integer>() {
+            @Override public String id() { return USE_CASE_ID; }
+            @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
+            @Override public Criteria<Integer> criteria() {
+                return Acceptance.<Integer>empirical()
+                        .satisfies("v >= 0", v -> v >= 0 ? Outcome.ok() : Outcome.fail("neg", "v=" + v));
+            }
+        };
+
+        assertThat(contract.latency().isPresent()).isFalse();
+        assertThat(contract.effectiveCriteria()).hasSize(1);
+        assertThat(contract.effectiveCriteria().get(0).posture().isLatency()).isFalse();
+    }
+
+    @Test
+    @DisplayName("present LatencyCriterion is merged with fixed id 'latency'")
+    void presentLatencyMergesWithFixedId() {
+        var contract = new ServiceContract<Factors, Integer, Integer>() {
+            @Override public String id() { return USE_CASE_ID; }
+            @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
+            @Override public LatencyCriterion latency() {
+                return LatencyCriterion.empirical(PercentileKey.P95);
+            }
+        };
+
+        var effective = contract.effectiveCriteria();
+        assertThat(effective).hasSize(2);
+        assertThat(effective.get(1).id()).isEqualTo(LatencyCriterion.ID);
+        assertThat(effective.get(1).posture().isLatency()).isTrue();
     }
 
     private static void writeLatencyBaseline(
@@ -182,10 +194,11 @@ class ContractLatencyEndToEndIntegrationTest {
         String fingerprint = FactorsFingerprint.of(FactorBundle.of(FACTORS));
         LatencyResult percentiles = new LatencyResult(pX, pX, pX, pX, sampleCount);
         LatencyIndicator indicator = new LatencyIndicator(percentiles, sampleCount, sampleCount);
-        Criteria<Integer> dummy = Acceptance.<Integer>empirical(PercentileKey.P95);
         BaselineRecord record = new BaselineRecord(
                 USE_CASE_ID, "latencyBaseline", fingerprint,
-                sampling(dummy, 1).inputsIdentity(), sampleCount,
+                sampling(Criteria.empty(), LatencyCriterion.empirical(PercentileKey.P95), 1)
+                        .inputsIdentity(),
+                sampleCount,
                 Instant.parse("2026-05-18T12:00:00Z"),
                 Map.<String, BaselineStatistics>of(
                         "percentile-latency",

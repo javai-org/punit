@@ -398,7 +398,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void mixedCriteriaBothRequiredComposesToFail() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(0.95, ThresholdOrigin.SLA);
+                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
@@ -428,7 +428,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void reportOnlyLatencyExcludedFromComposition() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(0.95, ThresholdOrigin.SLA);
+                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);

@@ -92,7 +92,7 @@ class PassRateTest {
     @Test
     @DisplayName("meeting() returns PASS when observed meets threshold")
     void contractualPass() {
-        PassRate<String> criterion = PassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> criterion = PassRate.meeting(ThresholdOrigin.SLA, 0.9);
 
         CriterionResult result = criterion.evaluate(ctx(summary(95, 5), Optional.empty()));
 
@@ -107,7 +107,7 @@ class PassRateTest {
     @Test
     @DisplayName("meeting() returns FAIL when observed below threshold")
     void contractualFail() {
-        PassRate<String> criterion = PassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> criterion = PassRate.meeting(ThresholdOrigin.SLA, 0.9);
 
         CriterionResult result = criterion.evaluate(ctx(summary(80, 20), Optional.empty()));
 
@@ -119,18 +119,18 @@ class PassRateTest {
     @DisplayName("meeting() rejects threshold outside [0, 1]")
     void meetingRejectsOutOfRange() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PassRate.meeting(-0.1, ThresholdOrigin.SLA));
+                .isThrownBy(() -> PassRate.meeting(ThresholdOrigin.SLA, -0.1));
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PassRate.meeting(1.1, ThresholdOrigin.SLA));
+                .isThrownBy(() -> PassRate.meeting(ThresholdOrigin.SLA, 1.1));
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PassRate.meeting(Double.NaN, ThresholdOrigin.SLA));
+                .isThrownBy(() -> PassRate.meeting(ThresholdOrigin.SLA, Double.NaN));
     }
 
     @Test
     @DisplayName("meeting() rejects ThresholdOrigin.EMPIRICAL")
     void meetingRejectsEmpiricalOrigin() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> PassRate.meeting(0.9, ThresholdOrigin.EMPIRICAL))
+                .isThrownBy(() -> PassRate.meeting(ThresholdOrigin.EMPIRICAL, 0.9))
                 .withMessageContaining("empirical");
     }
 
@@ -358,7 +358,7 @@ class PassRateTest {
     @Test
     @DisplayName("contractual meeting() does not impose sample-size constraint — no baseline involved")
     void contractualIgnoresSampleSize() {
-        PassRate<String> criterion = PassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> criterion = PassRate.meeting(ThresholdOrigin.SLA, 0.9);
 
         // Test has 10000 samples; no baseline, so the constraint doesn't apply.
         CriterionResult result = criterion.evaluate(ctx(summary(9500, 500), Optional.empty()));
@@ -422,7 +422,7 @@ class PassRateTest {
     @Test
     @DisplayName("non-empirical variants expose empty baselineSupplier")
     void nonEmpiricalHasEmptySupplier() {
-        assertThat(PassRate.meeting(0.9, ThresholdOrigin.SLA).baselineSupplier()).isEmpty();
+        assertThat(PassRate.meeting(ThresholdOrigin.SLA, 0.9).baselineSupplier()).isEmpty();
         assertThat(PassRate.empirical().baselineSupplier()).isEmpty();
     }
 
@@ -431,7 +431,7 @@ class PassRateTest {
     @Test
     @DisplayName("zero samples → INCONCLUSIVE regardless of mode")
     void zeroSamplesInconclusive() {
-        PassRate<String> c1 = PassRate.meeting(0.9, ThresholdOrigin.SLA);
+        PassRate<String> c1 = PassRate.meeting(ThresholdOrigin.SLA, 0.9);
         PassRate<String> c2 = PassRate.empirical();
 
         var empty = summary(0, 0);
