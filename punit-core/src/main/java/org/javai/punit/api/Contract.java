@@ -8,6 +8,7 @@ import org.javai.outcome.Outcome;
 import org.javai.outcome.Outcome.Ok;
 import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.criterion.Criterion;
+import org.javai.punit.api.criterion.Decl;
 import org.javai.punit.api.criterion.CriterionSampleResult;
 import org.javai.punit.api.criterion.DefaultCriterion;
 
@@ -120,17 +121,44 @@ public interface Contract<I, O> {
     /**
      * Author-facing, value-form criteria declaration — returns a
      * {@link Criteria} value describing the contract's
-     * verdict-producing strategy. The intended idiom:
+     * verdict-producing strategy.
+     *
+     * <h4>K=1 — return a bare {@link Decl}</h4>
      *
      * <pre>{@code
      * import static org.javai.punit.api.criterion.Acceptance.*;
-     * import static org.javai.punit.api.criterion.Composite.*;
      *
      * @Override public Criteria<Receipt> criteria() {
      *     return meeting(0.9999, SLA)
      *             .contractRef("Payment Provider SLA v2.3, §4.1");
      * }
      * }</pre>
+     *
+     * <p>The decl's name (via {@code .name(String)}) is optional in
+     * the K=1 case; missing names default to
+     * {@link Criteria#DEFAULT_CRITERION_ID} at lowering time.
+     *
+     * <h4>K&gt;1 — bundle via {@link Criteria#of(Decl[])}</h4>
+     *
+     * <pre>{@code
+     * import static org.javai.punit.api.criterion.Acceptance.*;
+     * import static org.javai.punit.api.criterion.Criteria.of;
+     *
+     * @Override public Criteria<Receipt> criteria() {
+     *     return of(
+     *         meeting(0.9999, SLA)
+     *             .name("payment-completes")
+     *             .satisfies("Authorisation returned APPROVED", ...),
+     *         empirical()
+     *             .name("structure-valid")
+     *             .satisfies("Receipt is parseable", ...));
+     * }
+     * }</pre>
+     *
+     * <p>Every decl in a K&gt;1 bundle <strong>must</strong> supply a
+     * name via {@code .name(String)}; names must be unique within
+     * the bundle. Both rules are enforced by
+     * {@link Criteria#of(Decl[])}.
      *
      * <p>The default returns {@link Criteria#empty()}: no explicit
      * declaration. The framework then synthesises a single criterion

@@ -2,9 +2,7 @@ package org.javai.punit.api.criterion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.javai.punit.api.criterion.Composite.compose;
-import static org.javai.punit.api.criterion.Composite.composeOf;
-import static org.javai.punit.api.criterion.Composite.entry;
+import static org.javai.punit.api.criterion.Criteria.of;
 
 import java.util.function.Predicate;
 
@@ -18,15 +16,25 @@ import org.junit.jupiter.api.Test;
 class CriteriaAsDataTest {
 
     @Test
-    @DisplayName("K=1 bare decl IS a Criteria, lowers to one-entry list with default id 'contract'")
+    @DisplayName("K=1 bare decl IS a Criteria, lowers to one-entry list with default id 'default'")
     void bareDeclIsCriteria() {
         Criteria<String> c = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA);
 
         assertThat(c.asList()).hasSize(1);
-        assertThat(c.asList().get(0).id()).isEqualTo("contract");
+        assertThat(c.asList().get(0).id()).isEqualTo(Criteria.DEFAULT_CRITERION_ID);
         assertThat(c.asList().get(0).posture().kind())
                 .isEqualTo(CriterionPosture.Kind.STATISTICAL_CONTRACTUAL);
         assertThat(c.asList().get(0).posture().threshold().getAsDouble()).isEqualTo(0.85);
+    }
+
+    @Test
+    @DisplayName("K=1 bare decl with .name(...) — explicit id replaces the default")
+    void bareDeclWithExplicitName() {
+        Criteria<String> c = Acceptance.<String>meeting(0.85, ThresholdOrigin.SLA)
+                .name("custom-id");
+
+        assertThat(c.asList()).hasSize(1);
+        assertThat(c.asList().get(0).id()).isEqualTo("custom-id");
     }
 
     @Test
@@ -127,7 +135,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName(".transforming(...) rejects pre-transform postconditions on the same decl")
     void transformingRejectsPreTransformPostconditions() {
-        org.assertj.core.api.Assertions.assertThatExceptionOfType(IllegalStateException.class)
+        assertThatExceptionOfType(IllegalStateException.class)
                 .isThrownBy(() -> Acceptance.<String>empirical()
                         .where("non-empty", s -> !s.isEmpty())
                         .transforming(s -> Outcome.ok(Integer.parseInt(s))))
@@ -135,12 +143,13 @@ class CriteriaAsDataTest {
     }
 
     @Test
-    @DisplayName("compose mixes direct and transforming criteria under one composite")
-    void composeMixesDirectAndTransforming() {
-        Criteria<String> c = compose(
-                "response-not-empty", Acceptance.<String>empirical()
+    @DisplayName("Criteria.of(...) mixes direct and transforming criteria under one composite")
+    void ofMixesDirectAndTransforming() {
+        Criteria<String> c = of(
+                Acceptance.<String>empirical()
+                        .name("response-not-empty")
                         .where("non-blank", s -> !s.isBlank()),
-                "parses", Acceptance.<String>empirical()
+                Acceptance.<String>empirical()
                         .transforming(s -> {
                             try {
                                 return Outcome.ok(Integer.parseInt(s));
@@ -148,7 +157,8 @@ class CriteriaAsDataTest {
                                 return Outcome.fail("not-a-number", "s=" + s);
                             }
                         })
-                        .where("positive", n -> n > 0));
+                        .where("positive", n -> n > 0)
+                        .name("parses"));
 
         assertThat(c.asList()).hasSize(2);
         assertThat(c.asList().get(0).id()).isEqualTo("response-not-empty");
@@ -158,22 +168,12 @@ class CriteriaAsDataTest {
     }
 
     @Test
-    @DisplayName("compose(id, decl) — K=1 with explicit id")
-    void composeOneExplicitId() {
-        Criteria<String> c = compose("payment-success",
-                Acceptance.<String>meeting(0.9999, ThresholdOrigin.SLA));
-
-        assertThat(c.asList()).hasSize(1);
-        assertThat(c.asList().get(0).id()).isEqualTo("payment-success");
-    }
-
-    @Test
-    @DisplayName("compose(...) — K>1 composite, declaration order preserved")
-    void composeMany() {
-        Criteria<String> c = compose(
-                "a", Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA),
-                "b", Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA),
-                "c", Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY));
+    @DisplayName("Criteria.of(...) — K>1 composite, declaration order preserved")
+    void ofMany() {
+        Criteria<String> c = of(
+                Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA).name("a"),
+                Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA).name("b"),
+                Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY).name("c"));
 
         assertThat(c.asList()).hasSize(3);
         assertThat(c.asList().get(0).id()).isEqualTo("a");
@@ -182,25 +182,43 @@ class CriteriaAsDataTest {
     }
 
     @Test
-    @DisplayName("composeOf(entry, entry, ...) — escape hatch for arbitrary K")
-    void composeOfEntries() {
-        Criteria<String> c = composeOf(
-                entry("a", Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA)),
-                entry("b", Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA)));
+    @DisplayName("Criteria.of(oneDecl) — K=1 pass-through preserves the decl's name")
+    void ofSinglePassThroughExplicitName() {
+        Criteria<String> c = of(Acceptance.<String>meeting(0.9999, ThresholdOrigin.SLA)
+                .name("payment-success"));
 
-        assertThat(c.asList()).hasSize(2);
-        assertThat(c.asList().get(0).id()).isEqualTo("a");
-        assertThat(c.asList().get(1).id()).isEqualTo("b");
+        assertThat(c.asList()).hasSize(1);
+        assertThat(c.asList().get(0).id()).isEqualTo("payment-success");
     }
 
     @Test
-    @DisplayName("duplicate criterion ids in compose(...) rejected at construction")
-    void duplicateIdsRejected() {
+    @DisplayName("duplicate criterion names in Criteria.of(...) rejected at construction")
+    void duplicateNamesRejected() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> compose(
-                        "a", Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA),
-                        "a", Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA)))
+                .isThrownBy(() -> of(
+                        Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA).name("a"),
+                        Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA).name("a")))
                 .withMessageContaining("duplicate");
+    }
+
+    @Test
+    @DisplayName("K>1 Criteria.of(...) with any unnamed decl is rejected")
+    void unnamedInKPlusOneRejected() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> of(
+                        Acceptance.<String>meeting(0.99, ThresholdOrigin.SLA).name("a"),
+                        Acceptance.<String>meeting(0.95, ThresholdOrigin.SLA)))
+                .withMessageContaining("name");
+    }
+
+    @Test
+    @DisplayName("calling .name(...) twice on the same decl is rejected")
+    void duplicateNameOnSameDeclRejected() {
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> Acceptance.<String>empirical()
+                        .name("first")
+                        .name("second"))
+                .withMessageContaining("already supplied");
     }
 
     @Test
@@ -218,7 +236,7 @@ class CriteriaAsDataTest {
     }
 
     @Test
-    @DisplayName("Contract.criteria() value-form: bare decl drives effectiveCriteria")
+    @DisplayName("Contract.criteria() value-form: bare decl drives effectiveCriteria with default name")
     void valueFormDrivesEffectiveCriteria() {
         Contract<Object, String> c = new Contract<>() {
             @Override public Outcome<String> invoke(Object input,
@@ -232,7 +250,7 @@ class CriteriaAsDataTest {
         };
 
         assertThat(c.effectiveCriteria()).hasSize(1);
-        assertThat(c.effectiveCriteria().get(0).id()).isEqualTo("contract");
+        assertThat(c.effectiveCriteria().get(0).id()).isEqualTo(Criteria.DEFAULT_CRITERION_ID);
         assertThat(c.effectiveCriteria().get(0).posture().contractRef()).contains("doc-v1");
     }
 

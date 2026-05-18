@@ -14,7 +14,6 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.criterion.Composite;
 import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.spec.Experiment;
@@ -142,10 +141,12 @@ class OptimizeOutputWriterTest {
             @Override public String id() { return "two-criterion-contract"; }
             @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Criteria<String> criteria() {
-                return Composite.compose(
-                        "always-passes", Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                return Criteria.of(
+                        Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                                .name("always-passes")
                                 .satisfies("passes", v -> Outcome.ok()),
-                        "starts-with-a", Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                        Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                                .name("starts-with-a")
                                 .satisfies("first-char-a", v ->
                                         v.startsWith("a")
                                                 ? Outcome.ok()

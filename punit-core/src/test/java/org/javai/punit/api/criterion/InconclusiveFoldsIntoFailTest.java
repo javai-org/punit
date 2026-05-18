@@ -27,18 +27,18 @@ class InconclusiveFoldsIntoFailTest {
 
         @Override
         public Criteria<String> criteria() {
-            return Composite.compose("parsed-positive",
-                    Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
-                            .transforming(s -> {
-                                try {
-                                    return Outcome.ok(Integer.parseInt(s));
-                                } catch (NumberFormatException e) {
-                                    return Outcome.fail("parse-error", "not a number: " + s);
-                                }
-                            })
-                            .satisfies("positive", (Integer n) -> n > 0
-                                    ? Outcome.ok()
-                                    : Outcome.fail("non-positive", "n=" + n)));
+            return Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                    .transforming(s -> {
+                        try {
+                            return Outcome.ok(Integer.parseInt(s));
+                        } catch (NumberFormatException e) {
+                            return Outcome.fail("parse-error", "not a number: " + s);
+                        }
+                    })
+                    .satisfies("positive", (Integer n) -> n > 0
+                            ? Outcome.ok()
+                            : Outcome.fail("non-positive", "n=" + n))
+                    .name("parsed-positive");
         }
     }
 
