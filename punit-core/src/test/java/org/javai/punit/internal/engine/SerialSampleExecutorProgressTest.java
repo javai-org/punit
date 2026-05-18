@@ -7,7 +7,6 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.PostconditionBuilder;
@@ -138,8 +137,6 @@ class SerialSampleExecutorProgressTest {
         new SerialSampleExecutor().runSamples(
                 serviceContract,
                 inputs,
-                List.of(),
-                Optional.empty(),
                 inputs.size(),
                 0,
                 new IgnoringObserver(),

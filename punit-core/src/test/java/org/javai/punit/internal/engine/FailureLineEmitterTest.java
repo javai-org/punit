@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.spec.SampleClassification;
 import org.junit.jupiter.api.AfterEach;
@@ -50,7 +49,6 @@ class FailureLineEmitterTest {
                         PostconditionResult.passed("non-empty"),
                         PostconditionResult.failed("valid JSON", "Parse error at line 5"),
                         PostconditionResult.failed("contains action", "no 'action' key")),
-                Optional.empty(),
                 Optional.empty(),
                 Duration.ofMillis(42),
                 0L);
@@ -93,49 +91,11 @@ class FailureLineEmitterTest {
     }
 
     @Test
-    @DisplayName("emits a match: line for a failing MatchResult; passes are not emitted")
-    void matchMismatch() {
-        MatchResult mismatch = MatchResult.fail(
-                "translation equals reference",
-                "hello", "hallo", "differs at index 1");
-        SampleClassification classification = SampleClassification.from(
-                List.of(),
-                Optional.empty(),
-                Optional.of(mismatch),
-                Duration.ofMillis(20),
-                0L);
-
-        FailureLineEmitter.emit(0, classification);
-
-        assertThat(stderrLines())
-                .containsExactly(
-                        "[PUNIT-FAIL] sample 0 match: translation equals reference: "
-                                + "differs at index 1");
-    }
-
-    @Test
-    @DisplayName("a passing match is not emitted")
-    void passingMatchSilent() {
-        MatchResult pass = MatchResult.pass("translation equals reference", "hello", "hello");
-        SampleClassification classification = SampleClassification.from(
-                List.of(),
-                Optional.empty(),
-                Optional.of(pass),
-                Duration.ofMillis(20),
-                0L);
-
-        FailureLineEmitter.emit(0, classification);
-
-        assertThat(stderrLines()).isEmpty();
-    }
-
-    @Test
     @DisplayName("a fully-passing classification emits nothing")
     void allPassingSilent() {
         SampleClassification classification = SampleClassification.from(
                 List.of(PostconditionResult.passed("non-empty"),
                         PostconditionResult.passed("valid JSON")),
-                Optional.empty(),
                 Optional.empty(),
                 Duration.ofMillis(40),
                 0L);
@@ -153,7 +113,6 @@ class FailureLineEmitterTest {
         PostconditionResult result = new PostconditionResult("multi-line clause", failure);
         SampleClassification classification = SampleClassification.from(
                 List.of(result),
-                Optional.empty(),
                 Optional.empty(),
                 Duration.ofMillis(1),
                 0L);

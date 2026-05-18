@@ -2,7 +2,6 @@ package org.javai.punit.internal.engine;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 import org.javai.punit.api.spec.ExceptionPolicy;
@@ -10,7 +9,6 @@ import org.javai.punit.api.Pacing;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ServiceContractOutcome;
-import org.javai.punit.api.ValueMatcher;
 import org.javai.punit.api.spec.SampleExecutor;
 import org.javai.punit.api.spec.SampleObserver;
 
@@ -58,8 +56,6 @@ public final class SerialSampleExecutor implements SampleExecutor {
     public <FT, IT, OT> void runSamples(
             ServiceContract<FT, IT, OT> serviceContract,
             List<IT> inputs,
-            List<OT> expected,
-            Optional<ValueMatcher<OT>> matcher,
             int sampleCount,
             int cycleStart,
             SampleObserver<OT> observer,
@@ -71,15 +67,10 @@ public final class SerialSampleExecutor implements SampleExecutor {
         if (sampleCount < 0) {
             throw new IllegalArgumentException("sampleCount must be non-negative");
         }
-        if (!expected.isEmpty() && matcher.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "matcher is required when expected outputs are supplied");
-        }
 
         Pacing pacing = serviceContract.pacing();
         long minDelayMillis = pacing.effectiveMinDelayMillis();
         TokenTracker tracker = new InMemoryTokenTracker();
-        boolean matching = !expected.isEmpty();
 
         for (int i = 0; i < sampleCount; i++) {
             if (stopRequested.getAsBoolean()) {
@@ -96,12 +87,7 @@ public final class SerialSampleExecutor implements SampleExecutor {
             long t0 = System.nanoTime();
             ServiceContractOutcome<IT, OT> outcome;
             try {
-                if (matching) {
-                    OT expectedValue = expected.get(inputIndex % expected.size());
-                    outcome = serviceContract.apply(input, expectedValue, matcher.get(), tracker);
-                } else {
-                    outcome = serviceContract.apply(input, tracker);
-                }
+                outcome = serviceContract.apply(input, tracker);
             } catch (Throwable t) {
                 Duration elapsed = Duration.ofNanos(System.nanoTime() - t0);
                 observer.onDefect(i, t, elapsed);

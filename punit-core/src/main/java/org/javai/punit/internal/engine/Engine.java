@@ -11,7 +11,6 @@ import java.util.Optional;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.LatencyResult;
-import org.javai.punit.api.MatchResult;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ServiceContractOutcome;
 import org.javai.punit.api.spec.BaselineProvider;
@@ -145,8 +144,6 @@ public final class Engine {
         executor.runSamples(
                 serviceContract,
                 cfg.inputs(),
-                cfg.expected(),
-                spec.matcher(),
                 effectiveSamples,
                 cycleStart,
                 agg,
@@ -157,8 +154,7 @@ public final class Engine {
 
     /**
      * Aggregates per-sample outcomes. Stamps the per-sample duration
-     * onto each outcome, attaches a {@link MatchResult} when the spec
-     * supplied a matcher, records the token cost on the tracker, and
+     * onto each outcome, records the token cost on the tracker, and
      * caps retained failure detail at {@code maxExampleFailures}.
      */
     private static final class Aggregator<IT, OT> implements SampleObserver<OT> {
@@ -261,7 +257,6 @@ public final class Engine {
                     Outcome.fail("defect", throwable.toString()),
                     serviceContract,
                     List.of(),
-                    Optional.empty(),
                     0L,
                     elapsed);
             record(index, synthetic, classify(synthetic));

@@ -49,7 +49,7 @@ class PercentileLatencyTest {
     private static ServiceContractOutcome<Object, String> stubOutcome(Outcome<String> result) {
         return new ServiceContractOutcome<>(
                 result, STUB_CONTRACT,
-                List.of(), Optional.empty(),
+                List.of(),
                 0L, Duration.ZERO);
     }
 

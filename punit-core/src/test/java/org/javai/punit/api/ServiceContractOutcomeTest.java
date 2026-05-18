@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 
 import org.javai.outcome.Outcome;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +31,7 @@ class ServiceContractOutcomeTest {
         mutable.add(PostconditionResult.passed("a"));
 
         var outcome = new ServiceContractOutcome<>(
-                Outcome.ok(5), CONTRACT, mutable, Optional.empty(), 0L, Duration.ZERO);
+                Outcome.ok(5), CONTRACT, mutable, 0L, Duration.ZERO);
 
         mutable.add(PostconditionResult.failed("b", "intruder"));   // mutate after
 
@@ -45,7 +44,7 @@ class ServiceContractOutcomeTest {
     void rejectsNegativeTokens() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> new ServiceContractOutcome<>(
-                        Outcome.ok(1), CONTRACT, List.of(), Optional.empty(),
+                        Outcome.ok(1), CONTRACT, List.of(),
                         -1L, Duration.ZERO));
     }
 
@@ -54,7 +53,7 @@ class ServiceContractOutcomeTest {
     void rejectsNegativeDuration() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> new ServiceContractOutcome<>(
-                        Outcome.ok(1), CONTRACT, List.of(), Optional.empty(),
+                        Outcome.ok(1), CONTRACT, List.of(),
                         0L, Duration.ofMillis(-1)));
     }
 
@@ -63,19 +62,16 @@ class ServiceContractOutcomeTest {
     void rejectsNullFields() {
         assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> new ServiceContractOutcome<>(
-                        null, CONTRACT, List.of(), Optional.empty(), 0L, Duration.ZERO));
+                        null, CONTRACT, List.of(), 0L, Duration.ZERO));
         assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> new ServiceContractOutcome<>(
-                        Outcome.ok(1), null, List.of(), Optional.empty(), 0L, Duration.ZERO));
+                        Outcome.ok(1), null, List.of(), 0L, Duration.ZERO));
         assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> new ServiceContractOutcome<>(
-                        Outcome.ok(1), CONTRACT, null, Optional.empty(), 0L, Duration.ZERO));
+                        Outcome.ok(1), CONTRACT, null, 0L, Duration.ZERO));
         assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> new ServiceContractOutcome<>(
-                        Outcome.ok(1), CONTRACT, List.of(), null, 0L, Duration.ZERO));
-        assertThatExceptionOfType(NullPointerException.class)
-                .isThrownBy(() -> new ServiceContractOutcome<>(
-                        Outcome.ok(1), CONTRACT, List.of(), Optional.empty(), 0L, null));
+                        Outcome.ok(1), CONTRACT, List.of(), 0L, null));
     }
 
     @Test
@@ -85,24 +81,9 @@ class ServiceContractOutcomeTest {
         var outcome = new ServiceContractOutcome<>(
                 applyFail, CONTRACT,
                 List.of(PostconditionResult.passed("would-pass")),
-                Optional.empty(), 0L, Duration.ZERO);
-
-        assertThat(outcome.value()).isSameAs(applyFail);
-    }
-
-    @Test
-    @DisplayName("value() returns instance_conformance Fail when the match mismatched")
-    void valueReturnsMatchFail() {
-        var outcome = new ServiceContractOutcome<>(
-                Outcome.ok(5), CONTRACT,
-                List.of(),
-                Optional.of(MatchResult.fail(
-                        "exact", 6, 5, "expected 6 got 5")),
                 0L, Duration.ZERO);
 
-        assertThat(outcome.value().isFail()).isTrue();
-        assertThat(((Outcome.Fail<Integer>) outcome.value()).failure().id().name())
-                .isEqualTo("instance_conformance");
+        assertThat(outcome.value()).isSameAs(applyFail);
     }
 
     @Test
@@ -114,7 +95,7 @@ class ServiceContractOutcomeTest {
                         PostconditionResult.passed("first ok"),
                         PostconditionResult.failed("second-clause", "tripped"),
                         PostconditionResult.failed("third-clause", "would also trip")),
-                Optional.empty(), 0L, Duration.ZERO);
+                0L, Duration.ZERO);
 
         assertThat(outcome.value().isFail()).isTrue();
         assertThat(((Outcome.Fail<Integer>) outcome.value()).failure().message())
@@ -127,7 +108,6 @@ class ServiceContractOutcomeTest {
         var outcome = new ServiceContractOutcome<>(
                 Outcome.ok(5), CONTRACT,
                 List.of(PostconditionResult.passed("all good")),
-                Optional.of(MatchResult.pass("exact", 5, 5)),
                 12L, Duration.ofMillis(7));
 
         assertThat(outcome.value().isOk()).isTrue();

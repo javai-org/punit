@@ -50,7 +50,7 @@ class CriterionResultDetailTest {
     private static ServiceContractOutcome<Object, Integer> stubOutcome(int value) {
         return new ServiceContractOutcome<>(
                 Outcome.ok(value), STUB_CONTRACT,
-                List.of(), Optional.empty(),
+                List.of(),
                 0L, Duration.ZERO);
     }
 
