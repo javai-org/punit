@@ -5,12 +5,14 @@ import java.util.List;
 import org.javai.punit.api.ThresholdOrigin;
 
 /**
- * Posture factories — the starting point for every
- * {@link CriterionDecl}.
+ * Acceptance-mode factories — the starting point for every
+ * {@link CriterionDecl}. Each factory expresses how a criterion
+ * resolves to a verdict: a contractual threshold to be met
+ * ({@code meeting}), a baseline-derived threshold to be matched
+ * ({@code empirical}), or zero tolerance for failed samples
+ * ({@code zeroTolerance}).
  *
- * <p>Each factory returns a {@code CriterionDecl<O>} whose
- * {@link CriterionPosture} is the corresponding verdict-producing
- * strategy. The author then chains
+ * <p>The author then chains
  * {@link CriterionDecl#where(String, java.util.function.Predicate)
  * .where(...)},
  * {@link CriterionDecl#contractRef(String) .contractRef(...)},
@@ -18,17 +20,17 @@ import org.javai.punit.api.ThresholdOrigin;
  * to refine the declaration.
  *
  * <p>Statically imported, the call site reads {@code meeting(0.85, SLA)}
- * — not {@code Posture.meeting(...)}. The class is a container for
+ * — not {@code Acceptance.meeting(...)}. The class is a container for
  * autocomplete navigation; the static import is the canonical
  * idiom:
  *
  * <pre>{@code
- * import static org.javai.punit.api.criterion.Posture.*;
+ * import static org.javai.punit.api.criterion.Acceptance.*;
  * }</pre>
  */
-public final class Posture {
+public final class Acceptance {
 
-    private Posture() { /* utility class */ }
+    private Acceptance() { /* utility class */ }
 
     /**
      * Statistical, contractual: PASS iff observed pass-rate ≥

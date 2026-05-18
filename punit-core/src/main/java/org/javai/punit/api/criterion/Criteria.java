@@ -14,7 +14,7 @@ import java.util.List;
  *   <li>{@link CriterionDecl} — a single-criterion strategy. The
  *       K=1 case: posture, optional postconditions, optional
  *       refinements (contractRef, confidence floor, MDE/power).
- *       Returned directly from {@code Posture.meeting(...)} and
+ *       Returned directly from {@code Acceptance.meeting(...)} and
  *       friends; an author with one criterion returns the decl
  *       directly from {@code Contract.criteria()}.</li>
  *   <li>{@link CompositeCriteria} — a multi-criterion strategy

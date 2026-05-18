@@ -15,7 +15,7 @@ import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.criterion.Composite;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Posture;
+import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
@@ -50,7 +50,7 @@ class SampleSizeResolverTest {
             }
             @Override public Criteria<String> criteria() {
                 return Composite.compose("the-criterion",
-                        Posture.<String>empirical()
+                        Acceptance.<String>empirical()
                                 .detectingMde(mde)
                                 .atPower(power)
                                 .satisfies("always", v -> Outcome.ok()));
@@ -66,7 +66,7 @@ class SampleSizeResolverTest {
             }
             @Override public Criteria<String> criteria() {
                 return Composite.compose("threshold-criterion",
-                        Posture.<String>meeting(0.90, ThresholdOrigin.SLA)
+                        Acceptance.<String>meeting(0.90, ThresholdOrigin.SLA)
                                 .satisfies("always", v -> Outcome.ok()));
             }
         };
@@ -165,10 +165,10 @@ class SampleSizeResolverTest {
             }
             @Override public Criteria<String> criteria() {
                 return Composite.compose(
-                        "loose", Posture.<String>empirical()
+                        "loose", Acceptance.<String>empirical()
                                 .detectingMde(0.10).atPower(0.50)
                                 .satisfies("always", v -> Outcome.ok()),
-                        "tight", Posture.<String>empirical()
+                        "tight", Acceptance.<String>empirical()
                                 .detectingMde(0.02).atPower(0.95)
                                 .satisfies("always", v -> Outcome.ok()));
             }

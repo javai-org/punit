@@ -91,7 +91,7 @@ public interface Criterion<O> {
     /**
      * The criterion's run-time commitment — what counts as acceptable,
      * and optionally how confidently to evaluate it. Authored via the
-     * {@link Posture} factories ({@code meeting(...)}, {@code empirical()},
+     * {@link Acceptance} factories ({@code meeting(...)}, {@code empirical()},
      * {@code zeroTolerance(...)}); read by the framework's evaluation
      * path when it computes the per-criterion verdict from the run's
      * sample counts.
@@ -110,7 +110,7 @@ public interface Criterion<O> {
      * directly against the contract's output. No transform.
      *
      * <p>Framework-internal entry point: the value-returning
-     * authoring surface (see {@code Posture.meeting/.empirical/.zeroTolerance}
+     * authoring surface (see {@code Acceptance.meeting/.empirical/.zeroTolerance}
      * and {@code Composite.compose}) is the path authors use.
      */
     static <O> Criterion<O> direct(
