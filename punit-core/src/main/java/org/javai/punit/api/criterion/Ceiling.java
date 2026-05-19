@@ -7,18 +7,17 @@ import org.javai.punit.api.PercentileKey;
 
 /**
  * A per-percentile latency ceiling — the contractual pair
- * {@code (percentile, duration)} consumed by
- * {@link LatencyCriterion#meeting}.
- *
- * <p>Authored most idiomatically via the static helper
- * {@link LatencyCriterion#ceiling(PercentileKey, Duration)} so the
- * call site reads {@code ceiling(P95, ofMillis(500))}.
+ * {@code (percentile, duration)} consumed internally by
+ * {@link LatencyCriterion#meeting}. Authors do not construct
+ * {@code Ceiling} directly; they chain
+ * {@link LatencyCriterion#atMost(PercentileKey, Duration)} on a
+ * {@link Criteria#meeting()} chain.
  *
  * @param percentile the percentile this ceiling applies to
  * @param duration   the per-percentile duration ceiling — strictly
  *                   positive
  */
-public record Ceiling(PercentileKey percentile, Duration duration) {
+record Ceiling(PercentileKey percentile, Duration duration) {
 
     public Ceiling {
         Objects.requireNonNull(percentile, "percentile");

@@ -16,40 +16,32 @@ import org.javai.punit.api.ThresholdOrigin;
  * contract; surfaced via the {@link org.javai.punit.api.Contract#latency()}
  * sibling method.
  *
- * <p>Two authoring shapes:
- * <ul>
- *   <li><b>Empirical</b> — {@link #empirical(PercentileKey, PercentileKey...)}.
- *       Per-percentile thresholds are derived from the resolved
- *       baseline at evaluate time.</li>
- *   <li><b>Contractual</b> — {@link #meeting(ThresholdOrigin, Ceiling, Ceiling...)}.
- *       Per-percentile ceilings are declared as {@link Ceiling}
- *       pairs on the call; the origin is the supplied non-empirical
- *       origin.</li>
- * </ul>
- *
- * <p>Idiomatic call sites (with the recommended static imports):
+ * <p>Authored via the {@link Criteria#meeting()} / {@link Criteria#empirical()}
+ * factories chained with {@link #atMost(PercentileKey, Duration)} or
+ * {@link #atMost(PercentileKey)}, and bound with
+ * {@link #contractRef(ThresholdOrigin, String)}:
  *
  * <pre>{@code
  * import static org.javai.punit.api.PercentileKey.P95;
  * import static org.javai.punit.api.PercentileKey.P99;
  * import static org.javai.punit.api.ThresholdOrigin.SLA;
- * import static org.javai.punit.api.criterion.LatencyCriterion.ceiling;
+ * import static org.javai.punit.api.criterion.Criteria.meeting;
+ * import static org.javai.punit.api.criterion.Criteria.empirical;
  * import static java.time.Duration.ofMillis;
  *
  * // empirical
- * LatencyCriterion.empirical(P95, P99);
+ * empirical().atMost(P95).atMost(P99);
  *
  * // contractual
- * LatencyCriterion.meeting(SLA,
- *         ceiling(P95, ofMillis(500)),
- *         ceiling(P99, ofMillis(1500)))
- *     .contractRef("Acme Payment SLA v3.2 §4.2");
+ * meeting().atMost(P95, ofMillis(500))
+ *          .atMost(P99, ofMillis(1500))
+ *          .contractRef(SLA, "Acme Payment SLA v3.2 §4.2");
  * }</pre>
  *
  * <p>The id of the resulting runtime criterion is fixed at
  * {@value #ID} — 0..1 cardinality is structural, so no name is
  * authored at the call site. Authors who want a project-specific
- * label put it in {@link #contractRef(String)}.
+ * label put it in {@link #contractRef(ThresholdOrigin, String)}.
  */
 public final class LatencyCriterion {
 
@@ -92,9 +84,11 @@ public final class LatencyCriterion {
 
     /**
      * Empirical latency at the asserted percentiles. Thresholds are
-     * derived from the resolved baseline at evaluate time.
+     * derived from the resolved baseline at evaluate time. Internal
+     * factory used by {@link EmpiricalDeclImpl}; authors open the
+     * chain via {@link Criteria#empirical()}.
      */
-    public static LatencyCriterion empirical(PercentileKey first, PercentileKey... rest) {
+    static LatencyCriterion empirical(PercentileKey first, PercentileKey... rest) {
         Objects.requireNonNull(first, "first");
         Objects.requireNonNull(rest, "rest");
         EnumSet<PercentileKey> set = EnumSet.of(first);
@@ -112,9 +106,11 @@ public final class LatencyCriterion {
     /**
      * Contractual latency: a fixed per-percentile ceiling for each
      * {@link Ceiling} pair. {@code origin} must be a non-empirical
-     * origin (SLA / SLO / POLICY).
+     * origin (SLA / SLO / POLICY / UNSPECIFIED). Internal factory used
+     * by {@link ContractualDeclImpl}; authors open the chain via
+     * {@link Criteria#meeting()}.
      */
-    public static LatencyCriterion meeting(
+    static LatencyCriterion meeting(
             ThresholdOrigin origin, Ceiling first, Ceiling... rest) {
         Objects.requireNonNull(origin, "origin");
         Objects.requireNonNull(first, "first");
@@ -122,7 +118,7 @@ public final class LatencyCriterion {
         if (origin == ThresholdOrigin.EMPIRICAL) {
             throw new IllegalArgumentException(
                     "meeting(EMPIRICAL, ...) is contradictory — "
-                            + "call LatencyCriterion.empirical(...) for empirical latency");
+                            + "use Criteria.empirical() for baseline-derived latency");
         }
         EnumSet<PercentileKey> asserted = EnumSet.of(first.percentile());
         LatencySpec.Builder b = LatencySpec.builder();
@@ -140,11 +136,11 @@ public final class LatencyCriterion {
     }
 
     /**
-     * Static convenience factory for {@link Ceiling} — designed for
-     * static import so the call site reads
-     * {@code ceiling(P95, ofMillis(500))}.
+     * Internal factory for {@link Ceiling}, used by
+     * {@link ContractualDeclImpl} when constructing the first ceiling
+     * of a new contractual chain.
      */
-    public static Ceiling ceiling(PercentileKey percentile, Duration duration) {
+    static Ceiling ceiling(PercentileKey percentile, Duration duration) {
         return new Ceiling(percentile, duration);
     }
 

@@ -91,10 +91,10 @@ public interface Criterion<O> {
     /**
      * The criterion's run-time commitment — what counts as acceptable,
      * and optionally how confidently to evaluate it. Authored via the
-     * {@link Acceptance} factories ({@code meeting(...)}, {@code empirical()},
-     * {@code zeroTolerance(...)}); read by the framework's evaluation
-     * path when it computes the per-criterion verdict from the run's
-     * sample counts.
+     * {@link Criteria#meeting()} / {@link Criteria#empirical()} factories
+     * with the kind selectors ({@code .passRate}, {@code .zeroTolerance},
+     * {@code .atMost}); read by the framework's evaluation path when it
+     * computes the per-criterion verdict from the run's sample counts.
      *
      * <p>The default is {@link CriterionPosture#implicit()} — used by
      * criteria constructed without an explicit posture (hand-rolled
@@ -110,8 +110,9 @@ public interface Criterion<O> {
      * directly against the contract's output. No transform.
      *
      * <p>Framework-internal entry point: the value-returning
-     * authoring surface (see {@code Acceptance.meeting/.empirical/.zeroTolerance}
-     * and {@code Criteria.of}) is the path authors use.
+     * authoring surface (see {@link Criteria#meeting()} /
+     * {@link Criteria#empirical()} and {@link Criteria#of(Decl[])}) is
+     * the path authors use.
      */
     static <O> Criterion<O> direct(
             String id, Consumer<PostconditionBuilder<O>> body) {

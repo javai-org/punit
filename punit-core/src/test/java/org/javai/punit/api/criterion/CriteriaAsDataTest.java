@@ -2,13 +2,14 @@ package org.javai.punit.api.criterion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.javai.punit.api.criterion.Criteria.empirical;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import static org.javai.punit.api.criterion.Criteria.of;
 
 import java.util.function.Predicate;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.ThresholdOrigin;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("K=1 bare decl IS a Criteria, lowers to one-entry list with default id 'default'")
     void bareDeclIsCriteria() {
-        Criteria<String> c = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85);
+        Criteria<String> c = meeting().<String>passRate(0.85);
 
         assertThat(c.asList()).hasSize(1);
         assertThat(c.asList().get(0).id()).isEqualTo(Criteria.DEFAULT_CRITERION_ID);
@@ -30,7 +31,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("K=1 bare decl with .name(...) — explicit id replaces the default")
     void bareDeclWithExplicitName() {
-        Criteria<String> c = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
+        Criteria<String> c = meeting().<String>passRate(0.85)
                 .name("custom-id");
 
         assertThat(c.asList()).hasSize(1);
@@ -40,7 +41,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("posture chain is value-preserving: .meeting().contractRef().atConfidence() composes via posture")
     void postureChainPreservesValues() {
-        CriterionDecl<String> decl = Acceptance.<String>empirical()
+        CriterionDecl<String> decl = empirical().<String>passRate()
                 .atConfidence(0.99)
                 .contractRef("doc-v1");
 
@@ -55,7 +56,7 @@ class CriteriaAsDataTest {
     void wherePredicateSynthesisesFailure() {
         Predicate<String> isEmpty = String::isEmpty;
         Predicate<String> startsWithA = s -> s.startsWith("a");
-        CriterionDecl<String> decl = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
+        CriterionDecl<String> decl = meeting().<String>passRate(0.85)
                 .where("non-empty", isEmpty)
                 .where("starts-with-a", startsWithA);
 
@@ -72,7 +73,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName(".satisfies(name, Function<O, Outcome<?>>) — author-supplied message preserved verbatim")
     void satisfiesRichFunctionPreservesMessage() {
-        CriterionDecl<String> decl = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
+        CriterionDecl<String> decl = meeting().<String>passRate(0.85)
                 .satisfies("parseable", v -> Outcome.fail("notJson", "v=" + v));
 
         Outcome<?> result = decl.postconditions().get(0).check().check("garbage");
@@ -88,7 +89,7 @@ class CriteriaAsDataTest {
         // The key Finding #1 regression-guard: a slide-friendly lambda
         // with a generic Outcome.fail in its body must compile without
         // a cast or a typed local.
-        CriterionDecl<String> decl = Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
+        CriterionDecl<String> decl = meeting().<String>passRate(0.85)
                 .satisfies("transaction succeeds", r -> r.startsWith("OK")
                         ? Outcome.ok()
                         : Outcome.fail("transaction-failed", "got=" + r));
@@ -102,7 +103,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName(".transforming(parse).where/.satisfies — postconditions evaluate against derived value")
     void transformingChainEvaluatesAgainstDerived() {
-        TransformingDecl<String, Integer> decl = Acceptance.<String>empirical()
+        TransformingDecl<String, Integer> decl = empirical().<String>passRate()
                 .transforming(s -> {
                     try {
                         return Outcome.ok(Integer.parseInt(s));
@@ -136,7 +137,7 @@ class CriteriaAsDataTest {
     @DisplayName(".transforming(...) rejects pre-transform postconditions on the same decl")
     void transformingRejectsPreTransformPostconditions() {
         assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(() -> Acceptance.<String>empirical()
+                .isThrownBy(() -> empirical().<String>passRate()
                         .where("non-empty", s -> !s.isEmpty())
                         .transforming(s -> Outcome.ok(Integer.parseInt(s))))
                 .withMessageContaining(".transforming");
@@ -146,10 +147,10 @@ class CriteriaAsDataTest {
     @DisplayName("Criteria.of(...) mixes direct and transforming criteria under one composite")
     void ofMixesDirectAndTransforming() {
         Criteria<String> c = of(
-                Acceptance.<String>empirical()
+                empirical().<String>passRate()
                         .name("response-not-empty")
                         .where("non-blank", s -> !s.isBlank()),
-                Acceptance.<String>empirical()
+                empirical().<String>passRate()
                         .transforming(s -> {
                             try {
                                 return Outcome.ok(Integer.parseInt(s));
@@ -171,9 +172,9 @@ class CriteriaAsDataTest {
     @DisplayName("Criteria.of(...) — K>1 composite, declaration order preserved")
     void ofMany() {
         Criteria<String> c = of(
-                Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.99).name("a"),
-                Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.95).name("b"),
-                Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY).name("c"));
+                meeting().<String>passRate(0.99).name("a"),
+                meeting().<String>passRate(0.95).name("b"),
+                meeting().<String>zeroTolerance().name("c"));
 
         assertThat(c.asList()).hasSize(3);
         assertThat(c.asList().get(0).id()).isEqualTo("a");
@@ -184,7 +185,7 @@ class CriteriaAsDataTest {
     @Test
     @DisplayName("Criteria.of(oneDecl) — K=1 pass-through preserves the decl's name")
     void ofSinglePassThroughExplicitName() {
-        Criteria<String> c = of(Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.9999)
+        Criteria<String> c = of(meeting().<String>passRate(0.9999)
                 .name("payment-success"));
 
         assertThat(c.asList()).hasSize(1);
@@ -196,8 +197,8 @@ class CriteriaAsDataTest {
     void duplicateNamesRejected() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> of(
-                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.99).name("a"),
-                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.95).name("a")))
+                        meeting().<String>passRate(0.99).name("a"),
+                        meeting().<String>passRate(0.95).name("a")))
                 .withMessageContaining("duplicate");
     }
 
@@ -206,8 +207,8 @@ class CriteriaAsDataTest {
     void unnamedInKPlusOneRejected() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> of(
-                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.99).name("a"),
-                        Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.95)))
+                        meeting().<String>passRate(0.99).name("a"),
+                        meeting().<String>passRate(0.95)))
                 .withMessageContaining("name");
     }
 
@@ -215,7 +216,7 @@ class CriteriaAsDataTest {
     @DisplayName("calling .name(...) twice on the same decl is rejected")
     void duplicateNameOnSameDeclRejected() {
         assertThatExceptionOfType(IllegalStateException.class)
-                .isThrownBy(() -> Acceptance.<String>empirical()
+                .isThrownBy(() -> empirical().<String>passRate()
                         .name("first")
                         .name("second"))
                 .withMessageContaining("already supplied");
@@ -244,7 +245,7 @@ class CriteriaAsDataTest {
                 return Outcome.ok("ok");
             }
             @Override public Criteria<String> criteria() {
-                return Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.85)
+                return meeting().<String>passRate(0.85)
                         .contractRef("doc-v1");
             }
         };

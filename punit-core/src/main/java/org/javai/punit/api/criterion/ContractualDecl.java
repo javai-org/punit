@@ -34,10 +34,8 @@ import org.javai.punit.api.PercentileKey;
  * kind selector has no type parameter — latency criteria care about
  * durations, not per-sample outcome values.
  *
- * <p>This is the new authoring surface introduced by
- * {@code DIR-CRITERIA-PROVENANCE-AND-KIND-punit}. The legacy
- * {@link Acceptance} factory remains in place during the migration
- * window.
+ * <p>This is the canonical contractual-criterion authoring surface,
+ * opened by {@link Criteria#meeting()}.
  */
 public interface ContractualDecl {
 

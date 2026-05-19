@@ -127,11 +127,13 @@ public interface Contract<I, O> {
      * <h4>K=1 — return a bare {@link Decl}</h4>
      *
      * <pre>{@code
-     * import static org.javai.punit.api.criterion.Acceptance.*;
+     * import static org.javai.punit.api.criterion.Criteria.meeting;
+     * import static org.javai.punit.api.ThresholdOrigin.SLA;
      *
      * @Override public Criteria<Receipt> criteria() {
-     *     return meeting(0.9999, SLA)
-     *             .contractRef("Payment Provider SLA v2.3, §4.1");
+     *     return meeting().<Receipt>passRate(0.9999)
+     *             .contractRef(SLA, "Payment Provider SLA v2.3, §4.1")
+     *             .satisfies("Authorisation returned APPROVED", ...);
      * }
      * }</pre>
      *
@@ -142,15 +144,18 @@ public interface Contract<I, O> {
      * <h4>K&gt;1 — bundle via {@link Criteria#of(Decl[])}</h4>
      *
      * <pre>{@code
-     * import static org.javai.punit.api.criterion.Acceptance.*;
+     * import static org.javai.punit.api.criterion.Criteria.meeting;
+     * import static org.javai.punit.api.criterion.Criteria.empirical;
      * import static org.javai.punit.api.criterion.Criteria.of;
+     * import static org.javai.punit.api.ThresholdOrigin.SLA;
      *
      * @Override public Criteria<Receipt> criteria() {
      *     return of(
-     *         meeting(0.9999, SLA)
+     *         meeting().<Receipt>passRate(0.9999)
+     *             .contractRef(SLA, "Payment Provider SLA v2.3, §4.1")
      *             .name("payment-completes")
      *             .satisfies("Authorisation returned APPROVED", ...),
-     *         empirical()
+     *         empirical().<Receipt>passRate()
      *             .name("structure-valid")
      *             .satisfies("Receipt is parseable", ...));
      * }
@@ -178,27 +183,27 @@ public interface Contract<I, O> {
      * The contract's per-percentile latency commitment, when one is
      * declared. Singular: at most one latency criterion per contract.
      *
-     * <p>Two authoring shapes via {@link LatencyCriterion}'s static
-     * factories:
+     * <p>Two authoring shapes via the {@link Criteria#meeting()} /
+     * {@link Criteria#empirical()} factories:
      *
      * <pre>{@code
      * import static org.javai.punit.api.PercentileKey.P95;
      * import static org.javai.punit.api.PercentileKey.P99;
      * import static org.javai.punit.api.ThresholdOrigin.SLA;
-     * import static org.javai.punit.api.criterion.LatencyCriterion.ceiling;
+     * import static org.javai.punit.api.criterion.Criteria.meeting;
+     * import static org.javai.punit.api.criterion.Criteria.empirical;
      * import static java.time.Duration.ofMillis;
      *
      * // empirical — thresholds derived from the resolved baseline
      * @Override public LatencyCriterion latency() {
-     *     return LatencyCriterion.empirical(P95);
+     *     return empirical().atMost(P95);
      * }
      *
      * // contractual — fixed per-percentile ceilings
      * @Override public LatencyCriterion latency() {
-     *     return LatencyCriterion.meeting(SLA,
-     *             ceiling(P95, ofMillis(500)),
-     *             ceiling(P99, ofMillis(1500)))
-     *         .contractRef("Acme Payment SLA v3.2 §4.2");
+     *     return meeting().atMost(P95, ofMillis(500))
+     *                     .atMost(P99, ofMillis(1500))
+     *                     .contractRef(SLA, "Acme Payment SLA v3.2 §4.2");
      * }
      * }</pre>
      *

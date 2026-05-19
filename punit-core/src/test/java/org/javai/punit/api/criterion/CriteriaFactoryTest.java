@@ -18,15 +18,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Exercises the new value-form authoring surface introduced by
- * {@code DIR-CRITERIA-PROVENANCE-AND-KIND-punit} — the no-arg
+ * Exercises the value-form authoring surface — the no-arg
  * {@link Criteria#meeting()} / {@link Criteria#empirical()} factories
- * and the kind-selector first chain methods.
- *
- * <p>The legacy {@link Acceptance} factories remain in place during
- * the migration window; the equivalence checks here pin both
- * surfaces against each other so a regression on either side
- * surfaces visibly.
+ * and the kind-selector first chain methods
+ * ({@code .passRate}, {@code .zeroTolerance}, {@code .atMost}).
  */
 @DisplayName("Criteria.meeting() / Criteria.empirical() — value-form factories")
 class CriteriaFactoryTest {
@@ -36,24 +31,23 @@ class CriteriaFactoryTest {
     class ContractualChain {
 
         @Test
-        @DisplayName("meeting().passRate(rate) lowers identically to Acceptance.meeting(UNSPECIFIED, rate)")
-        void passRateEquivalence() {
-            CriterionDecl<String> viaNew = meeting().passRate(0.85);
-            CriterionDecl<String> viaLegacy = Acceptance.meeting(UNSPECIFIED, 0.85);
+        @DisplayName("meeting().passRate(rate) yields a STATISTICAL_CONTRACTUAL decl at UNSPECIFIED origin")
+        void passRateShape() {
+            CriterionDecl<String> decl = meeting().passRate(0.85);
 
-            assertThat(viaNew.posture().kind()).isEqualTo(viaLegacy.posture().kind());
-            assertThat(viaNew.posture().origin()).isEqualTo(viaLegacy.posture().origin());
-            assertThat(viaNew.posture().threshold()).isEqualTo(viaLegacy.posture().threshold());
+            assertThat(decl.posture().kind())
+                    .isEqualTo(CriterionPosture.Kind.STATISTICAL_CONTRACTUAL);
+            assertThat(decl.posture().origin()).hasValue(UNSPECIFIED);
+            assertThat(decl.posture().threshold().getAsDouble()).isEqualTo(0.85);
         }
 
         @Test
-        @DisplayName("meeting().zeroTolerance() lowers identically to Acceptance.zeroTolerance(UNSPECIFIED)")
-        void zeroToleranceEquivalence() {
-            CriterionDecl<String> viaNew = meeting().zeroTolerance();
-            CriterionDecl<String> viaLegacy = Acceptance.zeroTolerance(UNSPECIFIED);
+        @DisplayName("meeting().zeroTolerance() yields a ZERO_TOLERANCE decl at UNSPECIFIED origin")
+        void zeroToleranceShape() {
+            CriterionDecl<String> decl = meeting().zeroTolerance();
 
-            assertThat(viaNew.posture().kind()).isEqualTo(viaLegacy.posture().kind());
-            assertThat(viaNew.posture().origin()).isEqualTo(viaLegacy.posture().origin());
+            assertThat(decl.posture().kind()).isEqualTo(CriterionPosture.Kind.ZERO_TOLERANCE);
+            assertThat(decl.posture().origin()).hasValue(UNSPECIFIED);
         }
 
         @Test
@@ -97,12 +91,12 @@ class CriteriaFactoryTest {
     class EmpiricalChain {
 
         @Test
-        @DisplayName("empirical().passRate() lowers identically to Acceptance.empirical()")
-        void passRateEquivalence() {
-            CriterionDecl<String> viaNew = empirical().passRate();
-            CriterionDecl<String> viaLegacy = Acceptance.empirical();
+        @DisplayName("empirical().passRate() yields a STATISTICAL_EMPIRICAL decl")
+        void passRateShape() {
+            CriterionDecl<String> decl = empirical().passRate();
 
-            assertThat(viaNew.posture().kind()).isEqualTo(viaLegacy.posture().kind());
+            assertThat(decl.posture().kind())
+                    .isEqualTo(CriterionPosture.Kind.STATISTICAL_EMPIRICAL);
         }
 
         @Test
@@ -124,15 +118,12 @@ class CriteriaFactoryTest {
     class ContractualLatency {
 
         @Test
-        @DisplayName("meeting().atMost(P95, ofSeconds(1)) is equivalent to LatencyCriterion.meeting(UNSPECIFIED, ceiling(P95, ofSeconds(1)))")
-        void singlePercentileEquivalence() {
-            LatencyCriterion viaNew = meeting().atMost(P95, ofSeconds(1));
-            LatencyCriterion viaLegacy = LatencyCriterion.meeting(UNSPECIFIED,
-                    LatencyCriterion.ceiling(P95, ofSeconds(1)));
+        @DisplayName("meeting().atMost(P95, ofSeconds(1)) yields a present contractual latency criterion")
+        void singlePercentileShape() {
+            LatencyCriterion decl = meeting().atMost(P95, ofSeconds(1));
 
-            // Both lower to runtime DirectCriterion with the same posture shape.
-            assertThat(viaNew.toRuntime().id()).isEqualTo(viaLegacy.toRuntime().id());
-            assertThat(viaNew.isPresent()).isTrue();
+            assertThat(decl.isPresent()).isTrue();
+            assertThat(decl.toRuntime().id()).isEqualTo(LatencyCriterion.ID);
         }
 
         @Test
@@ -227,13 +218,12 @@ class CriteriaFactoryTest {
     class EmpiricalLatency {
 
         @Test
-        @DisplayName("empirical().atMost(P95) is equivalent to LatencyCriterion.empirical(P95)")
-        void singlePercentileEquivalence() {
-            LatencyCriterion viaNew = empirical().atMost(P95);
-            LatencyCriterion viaLegacy = LatencyCriterion.empirical(P95);
+        @DisplayName("empirical().atMost(P95) yields a present empirical latency criterion")
+        void singlePercentileShape() {
+            LatencyCriterion decl = empirical().atMost(P95);
 
-            assertThat(viaNew.toRuntime().id()).isEqualTo(viaLegacy.toRuntime().id());
-            assertThat(viaNew.isPresent()).isTrue();
+            assertThat(decl.isPresent()).isTrue();
+            assertThat(decl.toRuntime().id()).isEqualTo(LatencyCriterion.ID);
         }
 
         @Test

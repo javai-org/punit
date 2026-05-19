@@ -12,11 +12,11 @@ import org.javai.punit.api.ThresholdOrigin;
 /**
  * The methodology criterion's run-time *commitment*: what counts as
  * acceptable, optionally how confidently to evaluate it. Authored on
- * the criterion via the {@link Acceptance} factories
- * ({@code meeting(rate, origin)}, {@code empirical()},
- * {@code zeroTolerance(origin)}); consumed by the framework's
- * evaluation path when it computes a per-criterion verdict from the
- * run's sample counts.
+ * the criterion via the {@link Criteria#meeting()} /
+ * {@link Criteria#empirical()} factories with the kind selectors
+ * ({@code .passRate}, {@code .zeroTolerance}, {@code .atMost});
+ * consumed by the framework's evaluation path when it computes a
+ * per-criterion verdict from the run's sample counts.
  *
  * <p>Three kinds map to the three posture methods on the criterion-
  * declaration handle, plus an implicit kind for criteria that
@@ -61,14 +61,16 @@ public final class CriterionPosture {
         /**
          * Latency, empirical: per-percentile thresholds derived from the
          * resolved baseline at evaluate time. Authored via
-         * {@code Acceptance.<O>empirical(P95, P99...)}.
+         * {@code empirical().atMost(P95).atMost(P99)} on the contract's
+         * {@link org.javai.punit.api.Contract#latency()} sibling.
          */
         LATENCY_EMPIRICAL,
         /**
-         * Latency, contractual: per-percentile ceilings declared on the
-         * contract via {@code Acceptance.<O>meeting(SLA).ceiling(P95,
-         * ofMillis(500))}. The threshold is the declared duration; the
-         * origin is the supplied non-empirical origin.
+         * Latency, contractual: per-percentile ceilings declared via
+         * {@code meeting().atMost(P95, ofMillis(500)).contractRef(SLA, "...")}
+         * on the contract's {@link org.javai.punit.api.Contract#latency()}
+         * sibling. The threshold is the declared duration; the origin
+         * is the supplied non-empirical origin.
          */
         LATENCY_CONTRACTUAL
     }
@@ -120,7 +122,7 @@ public final class CriterionPosture {
         return IMPLICIT;
     }
 
-    /** Statistical, contractual: {@code Acceptance.meeting(origin, rate)}. */
+    /** Statistical, contractual: lowered from {@code meeting().passRate(rate).contractRef(origin, ...)}. */
     public static CriterionPosture meeting(ThresholdOrigin origin, double rate) {
         Objects.requireNonNull(origin, "origin");
         if (Double.isNaN(rate) || rate < 0.0 || rate >= 1.0) {
@@ -174,7 +176,7 @@ public final class CriterionPosture {
     }
 
     /**
-     * Latency, empirical: {@code LatencyCriterion.empirical(P95, P99...)}.
+     * Latency, empirical: lowered from {@code empirical().atMost(P95).atMost(P99)...}.
      * Per-percentile thresholds are derived from the resolved baseline
      * at evaluate time via Statistical Companion §12.4.2's exact
      * binomial order-statistic upper confidence bound. The
@@ -200,7 +202,8 @@ public final class CriterionPosture {
     }
 
     /**
-     * Latency, contractual: {@code Acceptance.<O>meeting(origin).ceiling(...)}.
+     * Latency, contractual: lowered from
+     * {@code meeting().atMost(percentile, duration)...contractRef(origin, ref)}.
      * Per-percentile ceilings are declared on the contract; the origin
      * is the supplied non-empirical origin.
      */
@@ -210,12 +213,12 @@ public final class CriterionPosture {
         if (!spec.hasAnyThreshold()) {
             throw new IllegalArgumentException(
                     "latencyContractual requires at least one ceiling — "
-                            + "chain .ceiling(percentile, duration) on the decl");
+                            + "chain .atMost(percentile, duration) on the decl");
         }
         if (origin == ThresholdOrigin.EMPIRICAL) {
             throw new IllegalArgumentException(
                     "latencyContractual(spec, EMPIRICAL) is contradictory — "
-                            + "call Acceptance.<O>empirical(P95, ...) instead");
+                            + "use Criteria.empirical() for baseline-derived latency");
         }
         EnumSet<PercentileKey> asserted = EnumSet.noneOf(PercentileKey.class);
         for (PercentileKey k : PercentileKey.values()) {

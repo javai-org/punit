@@ -18,7 +18,7 @@ import java.util.Set;
  *   <li>{@link CriterionDecl} — a single-criterion strategy. The
  *       K=1 case: posture, optional name, optional postconditions,
  *       optional refinements (contractRef, confidence floor,
- *       MDE/power). Returned directly from {@code Acceptance.meeting(...)}
+ *       MDE/power). Returned directly from {@code meeting().passRate(...)}
  *       and friends; an author with one criterion returns the decl
  *       directly from {@code Contract.criteria()}.</li>
  *   <li>{@link CompositeCriteria} — a multi-criterion strategy
@@ -87,14 +87,18 @@ public sealed interface Criteria<O>
      * contracts:
      *
      * <pre>{@code
+     * import static org.javai.punit.api.criterion.Criteria.empirical;
+     * import static org.javai.punit.api.criterion.Criteria.meeting;
      * import static org.javai.punit.api.criterion.Criteria.of;
+     * import static org.javai.punit.api.ThresholdOrigin.SLA;
      *
      * @Override public Criteria<Receipt> criteria() {
      *     return of(
-     *         Acceptance.<Receipt>meeting(0.9999, SLA)
+     *         meeting().<Receipt>passRate(0.9999)
+     *             .contractRef(SLA, "Payment Provider SLA v2.3 §4.1")
      *             .name("payment-completes")
      *             .satisfies("Authorisation returned APPROVED", ...),
-     *         Acceptance.<Receipt>empirical()
+     *         empirical().<Receipt>passRate()
      *             .name("structure-valid")
      *             .satisfies("Receipt is parseable", ...));
      * }
