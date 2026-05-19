@@ -1,8 +1,9 @@
 package org.javai.punit.junit5.testsubjects;
 
+import static org.javai.punit.api.criterion.Criteria.empirical;
+
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
 import org.javai.punit.api.NoFactors;
@@ -29,7 +30,7 @@ public final class RoundTripSubjects {
     private static ServiceContract<NoFactors, Integer, Boolean> serviceContract() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.empirical();
+                return empirical().passRate();
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);

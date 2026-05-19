@@ -2,11 +2,12 @@ package org.javai.punit.internal.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import static org.javai.punit.api.criterion.Criteria.empirical;
+import static org.javai.punit.api.criterion.Criteria.meeting;
+
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.Sampling;
-import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.EngineResult;
@@ -39,7 +40,7 @@ class EarlyTerminationIntegrationTest {
     /** Returns Outcome.ok every sample. Contract posture: meeting(0.5, SLA). */
     private static class AlwaysPass implements ServiceContract<Factors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(ThresholdOrigin.SLA, 0.5);
+            return meeting().passRate(0.5);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -49,7 +50,7 @@ class EarlyTerminationIntegrationTest {
     /** Always-pass variant whose contract posture is meeting(0.20, SLA). */
     private static class AlwaysPassLowThreshold implements ServiceContract<Factors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(ThresholdOrigin.SLA, 0.20);
+            return meeting().passRate(0.20);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -59,7 +60,7 @@ class EarlyTerminationIntegrationTest {
     /** Always-pass variant whose contract posture is empirical. */
     private static class AlwaysPassEmpirical implements ServiceContract<Factors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.empirical();
+            return empirical().passRate();
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -69,7 +70,7 @@ class EarlyTerminationIntegrationTest {
     /** Returns Outcome.fail every sample — a clean failure-inevitable shape. */
     private static class AlwaysFail implements ServiceContract<Factors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
+            return meeting().passRate(0.95);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure");
@@ -86,7 +87,7 @@ class EarlyTerminationIntegrationTest {
         private int seen = 0;
         FailsThenPasses(int failsFirst) { this.failsFirst = failsFirst; }
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(ThresholdOrigin.SLA, 0.80);
+            return meeting().passRate(0.80);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return ++seen <= failsFirst

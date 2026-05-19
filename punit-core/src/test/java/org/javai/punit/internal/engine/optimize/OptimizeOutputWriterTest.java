@@ -15,7 +15,7 @@ import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.spec.Experiment;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.internal.engine.Engine;
@@ -142,10 +142,10 @@ class OptimizeOutputWriterTest {
             @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Criteria<String> criteria() {
                 return Criteria.of(
-                        Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                        meeting().<String>zeroTolerance()
                                 .name("always-passes")
                                 .satisfies("passes", v -> Outcome.ok()),
-                        Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+                        meeting().<String>zeroTolerance()
                                 .name("starts-with-a")
                                 .satisfies("first-char-a", v ->
                                         v.startsWith("a")

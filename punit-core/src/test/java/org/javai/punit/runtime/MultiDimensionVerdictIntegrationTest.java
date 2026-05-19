@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ThresholdOrigin;
@@ -67,7 +67,7 @@ class MultiDimensionVerdictIntegrationTest {
             return Outcome.ok(input.length());
         }
         @Override public Criteria<Integer> criteria() {
-            return Acceptance.<Integer>meeting(ThresholdOrigin.SLA, FUNCTIONAL_THRESHOLD)
+            return meeting().<Integer>passRate(FUNCTIONAL_THRESHOLD)
                     .satisfies("non-null length", n -> Outcome.ok());
         }
     }
@@ -85,7 +85,7 @@ class MultiDimensionVerdictIntegrationTest {
             return Outcome.ok(input.length());
         }
         @Override public Criteria<Integer> criteria() {
-            return Acceptance.<Integer>meeting(ThresholdOrigin.SLA, FUNCTIONAL_THRESHOLD)
+            return meeting().<Integer>passRate(FUNCTIONAL_THRESHOLD)
                     .satisfies("length is even", n ->
                             n % 2 == 0 ? Outcome.ok() : Outcome.fail("odd-length", "n=" + n));
         }

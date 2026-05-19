@@ -8,7 +8,7 @@ import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.spec.Verdict;
@@ -40,7 +40,7 @@ class AutoInjectionFromPostureTest {
                 return Outcome.ok(true);
             }
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
+                return meeting().passRate(0.95);
             }
         };
 
@@ -64,7 +64,7 @@ class AutoInjectionFromPostureTest {
                 return Outcome.fail("nope", "never passes");
             }
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
+                return meeting().passRate(0.95);
             }
         };
 

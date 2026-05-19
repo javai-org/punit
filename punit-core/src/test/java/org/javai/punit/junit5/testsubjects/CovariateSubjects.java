@@ -4,9 +4,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import static org.javai.punit.api.criterion.Criteria.empirical;
+
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.Experiment;
 import org.javai.punit.api.ProbabilisticTest;
@@ -42,7 +43,7 @@ public final class CovariateSubjects {
     private static ServiceContract<NoFactors, Integer, Boolean> covariateServiceContract() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.empirical();
+                return empirical().passRate();
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(true);

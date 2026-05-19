@@ -367,7 +367,7 @@ class PowerAnalysisTest {
                     return Outcome.ok(input);
                 }
                 @Override public org.javai.punit.api.criterion.Criteria<String> criteria() {
-                    return org.javai.punit.api.criterion.Acceptance.<String>empirical()
+                    return org.javai.punit.api.criterion.Criteria.empirical().<String>passRate()
                             .name("the-criterion")
                             .detectingMde(mde).atPower(power)
                             .satisfies("always", v -> Outcome.ok());
@@ -407,12 +407,12 @@ class PowerAnalysisTest {
                 @Override public org.javai.punit.api.criterion.Criteria<String> criteria() {
                     return org.javai.punit.api.criterion.Criteria.of(
                             // Looser: MDE 0.10 / power 0.50  → smaller N
-                            org.javai.punit.api.criterion.Acceptance.<String>empirical()
+                            org.javai.punit.api.criterion.Criteria.empirical().<String>passRate()
                                     .name("loose")
                                     .detectingMde(0.10).atPower(0.50)
                                     .satisfies("always", v -> Outcome.ok()),
                             // Tighter: MDE 0.02 / power 0.95 → larger N
-                            org.javai.punit.api.criterion.Acceptance.<String>empirical()
+                            org.javai.punit.api.criterion.Criteria.empirical().<String>passRate()
                                     .name("tight")
                                     .detectingMde(0.02).atPower(0.95)
                                     .satisfies("always", v -> Outcome.ok()));

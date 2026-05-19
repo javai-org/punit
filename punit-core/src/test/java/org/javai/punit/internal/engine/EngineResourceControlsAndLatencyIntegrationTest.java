@@ -10,7 +10,7 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.LatencySpec;
 import org.javai.punit.api.Pacing;
 import org.javai.punit.api.Sampling;
@@ -398,7 +398,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void mixedCriteriaBothRequiredComposesToFail() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
+                return meeting().passRate(0.95);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
@@ -428,7 +428,7 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void reportOnlyLatencyExcludedFromComposition() {
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
+                return meeting().passRate(0.95);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
