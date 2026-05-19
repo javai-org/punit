@@ -166,6 +166,28 @@ public final class CriterionDecl<O> implements Decl<O> {
     }
 
     /**
+     * Attach a contract reference and update the origin in one call.
+     * Designed for the new {@link Criteria#meeting()} authoring shape
+     * where the chain opens with origin
+     * {@link org.javai.punit.api.ThresholdOrigin#UNSPECIFIED} and the
+     * author later names both the source category and the document
+     * reference on the same line:
+     *
+     * <pre>{@code
+     * meeting().passRate(0.9999).contractRef(SLA, "Payment SLA v2.3 §4.1")
+     * }</pre>
+     *
+     * <p>{@code origin} must be a non-empirical origin (SLA / SLO /
+     * POLICY / UNSPECIFIED). Rejected on empirical-mode postures —
+     * the baseline IS the source.
+     */
+    public CriterionDecl<O> contractRef(
+            org.javai.punit.api.ThresholdOrigin origin, String ref) {
+        return new CriterionDecl<>(
+                posture.withContractRef(origin, ref), postconditions, name);
+    }
+
+    /**
      * Set the per-criterion confidence floor — the run cannot
      * loosen it. Composes only with {@code empirical()}; rejected
      * by the posture machinery on a {@code .meeting(...)} or

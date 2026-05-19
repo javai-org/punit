@@ -308,6 +308,43 @@ public final class CriterionPosture {
                 assertedPercentiles, latencySpec);
     }
 
+    /**
+     * Returns a copy of this posture with both the origin and the
+     * contract reference updated in one step. Used by the new
+     * authoring surface where {@code Criteria.meeting()} opens a
+     * chain with origin {@link ThresholdOrigin#UNSPECIFIED} and the
+     * author later names both the source category and the document
+     * reference together via
+     * {@code .contractRef(ThresholdOrigin, String)}.
+     *
+     * <p>{@code newOrigin} must not be {@link ThresholdOrigin#EMPIRICAL}
+     * — empirical-mode criteria reach this posture machinery via
+     * {@code Criteria.empirical()}, not via {@code contractRef}.
+     * Empirical-mode postures reject the call entirely.
+     */
+    public CriterionPosture withContractRef(ThresholdOrigin newOrigin, String ref) {
+        Objects.requireNonNull(newOrigin, "origin");
+        Objects.requireNonNull(ref, "contractRef");
+        if (ref.isBlank()) {
+            throw new IllegalArgumentException(".contractRef requires a non-blank string");
+        }
+        if (newOrigin == ThresholdOrigin.EMPIRICAL) {
+            throw new IllegalArgumentException(
+                    ".contractRef(EMPIRICAL, ...) is contradictory — empirical "
+                            + "criteria are sourced from the baseline, not from a "
+                            + "named document");
+        }
+        if (kind == Kind.STATISTICAL_EMPIRICAL || kind == Kind.LATENCY_EMPIRICAL) {
+            throw new IllegalStateException(
+                    ".contractRef(origin, ref) cannot retag an empirical-mode "
+                            + "criterion with a contractual origin; the baseline "
+                            + "IS the source");
+        }
+        return new CriterionPosture(kind, threshold, Optional.of(newOrigin),
+                confidenceFloor, mde, power, Optional.of(ref),
+                assertedPercentiles, latencySpec);
+    }
+
     private void rejectRigourAdjunct(String methodName) {
         switch (kind) {
             case ZERO_TOLERANCE, IMPLICIT_ZERO_TOLERANCE -> throw new IllegalStateException(
