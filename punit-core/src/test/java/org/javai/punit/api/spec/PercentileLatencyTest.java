@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.javai.outcome.Outcome;
+import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.Contract;
 import org.javai.punit.api.PostconditionBuilder;
@@ -76,12 +77,22 @@ class PercentileLatencyTest {
             Optional<LatencyStatistics> baseline,
             String testIdentity,
             Optional<String> baselineIdentity) {
+        return ctx(summary, baseline, testIdentity, baselineIdentity, TestIntent.VERIFICATION);
+    }
+
+    private static <OT> EvaluationContext<OT, LatencyStatistics> ctx(
+            SampleSummary<OT> summary,
+            Optional<LatencyStatistics> baseline,
+            String testIdentity,
+            Optional<String> baselineIdentity,
+            TestIntent intent) {
         return new EvaluationContext<OT, LatencyStatistics>() {
             @Override public SampleSummary<OT> summary() { return summary; }
             @Override public Optional<LatencyStatistics> baseline() { return baseline; }
             @Override public FactorBundle factors() { return FactorBundle.of(new Factors("x")); }
             @Override public String testInputsIdentity() { return testIdentity; }
             @Override public Optional<String> baselineInputsIdentity() { return baselineIdentity; }
+            @Override public TestIntent intent() { return intent; }
         };
     }
 
@@ -180,6 +191,42 @@ class PercentileLatencyTest {
         // merely above the baseline percentile.
         assertThat(fail.detail()).containsEntry("breach.p95", 1500L);
         assertThat(fail.detail()).containsEntry("breach.p99", 3000L);
+    }
+
+    // ── saturation (companion §12.4.2 / §12.5.2.1) ─────────────────
+
+    @Test
+    @DisplayName("VERIFICATION + saturated baseline → INCONCLUSIVE with saturated.<p>=true detail")
+    void verificationOnSaturationIsInconclusive() {
+        // P99 with baseline n=100 at α=0.05 saturates: qbinom(0.95, 100, 0.99) = 100, k_raw = 101 > 100.
+        PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P99);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(
+                observed(100, 200, 500, 1000, 100), 100);
+
+        CriterionResult result = criterion.evaluate(
+                ctx(summary(observed(80, 180, 480, 900, 50), 50, 0), Optional.of(baseline),
+                        DEFAULT_IDENTITY, Optional.of(DEFAULT_IDENTITY), TestIntent.VERIFICATION));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.INCONCLUSIVE);
+        assertThat(result.detail()).containsEntry("saturated.p99", true);
+        assertThat(result.explanation()).contains("no finite-sample upper bound")
+                .contains("§12.5.2.1");
+    }
+
+    @Test
+    @DisplayName("SMOKE + saturated baseline → advisory PASS/FAIL with saturated.<p>=true detail")
+    void smokeOnSaturationIsAdvisory() {
+        PercentileLatency<String> criterion = PercentileLatency.empirical(PercentileKey.P99);
+        LatencyStatistics baseline = LatencyStatistics.fromPercentiles(
+                observed(100, 200, 500, 1000, 100), 100);
+
+        // Under SMOKE, the advisory threshold t_{(n)} is used; observed under it -> PASS.
+        CriterionResult result = criterion.evaluate(
+                ctx(summary(observed(80, 180, 480, 900, 50), 50, 0), Optional.of(baseline),
+                        DEFAULT_IDENTITY, Optional.of(DEFAULT_IDENTITY), TestIntent.SMOKE));
+
+        assertThat(result.verdict()).isEqualTo(Verdict.PASS);
+        assertThat(result.detail()).containsEntry("saturated.p99", true);
     }
 
     // ── sample-size constraint (test_N ≤ baseline_N) ───────────────

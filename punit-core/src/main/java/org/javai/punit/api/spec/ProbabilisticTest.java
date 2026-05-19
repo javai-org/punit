@@ -375,6 +375,7 @@ public final class ProbabilisticTest implements Spec {
                 BaselineProvider provider,
                 java.util.Set<String> warnings,
                 BaselineLookupCapture capture) {
+            TestIntent testIntent = this.intent;
             Criterion raw = criterion;
             Optional<? extends BaselineStatistics> resolved;
             if (criterion.isEmpirical()) {
@@ -401,6 +402,7 @@ public final class ProbabilisticTest implements Spec {
                 public java.util.Map<String, org.javai.punit.api.criterion.CriterionPosture> criterionPostures() {
                     return criterionPostures;
                 }
+                @Override public TestIntent intent() { return testIntent; }
             };
             return (CriterionResult) raw.evaluate(ctx);
         }

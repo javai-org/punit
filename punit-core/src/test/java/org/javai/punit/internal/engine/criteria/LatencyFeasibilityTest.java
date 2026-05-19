@@ -1,6 +1,7 @@
 package org.javai.punit.internal.engine.criteria;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.util.List;
 
@@ -35,62 +36,90 @@ class LatencyFeasibilityTest {
         }
     };
 
-    @Test
-    @DisplayName("samples below floor for P95 produces a warning")
-    void warnsBelowFloorForP95() {
-        List<String> warnings = Feasibility.check(
-                10,
-                PercentileLatency.<Integer>empirical(PercentileKey.P95),
-                CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER);
+    // ── Existence gate (companion §12.5.2.1): ⌈log(α) / log(p)⌉ ──
+    //
+    // At α = 0.05 (the default 0.95 confidence):
+    //   P50 → 5
+    //   P90 → 29
+    //   P95 → 59
+    //   P99 → 299
 
-        assertThat(warnings).hasSize(1);
-        assertThat(warnings.get(0))
-                .contains("percentile-latency")
-                .contains("P95")
-                .contains("10 samples")
-                .contains("at least 20");
+    @Test
+    @DisplayName("VERIFICATION: samples below P95 existence floor (59 at α=0.05) → IllegalStateException")
+    void verificationP95Below59Aborts() {
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> Feasibility.check(
+                        50,
+                        PercentileLatency.<Integer>empirical(PercentileKey.P95),
+                        CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER))
+                .withMessageContaining("P95")
+                .withMessageContaining("50 samples")
+                .withMessageContaining("at least 59")
+                .withMessageContaining("§12.5.2.1");
     }
 
     @Test
-    @DisplayName("samples at the floor emits no warning")
-    void silentAtFloorForP95() {
+    @DisplayName("VERIFICATION: samples at P95 existence floor → no abort, no warning")
+    void verificationP95AtFloorSilent() {
         List<String> warnings = Feasibility.check(
-                20,
+                59,
                 PercentileLatency.<Integer>empirical(PercentileKey.P95),
                 CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER);
         assertThat(warnings).isEmpty();
     }
 
     @Test
-    @DisplayName("multiple percentiles produce per-percentile warnings")
-    void warnsForEachAssertedPercentileBelowFloor() {
-        List<String> warnings = Feasibility.check(
-                15,
-                PercentileLatency.<Integer>empirical(PercentileKey.P95, PercentileKey.P99),
-                CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER);
-
-        assertThat(warnings).hasSize(2);
-        assertThat(warnings).anyMatch(w -> w.contains("P95") && w.contains("at least 20"));
-        assertThat(warnings).anyMatch(w -> w.contains("P99") && w.contains("at least 100"));
+    @DisplayName("VERIFICATION: samples below P99 existence floor (299) → IllegalStateException")
+    void verificationP99Below299Aborts() {
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> Feasibility.check(
+                        100,
+                        PercentileLatency.<Integer>empirical(PercentileKey.P99),
+                        CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER))
+                .withMessageContaining("P99")
+                .withMessageContaining("at least 299");
     }
 
     @Test
-    @DisplayName("P50 has floor of 1 — never warns above zero samples")
-    void p50FloorIsOne() {
-        List<String> warnings = Feasibility.check(
-                1,
-                PercentileLatency.<Integer>empirical(PercentileKey.P50),
-                CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER);
-        assertThat(warnings).isEmpty();
+    @DisplayName("VERIFICATION: gate fires on the strictest failing percentile when multiple are asserted")
+    void verificationMultiPercentileFiresOnStrictest() {
+        // 100 samples: passes P95's floor of 59, fails P99's floor of 299.
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> Feasibility.check(
+                        100,
+                        PercentileLatency.<Integer>empirical(PercentileKey.P95, PercentileKey.P99),
+                        CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER))
+                .withMessageContaining("P99");
     }
 
     @Test
-    @DisplayName("SMOKE intent silences the warning")
-    void smokeIntentSilences() {
+    @DisplayName("SMOKE: silences both gates, no abort, no warnings")
+    void smokeSilencesAllGates() {
         List<String> warnings = Feasibility.check(
                 5,
                 PercentileLatency.<Integer>empirical(PercentileKey.P99),
                 CONTRACT_ID, EMPTY_FACTORS, TestIntent.SMOKE, NULL_PROVIDER);
         assertThat(warnings).isEmpty();
+    }
+
+    // ── Non-degeneracy floor (§12.5.2) — only surfaces when the
+    // existence gate is relaxed by lowering confidence enough that
+    // ⌈log(α) / log(p)⌉ falls below the non-degeneracy floor.
+
+    @Test
+    @DisplayName("VERIFICATION + relaxed confidence: non-degeneracy floor warns when existence gate doesn't fire")
+    void nonDegeneracyWarningWhenExistenceGatePasses() {
+        // At confidence 0.50, α=0.50, existence floor for P95 is
+        // ⌈log(0.50)/log(0.95)⌉ = 14. Non-degeneracy floor is 20.
+        // A 15-sample run clears the existence gate but trips the
+        // non-degeneracy warning.
+        List<String> warnings = Feasibility.check(
+                15,
+                PercentileLatency.<Integer>empirical(0.50, PercentileKey.P95),
+                CONTRACT_ID, EMPTY_FACTORS, TestIntent.VERIFICATION, NULL_PROVIDER);
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0))
+                .contains("P95")
+                .contains("at least 20");
     }
 }

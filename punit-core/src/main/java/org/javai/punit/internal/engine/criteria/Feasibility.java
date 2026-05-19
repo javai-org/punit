@@ -157,6 +157,33 @@ public final class Feasibility {
         if (intent == TestIntent.SMOKE) {
             return List.of();
         }
+        // Confidence-bound existence gate (companion §12.5.2.1): for a
+        // distribution-free upper bound to exist within the sample, we
+        // need n_s >= ⌈log(α) / log(p)⌉ where α = 1 - confidence.
+        // VERIFICATION aborts when this fails; the run cannot
+        // underwrite a verdict at the configured confidence. SMOKE is
+        // silenced above.
+        double alpha = 1.0 - latency.confidence();
+        for (PercentileKey key : latency.assertedPercentiles()) {
+            int existenceFloor = (int) Math.ceil(Math.log(alpha) / Math.log(key.value()));
+            if (samples < existenceFloor) {
+                throw new IllegalStateException(String.format(
+                        "Latency criterion '%s' asserts %s at confidence %s, but the run is"
+                                + " configured for %d samples; the confidence-bound existence"
+                                + " gate (Statistical Companion §12.5.2.1) requires at least"
+                                + " %d samples for an upper bound to exist within the sample"
+                                + " at this confidence. Either raise the sample count, lower"
+                                + " the confidence, drop the asserted percentile, or run under"
+                                + " SMOKE intent to silence the gate.",
+                        latency.name(), key.name(), latency.confidence(),
+                        samples, existenceFloor));
+            }
+        }
+        // Non-degeneracy floor (companion §12.5.2): warning only.
+        // Surfaces a less-strict floor (P95 → 20, P99 → 100) that the
+        // existence gate above generally subsumes at α=0.05; kept as a
+        // diagnostic for runs where the existence gate did not fire
+        // (e.g. relaxed confidence).
         List<String> warnings = new ArrayList<>();
         for (PercentileKey key : latency.assertedPercentiles()) {
             int floor = minimumSampleSizeFor(key);
