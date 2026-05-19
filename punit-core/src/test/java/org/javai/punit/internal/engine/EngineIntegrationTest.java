@@ -11,7 +11,6 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.spec.TerminationReason;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
 import static org.javai.punit.api.criterion.Criteria.empirical;
 import static org.javai.punit.api.criterion.Criteria.meeting;
@@ -43,10 +42,13 @@ class EngineIntegrationTest {
 
     /** Always returns the length of the input. Used as a deterministic sample. */
     private static class LengthServiceContract implements ServiceContract<LlmFactors, String, Integer> {
-        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
+        @Override public Criteria<Integer> criteria() {
+            return meeting().<Integer>zeroTolerance();
+        }
+
     }
 
     @Test
@@ -226,10 +228,13 @@ class EngineIntegrationTest {
     void exploreSpecRunsEachFactorBundle() {
         var observedByModel = new java.util.LinkedHashMap<String, Integer>();
         ServiceContract<LlmFactors, String, Integer> counting = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(0);
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
@@ -257,10 +262,13 @@ class EngineIntegrationTest {
     @DisplayName("Multi-cell explore: every cell starts its input cursor at zero (no cross-cell bleed)")
     void multiCellExploreStartsEachCellAtInputZero() {
         ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(0);
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         // Five inputs, three samples per cell — fewer samples than
         // inputs so the legacy cumulative cursor would skip the first
@@ -296,10 +304,13 @@ class EngineIntegrationTest {
     @DisplayName("Experiment.optimizing(shape) runs the stepper/scorer loop up to maxIterations")
     void optimizeSpecRunsIterationLoop() {
         ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
@@ -328,10 +339,13 @@ class EngineIntegrationTest {
     @DisplayName("disableEarlyTermination() runs to maxIterations even when scores are flat")
     void disableEarlyTerminationRunsToMaxIterations() {
         ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
@@ -359,10 +373,13 @@ class EngineIntegrationTest {
     @DisplayName("NextFactor.stop() ends the optimize loop after the iteration that returned it — no final-iteration sample")
     void nextFactorStopEndsRunCleanly() {
         ServiceContract<LlmFactors, String, Integer> echo = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<LlmFactors, String, Integer> shape = Sampling
                 .<LlmFactors, String, Integer>builder()
@@ -417,10 +434,12 @@ class EngineIntegrationTest {
     private List<String> runAndRecord() {
         List<String> observed = new ArrayList<>();
         ServiceContract<LlmFactors, String, Integer> recording = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 observed.add(input);
                 return Outcome.ok(0);
+            }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
             }
         };
         Sampling<LlmFactors, String, Integer> sampling = Sampling
@@ -468,9 +487,11 @@ class EngineIntegrationTest {
 
     /** Throws — a defect, not a business-level failure. The engine aborts. */
     private static class DefectiveServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
-        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             throw new IllegalStateException("simulated defect — this should abort the run");
+        }
+        @Override public Criteria<Boolean> criteria() {
+            return meeting().<Boolean>zeroTolerance();
         }
     }
 }

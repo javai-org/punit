@@ -1,5 +1,7 @@
 package org.javai.punit.internal.engine;
 
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import org.javai.punit.api.criterion.Criteria;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.ByteArrayOutputStream;
@@ -9,7 +11,6 @@ import java.time.Duration;
 import java.util.List;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ServiceContractOutcome;
@@ -51,12 +52,15 @@ class SerialSampleExecutorProgressTest {
     /** Service contract whose outcome alternates pass/fail by input parity. */
     private static final class AlternatingServiceContract implements ServiceContract<Void, Integer, String> {
         @Override public String id() { return "Alternating"; }
-        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
             return input % 2 == 0
                     ? Outcome.ok("even-" + input)
                     : Outcome.fail("odd", "input was " + input);
         }
+        @Override public Criteria<String> criteria() {
+            return meeting().<String>zeroTolerance();
+        }
+
     }
 
     private static final String MARKER = SerialSampleExecutor.SAMPLE_PROGRESS_MARKER;
@@ -97,10 +101,13 @@ class SerialSampleExecutorProgressTest {
     void defectAlsoAdvancesCounter() {
         ServiceContract<Void, Integer, String> alwaysThrows = new ServiceContract<>() {
             @Override public String id() { return "AlwaysThrows"; }
-            @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
                 throw new RuntimeException("synthetic defect");
             }
+            @Override public Criteria<String> criteria() {
+                return meeting().<String>zeroTolerance();
+            }
+
         };
         runWith(alwaysThrows, List.of(0, 1));
 
@@ -115,7 +122,6 @@ class SerialSampleExecutorProgressTest {
     void eachEmissionFlushedImmediately() {
         ServiceContract<Void, Integer, String> counterPeek = new ServiceContract<>() {
             @Override public String id() { return "CounterPeek"; }
-            @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
                 // Sample-internal observable: line count visible inside this
                 // sample's invoke. emitProgress is called *after*
@@ -125,6 +131,10 @@ class SerialSampleExecutorProgressTest {
                 assertThat(priorLines).isEqualTo(input);
                 return Outcome.ok("pass");
             }
+            @Override public Criteria<String> criteria() {
+                return meeting().<String>zeroTolerance();
+            }
+
         };
         runWith(counterPeek, List.of(0, 1, 2, 3));
 

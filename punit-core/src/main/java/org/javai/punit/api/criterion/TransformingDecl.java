@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.Postcondition;
 import org.javai.punit.api.PostconditionCheck;
 
 /**
@@ -143,19 +143,16 @@ public final class TransformingDecl<O, T> implements Decl<O> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Criterion<O> toRuntime(String id) {
-        Criterion<O> base = Criterion.transforming(id, transform, this::populatePostconditions);
-        if (base instanceof TransformingCriterion<?, ?> tc) {
-            return ((TransformingCriterion<O, T>) tc).withPosture(posture);
+        Objects.requireNonNull(id, "id");
+        if (id.isBlank()) {
+            throw new IllegalArgumentException("id must not be blank");
         }
-        return base;
-    }
-
-    private void populatePostconditions(PostconditionBuilder<T> pb) {
+        List<Postcondition<T>> clauses = new ArrayList<>(postconditions.size());
         for (NamedPostcondition<T> p : postconditions) {
-            pb.ensure(p.name(), p.check());
+            clauses.add(new Postcondition.Leaf<>(p.name(), p.check()));
         }
+        return new TransformingCriterion<>(id, transform, clauses).withPosture(posture);
     }
 
     private TransformingDecl<O, T> appendPostcondition(String postconditionName, PostconditionCheck<T> check) {

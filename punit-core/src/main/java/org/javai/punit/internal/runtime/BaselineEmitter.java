@@ -194,9 +194,8 @@ public final class BaselineEmitter {
      * Build the per-methodology-criterion pass-rate basis from the
      * engine's recorded {@code criterionSampleCounts}. One entry per
      * criterion the contract declared, in contract declaration order.
-     * For K=1 (the common case via {@code DefaultCriterion}) this
-     * yields a single-entry map keyed by the auto-derived criterion
-     * id.
+     * For K=1 (the common case) this yields a single-entry map keyed
+     * by the lone criterion's id.
      */
     private static PerCriterionPassRateStatistics buildPerCriterionPassRate(
             SampleSummary<?> summary) {

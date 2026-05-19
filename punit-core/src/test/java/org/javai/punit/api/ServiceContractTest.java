@@ -2,7 +2,10 @@ package org.javai.punit.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import static org.javai.punit.api.criterion.Criteria.meeting;
+
 import org.javai.outcome.Outcome;
+import org.javai.punit.api.criterion.Criteria;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -10,28 +13,27 @@ import org.junit.jupiter.api.Test;
 class ServiceContractTest {
 
     private static class SimpleServiceContract implements ServiceContract<Object, String, Integer> {
-        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
+        }
+        @Override public Criteria<Integer> criteria() {
+            return meeting().<Integer>zeroTolerance().satisfies("ok", v -> Outcome.ok());
         }
     }
 
     private static class ShoppingBasketServiceContract implements ServiceContract<Object, String, String> {
-        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
     }
 
     private static class HTTPClientServiceContract implements ServiceContract<Object, String, String> {
-        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
     }
 
     private static class PaymentGateway implements ServiceContract<Object, String, String> {
-        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }

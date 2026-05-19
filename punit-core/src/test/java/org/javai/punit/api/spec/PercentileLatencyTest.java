@@ -1,5 +1,7 @@
 package org.javai.punit.api.spec;
 
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import org.javai.punit.api.criterion.Criteria;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -11,7 +13,6 @@ import org.javai.outcome.Outcome;
 import org.javai.punit.api.TestIntent;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.LatencySpec;
@@ -30,7 +31,10 @@ class PercentileLatencyTest {
         @Override public Outcome<String> invoke(Object input, TokenTracker tracker) {
             return Outcome.ok("ok");
         }
-        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
+        @Override public Criteria<String> criteria() {
+            return meeting().<String>zeroTolerance();
+        }
+
     };
 
     private static SampleSummary<String> summary(LatencyResult latency, int successes, int failures) {

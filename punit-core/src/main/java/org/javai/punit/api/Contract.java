@@ -10,7 +10,6 @@ import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.criterion.Criterion;
 import org.javai.punit.api.criterion.CriterionSampleResult;
 import org.javai.punit.api.criterion.Decl;
-import org.javai.punit.api.criterion.DefaultCriterion;
 import org.javai.punit.api.criterion.LatencyCriterion;
 
 /**
@@ -28,9 +27,8 @@ import org.javai.punit.api.criterion.LatencyCriterion;
  *       or {@link Outcome.Fail} for an expected business-level
  *       failure. Records cost via the supplied
  *       {@link TokenTracker}.</li>
- *   <li>{@link #postconditions(PostconditionBuilder) postconditions} —
- *       declares the contract's clauses by populating the supplied
- *       builder with {@code ensure(...)} calls.</li>
+ *   <li>{@link #criteria() criteria} — declares the contract's
+ *       acceptance criteria as a {@link Criteria} value.</li>
  * </ul>
  *
  * <p>The {@code apply} method is a concrete default the framework
@@ -83,43 +81,6 @@ public interface Contract<I, O> {
     Outcome<O> invoke(I input, TokenTracker tracker);
 
     /**
-     * Declare this contract's postcondition clauses by calling
-     * {@link PostconditionBuilder#ensure ensure} on the supplied builder.
-     *
-     * <p>The framework constructs a fresh builder, calls this method
-     * to populate it, and reads the resulting clause list out via the
-     * no-arg {@link #postconditions()} accessor.
-     *
-     * <p>The default body is empty — appropriate for contracts that
-     * partition their acceptance into multiple criteria via
-     * {@link #criteria()} (the clauses live on the individual
-     * criteria rather than at the contract level), and also for
-     * smoke-test scaffolding or throwaway fixtures that genuinely
-     * have no acceptance criteria. Contracts that declare
-     * postconditions at the contract level override this method.
-     *
-     * @param b the builder to populate
-     */
-    default void postconditions(PostconditionBuilder<O> b) {
-        // No-op default. Override to declare contract-level
-        // postconditions; leave defaulted when the contract uses
-        // criteria() instead.
-    }
-
-    /**
-     * Resolves the contract's clauses to an immutable list. The
-     * framework hook; do not override. The default implementation
-     * builds a fresh {@link PostconditionBuilder}, calls
-     * {@link #postconditions(PostconditionBuilder)} to populate it, and
-     * returns the built list.
-     */
-    default List<Postcondition<O>> postconditions() {
-        PostconditionBuilder<O> b = new PostconditionBuilder<>();
-        postconditions(b);
-        return b.build();
-    }
-
-    /**
      * Author-facing, value-form criteria declaration — returns a
      * {@link Criteria} value describing the contract's
      * verdict-producing strategy.
@@ -166,9 +127,10 @@ public interface Contract<I, O> {
      * the bundle. Both rules are enforced by
      * {@link Criteria#of(Decl[])}.
      *
-     * <p>The default returns {@link Criteria#empty()}: no explicit
-     * declaration. The framework then synthesises a single criterion
-     * from the contract's {@link #postconditions()} chain.
+     * <p>The default returns {@link Criteria#empty()}; a contract
+     * that ships with the default must override this method to
+     * declare at least one criterion before
+     * {@link #effectiveCriteria()} is consulted.
      *
      * <p>Latency commitments live on the sibling {@link #latency()}
      * method, not on this bundle — the structural 0..1 cardinality
@@ -223,34 +185,23 @@ public interface Contract<I, O> {
      * Resolves the contract's criteria to an immutable runtime
      * list. The framework hook; do not override.
      *
-     * <p>If {@link #criteria()} returns a non-empty {@link Criteria},
-     * its {@link Criteria#asList() asList()} is the result. Otherwise
-     * the K=1 default derived from {@link #postconditions()} is
-     * returned.
+     * <p>The contract's {@link #criteria()} must return a non-empty
+     * {@link Criteria}; its {@link Criteria#asList() asList()} forms
+     * the functional portion of the result, to which any present
+     * {@link #latency() latency} criterion is appended.
      *
-     * @throws IllegalStateException if the contract declares both a
-     *         non-empty postcondition chain (non-empty
-     *         {@code postconditions(PostconditionBuilder)} override)
-     *         and an explicit non-empty {@code criteria()} value.
+     * @throws IllegalStateException if {@link #criteria()} returns
+     *         {@link Criteria#empty()} (no criteria declared).
      */
     default List<Criterion<O>> effectiveCriteria() {
         Criteria<O> declared = criteria();
-        List<Criterion<O>> functional;
-        if (!declared.isEmpty()) {
-            if (!postconditions().isEmpty()) {
-                throw new IllegalStateException(
-                        "Contract " + getClass().getName()
-                                + " declares both a non-empty postcondition chain"
-                                + " (via postconditions(PostconditionBuilder)) and an"
-                                + " explicit criteria value (via Criteria<O>"
-                                + " criteria()). Move the postconditions onto a"
-                                + " criterion via .where(name, predicate), or"
-                                + " remove the postconditions override.");
-            }
-            functional = declared.asList();
-        } else {
-            functional = List.of(new DefaultCriterion<>(this));
+        if (declared.isEmpty()) {
+            throw new IllegalStateException(
+                    "Contract " + getClass().getName()
+                            + " declares no criteria. Override criteria()"
+                            + " to return a non-empty Criteria<O>.");
         }
+        List<Criterion<O>> functional = declared.asList();
         LatencyCriterion latency = latency();
         if (!latency.isPresent()) {
             return functional;

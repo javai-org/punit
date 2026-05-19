@@ -1,5 +1,7 @@
 package org.javai.punit.api.spec;
 
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import org.javai.punit.api.criterion.Criteria;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -9,7 +11,6 @@ import java.util.Optional;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.Contract;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContractOutcome;
@@ -25,9 +26,11 @@ class TrialTest {
         public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
+        @Override public Criteria<Integer> criteria() {
+            return meeting().<Integer>zeroTolerance();
+        }
 
-        @Override
-        public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
+
     };
 
     private static ServiceContractOutcome<String, Integer> ok(int value) {

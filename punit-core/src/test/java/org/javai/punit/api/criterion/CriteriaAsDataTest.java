@@ -223,8 +223,8 @@ class CriteriaAsDataTest {
     }
 
     @Test
-    @DisplayName("Contract.criteria() default returns empty; effectiveCriteria() falls back to K=1 default")
-    void defaultContractFallsBackToK1Default() {
+    @DisplayName("Contract.criteria() default returns empty; effectiveCriteria() throws")
+    void defaultContractRejectsEmptyCriteria() {
         Contract<Object, String> c = new Contract<>() {
             @Override public Outcome<String> invoke(Object input,
                     org.javai.punit.api.TokenTracker t) {
@@ -233,7 +233,9 @@ class CriteriaAsDataTest {
         };
 
         assertThat(c.criteria().isEmpty()).isTrue();
-        assertThat(c.effectiveCriteria()).hasSize(1);
+        org.assertj.core.api.Assertions.assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(c::effectiveCriteria)
+                .withMessageContaining("declares no criteria");
     }
 
     @Test

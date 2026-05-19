@@ -1,5 +1,7 @@
 package org.javai.punit.internal.engine.baseline;
 
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import org.javai.punit.api.criterion.Criteria;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
@@ -12,7 +14,6 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.covariate.CovariateCategory;
 import org.javai.punit.api.FactorBundle;
 import org.javai.punit.api.Sampling;
@@ -37,10 +38,13 @@ class PowerAnalysisTest {
     private static final String USE_CASE_ID = "echo-use-case";
 
     private static final ServiceContract<Factors, String, String> ECHO = new ServiceContract<>() {
-        @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
         @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
+        @Override public Criteria<String> criteria() {
+            return meeting().<String>zeroTolerance();
+        }
+
         @Override public String id() { return USE_CASE_ID; }
     };
 
@@ -266,10 +270,13 @@ class PowerAnalysisTest {
      */
     private static ServiceContract<Factors, String, String> covariateServiceContract(String resolvedRegion) {
         return new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<String> b) { /* none */ }
             @Override public Outcome<String> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
+            @Override public Criteria<String> criteria() {
+                return meeting().<String>zeroTolerance();
+            }
+
             @Override public String id() { return COVARIATE_USE_CASE_ID; }
             @Override public List<Covariate> covariates() {
                 return List.of(Covariate.custom("region", CovariateCategory.CONFIGURATION));

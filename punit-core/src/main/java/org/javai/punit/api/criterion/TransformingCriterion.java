@@ -15,9 +15,9 @@ import org.javai.punit.api.Postcondition;
  * as {@link CriterionSampleOutcome#INCONCLUSIVE INCONCLUSIVE}; the
  * postcondition chain is not evaluated.
  *
- * <p>Package-private; constructed by
- * {@link Criteria#transforming(String, Function, java.util.function.Consumer)}.
- * Authors do not reference this type directly.
+ * <p>Package-private; constructed when a {@link TransformingDecl}
+ * is lowered to its runtime criterion. Authors do not reference this
+ * type directly.
  *
  * @param <O> the contract's per-sample output value type
  * @param <D> the type the postcondition chain evaluates against

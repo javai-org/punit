@@ -1,5 +1,7 @@
 package org.javai.punit.api;
 
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import org.javai.punit.api.criterion.Criteria;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -19,13 +21,15 @@ class SamplingTest {
     static final class EchoServiceContract implements ServiceContract<Factors, String, String> {
         EchoServiceContract(Factors factors) {}
 
-        @Override
-        public void postconditions(PostconditionBuilder<String> b) { /* none */ }
 
         @Override
         public Outcome<String> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
+        @Override public Criteria<String> criteria() {
+            return meeting().<String>zeroTolerance();
+        }
+
 
         @Override
         public String id() {
