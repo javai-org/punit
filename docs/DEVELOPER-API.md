@@ -66,8 +66,6 @@ It does *not* cover:
 - The Maven / Gradle / IntelliJ configuration (see
   [MAVEN-CONFIGURATION.md](MAVEN-CONFIGURATION.md) and the project
   `README.md`).
-- The 0.6 → 0.7 migration story (see
-  [MIGRATION-0.6-to-0.7.md](MIGRATION-0.6-to-0.7.md)).
 - The statistical methodology (see
   [STATISTICAL-COMPANION.md](STATISTICAL-COMPANION.md)).
 
