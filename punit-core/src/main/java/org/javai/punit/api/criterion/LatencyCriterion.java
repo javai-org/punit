@@ -163,6 +163,181 @@ public final class LatencyCriterion {
     }
 
     /**
+     * Attach a contract reference and update the origin in one call.
+     * Designed for the new {@link Criteria#meeting()} authoring shape
+     * where {@code meeting()} opens the chain with origin
+     * {@link ThresholdOrigin#UNSPECIFIED} and the author later names
+     * the source on the same line as the reference text.
+     *
+     * <p>{@code origin} must be a non-empirical origin (SLA / SLO /
+     * POLICY / UNSPECIFIED).
+     */
+    public LatencyCriterion contractRef(ThresholdOrigin origin, String ref) {
+        Objects.requireNonNull(origin, "origin");
+        Objects.requireNonNull(ref, "ref");
+        if (ref.isBlank()) {
+            throw new IllegalArgumentException(".contractRef requires a non-blank string");
+        }
+        if (origin == ThresholdOrigin.EMPIRICAL) {
+            throw new IllegalArgumentException(
+                    ".contractRef(EMPIRICAL, ...) is contradictory — "
+                            + "use empirical() for baseline-derived criteria");
+        }
+        if (mode == Mode.NONE) {
+            throw new IllegalStateException(
+                    ".contractRef cannot be set on LatencyCriterion.none()");
+        }
+        if (mode == Mode.EMPIRICAL) {
+            throw new IllegalStateException(
+                    ".contractRef(origin, ref) cannot be set on an empirical "
+                            + "latency criterion — the baseline IS the source");
+        }
+        return new LatencyCriterion(mode, assertedPercentiles, spec, origin,
+                Optional.of(ref), confidenceFloor);
+    }
+
+    /**
+     * Chain an additional contractual ceiling at the given
+     * percentile. Used by the new {@link Criteria#meeting()}
+     * authoring shape:
+     *
+     * <pre>{@code
+     * @Override public LatencyCriterion latency() {
+     *     return meeting()
+     *             .atMost(P95, ofSeconds(1))
+     *             .atMost(P99, ofSeconds(5))
+     *             .contractRef(SLA, "Acme Payment SLA v3.2 §4.2");
+     * }
+     * }</pre>
+     *
+     * <p>Rejected on empirical-mode criteria (use
+     * {@link #atMost(PercentileKey)} with no duration). Rejected on
+     * the {@link #none()} sentinel.
+     *
+     * <p><b>Monotonicity check.</b> Per Statistical Companion §12.4.2
+     * the published per-percentile ceilings must be monotone non-
+     * decreasing in percentile level (observed P50 ≤ P90 ≤ P95 ≤ P99
+     * by definition of order statistics). If this call would assign
+     * a higher percentile a lower duration than a previously-declared
+     * lower percentile (or vice versa), the call is rejected with
+     * {@link IllegalArgumentException} naming both percentiles and
+     * both durations.
+     */
+    public LatencyCriterion atMost(PercentileKey key, Duration value) {
+        Objects.requireNonNull(key, "key");
+        Objects.requireNonNull(value, "value");
+        if (mode == Mode.EMPIRICAL) {
+            throw new IllegalStateException(
+                    ".atMost(percentile, duration) cannot be chained on an "
+                            + "empirical latency criterion — empirical bounds are "
+                            + "derived from the baseline. Use .atMost(percentile) "
+                            + "without a duration.");
+        }
+        if (mode == Mode.NONE) {
+            throw new IllegalStateException(
+                    ".atMost(...) cannot be chained on LatencyCriterion.none(); "
+                            + "open a chain via Criteria.meeting() instead");
+        }
+        if (assertedPercentiles.contains(key)) {
+            throw new IllegalArgumentException(
+                    "duplicate percentile in ceilings: " + key);
+        }
+        checkMonotonicity(key, value);
+        EnumSet<PercentileKey> nextAsserted = EnumSet.copyOf(assertedPercentiles);
+        nextAsserted.add(key);
+        LatencySpec nextSpec = specWithCeiling(spec, key, value.toMillis());
+        return new LatencyCriterion(Mode.CONTRACTUAL, nextAsserted, nextSpec,
+                origin, contractRef, confidenceFloor);
+    }
+
+    /**
+     * Chain an additional empirical-mode percentile assertion. Used
+     * by the new {@link Criteria#empirical()} authoring shape:
+     *
+     * <pre>{@code
+     * @Override public LatencyCriterion latency() {
+     *     return empirical().atMost(P95).atMost(P99).atConfidence(0.99);
+     * }
+     * }</pre>
+     *
+     * <p>Rejected on contractual-mode criteria (use
+     * {@link #atMost(PercentileKey, Duration)} with an explicit
+     * duration). Rejected on the {@link #none()} sentinel.
+     */
+    public LatencyCriterion atMost(PercentileKey key) {
+        Objects.requireNonNull(key, "key");
+        if (mode == Mode.CONTRACTUAL) {
+            throw new IllegalStateException(
+                    ".atMost(percentile) without a duration cannot be chained on a "
+                            + "contractual latency criterion. Use "
+                            + ".atMost(percentile, duration) for a contractual ceiling.");
+        }
+        if (mode == Mode.NONE) {
+            throw new IllegalStateException(
+                    ".atMost(...) cannot be chained on LatencyCriterion.none(); "
+                            + "open a chain via Criteria.empirical() instead");
+        }
+        if (assertedPercentiles.contains(key)) {
+            throw new IllegalArgumentException(
+                    "duplicate percentile in empirical assertions: " + key);
+        }
+        EnumSet<PercentileKey> nextAsserted = EnumSet.copyOf(assertedPercentiles);
+        nextAsserted.add(key);
+        return new LatencyCriterion(Mode.EMPIRICAL, nextAsserted, spec, origin,
+                contractRef, confidenceFloor);
+    }
+
+    private void checkMonotonicity(PercentileKey newKey, Duration newValue) {
+        long newMs = newValue.toMillis();
+        for (PercentileKey existing : assertedPercentiles) {
+            long existingMs = existingCeilingMillis(existing);
+            if (existing.ordinal() < newKey.ordinal() && existingMs > newMs) {
+                throw monotonicityFailure(existing, existingMs, newKey, newMs);
+            }
+            if (existing.ordinal() > newKey.ordinal() && existingMs < newMs) {
+                throw monotonicityFailure(newKey, newMs, existing, existingMs);
+            }
+        }
+    }
+
+    private IllegalArgumentException monotonicityFailure(
+            PercentileKey lower, long lowerMs,
+            PercentileKey higher, long higherMs) {
+        return new IllegalArgumentException(String.format(
+                "%s atMost (%dms) cannot be lower than %s atMost (%dms) — "
+                        + "observed %s ≥ %s, so the %s constraint dominates and "
+                        + "the %s declaration is unreachable. Either raise %s's "
+                        + "allowance, lower %s's, or remove the redundant declaration.",
+                higher, higherMs, lower, lowerMs,
+                higher, lower, higher, lower, higher, lower));
+    }
+
+    private long existingCeilingMillis(PercentileKey key) {
+        return switch (key) {
+            case P50 -> spec.p50Millis().orElseThrow();
+            case P90 -> spec.p90Millis().orElseThrow();
+            case P95 -> spec.p95Millis().orElseThrow();
+            case P99 -> spec.p99Millis().orElseThrow();
+        };
+    }
+
+    private static LatencySpec specWithCeiling(
+            LatencySpec base, PercentileKey key, long millis) {
+        LatencySpec.Builder b = LatencySpec.builder();
+        base.p50Millis().ifPresent(b::p50Millis);
+        base.p90Millis().ifPresent(b::p90Millis);
+        base.p95Millis().ifPresent(b::p95Millis);
+        base.p99Millis().ifPresent(b::p99Millis);
+        switch (key) {
+            case P50 -> b.p50Millis(millis);
+            case P90 -> b.p90Millis(millis);
+            case P95 -> b.p95Millis(millis);
+            case P99 -> b.p99Millis(millis);
+        }
+        return b.build();
+    }
+
+    /**
      * Set the per-criterion confidence floor for the binomial
      * order-statistic upper bound (Statistical Companion §12.4.2).
      * Composes only with {@link Mode#EMPIRICAL}; rejected on

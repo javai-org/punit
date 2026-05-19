@@ -122,6 +122,62 @@ public sealed interface Criteria<O>
      *         any decl in a K>1 bundle is unnamed, or if two decls
      *         share a name
      */
+    /**
+     * Open a contractual-mode kind-selector chain. The author calls
+     * one of the kind-selector methods on the returned
+     * {@link ContractualDecl} to declare a pass-rate, zero-tolerance,
+     * or latency criterion.
+     *
+     * <p>Origin defaults to
+     * {@link org.javai.punit.api.ThresholdOrigin#UNSPECIFIED} and is
+     * overridden when the author later calls
+     * {@code .contractRef(origin, ref)} on the kind-specific decl.
+     *
+     * <p>The factory is non-generic — the type parameter
+     * {@code <O>} enters the chain at the kind-selector step
+     * ({@code .passRate(...)}, {@code .zeroTolerance()}), or not at
+     * all in the latency case. Witness placement at the call site:
+     *
+     * <pre>{@code
+     * // K=1 — target-type inference works through a single chain.
+     * @Override public Criteria<String> criteria() {
+     *     return meeting().passRate(0.85).where("parseable", v -> isJson(v));
+     * }
+     *
+     * // K>1 — explicit witness on the kind-selector method.
+     * @Override public Criteria<Response> criteria() {
+     *     return of(
+     *         meeting().<Response>passRate(0.99).name("body").where(...),
+     *         meeting().<Response>zeroTolerance().name("pii").where(...));
+     * }
+     *
+     * // Latency — no witness anywhere; .atMost(...) returns
+     * // LatencyCriterion which has no type parameter.
+     * @Override public LatencyCriterion latency() {
+     *     return meeting().atMost(P95, ofSeconds(1));
+     * }
+     * }</pre>
+     */
+    static ContractualDecl meeting() {
+        return ContractualDeclImpl.INSTANCE;
+    }
+
+    /**
+     * Open an empirical-mode kind-selector chain. The author calls
+     * one of the kind-selector methods on the returned
+     * {@link EmpiricalDecl} to declare an empirical pass-rate or
+     * empirical latency criterion.
+     *
+     * <p>No origin parameter applies — the baseline IS the source
+     * of the threshold.
+     *
+     * <p>The factory is non-generic for the same reason as
+     * {@link #meeting()}.
+     */
+    static EmpiricalDecl empirical() {
+        return EmpiricalDeclImpl.INSTANCE;
+    }
+
     @SafeVarargs
     static <O> Criteria<O> of(Decl<O>... decls) {
         Objects.requireNonNull(decls, "decls");
