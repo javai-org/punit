@@ -183,8 +183,11 @@ The **[Statistical Companion](docs/STATISTICAL-COMPANION.md)** covers the mathem
 
 ## License
 
-Attribution Required License (ARL-1.0) — see [LICENSE](LICENSE) for details.
+Apache License, Version 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 ## Contributing
 
-Contributions are welcome. Please open an issue or pull request on [GitHub](https://github.com/javai-org/punit).
+Contributions are welcome. All contributions are accepted under Apache 2.0 and
+require a [Developer Certificate of Origin](dco.txt) sign-off (`git commit -s`).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details. Please open an issue or pull
+request on [GitHub](https://github.com/javai-org/punit).

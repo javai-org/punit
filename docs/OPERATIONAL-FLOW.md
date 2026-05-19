@@ -2,7 +2,7 @@
 
 This document describes the end-to-end workflow for using **PUnit** to test systems characterized by uncertainty—systems that don't always produce the same output for the same input.
 
-All attribution licensing is ARL.
+Licensed under the Apache License, Version 2.0.
 
 ---
 
