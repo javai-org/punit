@@ -121,8 +121,17 @@ experiments, configures the standard `test` task to exclude
 experiment-tagged methods, and supports `-Prun=` shorthand for
 filtering.
 
+**Three static imports** give an author the criterion-authoring
+vocabulary. The rest of the examples in this guide assume them:
+
+```java
+import static org.javai.punit.api.criterion.Criteria.*;   // meeting, empirical, of
+import static org.javai.punit.api.ThresholdOrigin.*;       // SLA, SLO, POLICY, UNSPECIFIED
+import static org.javai.punit.api.PercentileKey.*;         // P50, P90, P95, P99
+```
+
 **A service contract** declares what the framework is testing — the service
-call, the contract its output must satisfy:
+call, and the criteria its output must satisfy:
 
 ```java
 public final class JsonResponseServiceContract
@@ -140,16 +149,24 @@ public final class JsonResponseServiceContract
     }
 
     @Override
-    public void postconditions(ContractBuilder<String> b) {
-        b.ensure("Parses as JSON", s ->
-                isValidJson(s)
-                        ? Outcome.ok()
-                        : Outcome.fail("not-json", "did not parse: " + truncate(s)));
+    public Criteria<String> criteria() {
+        return meeting().passRate(0.95)
+                .contractRef(SLA, "Acme JSON API SLA v1 §3.2")
+                .satisfies("Parses as JSON", s ->
+                        isValidJson(s)
+                                ? Outcome.ok()
+                                : Outcome.fail("not-json", "did not parse: " + truncate(s)));
     }
 }
 ```
 
-**A test** asserts that the service contract meets a target pass rate:
+`meeting()` opens a contractual chain. `.passRate(0.95)` declares the
+criterion is a pass-rate target at 0.95. `.contractRef(SLA, "...")`
+names the source category (SLA) and the document reference together.
+`.satisfies(...)` adds the per-sample postcondition.
+
+**A test** asserts that the service contract meets its declared
+criteria:
 
 ```java
 public class JsonResponseTest {
@@ -165,8 +182,6 @@ public class JsonResponseTest {
                         Sampling.of(f -> new JsonResponseServiceContract(),
                                 100, PROMPTS),
                         new NoFactors())
-                .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
-                .contractRef("Acme JSON API SLA v1 §3.2")
                 .assertPasses();
     }
 
@@ -177,8 +192,8 @@ public class JsonResponseTest {
 This test runs the service contract 100 times, counts how many return valid
 JSON, and applies the Wilson-95% lower bound to the observed pass
 rate. It passes if the bound clears the 0.95 threshold. The
-`contractRef` is a free-text pointer to the document the threshold
-derives from — it surfaces in the verdict for audit traceability.
+`contractRef` declared on the contract surfaces in the verdict for
+audit traceability.
 
 That is the whole pattern. The rest of this guide unpacks it.
 
@@ -211,21 +226,23 @@ author always overrides:
 ```java
 public interface ServiceContract<F, I, O> extends Contract<I, O> {
     // metadata: id(), description(), pacing(), warmup(),
-    // covariates(), customCovariateResolvers(), maxLatency()
+    // covariates(), customCovariateResolvers()
 }
 
 public interface Contract<I, O> {
     Outcome<O> invoke(I input, TokenTracker tracker);
-    void postconditions(ContractBuilder<O> b);
+    Criteria<O> criteria();
+    LatencyCriterion latency();            // optional sibling
     // framework-implemented: apply(...) — three overloads
 }
 ```
 
 The split is structural, not cosmetic. `Contract` is the per-sample
 operational layer; `ServiceContract` is the per-run metadata layer. Author
-cost stays at zero — one `implements ServiceContract<...>`, three required
-methods to override (`invoke`, `postconditions`, and an `id()` for
-non-trivial implementations).
+cost stays at zero — one `implements ServiceContract<...>`, two required
+methods to override (`invoke` and `criteria`), plus an `id()` for
+non-trivial implementations and an optional `latency()` sibling when
+the contract declares a temporal SLA.
 
 ### `invoke` — the service call
 
@@ -248,21 +265,25 @@ The `TokenTracker` is the cost channel. Service contracts that consume tokens
 up into per-sample and per-run cost totals; the budget machinery in
 [Part 8](#part-8-resource-controls) consults them.
 
-### `postconditions` — the acceptance contract
+### `criteria` — the acceptance contract
 
-`postconditions(ContractBuilder<O>)` declares the criteria the
-framework evaluates against every successful sample's value. Each
-clause has a description and a check that returns an `Outcome`:
+`criteria()` returns a `Criteria<O>` declaring what the framework
+evaluates against every successful sample's value. Single-criterion
+contracts return a chain directly; multi-criterion contracts compose
+via `Criteria.of(...)`. Each criterion carries one or more
+`.satisfies(...)` clauses — a description and a check that returns
+an `Outcome`:
 
 ```java
 @Override
-public void postconditions(ContractBuilder<BasketTranslation> b) {
-    b.ensure("Has actions", t ->
-            t.actions().isEmpty()
-                    ? Outcome.fail("empty", "actions list was empty")
-                    : Outcome.ok())
-     .ensure("All actions known", ShoppingBasketServiceContract::allKnown)
-     .ensure("Quantities non-negative", ShoppingBasketServiceContract::quantitiesValid);
+public Criteria<BasketTranslation> criteria() {
+    return empirical().<BasketTranslation>passRate()
+            .satisfies("Has actions", t ->
+                    t.actions().isEmpty()
+                            ? Outcome.fail("empty", "actions list was empty")
+                            : Outcome.ok())
+            .satisfies("All actions known", ShoppingBasketServiceContract::allKnown)
+            .satisfies("Quantities non-negative", ShoppingBasketServiceContract::quantitiesValid);
 }
 ```
 
@@ -272,31 +293,33 @@ explore feedback path. A clause's failure does not throw — it is
 recorded as data, ranked into a histogram by description, and
 exemplified with the tripping inputs.
 
-For a derivation — transform first, then evaluate against the derived
-type — use `deriving`:
+For a derivation — transform first, then evaluate clauses against
+the derived type — chain `.transforming(...)`:
 
 ```java
-b.deriving("Resolves to catalog SKUs",
-        translation -> resolveAgainstCatalog(translation.actions()),
-        sub -> sub
-                .ensure("Every action mapped", r -> r.unmapped().isEmpty()
-                        ? Outcome.ok()
-                        : Outcome.fail("unmapped", "missing: " + r.unmapped()))
-                .ensure("No duplicate SKUs", ...));
+return empirical().<BasketTranslation>passRate()
+        .transforming(translation -> resolveAgainstCatalog(translation.actions()))
+        .satisfies("Every action mapped", r -> r.unmapped().isEmpty()
+                ? Outcome.ok()
+                : Outcome.fail("unmapped", "missing: " + r.unmapped()))
+        .satisfies("No duplicate SKUs", ...);
 ```
 
-When the derivation fails, the nested clauses report as `skipped`. When
-it succeeds, the nested clauses run against the derived value.
+When the derivation fails, the criterion's clauses report as
+`skipped`. When it succeeds, the clauses run against the derived
+value.
 
 A service contract with no acceptance criteria — smoke-test scaffolding,
 throwaway fixtures — explicitly declares the choice:
 
 ```java
 @Override
-public void postconditions(ContractBuilder<O> b) { /* none */ }
+public Criteria<O> criteria() {
+    return Criteria.empty();
+}
 ```
 
-This is intentional. A service contract without postconditions is one whose
+This is intentional. A service contract without acceptance criteria is one whose
 author has not yet decided what counts as success; making the choice
 visible is part of building the service contract, not an afterthought.
 
@@ -318,7 +341,7 @@ need a non-default value:
 | `pacing()`                      | Rate / concurrency limits the engine must respect.         |
 | `covariates()`                  | Environmental factors the service contract is sensitive to.        |
 | `customCovariateResolvers()`    | Resolvers for custom covariates declared in `covariates()`.|
-| `maxLatency()`                  | Per-sample wall-clock bound (rare; use `PercentileLatency` instead). |
+| `latency()`                     | Optional sibling: contractual or empirical latency commitment ([Part 7](#part-7-latency)). |
 
 [Part 9](#part-9-covariates) covers covariates in depth.
 [Part 8](#part-8-resource-controls) covers warmup and pacing.
@@ -372,12 +395,13 @@ public final class ShoppingBasketServiceContract
     }
 
     @Override
-    public void postconditions(ContractBuilder<BasketTranslation> b) {
-        b.ensure("Has actions", t ->
-                t.actions().isEmpty()
-                        ? Outcome.fail("empty", "actions list was empty")
-                        : Outcome.ok())
-         .ensure("All actions valid", ShoppingBasketServiceContract::actionsValid);
+    public Criteria<BasketTranslation> criteria() {
+        return empirical().<BasketTranslation>passRate()
+                .satisfies("Has actions", t ->
+                        t.actions().isEmpty()
+                                ? Outcome.fail("empty", "actions list was empty")
+                                : Outcome.ok())
+                .satisfies("All actions valid", ShoppingBasketServiceContract::actionsValid);
     }
 
     public static Sampling<LlmTuning, String, BasketTranslation> sampling(
@@ -420,8 +444,7 @@ PUnit.exploring(sampling).grid(...).run();         // EXPLORE
 PUnit.optimizing(sampling).initialFactors(...)
         .stepper(...).maximize(...).run();         // OPTIMIZE
 PUnit.measuring(sampling, factors).run();          // MEASURE
-PUnit.testing(sampling, factors)
-        .criterion(...).assertPasses();            // TEST
+PUnit.testing(sampling, factors).assertPasses();   // TEST
 ```
 
 A typical project uses MEASURE and TEST routinely (CI), invokes
@@ -439,39 +462,43 @@ sentinel runner.
 ## Part 3: Testing
 
 `PUnit.testing(sampling, factors)` composes a probabilistic test that
-runs the bound service contract `samples` times and evaluates one or more
-**criteria** against the result.
+runs the bound service contract `samples` times and evaluates the
+**criteria** the contract declares against the result.
 
 ```java
 @ProbabilisticTest
 void apiMeetsSla() {
     PUnit.testing(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, 50),
                   LlmTuning.DEFAULT)
-            .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
-            .contractRef("Acme API SLA v3 §2.1")
             .assertPasses();
 }
 ```
 
 The `@ProbabilisticTest` annotation is a parameter-free JUnit hook —
 it just tells JUnit Jupiter that this method is a punit test and
-should be discovered. All configuration lives on the fluent builder.
+should be discovered. The criteria evaluated against each sample
+are declared once on the service contract; the test site simply
+runs the contract and asserts.
 
 ### Threshold sources
 
-A criterion's threshold comes from one of two places:
+A criterion's threshold comes from one of two places, selected by the
+factory that opens its declaration on the contract:
 
-- **Contractual** — a fixed value declared by an SLA, SLO, or policy.
-  PUnit applies a deterministic `observed >= threshold` comparison.
-  No baseline is consulted; no statistical margin is applied.
+- **Contractual** (`meeting().passRate(...)`, `meeting().atMost(...)`)
+  — a fixed value declared by an SLA, SLO, or policy. PUnit applies a
+  deterministic `observed >= threshold` comparison. No baseline is
+  consulted; no statistical margin is applied.
   ```java
-  .criterion(PassRate.meeting(0.99, ThresholdOrigin.SLA))
+  return meeting().passRate(0.99).contractRef(SLA, "Acme SLA v3 §2.1")
+          .satisfies(...);
   ```
-- **Empirical** — derived at runtime from a recorded baseline file.
-  PUnit applies the Wilson-95% lower bound to the run's observed rate
-  and passes if that bound clears the baseline rate.
+- **Empirical** (`empirical().passRate()`, `empirical().atMost(...)`)
+  — derived at runtime from a recorded baseline file. PUnit applies
+  the Wilson-95% lower bound to the run's observed rate and passes
+  if that bound clears the baseline rate.
   ```java
-  .criterion(PassRate.empirical())
+  return empirical().<O>passRate().satisfies(...);
   ```
 
 Empirical criteria require a `MEASURE` step to have produced a
@@ -481,12 +508,12 @@ for *compliance* testing (does the system meet its mandate?).
 
 > **Antipattern: pinning a contractual threshold to a baseline's
 > observed rate.** Reading a baseline file and pasting its rate
-> into `PassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks
+> into `meeting().passRate(0.935).contractRef(EMPIRICAL, ...)` looks
 > like the empirical pattern but isn't. The contractual path is
 > deterministic; sampling variance puts the next run's observed
 > rate below 0.935 about half the time even when nothing has
 > changed. Result: a coin-flip false-fail rate. Use
-> `PassRate.empirical()` — it resolves the baseline at runtime,
+> `empirical().passRate()` — it resolves the baseline at runtime,
 > applies the Wilson lower bound at the configured confidence,
 > and gives the test the statistical buffer the hardcoded approach
 > lacks.
@@ -507,31 +534,49 @@ Two intents shape the framework's tolerance for marginal sample sizes:
 ```java
 PUnit.testing(sampling, factors)
         .intent(TestIntent.SMOKE)
-        .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
         .assertPasses();
 ```
 
 ### Combining criteria
 
-A test can carry multiple criteria. Each is independently evaluated;
-the test passes only if every required criterion passes. Add a
-criterion for gating with `.criterion(...)`; add one for observation
-only (no effect on verdict) with `.reportOnly(...)`:
+A contract can declare multiple criteria by composing them with
+`Criteria.of(...)`. Each is independently evaluated; the test passes
+only if every required criterion passes. The functional criteria
+live on the contract's `criteria()`; an optional `latency()` sibling
+expresses the temporal commitment exactly once:
+
+```java
+@Override
+public Criteria<Translation> criteria() {
+    return Criteria.of(
+            empirical().<Translation>passRate()
+                    .satisfies("Parses", Translation::isWellFormed)
+                    .name("well-formed"),
+            empirical().<Translation>passRate()
+                    .satisfies("All actions valid", Translation::actionsValid)
+                    .name("actions-valid"));
+}
+
+@Override
+public LatencyCriterion latency() {
+    return meeting().atMost(P95, ofMillis(500))
+            .atMost(P99, ofMillis(1000))
+            .contractRef(SLA, "Acme API SLA v3 §2.4");
+}
+```
+
+A test site that wants extra diagnostic comparisons — recorded
+elsewhere but not gated — can attach them with `.reportOnly(...)`:
 
 ```java
 PUnit.testing(sampling, factors)
-        .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
-        .criterion(PercentileLatency.meeting(
-                LatencySpec.builder().p95Millis(500L).p99Millis(1000L).build(),
-                ThresholdOrigin.SLA))
-        .reportOnly(PassRate.empirical())
+        .reportOnly(empirical().<Translation>passRate())
         .assertPasses();
 ```
 
-This test gates on the SLA pass rate AND the SLA latency target, and
-*also* compares the run against the empirical baseline (recorded
-elsewhere) for diagnostic purposes — without letting that comparison
-fail the test.
+The functional and latency criteria on the contract gate the verdict;
+the `reportOnly` clause compares against the empirical baseline for
+diagnostic purposes without affecting pass/fail.
 
 ### Instance conformance — comparing produced values against expected outputs
 
@@ -574,9 +619,11 @@ Sampling<Provider, AudioSample, TranscriptionResult> sampling = Sampling
         .build();
 
 PUnit.testing(sampling, Provider.DEEPGRAM)
-        .criterion(PassRate.meeting(0.5, ThresholdOrigin.SLO))
         .assertPasses();
 ```
+
+(The pass-rate criterion is declared on `SpeechToTextServiceContract`
+itself — typically `meeting().passRate(0.5).contractRef(SLO, "...")`.)
 
 This is the **recommended default for production suites**. It
 eliminates test/measure drift by construction — the matcher lives in
@@ -591,7 +638,6 @@ spec, not the fixture. Two situations call for this:
 PUnit.testing(sampling, Provider.DEEPGRAM)
         .expectedOutputs(expectedTranscripts)        // ← lives on the spec
         .matcher(normalisedTranscript)
-        .criterion(PassRate.meeting(0.5, ThresholdOrigin.SLO))
         .assertPasses();
 ```
 
@@ -607,7 +653,6 @@ Use shape B when:
           .samples(50)
           .expectedOutputs(expected)
           .matcher(normalisedTranscript)
-          .criterion(...)
           .assertPasses();
   ```
 - **Per-spec override.** The same fixture is consumed by multiple
@@ -656,9 +701,10 @@ failures with two example inputs each, and the contract reference.
 
 When the verdict is mathematically determined mid-run, PUnit stops
 sampling. This is **default-on** for any `ProbabilisticTest` whose
-required criterion is a contractual `PassRate.meeting(...)` — the
-threshold is known up front, so after each sample the framework can
-check whether the verdict is already decided:
+contract declares a contractual pass-rate criterion
+(`meeting().passRate(...)`) — the threshold is known up front, so
+after each sample the framework can check whether the verdict is
+already decided:
 
 - **Failure inevitable** — even if every remaining sample passes,
   the observed rate cannot reach the threshold. The run stops and
@@ -675,11 +721,10 @@ declared sample — early termination is lossless. The
 `SUCCESS_GUARANTEED` so reports can distinguish a short-circuited
 run from one that completed naturally.
 
-Empirical-mode tests (`PassRate.empirical()` /
-`PassRate.empiricalFrom(...)`) resolve their threshold from a
-baseline at evaluate time, so the up-front check has nothing to
-compare against; those runs continue through every declared
-sample. Measure / explore / optimize specs likewise run to
+Empirical-mode tests (`empirical().passRate()`) resolve their
+threshold from a baseline at evaluate time, so the up-front check
+has nothing to compare against; those runs continue through every
+declared sample. Measure / explore / optimize specs likewise run to
 completion — they have no threshold to short-circuit on.
 
 To opt a contractual test out of early termination (e.g. when the
@@ -688,7 +733,6 @@ complete latency distribution, or exhaustive failure exemplars):
 
 ```java
 PUnit.testing(sampling, factors)
-        .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
         .disableEarlyTermination()
         .assertPasses();
 ```
@@ -707,7 +751,6 @@ For audit or compliance contexts, enable verbose statistical output:
 
 ```java
 PUnit.testing(sampling, factors)
-        .criterion(PassRate.meeting(0.85, ThresholdOrigin.SLA))
         .transparentStats()
         .assertPasses();
 ```
@@ -812,10 +855,14 @@ void baseline() {
 void shouldNotRegress() {
     PUnit.testing(ShoppingBasketServiceContract.sampling(INSTRUCTIONS, VERIFICATION_SAMPLES),
                   LlmTuning.DEFAULT)
-            .criterion(PassRate.empirical())
             .assertPasses();
 }
 ```
+
+(The empirical pass-rate criterion lives on
+`ShoppingBasketServiceContract.criteria()` as
+`empirical().<BasketTranslation>passRate().satisfies(...)`. The
+verification test simply runs the contract and asserts.)
 
 The asymmetry is intentional and pedagogic. The baseline is captured
 once — paying the cost of high precision so the recorded rate is a
@@ -867,14 +914,14 @@ public class ShoppingBasketRoundTrip {
     void shouldNotRegress() {
         PUnit.testing(this::baseline)
                 .samples(50)
-                .criterion(PassRate.empirical())
                 .assertPasses();
     }
 }
 ```
 
-The test side specifies only the (typically smaller) sample count and
-the criterion; identity, factors, and inputs follow from the baseline.
+The test side specifies only the (typically smaller) sample count;
+the criteria, identity, factors, and inputs all follow from the
+baseline's contract.
 
 ---
 
@@ -1033,24 +1080,31 @@ under SMOKE intent.
 
 ### Asserting latency: contractual thresholds
 
-For SLA-style targets, build a `LatencySpec` and pass it to
-`PercentileLatency.meeting(...)`:
+For SLA-style targets, declare the contract's temporal commitment on
+the `latency()` sibling, chaining one `.atMost(percentile, duration)`
+per percentile asserted:
 
 ```java
-LatencySpec target = LatencySpec.builder()
-        .p95Millis(500L)
-        .p99Millis(1000L)
-        .build();
+@Override
+public LatencyCriterion latency() {
+    return meeting().atMost(P95, ofMillis(500))
+            .atMost(P99, ofMillis(1000))
+            .contractRef(SLA, "Acme SLA v3 §2.4");
+}
+```
 
-PUnit.testing(sampling, factors)
-        .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
-        .criterion(PercentileLatency.meeting(target, ThresholdOrigin.SLA))
-        .assertPasses();
+The test site simply runs the contract:
+
+```java
+PUnit.testing(sampling, factors).assertPasses();
 ```
 
 A constraint passes when `Q(p_j) ≤ τ_j` for every declared percentile;
 the overall latency assertion passes when every constraint passes.
 Declare only the percentiles you care about — others are not asserted.
+Explicitly supplied durations must be monotonically non-decreasing
+across `P50 → P90 → P95 → P99`; the framework rejects misconfigured
+contracts up front.
 
 ### Asserting latency: baseline-derived thresholds
 
@@ -1203,12 +1257,12 @@ public Optional<Duration> maxLatency() {
 ```
 
 The engine records a duration violation for any sample that exceeds
-the bound — the sample's postconditions still evaluate, the
+the bound — the sample's acceptance criteria still evaluate, the
 violation is an additional facet, not a short-circuit. Most use
 cases do *not* set this. Aggregate latency claims (the 95th
-percentile under N ms) belong on the test via
-`PercentileLatency.meeting(...)`. The two statements have two
-distinct homes.
+percentile under N ms) belong on the contract's `latency()` sibling
+via `meeting().atMost(P95, ofMillis(500))`. The two statements have
+two distinct homes.
 
 ---
 
@@ -1295,7 +1349,7 @@ sets it, `EXTERNAL_DEPENDENCY` if a vendor controls when it changes.
 
 ### Baseline matching
 
-When `PassRate.empirical()` runs, the baseline resolver:
+When the contract declares an `empirical().passRate()` criterion, the baseline resolver:
 
 1. Looks up baselines for the service contract id.
 2. Filters by exact factor-record match.
@@ -1345,12 +1399,15 @@ public class PaymentGatewaySentinel {
     void paymentMeetsContractualSla() {
         PUnit.testing(PaymentGatewayServiceContract.sampling(CHARGES, 50),
                       Tier.DEFAULT)
-                .criterion(PassRate.meeting(0.99, ThresholdOrigin.SLA))
-                .contractRef("Acme Payment SLA v3.2 §4.1")
                 .assertPasses();
     }
 }
 ```
+
+(`PaymentGatewayServiceContract.criteria()` declares the SLA
+pass-rate criterion as
+`meeting().passRate(0.99).contractRef(SLA, "Acme Payment SLA v3.2 §4.1").satisfies(...)`;
+the sentinel's test body simply runs and asserts.)
 
 The same class is picked up by JUnit during normal `./gradlew test`
 runs (because `@ProbabilisticTest` is meta-annotated `@Test`). One
@@ -1658,21 +1715,23 @@ empirical criteria.
 
 **Contract.** Two distinct senses, both intentional:
 1. The `Contract<I, O>` interface — the per-sample operational layer
-   of a service contract (`invoke` and `postconditions`).
+   of a service contract (`invoke`, `criteria`, optional `latency`).
 2. The human-language reliability target an SLA / SLO / policy
-   document defines. Pointed at via `contractRef("...")`.
+   document defines. Pointed at via `.contractRef(origin, "...")`.
 
 **Covariate.** An environmental factor declared by the service contract that
 influences behaviour but is not part of the factor record. Resolved
 once per run; participates in baseline matching.
 
 **Criterion.** A statistical test the framework runs against a sample
-summary. Pass-rate criteria (`PassRate.meeting`, `PassRate.empirical`)
-and latency criteria (`PercentileLatency.meeting`) are the built-ins.
+summary. Pass-rate and latency are the built-in kinds. Authored via
+`meeting()` (contractual) or `empirical()` (baseline-derived) followed
+by a kind-selector (`.passRate(rate)`, `.zeroTolerance()`,
+`.atMost(percentile, duration)`).
 
-**Early termination.** A probabilistic test with a contractual
-`PassRate.meeting(...)` criterion short-circuits when the verdict is
-mathematically determined — failure inevitable
+**Early termination.** A probabilistic test whose contract declares a
+contractual `meeting().passRate(...)` criterion short-circuits when
+the verdict is mathematically determined — failure inevitable
 (`IMPOSSIBILITY`) or success guaranteed (`SUCCESS_GUARANTEED`,
 subject to a statistical-validity floor). Default-on; the verdict
 matches what would have come back from running every declared
@@ -1687,10 +1746,11 @@ site as a record of type `F`.
 The `org.javai:outcome` library's data type for expected failure;
 distinct from thrown exceptions, which signal defects.
 
-**Postcondition.** One named acceptance clause on a service contract's
-output. Authored via `ContractBuilder.ensure(...)` or
-`ContractBuilder.deriving(...)`. Evaluated per sample; failures are
-recorded as data and surface in the verdict's failure histogram.
+**Postcondition.** One named acceptance clause on a criterion.
+Authored via `.satisfies(name, check)` on a criterion chain;
+optionally preceded by `.transforming(fn)` to derive a value before
+the clauses evaluate. Evaluated per sample; failures are recorded as
+data and surface in the verdict's failure histogram.
 
 **Sampling.** A factor-free description of a sampling run: the use
 case factory, the inputs population, the sample count, budgets,
