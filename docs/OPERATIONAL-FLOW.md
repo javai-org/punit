@@ -31,13 +31,26 @@ However, we must distinguish between **compliance** and a **smoke test**. A true
 
 If you want an early-warning check without the cost of a full compliance audit, declare your intent as `SMOKE`.
 
+The service contract declares the contractual posture in its
+`criteria()` method; the test sets the intent:
+
 ```java
+// On the service contract
+@Override
+public Criteria<String> criteria() {
+    return meeting().<String>passRate(0.999)
+            .contractRef(SLA, "Customer API SLA §3.1")
+            .satisfies("Output is valid JSON",
+                    output -> JsonValidator.isValid(output)
+                            ? Outcome.ok()
+                            : Outcome.fail("invalid-json", "validator rejected output"));
+}
+
+// On the test
 @ProbabilisticTest
 void apiMeetsSla() {
     PUnit.testing(JsonGenerationServiceContract.sampling(PROMPTS, 100), Tuning.DEFAULT)
-            .criterion(PassRate.meeting(0.999, ThresholdOrigin.SLA))
             .intent(TestIntent.SMOKE)               // smoke, not full compliance audit
-            .contractRef("Customer API SLA §3.1")
             .assertPasses();
 }
 ```
@@ -68,10 +81,10 @@ Both paradigms use the same `@ProbabilisticTest` annotation. The difference is w
 
 Regardless of which paradigm you use, you must decide **how to parameterize** your test.
 
-> **Where the threshold comes from, and how the comparison is decided.** PUnit's `PassRate` criterion has two modes:
+> **Where the threshold comes from, and how the comparison is decided.** The pass-rate criterion has two modes, declared via `Criteria.meeting()` or `Criteria.empirical()` on the service contract's `criteria()`:
 >
-> - **Empirical** (`PassRate.empirical()`) — the threshold is the observed pass rate read at runtime from the matched baseline spec (produced by a prior MEASURE experiment). The verdict applies a one-sided **Wilson score lower bound** to the run's observed rate at the configured confidence (default 0.95) and passes iff that lower bound clears the baseline rate. Approaches 1 and 2 below use this mode.
-> - **Contractual** (`PassRate.meeting(threshold, origin)`) — the threshold is an externally-fixed number declared in code (an SLA, SLO, or policy figure). The verdict is a **deterministic** `observed >= threshold` comparison. No Wilson margin: an SLA is an external commitment to a specific number, not a statistical claim against a baseline. Approach 3 uses this mode.
+> - **Empirical** (`empirical().passRate()`) — the threshold is the observed pass rate read at runtime from the matched baseline spec (produced by a prior MEASURE experiment). The verdict applies a one-sided **Wilson score lower bound** to the run's observed rate at the configured confidence (default 0.95) and passes iff that lower bound clears the baseline rate. Approaches 1 and 2 below use this mode.
+> - **Contractual** (`meeting().passRate(threshold).contractRef(origin, ref)`) — the threshold is an externally-fixed number declared in code (an SLA, SLO, or policy figure). The verdict is a **deterministic** `observed >= threshold` comparison. No Wilson margin: an SLA is an external commitment to a specific number, not a statistical claim against a baseline. Approach 3 uses this mode.
 >
 > What the three approaches differ in is which knob the author fixes first.
 
@@ -79,19 +92,20 @@ Regardless of which paradigm you use, you must decide **how to parameterize** yo
 
 *"My budget allows 100 samples per run. Run them against the recorded baseline and let the framework decide."*
 
+The contract declares `empirical().passRate()` in `criteria()`; the test passes the baseline supplier:
+
 ```java
 @ProbabilisticTest
 void sampleSizeFirst() {
     PUnit.testing(this::baseline)
             .samples(100)
-            .criterion(PassRate.empirical())
             .assertPasses();
 }
 ```
 
 **What happens:**
 - PUnit runs the chosen samples.
-- `empirical()` resolves the matched baseline spec at runtime; its observed rate becomes the threshold for this run.
+- The contract's `empirical().passRate()` criterion resolves the matched baseline spec at runtime; its observed rate becomes the threshold for this run.
 - The verdict applies the Wilson lower bound at the default confidence (0.95) to *this* run's observed rate, and passes iff that lower bound clears the baseline.
 - With small N the Wilson margin is wide, so passing requires the observed rate to be clearly above the baseline.
 
@@ -103,6 +117,8 @@ void sampleSizeFirst() {
 
 *"I need to be able to detect a 5-percentage-point regression with 80% probability at 95% confidence. How many samples?"*
 
+The contract again declares the empirical posture in `criteria()`; the test computes the required sample size via `PowerAnalysis`:
+
 ```java
 @ProbabilisticTest
 void confidenceFirst() {
@@ -110,10 +126,13 @@ void confidenceFirst() {
 
     PUnit.testing(this::baseline)
             .samples(n)
-            .criterion(PassRate.empirical().atConfidence(0.95))
             .assertPasses();
 }
 ```
+
+The confidence target (default 0.95) is set on the contract's
+`empirical().passRate().atConfidence(...)` posture if the default
+needs overriding.
 
 **What happens:**
 - `PowerAnalysis.sampleSize(baseline, mde, power)` derives the required N from the baseline rate, the minimum detectable effect (MDE), and the target power.
@@ -128,12 +147,12 @@ void confidenceFirst() {
 
 *"The threshold is fixed by an SLA, SLO, or policy. Verify against it."*
 
+The contract declares `meeting().passRate(0.90).contractRef(SLA, "...")` in `criteria()`; the test is bare:
+
 ```java
 @ProbabilisticTest
 void thresholdFirst() {
     PUnit.testing(MyServiceContract.sampling(INPUTS, 100), MyFactors.DEFAULT)
-            .criterion(PassRate.meeting(0.90, ThresholdOrigin.SLA))
-            .contractRef("Customer API SLA §3.1")
             .assertPasses();
 }
 ```
@@ -147,7 +166,7 @@ void thresholdFirst() {
 
 **Best for:** SLA-style verification of services with externally-committed reliability targets.
 
-> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `PassRate.meeting(0.935, ThresholdOrigin.EMPIRICAL)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: ~50% false-fail rate. The proper baseline-comparison path is `PassRate.empirical()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
+> **Antipattern: pinning a contractual threshold to a baseline's observed rate.** Reading a baseline file by eye and pasting its observed rate into `meeting().passRate(0.935).contractRef(EMPIRICAL, ...)` looks like the empirical-pair pattern but isn't. The contractual path is deterministic — `observed >= 0.935` — and natural sampling variance puts the next run's observed rate below 0.935 roughly half the time even when the SUT is performing exactly at baseline. Result: ~50% false-fail rate. The proper baseline-comparison path is `empirical().passRate()`, which resolves the baseline at runtime, applies the Wilson lower bound at the configured confidence, and gives the test the statistical buffer that the hardcoded contractual approach is missing.
 
 ### Choosing Your Approach
 
@@ -206,11 +225,12 @@ public final class JsonGenerationServiceContract
     }
 
     @Override
-    public void postconditions(ContractBuilder<String> b) {
-        b.ensure("Output is valid JSON",
-                output -> JsonValidator.isValid(output)
-                        ? Outcome.ok()
-                        : Outcome.fail("invalid-json", "validator rejected output"));
+    public Criteria<String> criteria() {
+        return empirical().<String>passRate()
+                .satisfies("Output is valid JSON",
+                        output -> JsonValidator.isValid(output)
+                                ? Outcome.ok()
+                                : Outcome.fail("invalid-json", "validator rejected output"));
     }
 
     @Override
@@ -272,11 +292,12 @@ contentFingerprint: 7d3a8c1e9b2f4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b
 A few things to notice:
 
 - **`statistics.bernoulli-pass-rate.criteria.<id>`** — pass-rate is
-  always recorded per methodology criterion, one entry per postcondition
-  clause the service contract declared (here, the single clause from
-  Stage 1 surfaces as `output-valid-json`). With multiple postconditions
-  every clause gets its own row; a probabilistic test that picks a
-  per-criterion threshold sees them via the same structure.
+  always recorded per methodology criterion, one entry per criterion
+  the service contract declared (here, the single criterion from
+  Stage 1 surfaces as `output-valid-json`). When the contract
+  bundles multiple criteria every one gets its own row; a
+  probabilistic test that picks a per-criterion threshold sees them
+  via the same structure.
 - **`latency:` is a top-level block, not a criterion.** Percentiles are
   emitted from passing samples only (`basis: passing-samples`); each
   percentile is omitted if too few samples back it (the per-percentile
@@ -307,10 +328,13 @@ The test references the baseline. The threshold is derived at runtime:
 @ProbabilisticTest
 void jsonGenerationMeetsBaseline() {
     PUnit.testing(JsonGenerationServiceContract.sampling(PROMPTS, 100), Tuning.DEFAULT)
-            .criterion(PassRate.empirical())
             .assertPasses();
 }
 ```
+
+The service contract declared `empirical().passRate()` in
+`criteria()` at Stage 1; the test simply runs against the contract
+and the criterion auto-injects.
 
 **What happens at runtime:**
 1. Resolve the baseline by `useCaseId`, `factorsFingerprint`, and

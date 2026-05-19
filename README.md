@@ -118,9 +118,12 @@ For sentinel-deployable applications that run probabilistic checks without a tes
 
 ### 2. Write a Probabilistic Test
 
-A service contract wraps the service call and declares its acceptance contract:
+A service contract wraps the service call and declares its acceptance criteria:
 
 ```java
+import static org.javai.punit.api.ThresholdOrigin.SLA;
+import static org.javai.punit.api.criterion.Criteria.meeting;
+
 public class GreetingService implements ServiceContract<NoFactors, String, String> {
     @Override
     public Outcome<String> invoke(String name, TokenTracker tracker) {
@@ -128,9 +131,10 @@ public class GreetingService implements ServiceContract<NoFactors, String, Strin
     }
 
     @Override
-    public void postconditions(ContractBuilder<String> b) {
-        b.ensure("Greeting is non-empty", s ->
-                s == null || s.isBlank()
+    public Criteria<String> criteria() {
+        return meeting().<String>passRate(0.95)
+                .contractRef(SLA, "Service Agreement §4.2")
+                .satisfies("Greeting is non-empty", s -> s == null || s.isBlank()
                         ? Outcome.fail("empty", "no content")
                         : Outcome.ok());
     }
@@ -139,7 +143,7 @@ public class GreetingService implements ServiceContract<NoFactors, String, Strin
 
 `ServiceContract<FT, I, O>` carries three type parameters: `FT` is the factor record (the configuration the service contract is sensitive to — model name, temperature, retry count, …); `I` is the per-sample input; `O` is the output the service returns. When a service contract has no varying factors, declare `FT` as `NoFactors` (an empty record provided by punit) and the framework's no-factor builder overloads do the right thing.
 
-The probabilistic test exercises that service contract with a `Sampling` (factory + inputs + sample count) and asserts a population-level criterion:
+The probabilistic test exercises that service contract with a `Sampling` (factory + inputs + sample count); the contract's criteria are auto-injected:
 
 ```java
 class GreetingServiceTest {
@@ -147,14 +151,12 @@ class GreetingServiceTest {
     void serviceGreetsConsistently() {
         PUnit.testing(Sampling.of(nf -> new GreetingService(), 100,
                         List.of("Alice", "Bob", "Charlie")))
-            .criterion(PassRate.meeting(0.95, ThresholdOrigin.SLA))
-            .contractRef("Service Agreement §4.2")
             .assertPasses();
     }
 }
 ```
 
-This runs 100 samples, requires a 95% success rate at the configured confidence (default 0.95), and records the threshold's provenance as an SLA. The framework terminates early if success is guaranteed or failure becomes inevitable.
+This runs 100 samples against the contract's declared criteria — a 95% pass-rate target with SLA provenance, recorded against "Service Agreement §4.2". The framework terminates early if success is guaranteed or failure becomes inevitable.
 
 ### 3. Run It
 

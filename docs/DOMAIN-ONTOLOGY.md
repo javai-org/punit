@@ -45,10 +45,11 @@ ArchUnit-style architecture test).
   package: org.javai.punit.api
   role_notes: |
     Sealed-by-convention: extends Contract<IT, OT>. An author writes
-    one `class X implements ServiceContract<F, I, O>` and overrides three
-    methods — `invoke`, `postconditions(ContractBuilder)`, plus
-    whichever metadata methods diverge from defaults
-    (`id`, `pacing`, `warmup`, `covariates`, `inputSource`, …).
+    one `class X implements ServiceContract<F, I, O>` and overrides two
+    methods — `invoke` and `criteria()` (returning a `Criteria<O>`
+    value), plus whichever metadata methods diverge from defaults
+    (`id`, `pacing`, `warmup`, `covariates`, `inputSource`,
+    `latency`, …).
     `FT` is the typed factor record; `IT` the per-sample input;
     `OT` the per-sample output value.
   gotchas:
@@ -126,46 +127,47 @@ ArchUnit-style architecture test).
   java_type: Contract<IT, OT>             # interface
   package: org.javai.punit.api
   role_notes: |
-    The operational layer. Carries `invoke` and
-    `postconditions(ContractBuilder<O>)`. ServiceContract extends Contract;
-    the abstract / concrete split is preserved by inheritance.
+    The operational layer. Carries `invoke` and `criteria()`
+    (returning a `Criteria<O>` value). ServiceContract extends
+    Contract; the abstract / concrete split is preserved by
+    inheritance.
   gotchas:
     - **Two "service contract" senses live in the codebase.** The
       *subject* concept is the `ServiceContract<F, I, O>`
       interface — the thing under test. The *judgement* concept
-      lives in `Contract<I, O>` — the postcondition clauses,
-      duration constraint, and instance-conformance matchers.
+      lives in `Contract<I, O>` — the criteria declared via
+      `criteria()`, plus the optional `latency()` commitment.
       `ServiceContract` extends `Contract`. In prose, prefer
-      "Acceptance Contract" or "postconditions" for the judgement
+      "Acceptance Contract" or "criteria" for the judgement
       concept to avoid the overload.
 
-- concept: Postcondition
-  java_type: ContractBuilder<O>::ensure / ::deriving
-  package: org.javai.punit.api
+- concept: Criterion clause (postcondition)
+  java_type: Decl::satisfies / ::transforming (returned by Criteria.meeting() / Criteria.empirical())
+  package: org.javai.punit.api.criterion
   role_notes: |
-    Authors declare clauses by populating the supplied
-    `ContractBuilder<O>` in `postconditions(ContractBuilder)`. Two
-    methods: `ensure(name, predicate)` for leaf clauses;
-    `deriving(name, transform, sub)` for derivations whose nested
-    clauses are populated through a sub-builder lambda. Predicates
-    return `Outcome<Void>`: `Outcome.ok()` on pass,
-    `Outcome.fail(name, message)` on fail.
+    Authors declare clauses by chaining `.satisfies(name, predicate)`
+    on a `Decl` returned from a `Criteria.meeting()` or
+    `Criteria.empirical()` factory inside the service contract's
+    `criteria()` method. Predicates return `Outcome<Void>`:
+    `Outcome.ok()` on pass, `Outcome.fail(name, message)` on fail.
+    `.transforming(function)` adds a derivation step; subsequent
+    `.satisfies(...)` calls evaluate against the transformed value.
   gotchas:
-    - Do not move contract judgement out of `postconditions` into
+    - Do not move contract judgement out of `.satisfies(...)` into
       `invoke`. Failure detail (clause-named diagnostic) only
-      arises when the clause is registered through the builder.
-    - The inline form on `ContractBuilder` is the only canonical
-      surface for postconditions; there is no standalone
-      `Postcondition` / `PostconditionEvaluator` author surface.
+      arises when the clause is registered through a criterion
+      declaration.
+    - Overriding `criteria()` to return a `Criteria<O>` value is
+      the canonical way authors declare acceptance criteria.
 
 - concept: Duration Constraint
   java_type: ServiceContract#maxLatency() returning Optional<Duration>
   package: org.javai.punit.api
   role_notes: |
-    Per-sample wall-clock bound. Independent of postconditions: a
-    duration violation is recorded even if every postcondition
-    passes (cross-framework invariant — "Service Contract aspect
-    independence").
+    Per-sample wall-clock bound. Independent of the criteria
+    clauses: a duration violation is recorded even if every
+    `.satisfies(...)` clause passes (cross-framework invariant —
+    "Service Contract aspect independence").
   gotchas:
     - Do not conflate with PercentileLatency criterion. Duration
       Constraint is per-sample, contractual, fail-fast. Latency
@@ -273,14 +275,16 @@ ArchUnit-style architecture test).
     explicitly).
 
 - concept: Threshold (pass-rate)
-  java_type: PassRate (criterion factory family)
-  package: org.javai.punit.internal.engine.criteria
+  java_type: Criteria.meeting() / Criteria.empirical() static factories returning Decl
+  package: org.javai.punit.api.criterion (author surface) +
+           org.javai.punit.internal.engine.criteria (PassRate impl)
   role_notes: |
-    Three forms: `PassRate.meeting(threshold, ThresholdOrigin)`
-    (NORMATIVE, declared); `PassRate.empirical()` (closest-match
-    baseline lookup); `PassRate.empiricalFrom(supplier)` (pinned
-    baseline). The criterion lives under `engine.criteria` because
-    its evaluate() consumes `BinomialProportionEstimator` —
+    Two author-facing forms:
+    `meeting().passRate(threshold).contractRef(origin, ref)`
+    (NORMATIVE, declared) and `empirical().passRate()` (closest-
+    match baseline lookup at evaluation time). Both lower to the
+    internal `PassRate` criterion under `engine.criteria`, whose
+    `evaluate()` consumes `BinomialProportionEstimator` —
     `Criterion` itself is in `api.spec`, but concrete criteria
     that touch statistics live in `engine.criteria`.
   gotchas:
@@ -292,11 +296,16 @@ ArchUnit-style architecture test).
       belongs in `org.javai.punit.statistics`.
 
 - concept: Threshold (latency)
-  java_type: PercentileLatency (criterion family) + LatencySpec
-  package: org.javai.punit.internal.engine.criteria + org.javai.punit.api
+  java_type: LatencyCriterion returned by ServiceContract#latency()
+  package: org.javai.punit.api.criterion (author surface) +
+           org.javai.punit.internal.engine.criteria (PercentileLatency impl)
   role_notes: |
-    Latency thresholds are declared via `LatencySpec` on the typed
-    authoring surface; evaluation lives in `engine.criteria` via the
+    Latency thresholds are declared by overriding
+    `LatencyCriterion latency()` on the service contract,
+    typically as `meeting().atMost(P95, duration).contractRef(origin, ref)`.
+    The contract has either zero or one latency commitment;
+    that's captured by the singular return type rather than a
+    runtime check. Evaluation lives in `engine.criteria` via the
     `PercentileLatency` criterion.
 
 - concept: Threshold Origin
@@ -450,14 +459,14 @@ ArchUnit-style architecture test).
     Default is VERIFICATION.
 
 - concept: Compliance Testing
-  java_type: usage pattern: PassRate.meeting(τ, NORMATIVE) + Verification intent
+  java_type: usage pattern: meeting().passRate(τ).contractRef(NORMATIVE, ref) + Verification intent
   package: pattern, not a type
   role_notes: |
     No dedicated class — emerges from criterion + intent
     composition.
 
 - concept: Conformance Testing
-  java_type: usage pattern: PassRate.empirical() / empiricalFrom(...)
+  java_type: usage pattern: empirical().passRate() on the contract's criteria(); PUnit.testing(baselineSupplier) on the test
   package: pattern, not a type
   role_notes: |
     Same — pattern, not a type.
@@ -546,8 +555,8 @@ differently).
   description: |
     Each PUnit-entry-point builder ends in one of: `.assertPasses()`
     (probabilistic-test side), `.run()` (experiment side), or
-    `.build()` (pair-pattern supplier — an Experiment value handed to
-    PassRate.empiricalFrom).
+    `.build()` (pair-pattern supplier — an Experiment value handed
+    to `PUnit.testing(baselineSupplier)` at the test side).
   rationale: |
     The terminal selects the test-harness translation. Authors
     rarely call `.build()` directly except in the empirical pair
@@ -555,18 +564,21 @@ differently).
     (assertPasses / run) but the supplier-pattern has earned the
     third.
 
-- name: api / api.spec / engine boundary
+- name: api / api.criterion / api.spec / engine boundary
   description: |
     `org.javai.punit.api` carries types an author touches when
-    *authoring* (ServiceContract, Contract, ContractBuilder, Sampling,
-    Factor support, annotations, intent, origin, value matchers,
-    pacing, postcondition primitives that survive). `api.spec`
+    *authoring* (ServiceContract, Contract, Sampling, Factor
+    support, annotations, intent, origin, value matchers,
+    pacing). `org.javai.punit.api.criterion`
+    carries the types an author calls from `criteria()` and
+    `latency()`: the `Criteria` static factory, criterion
+    declaration types, `LatencyCriterion`, `CriterionPosture`. `api.spec`
     carries the typed spec surface (Experiment, ProbabilisticTest,
     Criterion, EvaluationContext, FactorsStepper, …). `engine.*`
-    is internal — engine.criteria, engine.baseline,
-    engine.explore, engine.optimize, engine.covariate,
-    engine.emit, engine.budget, engine.pacing, engine.spec.
-    Authors should never import from `engine.*`.
+    is internal — engine.criteria (PassRate, PercentileLatency
+    impls), engine.baseline, engine.explore, engine.optimize,
+    engine.covariate, engine.emit, engine.budget, engine.pacing,
+    engine.spec. Authors should never import from `engine.*`.
   enforcement: |
     `CoreArchitectureTest` (package-level rules in punit-core) +
     `AbstractionLevelArchitectureTest` (cross-cutting abstraction
@@ -576,11 +588,14 @@ differently).
   description: |
     Author publishes a `Sampling<F, I, O>` helper used by both a
     measure baseline (`@Experiment` returning `Experiment` via
-    `Experiment.measuring(...).build()`) and a probabilistic test
-    (`@ProbabilisticTest` with `PassRate.empiricalFrom(::baseline)`).
-    Java reference semantics enforce that the test and the
-    baseline draw from the same sampling population — same use
-    case, same inputs, same factors, same governors.
+    `PUnit.measuring(...).build()`) and a probabilistic test
+    (`@ProbabilisticTest` calling `PUnit.testing(this::baseline)`).
+    The service contract declares the empirical posture
+    (`empirical().passRate()`) in `criteria()`; the test passes
+    the baseline supplier directly to `PUnit.testing(...)`. Java
+    reference semantics enforce that the test and the baseline
+    draw from the same sampling population — same service
+    contract, same inputs, same factors, same governors.
   rationale: |
     Statistical coherence of "has the service degraded since the
     baseline?" requires the test and baseline to be drawn from
