@@ -27,7 +27,7 @@ class InconclusiveFoldsIntoFailTest {
 
         @Override
         public Criteria<String> criteria() {
-            return Acceptance.<String>zeroTolerance(ThresholdOrigin.POLICY)
+            return Criteria.meeting().<String>zeroTolerance()
                     .transforming(s -> {
                         try {
                             return Outcome.ok(Integer.parseInt(s));

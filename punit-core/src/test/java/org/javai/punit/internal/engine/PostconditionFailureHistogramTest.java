@@ -11,7 +11,7 @@ import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
 import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -42,7 +42,7 @@ class PostconditionFailureHistogramTest {
             return Outcome.ok(input);
         }
         @Override public Criteria<Integer> criteria() {
-            return Acceptance.<Integer>meeting(org.javai.punit.api.ThresholdOrigin.SLA, 0.5)
+            return meeting().<Integer>passRate(0.5)
                     .satisfies("alwaysFails", v ->
                             Outcome.fail("alwaysFails-mode", "input was " + v))
                     .satisfies("evenFails", v -> v % 2 == 0

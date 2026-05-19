@@ -14,7 +14,7 @@ import org.javai.punit.api.LatencyResult;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.empirical;
 import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.Experiment;
@@ -70,7 +70,7 @@ class EmpiricalLatencyEndToEndIntegrationTest {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
-        @Override public Criteria<Integer> criteria() { return Acceptance.empirical(); }
+        @Override public Criteria<Integer> criteria() { return empirical().passRate(); }
     }
 
     private static Sampling<Factors, Integer, Integer> sampling(int samples) {

@@ -2,11 +2,12 @@ package org.javai.punit.junit5.testsubjects;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.javai.punit.api.criterion.Criteria.empirical;
+import static org.javai.punit.api.criterion.Criteria.meeting;
+
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.ProbabilisticTest;
-import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.NoFactors;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
@@ -37,7 +38,7 @@ public final class PreflightInvariantSubjects {
     private static ServiceContract<NoFactors, Integer, Boolean> countingEmpirical() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.empirical();
+                return empirical().passRate();
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 INVOKE_COUNT.incrementAndGet();
@@ -50,7 +51,7 @@ public final class PreflightInvariantSubjects {
     private static ServiceContract<NoFactors, Integer, Boolean> countingContractualHighThreshold() {
         return new ServiceContract<>() {
             @Override public Criteria<Boolean> criteria() {
-                return Acceptance.meeting(ThresholdOrigin.SLA, 0.9999);
+                return meeting().passRate(0.9999);
             }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 INVOKE_COUNT.incrementAndGet();

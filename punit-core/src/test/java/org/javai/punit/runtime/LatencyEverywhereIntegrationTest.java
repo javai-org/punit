@@ -9,9 +9,8 @@ import java.util.Map;
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.Sampling;
-import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.spec.Experiment;
@@ -57,7 +56,7 @@ class LatencyEverywhereIntegrationTest {
             return Outcome.ok(input.length());
         }
         @Override public Criteria<Integer> criteria() {
-            return Acceptance.<Integer>meeting(ThresholdOrigin.SLA, 0.5)
+            return meeting().<Integer>passRate(0.5)
                     .satisfies("length is even", n ->
                             n % 2 == 0 ? Outcome.ok() : Outcome.fail("odd-length", "length=" + n));
         }

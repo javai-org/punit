@@ -13,7 +13,8 @@ import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.spec.TerminationReason;
 import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.empirical;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -437,7 +438,8 @@ class EngineIntegrationTest {
 
     private static class AlwaysPassesServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(ThresholdOrigin.SLA, 0.95);
+            return meeting().<Boolean>passRate(0.95)
+                    .contractRef(ThresholdOrigin.SLA, "test-contract-ref");
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -447,7 +449,7 @@ class EngineIntegrationTest {
     /** Empirical-posture sibling of {@link AlwaysPassesServiceContract} for the empirical-path test. */
     private static class AlwaysPassesEmpiricalServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.empirical();
+            return empirical().passRate();
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(Boolean.TRUE);
@@ -457,7 +459,7 @@ class EngineIntegrationTest {
     /** Returns business-level Fail outcomes — the "contract didn't hold" signal. */
     private static class AlwaysReturnsFailServiceContract implements ServiceContract<LlmFactors, Integer, Boolean> {
         @Override public Criteria<Boolean> criteria() {
-            return Acceptance.meeting(ThresholdOrigin.SLO, 0.95);
+            return meeting().passRate(0.95);
         }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.fail("contract_violation", "scripted failure for input " + input);

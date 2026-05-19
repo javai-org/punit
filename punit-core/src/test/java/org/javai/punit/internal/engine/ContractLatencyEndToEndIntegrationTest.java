@@ -16,7 +16,6 @@ import org.javai.punit.api.Sampling;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.TokenTracker;
-import org.javai.punit.api.criterion.Acceptance;
 import org.javai.punit.api.criterion.Criteria;
 import org.javai.punit.api.criterion.LatencyCriterion;
 import org.javai.punit.api.spec.BaselineStatistics;
@@ -82,7 +81,7 @@ class ContractLatencyEndToEndIntegrationTest {
         writeLatencyBaseline(baselineDir, Duration.ofMinutes(1), 1000);
 
         Criteria<Integer> criteria = Criteria.empty();
-        LatencyCriterion latency = LatencyCriterion.empirical(PercentileKey.P95);
+        LatencyCriterion latency = Criteria.empirical().atMost(PercentileKey.P95);
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(criteria, latency, 20), FACTORS)
                 .build();   // no .criterion(...) — auto-injection from contract
@@ -107,9 +106,9 @@ class ContractLatencyEndToEndIntegrationTest {
     @DisplayName("Contract.latency() contractual ceiling → contractual latency PASSes when observed below ceiling")
     void contractualLatencyOnContract(@TempDir Path baselineDir) throws IOException {
         Criteria<Integer> criteria = Criteria.empty();
-        LatencyCriterion latency = LatencyCriterion.meeting(
-                ThresholdOrigin.SLA,
-                LatencyCriterion.ceiling(PercentileKey.P95, Duration.ofMillis(500)));
+        LatencyCriterion latency = Criteria.meeting()
+                .atMost(PercentileKey.P95, Duration.ofMillis(500))
+                .contractRef(ThresholdOrigin.SLA, "test-contract-ref");
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(criteria, latency, 20), FACTORS)
                 .build();
@@ -133,10 +132,10 @@ class ContractLatencyEndToEndIntegrationTest {
     void functionalAndLatencyCombine(@TempDir Path baselineDir) throws IOException {
         writeLatencyBaseline(baselineDir, Duration.ofMinutes(1), 1000);
 
-        Criteria<Integer> criteria = Acceptance.<Integer>meeting(ThresholdOrigin.SLA, 0.99)
+        Criteria<Integer> criteria = Criteria.meeting().<Integer>passRate(0.99)
                 .satisfies("value-not-negative",
                         v -> v >= 0 ? Outcome.ok() : Outcome.fail("neg", "v=" + v));
-        LatencyCriterion latency = LatencyCriterion.empirical(PercentileKey.P95);
+        LatencyCriterion latency = Criteria.empirical().atMost(PercentileKey.P95);
 
         ProbabilisticTest spec = ProbabilisticTest
                 .testing(sampling(criteria, latency, 20), FACTORS)
@@ -162,7 +161,7 @@ class ContractLatencyEndToEndIntegrationTest {
             @Override public String id() { return USE_CASE_ID; }
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
             @Override public Criteria<Integer> criteria() {
-                return Acceptance.<Integer>empirical()
+                return Criteria.empirical().<Integer>passRate()
                         .satisfies("v >= 0", v -> v >= 0 ? Outcome.ok() : Outcome.fail("neg", "v=" + v));
             }
         };
@@ -179,7 +178,7 @@ class ContractLatencyEndToEndIntegrationTest {
             @Override public String id() { return USE_CASE_ID; }
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
             @Override public LatencyCriterion latency() {
-                return LatencyCriterion.empirical(PercentileKey.P95);
+                return Criteria.empirical().atMost(PercentileKey.P95);
             }
         };
 
@@ -198,7 +197,7 @@ class ContractLatencyEndToEndIntegrationTest {
         LatencyIndicator indicator = new LatencyIndicator(percentiles, sorted, sampleCount, sampleCount);
         BaselineRecord record = new BaselineRecord(
                 USE_CASE_ID, "latencyBaseline", fingerprint,
-                sampling(Criteria.empty(), LatencyCriterion.empirical(PercentileKey.P95), 1)
+                sampling(Criteria.empty(), Criteria.empirical().atMost(PercentileKey.P95), 1)
                         .inputsIdentity(),
                 sampleCount,
                 Instant.parse("2026-05-18T12:00:00Z"),

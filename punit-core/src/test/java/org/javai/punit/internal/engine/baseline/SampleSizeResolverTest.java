@@ -14,7 +14,8 @@ import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
 import org.javai.punit.api.ThresholdOrigin;
 import org.javai.punit.api.criterion.Criteria;
-import org.javai.punit.api.criterion.Acceptance;
+import static org.javai.punit.api.criterion.Criteria.empirical;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.spec.BaselineStatistics;
 import org.javai.punit.api.spec.PerCriterionPassRateStatistics;
 import org.junit.jupiter.api.DisplayName;
@@ -48,7 +49,7 @@ class SampleSizeResolverTest {
                 return Outcome.ok(input);
             }
             @Override public Criteria<String> criteria() {
-                return Acceptance.<String>empirical()
+                return empirical().<String>passRate()
                         .name("the-criterion")
                         .detectingMde(mde)
                         .atPower(power)
@@ -64,7 +65,7 @@ class SampleSizeResolverTest {
                 return Outcome.ok(input);
             }
             @Override public Criteria<String> criteria() {
-                return Acceptance.<String>meeting(ThresholdOrigin.SLA, 0.90)
+                return meeting().<String>passRate(0.90)
                         .name("threshold-criterion")
                         .satisfies("always", v -> Outcome.ok());
             }
@@ -164,11 +165,11 @@ class SampleSizeResolverTest {
             }
             @Override public Criteria<String> criteria() {
                 return Criteria.of(
-                        Acceptance.<String>empirical()
+                        empirical().<String>passRate()
                                 .name("loose")
                                 .detectingMde(0.10).atPower(0.50)
                                 .satisfies("always", v -> Outcome.ok()),
-                        Acceptance.<String>empirical()
+                        empirical().<String>passRate()
                                 .name("tight")
                                 .detectingMde(0.02).atPower(0.95)
                                 .satisfies("always", v -> Outcome.ok()));
