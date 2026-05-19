@@ -37,14 +37,15 @@ import org.javai.punit.api.ThresholdOrigin;
  * </ul>
  *
  * <p>The conventional authoring path is the contract-side surface:
- * {@code Acceptance.<O>empirical(P95, P99)} (empirical) or
- * {@code Acceptance.<O>meeting(SLA).ceiling(P95, ofMillis(500))}
- * (contractual). The framework's auto-injection then routes the
- * contract's posture through {@code SpecCriterionDeriver} to a
- * {@code PercentileLatency} instance — authors do not call these
- * factories directly. Use them at the test site only when overlaying
- * (or, post-{@code DIR-CRITERIA-OVERRIDE-punit}, replacing) the
- * contract-declared latency criterion.
+ * {@code empirical().atMost(P95).atMost(P99)} (empirical) or
+ * {@code meeting().atMost(P95, ofMillis(500)).contractRef(SLA, "...")}
+ * (contractual), declared on the contract's
+ * {@link org.javai.punit.api.Contract#latency()} sibling. The
+ * framework's auto-injection then routes the contract's posture
+ * through {@code SpecCriterionDeriver} to a {@code PercentileLatency}
+ * instance — authors do not call these factories directly. Use them
+ * at the test site only when overlaying (or, post-override-feature,
+ * replacing) the contract-declared latency criterion.
  */
 public final class PercentileLatency<OT> implements Criterion<OT, LatencyStatistics> {
 

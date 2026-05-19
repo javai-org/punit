@@ -27,17 +27,20 @@ import org.javai.punit.api.PostconditionCheck;
  * </ul>
  *
  * <p>Authors do not call {@code new CriterionDecl(...)} directly.
- * The starting point is a posture factory:
+ * The starting point is a {@link Criteria#meeting()} /
+ * {@link Criteria#empirical()} chain:
  * <pre>{@code
- * import static org.javai.punit.api.criterion.Acceptance.*;
+ * import static org.javai.punit.api.criterion.Criteria.meeting;
+ * import static org.javai.punit.api.criterion.Criteria.empirical;
+ * import static org.javai.punit.api.ThresholdOrigin.SLA;
  *
- * meeting(0.9999, SLA)
- *         .contractRef("Payment Provider SLA v2.3, §4.1");
+ * meeting().passRate(0.9999)
+ *         .contractRef(SLA, "Payment Provider SLA v2.3, §4.1");
  *
- * meeting(0.85, SLA)
+ * meeting().passRate(0.85)
  *         .where("parseable", v -> isJson(v));
  *
- * empirical()
+ * empirical().passRate()
  *         .detectingMde(0.02)
  *         .atPower(0.95);
  * }</pre>
@@ -236,7 +239,7 @@ public final class CriterionDecl<O> implements Decl<O> {
      *       record for diagnostics.</li>
      * </ul>
      *
-     * <p>Acceptance stays attached to the outer (this) decl; postconditions
+     * <p>Posture stays attached to the outer (this) decl; postconditions
      * already attached here are <em>not</em> carried forward to the
      * returned {@code TransformingDecl} — postconditions must be
      * stated either pre-transform (on this decl, via
