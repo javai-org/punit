@@ -1,9 +1,5 @@
 # PUnit: The Experimentation and Probabilistic Testing Framework
 
-> **Migrating from 0.6.x?** See [docs/MIGRATION-0.6-to-0.7.md](docs/MIGRATION-0.6-to-0.7.md).
-
----
-
 ## Governance and Sponsorship Transparency
 
 <p align="center">
