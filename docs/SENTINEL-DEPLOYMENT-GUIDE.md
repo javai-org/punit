@@ -73,7 +73,7 @@ dependencies {
 }
 ```
 
-This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`ServiceContract`, `Contract`, `ContractBuilder`, `Sampling`, `PUnit`, etc.) are production dependencies in this module because the sentinel-deployable classes are production artefacts.
+This module depends on `punit-core` via `api()` — not `testImplementation`. This is the defining characteristic of the Sentinel authoring model: PUnit types (`ServiceContract`, `Contract`, `Criteria`, `Sampling`, `PUnit`, etc.) are production dependencies in this module because the sentinel-deployable classes are production artefacts.
 
 The module must **not** depend on `junit-jupiter-api`. Sentinel-deployable code is JUnit-free. For the contract-first authoring model, see [Part 3 of the User Guide](USER-GUIDE.md#part-3-the-use-case).
 
@@ -129,7 +129,7 @@ The task requires at least one class declaring `@ProbabilisticTest` or `@Experim
 
 Sentinel-deployable classes define **what to measure** and **what to verify** about stochastic behaviour. They are consumed by both the JUnit test suite (because their `@ProbabilisticTest` / `@Experiment` methods are meta-annotated `@Test`) and the Sentinel runner (which discovers them via the build-time manifest).
 
-Placing them in a test source set makes them unavailable to the Sentinel — code in `src/test/java` is never packaged into a deployable JAR. The `app-usecases` module is the bridge: it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `ServiceContract`, `Contract`, `ContractBuilder`, `PUnit`, etc.), and produces a production artefact consumable by both engines.
+Placing them in a test source set makes them unavailable to the Sentinel — code in `src/test/java` is never packaged into a deployable JAR. The `app-usecases` module is the bridge: it depends on `app-stochastic` (to invoke stochastic services) and `punit-core` (for `ServiceContract`, `Contract`, `Criteria`, `PUnit`, etc.), and produces a production artefact consumable by both engines.
 
 This also applies to input data — anything passed to `Sampling.Builder.inputs(...)`. The Sentinel engine needs the same inputs as the JUnit engine. If input data lives in the test source set or a test resource folder, the Sentinel cannot reach it.
 

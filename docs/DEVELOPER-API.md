@@ -32,8 +32,8 @@ the change being a change at all.
 - [The PUnit entry point](#the-punit-entry-point)
 - [The Sampling primitive](#the-sampling-primitive)
 - [Service Contract and Contract](#use-case-and-contract)
-- [Postconditions: the ContractBuilder surface](#postconditions-the-contractbuilder-surface)
-- [Criteria](#criteria)
+- [Declaring acceptance criteria](#declaring-acceptance-criteria)
+- [Criterion types and composition](#criterion-types-and-composition)
 - [The empirical pair pattern](#the-empirical-pair-pattern)
 - [Spec terminals and what each one returns](#spec-terminals-and-what-each-one-returns)
 - [Public package contract](#public-package-contract)
@@ -80,15 +80,29 @@ The author-facing surface is two annotations, both attribute-free.
 void shoppingMeetsBaseline() {
     PUnit.testing(this::shoppingBaseline)
             .samples(100)
-            .criterion(PassRate.empirical())
             .assertPasses();
 }
 
 @Experiment
 void shoppingBaseline() {
-    PUnit.measuring(shoppingSampling(1000), shoppingFactors()).run();
+    PUnit.measuring(shoppingSampling(1000), shoppingFactors())
+            .experimentId("baseline-v1")
+            .run();
 }
 ```
+
+Annotated methods are always `void`. `@Experiment` methods end in
+`.run()` (which writes the baseline / exploration / optimization
+artefact). `@ProbabilisticTest` methods end in `.assertPasses()`
+(which translates the verdict into a JUnit signal). The
+probabilistic test above declares no criterion directly: the
+service contract's `criteria()` method declares the empirical
+posture (`empirical().passRate()`), and the test inherits it.
+
+The `this::shoppingBaseline` reference in the test is a separate,
+non-annotated helper used as a baseline supplier — see
+[The empirical pair pattern](#the-empirical-pair-pattern) for the
+full shape.
 
 Each annotation is a JUnit `@Test` meta-tagged `@Tag("punit")`. Every
 parameter — sample count, intent, criterion, threshold, baseline
@@ -150,7 +164,8 @@ propagate as runtime exceptions.
 
 `build()` is used in the empirical pair pattern (see
 [The empirical pair pattern](#the-empirical-pair-pattern)) to expose
-an `Experiment` value to `PassRate.empiricalFrom(...)`.
+an `Experiment` value that the probabilistic test consumes via
+`PUnit.testing(baselineSupplier)`.
 
 The `@ProbabilisticTest`-annotated method always uses `assertPasses()`
 or `build()`. The `@Experiment`-annotated method always uses `run()`
@@ -210,26 +225,28 @@ public class ShoppingBasketServiceContract
     }
 
     @Override
-    public void postconditions(ContractBuilder<BasketTranslation> b) {
-        b.ensure("Has actions",
-                t -> t.actions().isEmpty()
-                        ? Outcome.fail("empty-actions", "actions list was empty")
-                        : Outcome.ok())
-         .ensure("All actions known", ShoppingBasketServiceContract::allKnown);
+    public Criteria<BasketTranslation> criteria() {
+        return empirical().<BasketTranslation>passRate()
+                .satisfies("Has actions",
+                        t -> t.actions().isEmpty()
+                                ? Outcome.fail("empty-actions", "actions list was empty")
+                                : Outcome.ok())
+                .satisfies("All actions known", ShoppingBasketServiceContract::allKnown);
     }
 }
 ```
 
 `ServiceContract<FT, IT, OT>` extends `Contract<IT, OT>`. The author writes
-one `implements` clause and overrides three methods minimum (`invoke`
-and `postconditions`, plus optional metadata methods).
+one `implements` clause and overrides two methods minimum (`invoke`
+and `criteria`, plus optional metadata methods).
 
 ### What the framework reads from a Service Contract
 
 | Method                                | Purpose                                              | Default                       |
 |---------------------------------------|------------------------------------------------------|-------------------------------|
 | `invoke(IT, TokenTracker)`            | The service call. Returns Outcome.                   | abstract — author overrides   |
-| `postconditions(ContractBuilder<OT>)` | Declares the contract clauses.                       | abstract — author overrides   |
+| `criteria()`                          | Declares the contract's verdict-producing criteria.  | default empty — author overrides |
+| `latency()`                           | Declares latency-percentile commitment, if any.      | default empty                 |
 | `id()`                                | Stable identifier for filenames and logs.            | kebab-cased simple class name |
 | `description()`                       | Human-readable description.                          | empty                         |
 | `warmup()`                            | Discarded warmup invocations before counted samples. | 0                             |
@@ -248,7 +265,7 @@ must not mutate observable behaviour during a configuration's run.
 Pre-existing caches and pools are fine; live reconfiguration in
 response to sample outcomes is not.
 
-### What goes in `invoke` vs `postconditions`
+### What goes in `invoke` vs `criteria`
 
 Keep `invoke` primitive:
 
@@ -260,9 +277,10 @@ Keep `invoke` primitive:
   treatment of a *defect*, not of a sample that didn't meet
   contract.
 - Contract judgement — "the response had this property" or "the
-  response did not have this property" — belongs in
-  `postconditions(ContractBuilder)`. That is where each clause gets
-  a name and surfaces clause-named diagnostics on failure.
+  response did not have this property" — belongs on the criterion
+  declaration's `.satisfies(...)` clauses inside `criteria()`.
+  That is where each clause gets a name and surfaces clause-named
+  diagnostics on failure.
 - Service-level errors (the service returned a structured error
   code) belong in `invoke` returning `Outcome.fail`.
 
@@ -271,90 +289,159 @@ This is a recorded discipline — see
 
 ---
 
-## Postconditions: the ContractBuilder surface
+## Declaring acceptance criteria
 
-`org.javai.punit.api.ContractBuilder<O>` is the authoring surface for
-the contract clauses. Authors never construct one directly — the
-framework supplies a fresh builder to `postconditions(ContractBuilder<O>)`
-and collects the result.
+A service contract declares what counts as a passing sample by
+overriding `Criteria<O> criteria()` and returning a value built up
+from the `Criteria.meeting()` (contractual threshold) and
+`Criteria.empirical()` (baseline-comparison) static factories in
+`org.javai.punit.api.criterion`.
 
-Two methods, both fluent:
+### Declaring a single criterion
 
 ```java
-public final class ContractBuilder<O> {
-    public ContractBuilder<O> ensure(String name, Function<O, Outcome<Void>> predicate);
-    public <D> ContractBuilder<O> deriving(
-            String name,
-            Function<O, D> transform,
-            Consumer<ContractBuilder<D>> sub);
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import static org.javai.punit.api.ThresholdOrigin.SLA;
+
+@Override
+public Criteria<Receipt> criteria() {
+    return meeting().<Receipt>passRate(0.9999)
+            .contractRef(SLA, "Payment Provider SLA v2.3, §4.1")
+            .satisfies("Authorisation returned APPROVED",
+                    r -> r.approved() ? Outcome.ok() : Outcome.fail("declined", r.reason()));
 }
 ```
 
-- **`ensure(name, predicate)`** — leaf clause. Predicate returns
+The criterion declaration's `.name(...)` is optional when the
+contract has only one criterion; missing names default to
+`Criteria.DEFAULT_CRITERION_ID`.
+
+### Declaring multiple criteria
+
+```java
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import static org.javai.punit.api.criterion.Criteria.empirical;
+import static org.javai.punit.api.criterion.Criteria.of;
+
+@Override
+public Criteria<Receipt> criteria() {
+    return of(
+        meeting().<Receipt>passRate(0.9999)
+            .contractRef(SLA, "Payment Provider SLA v2.3, §4.1")
+            .name("payment-completes")
+            .satisfies("Authorisation returned APPROVED", ...),
+        empirical().<Receipt>passRate()
+            .name("structure-valid")
+            .satisfies("Receipt is parseable", ...));
+}
+```
+
+When more than one criterion is bundled, every declaration must
+supply a `.name(...)` and the names must be unique within the
+bundle. Both rules are enforced by `Criteria.of(...)`.
+
+### Methods on a criterion declaration
+
+- **`.satisfies(name, predicate)`** — leaf clause. Predicate returns
   `Outcome.ok()` on pass or `Outcome.fail(name, message)` on fail.
   The name is the clause's stable identifier in the verdict.
-- **`deriving(name, transform, sub)`** — adds a derivation step that
-  transforms the response mid-chain, then evaluates a sub-builder
-  against the derived value. Used when one clause needs a derived
-  view of the response that several other clauses depend on.
-
-A `Postcondition`, `PostconditionEvaluator`, etc. exist as
-public-but-internal types in `org.javai.punit.api`. Authors compose
-through `ContractBuilder`; do not subclass these types directly.
+- **`.transforming(function)`** — adds a transformation step;
+  subsequent `.satisfies(...)` clauses evaluate against the
+  transformed value. Used when one criterion needs a derived view
+  of the response that several clauses depend on
+  (parse-then-validate).
+- **`.contractRef(origin, ref)`** — stamps the threshold's
+  provenance and a free-text reference (e.g., an SLA document and
+  section number) onto the verdict.
+- **`.name(id)`** — required when the contract bundles more than
+  one criterion; identifies the criterion in the per-criterion
+  verdict rows and in the baseline file.
 
 ---
 
-## Criteria
+## Criterion types and composition
 
 A criterion is a spec-level claim evaluated against the observed
-sample aggregate. Criteria live in
-`org.javai.punit.api.spec.Criterion<OT, S extends BaselineStatistics>`
-as the abstract surface; concrete criteria with statistical
-machinery live in `org.javai.punit.internal.engine.criteria` (so the
-api package stays free of statistical dependencies — see
+sample aggregate. The abstract type lives at
+`org.javai.punit.api.spec.Criterion<OT, S extends BaselineStatistics>`;
+concrete criteria with statistical machinery live under
+`org.javai.punit.internal.engine.criteria` (so the api package
+stays free of statistical dependencies — see
 [Statistics isolation rule](#statistics-isolation-rule)).
 
-### PassRate (Bernoulli pass-rate)
+### Pass-rate criterion factories
 
-Three factory forms:
+Two factory entry points live as static methods on `Criteria`:
 
 ```java
-PassRate.meeting(0.95, ThresholdOrigin.SLA);        // contractual
-PassRate.empirical();                                // closest-match baseline
-PassRate.empiricalFrom(this::shoppingBaseline);     // pinned baseline
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import static org.javai.punit.api.criterion.Criteria.empirical;
+import static org.javai.punit.api.ThresholdOrigin.SLA;
+
+// Contractual — declared threshold, NORMATIVE origin
+meeting().<O>passRate(0.95).contractRef(SLA, "...").satisfies("...", ...);
+
+// Empirical — closest-match baseline lookup
+empirical().<O>passRate().satisfies("...", ...);
 ```
 
-- **`meeting(τ, origin)`** — declared threshold, NORMATIVE origin
-  (SLA / SLO / Policy). With Verification intent the Feasibility
+- **`meeting().passRate(τ)`** — declared threshold, NORMATIVE origin
+  (SLA / SLO / Policy). With VERIFICATION intent the Feasibility
   Gate enforces sample-size adequacy.
-- **`empirical()`** — closest-match baseline lookup; threshold
-  derived at evaluation time from the resolved baseline's pass
-  rate, via the one-sided Wilson lower bound at the test sample
-  size (Statistical Companion §3.4 / §4.3.2).
-- **`empiricalFrom(supplier)`** — pinned baseline; the supplier
-  returns an `Experiment` value built via
-  `Experiment.measuring(...).build()`. See
-  [The empirical pair pattern](#the-empirical-pair-pattern).
+- **`empirical().passRate()`** — closest-match baseline lookup;
+  threshold derived at evaluation time from the resolved baseline's
+  pass rate, via the one-sided Wilson lower bound at the test sample
+  size (Statistical Companion §3.4 / §4.3.2). The baseline is
+  supplied at the test call site via
+  `PUnit.testing(baselineSupplier)` (see
+  [The empirical pair pattern](#the-empirical-pair-pattern)).
 
-### PercentileLatency
+### Latency criterion
 
-Asserts a percentile threshold on the latency-given-success
-distribution. Reads `LatencyStatistics` from the resolved baseline.
+Latency commitments live on the service contract's sibling
+`LatencyCriterion latency()` method, not in the criteria bundle:
 
-### Composing criteria
+```java
+import static java.time.Duration.ofSeconds;
+import static org.javai.punit.api.PercentileKey.P95;
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import static org.javai.punit.api.ThresholdOrigin.SLA;
+
+@Override
+public LatencyCriterion latency() {
+    return meeting().atMost(P95, ofSeconds(1))
+            .contractRef(SLA, "Acme SLA §4.2");
+}
+```
+
+The structural 0..1 cardinality of latency is captured by the
+singular return type rather than by a runtime check inside the
+`criteria()` bundle. A latency criterion auto-injects into every
+probabilistic test against the contract.
+
+### Composing on the test builder (auto-inject + explicit additions)
+
+The modern shape is to declare the contract's posture inside
+`criteria()` and let the test inherit it:
 
 ```java
 PUnit.testing(sampling, factors)
-        .criterion(PassRate.empirical())
-        .criterion(PercentileLatency.atP95(...))
-        .reportOnly(SomeDiagnosticCriterion.of(...))
+        .assertPasses();
+```
+
+For overrides or additional criteria, `.criterion(...)` and
+`.reportOnly(...)` are still available on the test builder:
+
+```java
+PUnit.testing(sampling, factors)
+        .reportOnly(empirical().<O>passRate())   // diagnostic-only
         .assertPasses();
 ```
 
 `.criterion(c)` contributes to the combined verdict; `.reportOnly(c)`
 is evaluated and attached but excluded from composition. The
-combined verdict is the conjunction over `.criterion(...)` calls
-(every contributing criterion must PASS for the verdict to PASS).
+combined verdict is the conjunction over contributing criteria
+(every must PASS for the verdict to PASS).
 
 ---
 
@@ -370,24 +457,44 @@ private Sampling<F, I, O> shoppingSampling(int samples) {
     return Sampling.of(f -> new ShoppingBasketServiceContract(f), samples, ...inputs);
 }
 
+// @Experiment-annotated method actually runs the measure and writes
+// the baseline YAML to disk. Always void; ends in .run().
 @Experiment
-Experiment shoppingBaseline() {
-    return Experiment.measuring(shoppingSampling(1000), shoppingFactors()).build();
+void measureBaseline() {
+    PUnit.measuring(shoppingSampling(1000), shoppingFactors())
+            .experimentId("baseline-v1")
+            .run();
+}
+
+// Plain (non-annotated) helper that builds an Experiment value
+// structurally — used by the test as a baseline supplier to
+// identify which baseline to resolve. Returns Experiment via .build().
+private Experiment baseline() {
+    return PUnit.measuring(shoppingSampling(1000), shoppingFactors())
+            .experimentId("baseline-v1")
+            .build();
 }
 
 @ProbabilisticTest
 void shoppingMeetsBaseline() {
-    PUnit.testing(shoppingSampling(100), shoppingFactors())
-            .criterion(PassRate.empiricalFrom(this::shoppingBaseline))
+    PUnit.testing(this::baseline)
+            .samples(100)
             .assertPasses();
 }
 ```
 
-The shared `Sampling` reference enforces — at compile time — that the
-test and the baseline carry the same use-case factory, same input
-cycle, same loop governors. The shared factors call site enforces
-the same factor record. The framework's empirical-baseline resolver
-matches the test's factors against the measure's stored baseline.
+The two methods carry the same `Sampling`, the same factors, and
+the same `experimentId`. The `@Experiment` method produces the
+baseline file; the `baseline()` helper produces an `Experiment`
+value whose identity (sampling + factors + id) the framework uses
+to look up the matching baseline at test time. Java reference
+semantics enforce that the two stay aligned — share the
+`Sampling` helper and the factors call site, and divergence
+becomes a compile error rather than a silent mismatch.
+
+The service contract's `criteria()` method declares the empirical
+posture (`empirical().passRate()`); no `.criterion(...)` call is
+needed on the test builder.
 
 Why this matters: an empirical probabilistic test asks *"has the
 service's pass rate degraded from the rate the baseline measured?"*
@@ -405,7 +512,7 @@ sameness. The pairing is structural, not a brittle prose convention.
 | `TestBuilder.assertPasses()` | `void`                                          | `AssertionFailedError` on FAIL; `TestAbortedException` on INCONCLUSIVE |
 | `TestBuilder.build()`        | `ProbabilisticTest`                             | engine-level defects propagate                                         |
 | `MeasureBuilder.run()`       | `void` (artefact written to disk)               | engine-level defects propagate                                         |
-| `MeasureBuilder.build()`     | `Experiment` (used by `PassRate.empiricalFrom`) | none                                                                   |
+| `MeasureBuilder.build()`     | `Experiment` (consumed by `PUnit.testing(baselineSupplier)`) | none                                                                   |
 | `ExploreBuilder.run()`       | `void` (artefacts written per configuration)    | engine-level defects propagate                                         |
 | `OptimizeBuilder.run()`      | `void` (history file written)                   | engine-level defects propagate                                         |
 
@@ -431,7 +538,8 @@ prefix and the ArchUnit regression rules.
 
 | Package                                                                               | Contains                                                                                                                                      | Author may import?                                            |
 |---------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| `org.javai.punit.api`                                                                 | Annotations, ServiceContract, Contract, ContractBuilder, Sampling, Factor support, ValueMatcher, TestIntent, ThresholdOrigin, Pacing, PacingConfiguration, TokenTracker, … | yes                                                           |
+| `org.javai.punit.api`                                                                 | Annotations, ServiceContract, Contract, Sampling, Factor support, ValueMatcher, TestIntent, ThresholdOrigin, Pacing, PacingConfiguration, TokenTracker, …                              | yes                                                           |
+| `org.javai.punit.api.criterion`                                                       | `Criteria` static factory, criterion declaration types, `LatencyCriterion`, `CriterionPosture`, … — what an author calls from `criteria()` and `latency()`                              | yes                                                           |
 | `org.javai.punit.api.spec`                                                            | Spec types (Spec, Experiment, ProbabilisticTest, Criterion, EvaluationContext, FactorsStepper, NextFactor, BaselineProvider, …)               | yes                                                           |
 | `org.javai.punit.api.covariate`                                                       | Covariate (interface) and built-in covariate categories                                                                                       | yes                                                           |
 | `org.javai.punit.runtime`                                                                      | `PUnit` entry point only — emitters live under `internal.runtime`                                                                             | yes — for `PUnit` only                                        |
@@ -570,10 +678,10 @@ Business-level failures travel as data, not as exceptions. Use
 `org.javai.outcome.Outcome<T>` (from the `org.javai:outcome`
 library): return `Outcome.ok(value)` for success,
 `Outcome.fail(name, message)` for an expected business-level failure.
-In the typed authoring surface this surfaces as `ServiceContractOutcome<OT>`
+In a service contract this is wrapped as `ServiceContractOutcome<OT>`
 whose `value` is an `Outcome<OT>`; authors write
-`ServiceContractOutcome.ok(...)` or `ServiceContractOutcome.fail(...)` indirectly
-through the Contract `apply` dispatch.
+`ServiceContractOutcome.ok(...)` or `ServiceContractOutcome.fail(...)`
+indirectly through the Contract `apply` dispatch.
 
 Reserve `throw` for genuine *defects*: programming mistakes
 (`NullPointerException`, `IllegalStateException`,
