@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.javai.outcome.Outcome;
 import org.javai.punit.api.ThresholdOrigin;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
 import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.LatencySpec;
@@ -50,13 +49,16 @@ class EngineResourceControlsAndLatencyIntegrationTest {
             this.scriptMillis = scriptMillis;
         }
 
-        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             long millis = scriptMillis[index % scriptMillis.length];
             index++;
             sleep(millis);
             return Outcome.ok(input);
         }
+        @Override public Criteria<Integer> criteria() {
+            return meeting().<Integer>zeroTolerance();
+        }
+
     }
 
     /** Sleeps a fixed amount and reports a fixed token cost. */
@@ -69,12 +71,15 @@ class EngineResourceControlsAndLatencyIntegrationTest {
             this.tokens = tokens;
         }
 
-        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             sleep(sleepMillis);
             tracker.recordTokens(tokens);
             return Outcome.ok(input);
         }
+        @Override public Criteria<Integer> criteria() {
+            return meeting().<Integer>zeroTolerance();
+        }
+
     }
 
     // ── 1. Time budget stops sampling early ─────────────────────
@@ -111,10 +116,13 @@ class EngineResourceControlsAndLatencyIntegrationTest {
         // per outcome would be accounted post-sample; the *projection*
         // is static, so this scenario uses tokenCharge to model it.
         ServiceContract<Factors, Integer, Integer> zeroOutcomeTokens = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
@@ -140,10 +148,13 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("static token charge is accounted for each sample")
     void staticChargeAccountedEachSample() {
         ServiceContract<Factors, Integer, Integer> zeroCost = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
@@ -191,10 +202,13 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void maxRpsInsertsDelay() {
         // 10 RPS → 100ms min delay between samples.
         ServiceContract<Factors, Integer, Integer> pacingUc = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
             @Override public Pacing pacing() {
                 return Pacing.builder().maxRequestsPerSecond(10.0).build();
             }
@@ -220,10 +234,13 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void mostRestrictiveWinsComposition() {
         // maxRps implies 100ms; min explicit 250ms should dominate.
         ServiceContract<Factors, Integer, Integer> pacingUc = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.ok(input);
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
             @Override public Pacing pacing() {
                 return Pacing.builder()
                         .maxRequestsPerSecond(10.0)
@@ -254,7 +271,6 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void failSampleCatchesAndCounts() {
         AtomicInteger n = new AtomicInteger();
         ServiceContract<Factors, Integer, Integer> flaky = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 int i = n.incrementAndGet();
                 if (i % 2 == 0) {
@@ -262,6 +278,10 @@ class EngineResourceControlsAndLatencyIntegrationTest {
                 }
                 return Outcome.ok(input);
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
@@ -284,10 +304,13 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("ABORT_TEST (default) rethrows a thrown defect")
     void abortTestRethrows() {
         ServiceContract<Factors, Integer, Integer> defective = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 throw new IllegalStateException("never mind the exception policy, this is a defect");
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
@@ -308,10 +331,13 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     @DisplayName("maxExampleFailures caps retained detail but not failure counts")
     void maxExampleFailuresCaps() {
         ServiceContract<Factors, Integer, Integer> failing = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
             @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
                 return Outcome.fail("scripted", "boom");
             }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
+
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
@@ -364,7 +390,9 @@ class EngineResourceControlsAndLatencyIntegrationTest {
     void percentileLatencyBreachProducesFail() {
         // 50ms sleeps, assert p50 ≤ 10ms.
         ServiceContract<Factors, Integer, Boolean> slow = new ServiceContract<>() {
-            @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
+            @Override public Criteria<Boolean> criteria() {
+                return meeting().<Boolean>zeroTolerance();
+            }
             @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
                 sleep(50);
                 return Outcome.ok(Boolean.TRUE);

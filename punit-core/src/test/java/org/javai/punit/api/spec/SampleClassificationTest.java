@@ -1,5 +1,7 @@
 package org.javai.punit.api.spec;
 
+import static org.javai.punit.api.criterion.Criteria.meeting;
+import org.javai.punit.api.criterion.Criteria;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -8,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.PostconditionResult;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -27,7 +28,10 @@ class SampleClassificationTest {
         @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
             return Outcome.ok(input.length());
         }
-        @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
+        @Override public Criteria<Integer> criteria() {
+            return meeting().<Integer>zeroTolerance();
+        }
+
     };
 
     private static ServiceContractOutcome<String, Integer> outcomeOk(int value, Duration duration, long tokens) {
@@ -91,7 +95,10 @@ class SampleClassificationTest {
         void okExceedingMaxLatency() {
             ServiceContract<Factors, String, Integer> bounded = new ServiceContract<>() {
                 @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) { return Outcome.ok(0); }
-                @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
+                @Override public Criteria<Integer> criteria() {
+                    return meeting().<Integer>zeroTolerance();
+                }
+
                 @Override public Optional<Duration> maxLatency() {
                     return Optional.of(Duration.ofMillis(100));
                 }
@@ -112,7 +119,10 @@ class SampleClassificationTest {
         void okAtMaxLatencyExact() {
             ServiceContract<Factors, String, Integer> bounded = new ServiceContract<>() {
                 @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) { return Outcome.ok(0); }
-                @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
+                @Override public Criteria<Integer> criteria() {
+                    return meeting().<Integer>zeroTolerance();
+                }
+
                 @Override public Optional<Duration> maxLatency() {
                     return Optional.of(Duration.ofMillis(100));
                 }

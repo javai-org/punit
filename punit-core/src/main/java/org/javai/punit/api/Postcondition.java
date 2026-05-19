@@ -51,10 +51,10 @@ import org.javai.outcome.Outcome;
  *
  * <p>To inspect a derived view of the produced value (parsed JSON,
  * normalised text, an extracted sub-record), declare a transforming
- * criterion via
- * {@link org.javai.punit.api.criterion.Criteria#transforming(
- * String, java.util.function.Function, java.util.function.Consumer)
- * Criteria.transforming(...)}. The transform is owned by the
+ * criterion via {@code decl.transforming(transform)} on the value-form
+ * authoring surface — see
+ * {@link org.javai.punit.api.criterion.CriterionDecl#transforming(
+ * java.util.function.Function)}. The transform is owned by the
  * criterion; the postcondition's job remains strictly that of a
  * predicate over whatever value reaches it.
  *

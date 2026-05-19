@@ -16,11 +16,10 @@ import org.javai.punit.api.covariate.Covariate;
  *
  * <p>{@code ServiceContract} extends {@link Contract} — the operational layer
  * that carries the service call ({@link Contract#invoke invoke}) and
- * the acceptance criteria ({@link Contract#postconditions(PostconditionBuilder)
- * postconditions}). An author writing one service contract implements one
- * interface and overrides three methods: {@code invoke},
- * {@code postconditions(PostconditionBuilder)}, and whichever metadata
- * methods diverge from the framework defaults.
+ * the acceptance criteria ({@link Contract#criteria() criteria}). An
+ * author writing one service contract implements one interface and
+ * overrides three methods: {@code invoke}, {@code criteria()}, and
+ * whichever metadata methods diverge from the framework defaults.
  *
  * <p>{@code FT} is the factor record — the configuration the author has
  * chosen to vary. {@code IT} is the per-sample input. {@code OT} is the

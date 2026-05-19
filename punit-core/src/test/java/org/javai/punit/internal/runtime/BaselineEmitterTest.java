@@ -9,8 +9,9 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.NoFactors;
+import org.javai.punit.api.criterion.Criteria;
+import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.Sampling;
 import org.javai.punit.api.TokenTracker;
 import org.javai.punit.api.ServiceContract;
@@ -27,7 +28,6 @@ class BaselineEmitterTest {
 
     private static final ServiceContract<NoFactors, Integer, Boolean> ALWAYS_PASSES = new ServiceContract<>() {
         @Override public String id() { return "AlwaysPassesServiceContract"; }
-        @Override public void postconditions(PostconditionBuilder<Boolean> b) { /* none */ }
         @Override public Outcome<Boolean> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(true);
         }
@@ -82,10 +82,11 @@ class BaselineEmitterTest {
 
     private static final ServiceContract<NoFactors, Integer, String> EVENS_PASS = new ServiceContract<>() {
         @Override public String id() { return "EvensPassServiceContract"; }
-        @Override public void postconditions(PostconditionBuilder<String> b) {
-            b.ensure("non-blank", s -> s.isBlank()
-                    ? Outcome.fail("blank", "value was blank")
-                    : Outcome.ok(null));
+        @Override public Criteria<String> criteria() {
+            return meeting().<String>zeroTolerance()
+                    .satisfies("non-blank", s -> s.isBlank()
+                            ? Outcome.fail("blank", "value was blank")
+                            : Outcome.ok(null));
         }
         @Override public Outcome<String> invoke(Integer input, TokenTracker tracker) {
             return input % 2 == 0 ? Outcome.ok("even-" + input) : Outcome.fail("odd", "got " + input);

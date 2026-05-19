@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
 import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.Sampling;
@@ -214,8 +213,9 @@ class LatencyEverywhereIntegrationTest {
             @Override public Outcome<Integer> invoke(String input, TokenTracker tracker) {
                 return Outcome.ok(input.length());
             }
-            @Override public void postconditions(PostconditionBuilder<Integer> b) {
-                b.ensure("never satisfies", n -> Outcome.fail("nope", "always fails"));
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance()
+                        .satisfies("never satisfies", n -> Outcome.fail("nope", "always fails"));
             }
         };
         Sampling<F, String, Integer> sampling = Sampling

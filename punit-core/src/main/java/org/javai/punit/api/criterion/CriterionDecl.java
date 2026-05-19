@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
+import org.javai.punit.api.Postcondition;
 import org.javai.punit.api.PostconditionCheck;
 
 /**
@@ -271,20 +271,15 @@ public final class CriterionDecl<O> implements Decl<O> {
 
     @Override
     public Criterion<O> toRuntime(String id) {
-        Criterion<O> base = Criterion.direct(id, this::populatePostconditions);
-        if (base instanceof DirectCriterion<O> direct) {
-            return direct.withPosture(posture);
+        Objects.requireNonNull(id, "id");
+        if (id.isBlank()) {
+            throw new IllegalArgumentException("id must not be blank");
         }
-        // Defensive: Criterion.direct always returns DirectCriterion
-        // today, but the wrapper path keeps the framework correct if
-        // that ever changes.
-        return base;
-    }
-
-    private void populatePostconditions(PostconditionBuilder<O> pb) {
+        List<Postcondition<O>> clauses = new ArrayList<>(postconditions.size());
         for (NamedPostcondition<O> p : postconditions) {
-            pb.ensure(p.name(), p.check());
+            clauses.add(new Postcondition.Leaf<>(p.name(), p.check()));
         }
+        return new DirectCriterion<>(id, clauses).withPosture(posture);
     }
 
     private CriterionDecl<O> appendPostcondition(String postconditionName, PostconditionCheck<O> check) {

@@ -14,10 +14,9 @@ import org.javai.punit.api.PostconditionResult;
  * {@link CriterionSampleOutcome#FAIL FAIL}; INCONCLUSIVE cannot
  * arise.
  *
- * <p>Package-private; constructed by
- * {@link Criteria#direct(String, java.util.function.Consumer)} and
- * by the K=1 default {@link DefaultCriterion}. Authors do not
- * reference this type directly.
+ * <p>Package-private; constructed when a {@link CriterionDecl} is
+ * lowered to its runtime criterion. Authors do not reference this
+ * type directly.
  */
 final class DirectCriterion<O> implements Criterion<O> {
 

@@ -9,7 +9,6 @@ import org.javai.punit.api.spec.FactorsStepper;
 import org.javai.punit.api.spec.NextFactor;
 import org.javai.punit.api.spec.ProbabilisticTest;
 import org.javai.punit.api.spec.ProbabilisticTestResult;
-import org.javai.punit.api.PostconditionBuilder;
 import org.javai.punit.api.criterion.Criteria;
 import static org.javai.punit.api.criterion.Criteria.meeting;
 import org.javai.punit.api.Sampling;
@@ -98,7 +97,9 @@ class PostconditionFailureHistogramTest {
     void emptyHistogramWhenNoClauses() {
         ServiceContract<Factors, Integer, Integer> noClauses = new ServiceContract<>() {
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) { return Outcome.ok(i); }
-            @Override public void postconditions(PostconditionBuilder<Integer> b) { /* none */ }
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance();
+            }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
                 .<Factors, Integer, Integer>builder()
@@ -121,8 +122,9 @@ class PostconditionFailureHistogramTest {
             @Override public Outcome<Integer> invoke(Integer i, TokenTracker t) {
                 return Outcome.fail("upstream-error", "always fails at apply");
             }
-            @Override public void postconditions(PostconditionBuilder<Integer> b) {
-                b.ensure("would-have-checked", v -> Outcome.ok());
+            @Override public Criteria<Integer> criteria() {
+                return meeting().<Integer>zeroTolerance()
+                        .satisfies("would-have-checked", v -> Outcome.ok());
             }
         };
         Sampling<Factors, Integer, Integer> sampling = Sampling
@@ -212,8 +214,9 @@ class PostconditionFailureHistogramTest {
         @Override public Outcome<Integer> invoke(Integer input, TokenTracker tracker) {
             return Outcome.ok(input);
         }
-        @Override public void postconditions(PostconditionBuilder<Integer> b) {
-            b.ensure("alwaysFails", v -> Outcome.fail("alwaysFails", "input " + v));
+        @Override public Criteria<Integer> criteria() {
+            return meeting().<Integer>zeroTolerance()
+                    .satisfies("alwaysFails", v -> Outcome.fail("alwaysFails", "input " + v));
         }
     }
 

@@ -1,12 +1,5 @@
 package org.javai.punit.api.criterion;
 
-import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-import org.javai.outcome.Outcome;
-import org.javai.punit.api.PostconditionBuilder;
-
 /**
  * A named, contract-level partition of the functional dimension. A
  * criterion is a unit that judges a single sample's produced value
@@ -27,31 +20,19 @@ import org.javai.punit.api.PostconditionBuilder;
  *
  * <h2>Authoring</h2>
  *
- * <p>The idiomatic authoring path is the {@link Criteria} factory:
- * {@link Criteria#direct(String, java.util.function.Consumer)} for a
- * criterion whose postconditions evaluate directly against the
- * contract's output, or
- * {@link Criteria#transforming(String, java.util.function.Function,
- * java.util.function.Consumer)} for a criterion that first transforms
- * the contract's output to a derived form, then evaluates
- * postconditions against the derived value. The factory produces
- * implementations that own the per-sample machinery — authors do not
- * reimplement evaluate-then-classify by hand.
+ * <p>The idiomatic authoring path is the {@link Criteria} value-form
+ * factory: {@link Criteria#meeting()} / {@link Criteria#empirical()}
+ * yield a posture-bearing {@link Decl} whose
+ * {@code .satisfies(name, predicate)} method attaches postconditions,
+ * and {@link Decl#transforming(java.util.function.Function)} yields a
+ * derived-typed decl for the transform-then-postconditions shape.
+ * {@link Criteria#of(Decl[])} bundles multiple decls when a contract
+ * partitions its acceptance across several criteria.
  *
  * <p>Direct implementation of this interface is supported but is
  * not the expected path; the factory entry points cover the
  * methodology's two shapes (transform / no-transform) and enforce
  * the one-transform-per-criterion cap structurally.
- *
- * <h2>The single-criterion default</h2>
- *
- * <p>A contract that does not explicitly declare criteria yields a
- * single-criterion list (the K=1 default) whose postconditions are
- * the contract's existing
- * {@link org.javai.punit.api.Contract#postconditions()}. That
- * default criterion is a {@code direct} criterion under the hood; it
- * has no transform, and its per-sample outcome is restricted to PASS
- * or FAIL (INCONCLUSIVE cannot arise without a transform).
  *
  * @param <O> the contract's per-sample output value type
  */
@@ -103,47 +84,5 @@ public interface Criterion<O> {
      */
     default CriterionPosture posture() {
         return CriterionPosture.implicit();
-    }
-
-    /**
-     * Construct a criterion whose postcondition chain evaluates
-     * directly against the contract's output. No transform.
-     *
-     * <p>Framework-internal entry point: the value-returning
-     * authoring surface (see {@link Criteria#meeting()} /
-     * {@link Criteria#empirical()} and {@link Criteria#of(Decl[])}) is
-     * the path authors use.
-     */
-    static <O> Criterion<O> direct(
-            String id, Consumer<PostconditionBuilder<O>> body) {
-        validateId(id);
-        Objects.requireNonNull(body, "body");
-        PostconditionBuilder<O> b = new PostconditionBuilder<>();
-        body.accept(b);
-        return new DirectCriterion<>(id, b.build());
-    }
-
-    /**
-     * Construct a criterion that first transforms the contract's
-     * output {@code O} to a derived form {@code D}, then evaluates
-     * its postcondition chain against the derived value.
-     */
-    static <O, D> Criterion<O> transforming(
-            String id,
-            Function<O, Outcome<D>> transform,
-            Consumer<PostconditionBuilder<D>> body) {
-        validateId(id);
-        Objects.requireNonNull(transform, "transform");
-        Objects.requireNonNull(body, "body");
-        PostconditionBuilder<D> b = new PostconditionBuilder<>();
-        body.accept(b);
-        return new TransformingCriterion<>(id, transform, b.build());
-    }
-
-    private static void validateId(String id) {
-        Objects.requireNonNull(id, "id");
-        if (id.isBlank()) {
-            throw new IllegalArgumentException("id must not be blank");
-        }
     }
 }
