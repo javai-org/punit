@@ -76,25 +76,25 @@ It does *not* cover:
 The author-facing surface is two annotations, both attribute-free.
 
 ```java
+@Experiment
+void shoppingBaseline() {
+  PUnit.measuring(shoppingSampling(1000), shoppingFactors())
+          .experimentId("baseline-v1")
+          .run();
+}
+
 @ProbabilisticTest
 void shoppingMeetsBaseline() {
     PUnit.testing(this::shoppingBaseline)
             .samples(100)
             .assertPasses();
 }
-
-@Experiment
-void shoppingBaseline() {
-    PUnit.measuring(shoppingSampling(1000), shoppingFactors())
-            .experimentId("baseline-v1")
-            .run();
-}
 ```
 
-Annotated methods are always `void`. `@Experiment` methods end in
-`.run()` (which writes the baseline / exploration / optimization
-artefact). `@ProbabilisticTest` methods end in `.assertPasses()`
-(which translates the verdict into a JUnit signal). The
+Annotated methods are always `void`. `@ProbabilisticTest` methods
+end in `.assertPasses()` (which translates the verdict into a
+JUnit signal).`@Experiment` methods end in `.run()` (which writes
+the baseline / exploration / optimization artefact). The
 probabilistic test above declares no criterion directly: the
 service contract's `criteria()` method declares the empirical
 posture (`empirical().passRate()`), and the test inherits it.
