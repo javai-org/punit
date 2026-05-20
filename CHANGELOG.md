@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-20
+
+> **🎯 Stable release.** Graduates the 0.7.0-alpha series straight
+> to 0.8.0. Highlights since 0.7.0-alpha6: Apache 2.0 relicense
+> with DCO contributor model; MEASURE baseline schema bump
+> `punit-baseline-2` → `punit-baseline-3` (per-methodology-
+> criterion shape); HTML report per-criterion breakdown;
+> back-compat constructor cleanup on `ProbabilisticTestResult`
+> and `SampleSummary`; verdict-XML 1.1 schema; retirement of
+> the legacy `PostconditionBuilder` authoring path in favour of
+> the value-form `Criteria.meeting()` / `Criteria.empirical()`
+> factory shape. See section headings below for details.
+
 ### Changed (license)
 
 - **Relicensed from Attribution Required License (ARL-1.0) to
@@ -42,8 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   run level, not partitioned by criterion.
 
 - **`BaselineReader` rejects `punit-baseline-2` files with a
-  re-MEASURE migration message.** No silent read-time adapter
-  — files on disk in the older shape must be regenerated.
+  re-MEASURE migration message.** No silent read-time adapter=.
+  Files on disk in the older shape must be regenerated i.e. .
+  experiments must be re-run.
 
 - **`PerCriterionPassRateStatistics` is a new `BaselineStatistics`
   variant** wrapping `Map<String, PassRateStatistics>`. It is
